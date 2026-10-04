@@ -191,7 +191,11 @@ def changed_rows(root: Path, base: str, prd_rel: str, pattern: str):
     new: dict[str, list[str]] = {}
     plain: list[tuple[str, str]] = []
     current = ""
+    header_at = -1
     for line in diff.splitlines():
+        if line.startswith("+") and SEPARATOR.match(line[1:]) and header_at == len(plain) - 1 >= 0:
+            plain.pop()
+        header_at = -1
         if line.startswith("+++ "):
             current = line[6:]
             continue
@@ -202,6 +206,7 @@ def changed_rows(root: Path, base: str, prd_rel: str, pattern: str):
             (new if line[0] == "+" else old)[m.group(1)] = cells(m.group(2))
         elif line.startswith("+") and is_table_line(line[1:]) and len(tokens(line)) >= 3:
             plain.append((current, line[1:]))
+            header_at = len(plain) - 1
     touched = set(git(root, "diff", "--name-only", base).split())
     touched |= set(git(root, "ls-files", "--others", "--exclude-standard", "docs").split())
     for f in git(root, "ls-files", "--others", "--exclude-standard", "--", spec).split():
@@ -446,7 +451,7 @@ def report(extra: str = "") -> int:
 
 def check_html(page_path: Path, rules: Rules, old, new, touched, plain, vias) -> None:
     page = read_html_rules(page_path)
-    page_rel = page_path.as_posix()
+    page_rel = page_path.resolve().as_posix().lower()
     for rid in sorted(set(rules) - set(page)):
         if rid in new:
             err("G5", f"{rid} is in the markdown and missing from the HTML")
@@ -464,11 +469,14 @@ def check_html(page_path: Path, rules: Rules, old, new, touched, plain, vias) ->
         page_text = joined(page_path.read_text(encoding="utf-8"))
         for rel, line in plain:
             row = [c for c in cells(line.strip().strip("|")) if c]
+            if row and row[0].lower() == "id":
+                continue
             if row and row[-1].lower() in vias:
                 row = row[:-1]
             if joined(" | ".join(row)) not in page_text:
                 err("G10", f"changed table row in {rel} does not appear in the HTML: {line[:70]}")
-    if (new or old or plain) and not any(t.endswith(page_rel) for t in touched):
+    names = {t.replace("\\", "/").lstrip("/").lower() for t in touched}
+    if (new or old or plain) and not any(page_rel == t or page_rel.endswith("/" + t) for t in names):
         err("G5", "PRD tables changed and the HTML was not touched")
 
 
