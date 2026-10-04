@@ -1,5 +1,5 @@
 <!--
-Target path: .specify/memory/constitution.md (spec-kit) or docs/constitution.md.
+Target path: .specify/memory/constitution.md (spec-kit path; spec-kit itself is optional).
 Keep each principle short: a rule, the controls that enforce it, and the registered exceptions.
 Principles marked [kit] come from the playbook and are recommended as-is; [domain] ones are yours.
 -->

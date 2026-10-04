@@ -25,7 +25,7 @@ TRD: docs/trd/checkout.md, section "Known pitfalls"
 Owns: src/features/checkout/payment_call.py, src/features/checkout/tests/test_payment_call.py
 Does not touch: <files of other parallel tasks>
 Test first: test_<behavior> in <file>, docstring citing CHK-02; fails before the change
-Commands: <related tests command from repo.md> · <lint command>
+Commands: scripts/gates.sh related <files in Owns> · scripts/gates.sh lint
 Done when: test green, related tests green, lint green, ratchet green
 Depends on: T01 · Parallel with: T02
 Creates / consumes: creates `PaymentOutcome.retry_after`; consumes `PaymentConfig.provider_timeout_seconds` (T01)

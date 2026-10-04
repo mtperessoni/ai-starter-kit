@@ -5,7 +5,7 @@ IDs, texts and paths in the examples are illustrative: always read the real line
 ## Cases
 | Case | When | Signals in the request | Route |
 |---|---|---|---|
-| C0 bootstrap | No `docs/prd/INDEX.md`, or the user asks to create the PRD or the TRD | "create the PRD", "document the product", first use in the repository | `bootstrap.md` |
+| C0 no PRD | No `docs/prd/INDEX.md`, or a new product or module needs its own PRD | "create the PRD", "document the product", first use in the repository | Hand over to `/prd-create`, then `/trd-create` |
 | C1 query | Wants to know how something works or why | "how", "why", "what happens if", "what is the rule for" | F1, then answer with IDs and Source. No edits |
 | C2 implement within the rule | The rule exists, is approved, and the code does not meet it yet | "implement the amendment", a row marked `pending code`, "the spec still lacks X" | F1, F2, F6 if the area changes, F7 |
 | C3 bug | The code does something different from the PRD and the user confirms the PRD is right | "it is broken", "it should do what the PRD says" | F1, F2, fix; the PRD changes only if the Source moves |

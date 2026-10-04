@@ -1,6 +1,6 @@
 # Rule catalog
 
-Every rule of the kit, by domain. Each file is one table: `| ID | Rule | Why | Lands in |`. "Lands in" names the file of the target repository (or the skill section) that enforces the rule after the bootstrap, so the catalog doubles as the checklist that nothing was lost.
+Every rule of the kit, by domain. Each file is one table: `| ID | Rule | Why | Lands in |`. "Lands in" names the file of the target repository (or the skill section) that enforces the rule after `/ai-kit install`, so the catalog doubles as the checklist that nothing was lost.
 
 Read only the file of the domain you need. IDs are stable: a new rule takes the next free number of its prefix.
 
@@ -15,16 +15,22 @@ Read only the file of the domain you need. IDs are stable: a new rule takes the 
 | [07-workflow.md](07-workflow.md) | WF | Cases C0 to C6, PRD then TRD then plan then code, interview, commits |
 | [08-writing-style.md](08-writing-style.md) | WS | Language, punctuation, comments, commits, tables |
 | [09-lessons.md](09-lessons.md) | LS | What was measured and why each rule exists |
+| [10-creation-and-install.md](10-creation-and-install.md) | PC, IN | Creating the PRD and TRD; installing and updating the kit per project |
 
 ## Where the rules end up
 
 | Target file | Holds |
 |---|---|
-| `~/.claude/CLAUDE.md` | The global block: SA, RV, TS and WS rules that hold in any repository ([template](../templates/global-CLAUDE.md)) |
+| `~/.claude/CLAUDE.md` | The global block: SA, RV, TS and WS rules that hold in any repository ([global/CLAUDE.md](../global/CLAUDE.md), installed by `install.sh`) |
 | `CLAUDE.md` | Constitution index, the gate rule (WF01), code structure summary |
 | `AGENTS.md` | Commands, critical constraints (CX), directory map, finding things (CE), handing work to a subagent (SA04) |
 | `.specify/memory/constitution.md` | Binding principles, domain specific plus the process principles of the kit |
 | `docs/code-structure.md` | AR01 to AR14 |
-| `docs/prd/`, `docs/trd/` | DS rules applied |
+| `docs/prd/`, `docs/trd/`, `docs/flow.md`, `docs/adr/` | DS rules applied |
+| `.claude/skills/prd-create/`, `trd-create/` | PC rules: how the PRD and TRD are first written |
 | `.claude/skills/prd-gate/` | WF, SA, RV, TS rules as operating procedure, plus `repo.md` |
-| `tests/test_architecture.py` or `scripts/ratchet.mjs` | AR rules marked "ratchet" |
+| `.claude/skills/adr/` | DS23, DS27, DS28 |
+| `.claude/agents/<risk>-reviewer.md` | RV12 to RV16 |
+| `scripts/` and `ai-kit.json` | AR rules marked "ratchet", TS02 to TS08, TS22 |
+| `.github/workflows/` | TS20, TS23 to TS26, RV17, CX10 |
+| `.ai-kit/manifest.json` and the `/ai-kit` skill | IN rules |

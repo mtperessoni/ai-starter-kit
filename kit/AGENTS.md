@@ -9,18 +9,23 @@ Order of authority: the constitution, then the PRD (`docs/prd/`) on product beha
 ## Commands
 
 ```bash
-<install>                         # Install dependencies
-<dev>                             # Dev server
-<test one file, no coverage>      # One test file while working
-<related tests>                   # The tests related to a change (see "Testing while working")
-<full gate>                       # The full suite: ONCE, at the end of a delivery
-<lint verify>                     # Lint, format check, type check: verifies, as CI does
-<lint fix>                        # Repairs; then run the verify target
-<ratchet>                         # Structure ratchet (docs/code-structure.md)
+<install>                          # Install dependencies (locked)
+<dev>                              # Dev server
+scripts/gates.sh related [files]   # While working: the ratchet, then the tests related to the change
+scripts/gates.sh one <file>        # One test file, offline, no coverage threshold
+scripts/gates.sh baseline <slug>   # Before the first code task: record today's failures
+scripts/gates.sh compare <slug>    # ONCE, at the end of a delivery: the full suite, new failures only
+scripts/gates.sh lint              # Lint, format check, types, structure linter rules: verifies, as CI does
+scripts/gates.sh fix               # Repairs; then run lint
+scripts/gates.sh imports           # Import check (cycles)
+scripts/gates.sh ratchet           # Structure ratchet (docs/code-structure.md)
+scripts/gates.sh docs              # PRD, TRD and HTML consistency
 ```
 
+The stack commands behind each target are in `ai-kit.json`.
+
 ### Testing while working
-- Run only the related tests: the mirror test of the module you touched, and every test that imports or uses it (`Grep` the module path in the test folders, or `<native related runner>`). Add the ratchet and lint of the touched files.
+- Run only the related tests: `scripts/gates.sh related` finds the mirror test of each changed module and every test that imports it, runs them, and prints only failures and the summary. Add lint of the touched files.
 - The full suite runs once, at the end of a delivery, compared with the recorded baseline of failures. A failure unrelated to what you touched waits for the end.
 - Redirect test output to a file and read only the failures and the summary.
 - The full gate sets its own environment (no network, no database for the unit tier); never rely on your shell's variables to make it offline. See `docs/trd/testing.md`.

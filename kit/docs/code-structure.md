@@ -24,13 +24,13 @@ Features: <list>. Core features: <list>.
 |---|---|---|
 | AR01 | New code lives in the feature of the PRD area it implements; what three or more features use and is not product rule goes to `infra/` | review |
 | AR02 | One responsibility per file; the file name states it and is unique in the repository. Forbidden: `helpers`, `utils`, `shared`, `common`, `misc`, `state` | ratchet |
-| AR03 | Limits: module up to 500 lines, function up to 80, class up to 300, test file up to 1,200 | ratchet |
-| AR04 | Composition over mixins: a class receives small collaborators in its constructor, each readable alone. Never inherit from two in-repo classes | ratchet |
-| AR05 | Explicit state: no `nonlocal` or closures sharing mutable state; a session's state is an object passed along | ratchet |
+| AR03 | Limits: module up to 500 lines, function up to 80, class up to 300, test file up to 1,200 | ratchet (modules, tests), linter (functions, classes) |
+| AR04 | Composition over mixins: a class receives small collaborators in its constructor, each readable alone. Never inherit from two in-repo classes | linter |
+| AR05 | Explicit state: no `nonlocal` or closures sharing mutable state; a session's state is an object passed along | linter |
 | AR06 | Every feature module's docstring (or header) cites the PRD IDs it implements (`"""ORD-03, ORD-07: ..."""`); every test cites the ID it proves. A Grep by ID finds rule, code and test | ratchet |
-| AR07 | Every feature has a `CLAUDE.md` of at most 20 lines: responsibility, PRD IDs with their file, entry point, pieces, what must not break, where the tests are, link to its TRD. Changing a piece changes the map in the same commit | review |
-| AR08 | Re-export only in the feature's public entry; importers use the defining module. The public entry has no side effects (no route mounting, no engine import) | ratchet |
-| AR09 | Dependencies: feature uses `infra`; feature uses another feature only through its public entry; core features do not import other features; `infra` does not import features | ratchet |
+| AR07 | Every feature has a `CLAUDE.md` of at most 20 lines: responsibility, PRD IDs with their file, entry point, pieces, what must not break, where the tests are, link to its TRD. Changing a piece changes the map in the same commit | ratchet (present, at most 20 lines), review (content) |
+| AR08 | Re-export only in the feature's public entry; importers use the defining module. The public entry has no side effects (no route mounting, no engine import) | review |
+| AR09 | Dependencies: feature uses `infra`; feature uses another feature only through its public entry; core features do not import other features; `infra` does not import features | linter |
 | AR10 | Tests beside the code in `features/<f>/tests/test_<module>.<ext>`; harness with its own name (`<subject>_harness`); a test class imported by another file gets an alias starting with `_` | review |
 | AR11 | Mocks and monkeypatches target the module of the caller, not the definer nor a re-export: a misplaced patch does not fail, it just stops having effect | review |
 | AR12 | Moving code is done by script (line ranges or AST), never retyped; the model decides the map and fixes imports | review |
@@ -38,8 +38,8 @@ Features: <list>. Core features: <list>.
 | AR14 | Paths computed from the module's own location use its real depth; after moving, check them | review |
 
 ## How to check
-- `<ratchet command>` is the ratchet: it fails when a "ratchet" rule is violated outside the allowlist, and the allowlist only shrinks.
-- `<type check>` and `<lint>` cover imports and style; `<import check>` catches import cycles.
+- `scripts/gates.sh ratchet` is the ratchet: it fails when a "ratchet" rule is violated outside the allowlist, and the allowlist only shrinks.
+- `scripts/gates.sh lint` runs the linter rules for function and class size, inheritance and import direction (configured per stack in `ai-kit.json`); `scripts/gates.sh imports` catches import cycles.
 
 ## When creating something new
 1. Find the feature by the PRD ID (`docs/prd/INDEX.md`) and read its `CLAUDE.md`.

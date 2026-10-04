@@ -18,7 +18,7 @@ Every change in this repository and every question about product behavior starts
 
 ## Code structure
 
-All code follows `docs/code-structure.md` (rules AR01 to AR14); `<ratchet test path>` is the ratchet that enforces it. The short version:
+All code follows `docs/code-structure.md` (rules AR01 to AR14); `scripts/gates.sh ratchet` and the linter rules behind `scripts/gates.sh lint` enforce it. The short version:
 
 - **Where:** `<src>/features/<f>/` per PRD area; `<src>/infra/` for what is shared; `<src>/app/` composes. Start a task by reading the feature's `CLAUDE.md` and its TRD in `docs/trd/`.
 - **Size:** module up to 500 lines, function up to 80, class up to 300, test file up to 1,200. One responsibility per file, named after it and unique in the repo; never `helpers`, `utils`, `shared`, `common`, `misc`, `state`.
