@@ -1,0 +1,79 @@
+# AI agent instructions: <project>
+
+<One paragraph: what it is, stack, package manager.>
+
+`.specify/memory/constitution.md` is binding and it wins over this file when they disagree. `CLAUDE.md` carries the index of its principles; read the full principle your change touches before writing code.
+
+Order of authority: the constitution, then the PRD (`docs/prd/`) on product behavior, then the spec (`specs/`) on how and in what order it is built, then the code. See "Finding things" below.
+
+## Commands
+
+```bash
+<install>                         # Install dependencies
+<dev>                             # Dev server
+<test one file, no coverage>      # One test file while working
+<related tests>                   # The tests related to a change (see "Testing while working")
+<full gate>                       # The full suite: ONCE, at the end of a delivery
+<lint verify>                     # Lint, format check, type check: verifies, as CI does
+<lint fix>                        # Repairs; then run the verify target
+<ratchet>                         # Structure ratchet (docs/code-structure.md)
+```
+
+### Testing while working
+- Run only the related tests: the mirror test of the module you touched, and every test that imports or uses it (`Grep` the module path in the test folders, or `<native related runner>`). Add the ratchet and lint of the touched files.
+- The full suite runs once, at the end of a delivery, compared with the recorded baseline of failures. A failure unrelated to what you touched waits for the end.
+- Redirect test output to a file and read only the failures and the summary.
+- The full gate sets its own environment (no network, no database for the unit tier); never rely on your shell's variables to make it offline. See `docs/trd/testing.md`.
+
+## Critical constraints
+
+Violating any of these breaks the architecture or the safety model. Follow strictly.
+
+1. **NEVER swallow an exception and never fire-and-forget.** Every failure is persisted or logged with its cause. An empty `catch` is a violation.
+2. **NEVER hardcode a credential, token, key, model id, prompt or per-customer rule.** It is typed configuration or versioned data. The service refuses to boot on missing or malformed config.
+3. **NEVER branch on a customer or tenant name.** Per-tenant behavior is a configuration row resolved at runtime.
+4. **NEVER let framework or vendor types cross into the domain layer.** Framework at the edges.
+5. **Tests run offline and deterministic.** Fakes by default; tests that need the network or a real model sit behind a marker and never gate a merge.
+6. **NEVER use the em dash character.** Use a comma, colon, period or rewrite. Applies to code, docs, prompts and commit messages.
+7. **NEVER add comments unless the WHY is non-obvious and critical.** Default is zero comments. No comment references a ticket or a task.
+8. **Every side effect logs**, structured, with the correlation ids of the request.
+9. **Everything is in English**: code, docs, PRD, TRD, skill artifacts, commit messages.
+10. <Domain constraint.>
+
+## Directory map
+
+- `<src>/app/`: entry, route assembly and dependency wiring
+- `<src>/features/<f>/`: one folder per product feature. Each has a `CLAUDE.md` map (up to 20 lines), a public entry, `domain/` (pure rules, no IO), services with IO, and `tests/`
+- `<src>/infra/`: shared code (persistence, providers, observability, config, auth)
+- `tests/integration/`, `tests/eval/`, and unit tests beside the code in `<src>/features/<f>/tests/`
+- `specs/`: spec-kit features. Source of truth for how and in what order something gets built; the product rules it implements come from `docs/prd/`
+- `docs/prd/`, `docs/trd/`, `docs/adr/`, `docs/code-structure.md`, `docs/flow.md`
+
+## Workflow
+
+Spec-driven, in this order. Do not skip steps.
+
+1. `/prd-gate` classifies the request; a rule change updates PRD and TRD and produces the plan
+2. `/speckit-specify`, `/speckit-plan` (Constitution Check), `/speckit-tasks` when a new spec is needed
+3. Implementation test first, one task per agent, one commit per task
+4. Gates before merge: lint, type check, full suite green, coverage not decreasing, ratchet green
+
+## Finding things
+
+Load only what the task needs. Every step below is one Glob, Grep or ranged Read.
+
+1. **Product rules.** `docs/prd/INDEX.md` lists every PRD file (one per section) with the rule IDs it defines. `Grep "<ID>" docs/prd` finds a rule; the same ID in a test docstring finds its tests. A human-reading HTML, if any, is never read for work.
+2. **Where it lives in the code.** `docs/trd/README.md` lists the feature maps. `docs/trd/<feature>.md` gives the files, the entry points by symbol name, the tests and what must not break.
+3. **Repo rules by kind of change** are in `docs/trd/invariants.md`; **how to test** is in `docs/trd/testing.md`.
+4. **Big files** (listed in `.claude/skills/prd-gate/repo.md`): Grep for the symbol, then Read that range. Never read them whole.
+5. **History of an area:** `git log --oneline -- <paths from its TRD file>`.
+
+Keeping it true:
+
+- A code change that moves a file, an entry point or a test of a feature updates `docs/trd/<feature>.md` and the feature's `CLAUDE.md` in the same commit. Names only, never line numbers or default values.
+- A change to product behavior updates the PRD file that owns the rule ID and moves the superseded wording to `docs/prd/CHANGELOG.md`: the PRD body holds only what is valid today.
+- The `prd-gate` skill runs this flow and checks it with `.claude/skills/prd-gate/scripts/gate.py`.
+
+## Handing work to a subagent
+
+Paste the rule rows it must implement (its contract) and point to files for everything else: the PRD file, the TRD feature file, the files it owns and the commands to run. Never paste whole documents. It returns at most 20 lines (Done, Files, Tests, Gaps), writes longer output to files, never opens another subagent, and stops at about 50 tool calls or 30 minutes to report.

@@ -1,0 +1,31 @@
+# <project>: Claude Code bootstrap
+
+> <One sentence: what this service or app is and who uses it.>
+
+## Constitution
+
+Binding, and it wins over everything else in this repository. Full text: `.specify/memory/constitution.md`. Read the whole principle your change touches before writing code; `/speckit-plan` (Constitution Check) and the reviewer agents read the file in full.
+
+- **I. <Principle name> (NON-NEGOTIABLE).** <One line.>
+- **II. <Principle name>.** <One line.>
+- **III. Test-First With Deterministic Doubles (NON-NEGOTIABLE).** Failing test first, fakes for external services and models, the unit suite runs offline.
+- **IV. Documents Are the Source of Truth.** Behavior lives in `docs/prd/`, code maps in `docs/trd/`; a rule change updates them before the code.
+- **V. <Principle name>.** <One line.>
+
+## Product rules gate
+
+Every change in this repository and every question about product behavior starts with `/prd-gate` (`.claude/skills/prd-gate/`). Two exceptions skip the gate: small changes (a typo, a log line, a rename, a one-line fix that changes no rule) and fixes to tests. A rule change never goes straight to code: PRD, then TRD, then plan, then code, and only after the person asking has seen the current rule, what would change, and confirmed it.
+
+## Code structure
+
+All code follows `docs/code-structure.md` (rules AR01 to AR14); `<ratchet test path>` is the ratchet that enforces it. The short version:
+
+- **Where:** `<src>/features/<f>/` per PRD area; `<src>/infra/` for what is shared; `<src>/app/` composes. Start a task by reading the feature's `CLAUDE.md` and its TRD in `docs/trd/`.
+- **Size:** module up to 500 lines, function up to 80, class up to 300, test file up to 1,200. One responsibility per file, named after it and unique in the repo; never `helpers`, `utils`, `shared`, `common`, `misc`, `state`.
+- **Shape:** composition over mixins; explicit state, no shared mutable closures; re-export only in a feature's public entry.
+- **Traceability:** every feature module cites the PRD IDs it implements, every test the ID it proves; update the feature's `CLAUDE.md` and TRD in the same commit as the code.
+- **Tests:** next to the code in `features/<f>/tests/`; mocks target the module of the caller. While working, run only the tests related to what you touched; the full suite runs once, at the end of a delivery.
+- **Moving code:** by script (line ranges or AST), never retyped.
+- **Language:** everything in English: code, docs, PRD, TRD, artifacts, commits.
+
+@AGENTS.md
