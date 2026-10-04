@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  scripts:
+    name: Scripts (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Script tests (gate, ratchet, related tests, baseline, move, gates.sh)
+        run: python -m unittest discover -s tests -v
+
+  docs:
+    name: Docs hygiene
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: No em dash anywhere
+        run: |
+          python3 - <<'PY'
+          import subprocess, sys
+          bad = []
+          for path in subprocess.run(["git", "ls-files"], capture_output=True, text=True).stdout.split():
+              try:
+                  text = open(path, encoding="utf-8").read()
+              except (UnicodeDecodeError, IsADirectoryError):
+                  continue
+              bad += [f"{path}:{n}" for n, line in enumerate(text.splitlines(), 1) if chr(0x2014) in line]
+          print("\n".join(bad) or "no em dash")
+          sys.exit(1 if bad else 0)
+          PY
+      - name: Shell scripts parse
+        run: |
+          bash -n install.sh
+          bash -n kit/scripts/gates.sh
+      - name: Every skill has a description
+        run: |
+          for f in kit/.claude/skills/*/SKILL.md installer/ai-kit/SKILL.md; do
+            grep -q '^description:' "$f" || { echo "missing description: $f"; exit 1; }
+          done

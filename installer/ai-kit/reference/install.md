@@ -38,7 +38,7 @@ All must pass, or be reported:
 - `python scripts/related_tests.py <one existing source file>` prints its mirror test and importers; `scripts/gates.sh related <that file>` runs them and prints only failures and the summary
 - `scripts/gates.sh baseline install` records the baseline; `scripts/gates.sh compare install` reports zero new failures
 - `python .claude/skills/prd-gate/scripts/gate.py` only reports that `docs/prd/INDEX.md` does not exist yet (expected until prd-create)
-- `grep -rn $'—'` over the files written finds no em dash
+- A search for U+2014 over the files written (the Grep tool with the pattern `\x{2014}`) finds no em dash
 
 ## Report
 In at most 20 lines: stack detected, files created and merged, commands verified, linter rules and baseline sizes, reviewers created, what failed, the commit. Then the next steps:
