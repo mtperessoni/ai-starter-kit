@@ -28,3 +28,4 @@
 | IN07 | A manifest records the kit version and the hash of each installed file; update replaces kit-owned files the project did not edit and proposes the rest as diffs | Updates are safe and reviewable | `.ai-kit/manifest.json`; `update.md` |
 | IN08 | Install and update work on a branch, show the plan and wait for an explicit yes, commit once, never push | The project owner decides what lands | `/ai-kit` K02, K03, K06 |
 | IN09 | Kit improvements found in a project go back to the kit repository first (MAINTAINING.md), then reach every project through `/ai-kit update` | One source of truth for the rules themselves | MAINTAINING.md |
+| IN10 | Each CHANGELOG entry may carry an `On update:` line; `/ai-kit update` executes the lines of the entries between the project's version and the kit's | Changes that are not file copies (new folders, new config keys, seeded allowlists) reach existing projects | CHANGELOG.md; update.md |

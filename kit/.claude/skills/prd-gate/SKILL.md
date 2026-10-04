@@ -28,7 +28,7 @@ Everything that enters here is reread every round.
 | C5 rule change | Changed or new rule, gap, or a defect the PRD documents as current behavior | C5 route |
 | C6 refactor | Structure changes, behavior does not | Light route with TRD and invariants |
 
-Phases cited in the references: F1 context, F2 PRD versus code check, F5 PRD and F6 TRD (step 5), F7 plan (step 7). State the case in one line; a request with several items has one case per item. Classification traps and the divergence format: `reference/classification.md`, only when in doubt. If C2, C3 or C6 turns out to need different behavior, re-enter as C5.
+Phases cited in the references: F1 context, F2 PRD versus code check, F5 PRD and F6 TRD (step 5), F7 plan (step 7). State the case and its size (S, M or L, `reference/classification.md`, LT04) in one line; a request with several items has one case per item. Classification traps and the divergence format: `reference/classification.md`, only when in doubt. If C2, C3 or C6 turns out to need different behavior, re-enter as C5.
 
 ## Light route (C1, C2, C3, C4, C6)
 1. **Batch A:** `Read repo.md` (first time in the session); `Grep` the term or ID in `docs/prd/INDEX.md`; `Read docs/trd/README.md`; `git fetch -q && git rev-list --count HEAD..origin/<base_branch>`.
@@ -46,14 +46,14 @@ Phases cited in the references: F1 context, F2 PRD versus code check, F5 PRD and
 | 4 | this conversation | Interview (`reference/interview.md`) of what is still open | `interview.md`, `approved-rules.md` |
 | 5 | `writer` | PRD, HTML, CHANGELOG, INDEX, gate, `docs(prd)`; TRD "Planned", gate, `docs(trd)` | `writing.md` |
 | 6 | this conversation | Only `git diff -U0` of the rule lines | confirmation |
-| 7 | `planner` | Plan with one contract per task, `gate.py --plan` without errors | task table |
+| 7 | `planner` | Size M and L: `brief.md` (and `design.md` for L); `plan.md` in `changes/NNN-<slug>/` with one contract per task; `gate.py --plan` and `--change <dir>` without errors | task table |
 | 8 | this conversation | Plan approval. More than 6 tasks or a big file: execute in a new session | end of the docs phase |
 | 9 | `executor`, `reviewer` | `reference/execution.md`: baseline, waves, commit per task, review with ceiling, short C5 if a rule changes | delivery, `deliveries.md` |
 
 Worker: Agent `general-purpose`, `model: "sonnet"` (the executor on the task's model), prompt *"Read `.claude/skills/prd-gate/reference/workers.md`, section `<name>`, and run it for slug `<slug>`. Request: <one line>."* The reviewer is the agent `repo.md` names for the task, with the `reviewer` section. Never copy briefings into the prompt. A gap in a return is resolved before the next step. Without the Agent tool, run the section here with the same briefing and budget.
 
 ## State
-`.claude/prd-gate/state/<slug>/` (outside git): `state.md` (case, phase, base, decisions, `review: N/5` counter, cost per wave), `pack.md`, `impact.md`, `interview.md`, `approved-rules.md`, `writing.md`, `baseline-failures.txt`, `deliveries.md`. Resume (`/prd-gate resume <slug>`): only `state.md` and the current phase file; with `git diff --quiet <base> origin/<base_branch> -- <pack paths>`, the pack is still valid.
+`.claude/prd-gate/state/<slug>/` (outside git): `state.md` (case, phase, base, decisions, `review: N/5` counter, cost per wave), `pack.md`, `impact.md`, `interview.md`, `approved-rules.md`, `writing.md`, `baseline-failures.txt`, `deliveries.md`. Intent, plan and tasks live in `changes/NNN-<slug>/` (LT01), never truth: at the end the Promote task moves what is durable to its home and archives the folder (LT06). Authority: constitution, PRD, TRD, code; `changes/archive/` and a legacy `specs/` are never read for current behavior (LT07). Resume (`/prd-gate resume <slug>`): only `state.md` and the current phase file; with `git diff --quiet <base> origin/<base_branch> -- <pack paths>`, the pack is still valid.
 
 ## Rules
 | ID | Rule |
@@ -76,7 +76,7 @@ Worker: Agent `general-purpose`, `model: "sonnet"` (the executor on the task's m
 | `reference/execution.md`, `reference/review.md` | whoever executes and reviews (step 9 and light route with code); the planner for the plan execution rules |
 | `reference/workers.md` | each worker, only its own section |
 | `reference/impact.md`, `prd-writing.md`, `trd-planned.md`, `agent-plan.md` | workers only |
-| `scripts/gate.py` | run only: `python .claude/skills/prd-gate/scripts/gate.py [--base REF] [--pack F] [--rules F] [--plan F]` |
+| `scripts/gate.py` | run only: `python .claude/skills/prd-gate/scripts/gate.py [--base REF] [--pack F] [--rules F] [--plan F] [--change DIR] [--trace] [--final]` |
 
 ## Final
 Case, IDs touched, commits, plan path and out-of-scope divergences.

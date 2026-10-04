@@ -32,7 +32,7 @@ Modes combine: M3 plus M1 is common (documents for intent, code for facts; their
 ## Route
 | Step | Who | Does | Leaves |
 |---|---|---|---|
-| 1 | this conversation | Slug `prd-create-<scope>`, mode, approver (`git config user.name`), base commit in `state.md`. Batch: `Read repo.md`; `Glob` of source folders, entry points, `specs/`, `docs/`; existing `docs/prd/INDEX.md` if any | state |
+| 1 | this conversation | Slug `prd-create-<scope>`, mode, approver (`git config user.name`), base commit in `state.md`. Batch: `Read repo.md`; `Glob` of source folders, entry points, `changes/` and legacy `specs/`, `docs/`; existing `docs/prd/INDEX.md` if any | state |
 | 2 | this conversation | Scope: how many PRDs (one per product scope or user journey that runs independently; `reference/anatomy.md` "How many PRDs"), the sections of each, ID prefixes, areas each section covers. Write `outline.md`; show it as a table; approve with at most 4 questions per round | approved outline |
 | 3 | `mapper` per area (M1), `doc-reader` per document set (M3), interview here (M2) | Facts per area | `areas/<area>.md` or `interview.md` |
 | 4 | `section-writer`, waves of disjoint files | Journey step sections and their rule tables | section files |

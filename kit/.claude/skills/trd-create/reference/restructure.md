@@ -17,7 +17,7 @@ When the code is not organized by feature, the maps can only describe the spread
 | X10 | The TRD and the feature `CLAUDE.md` maps move in the same commit as the code they describe |
 
 ## Plan format
-Write `specs/NNN-feature-structure/plan.md` with the prd-gate task format (`.claude/skills/prd-gate/reference/agent-plan.md`), one task per feature or per giant file, in waves:
+Write `changes/NNN-feature-structure/plan.md` with the prd-gate task format (`.claude/skills/prd-gate/reference/agent-plan.md`), one task per feature or per giant file, in waves:
 
 | Wave | Tasks | Proof |
 |---|---|---|

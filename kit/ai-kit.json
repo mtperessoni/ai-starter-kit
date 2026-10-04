@@ -74,6 +74,7 @@
     "banned_names": [],
     "duplicate_names": [],
     "no_prd_id": [],
+    "untested_rules": [],
     "no_feature_map": [],
     "long_feature_maps": {}
   },

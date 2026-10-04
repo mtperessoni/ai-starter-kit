@@ -4,7 +4,7 @@
 
 ## Constitution
 
-Binding, and it wins over everything else in this repository. Full text: `.specify/memory/constitution.md`. Read the whole principle your change touches before writing code; `/speckit-plan` (Constitution Check) and the reviewer agents read the file in full.
+Binding, and it wins over everything else in this repository. Full text: `.specify/memory/constitution.md`. Read the whole principle your change touches before writing code; the plan's `Constitution check` and the reviewer agents read the file in full.
 
 - **I. <Principle name> (NON-NEGOTIABLE).** <One line.>
 - **II. <Principle name>.** <One line.>

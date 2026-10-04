@@ -6,6 +6,13 @@ Usage: python .claude/skills/prd-gate/scripts/gate.py [--base REF]
        python .claude/skills/prd-gate/scripts/gate.py --pack <pack.md>
        python .claude/skills/prd-gate/scripts/gate.py --rules <approved-rules.md>
        python .claude/skills/prd-gate/scripts/gate.py --plan <plan.md>
+       python .claude/skills/prd-gate/scripts/gate.py --trace
+       python .claude/skills/prd-gate/scripts/gate.py --change <changes/NNN-slug>
+       python .claude/skills/prd-gate/scripts/gate.py --final
+--trace: every PRD rule not planned is cited by a test file (test_patterns of ai-kit.json);
+         untested rules are held to allowlist.untested_rules, which only shrinks.
+--change: brief.md of a change folder against the PRD and its plan.md.
+--final: nothing planned, pending or open is left (CI, on pushes to the base branch).
 Exits with 1 when there is an ERROR. A WARNING does not fail.
 """
 
@@ -318,6 +325,116 @@ def check_plan(path: Path, rules: Rules, cfg: dict[str, str]) -> None:
                 err("P5", f"{tid} cites {rid}, which does not exist in the PRD")
 
 
+def source_files(source: str) -> list[str]:
+    found = []
+    for part in re.split(r"[,;]", source):
+        path = part.strip("` ").split("::")[0].strip()
+        if re.fullmatch(r"[\w./-]+\.\w+", path) and ("/" in path or path.lower() == path):
+            found.append(path)
+    return found
+
+
+def rule_rows(rules: Rules, vias: set[str]) -> dict[str, list[str]]:
+    return {rid: row for rid, (_, row) in rules.items() if len(row) >= 3 and row[2].strip("` ").lower() in vias}
+
+
+def check_trace(root: Path, rules: Rules, cfg: dict[str, str], vias: set[str]) -> None:
+    config_path = root / "ai-kit.json"
+    if not config_path.exists():
+        err("G22", "ai-kit.json not found: --trace needs test_patterns")
+        return
+    sys.path.insert(0, str(root / "scripts"))
+    import kit_config
+
+    kit = kit_config.load(root)
+    cited: set[str] = set()
+    for f in kit_config.test_files(root, kit):
+        cited |= set(re.findall(r"\b(" + ID + r")\b", f.read_text(encoding="utf-8", errors="replace")))
+    allowed = set(kit.get("allowlist", {}).get("untested_rules", []))
+    for rid, row in sorted(rule_rows(rules, vias).items()):
+        if row[1].strip("` ").lower() == cfg["planned_source"]:
+            continue
+        for rel in source_files(row[1]):
+            if not (root / rel).exists():
+                err("G11", f"{rid}: Source names {rel}, which does not exist")
+        if rid in cited:
+            if rid in allowed:
+                err("G14", f"{rid} is tested now: remove it from allowlist.untested_rules")
+        elif rid in allowed:
+            warn("G13", f"{rid} has no test (listed in allowlist.untested_rules)")
+        else:
+            err("G12", f"{rid} has no test citing it and is not in allowlist.untested_rules")
+
+
+def slice_ids(brief: str) -> list[tuple[str, str, str]]:
+    found: list[tuple[str, str, str]] = []
+    head: list[str] = []
+    for line in brief.splitlines():
+        if not is_table_line(line):
+            head = [] if not line.startswith("|") else head
+            continue
+        row = cells(line.strip().strip("|"))
+        low = [c.lower() for c in row]
+        if "slice" in low and "priority" in low and "rule ids" in low:
+            head = low
+        elif head and len(row) == len(head):
+            found.append((row[head.index("slice")], row[head.index("priority")], row[head.index("rule ids")]))
+    return found
+
+
+def contract_ids(plan: str) -> set[str]:
+    ids: set[str] = set()
+    found = TASK.split(plan)
+    for block in found[2::2]:
+        m = re.search(r"^Contract\b.*?(?=^[A-Z][A-Za-z ]*:|\Z)", block, re.S | re.M)
+        if m:
+            ids |= set(re.findall(r"\b(" + ID + r")\b", m.group(0))) | expand(m.group(0))
+    return ids
+
+
+def check_change(folder: Path, rules: Rules) -> None:
+    if not folder.is_dir():
+        err("G22", f"change folder {folder} does not exist")
+        return
+    brief_path, design, plan = folder / "brief.md", folder / "design.md", folder / "plan.md"
+    if not brief_path.exists():
+        if design.exists():
+            warn("G18", f"{design.name} without a brief.md stating size L")
+        return
+    brief = brief_path.read_text(encoding="utf-8")
+    ids = {i for i in re.findall(r"\b(" + ID + r")\b", brief) if not i.startswith("I-")} | expand(brief)
+    for rid in sorted(ids - set(rules)):
+        err("G15", f"brief.md cites {rid}, which does not exist in the PRD")
+    for line in brief.splitlines():
+        m = ROW.match(line.strip())
+        if m and len(cells(m.group(2))) >= 3:
+            err("G17", f"brief.md holds the rule row {m.group(1)}: behavior is written once, in the PRD")
+    if plan.exists():
+        covered = contract_ids(plan.read_text(encoding="utf-8"))
+        for name, priority, spec in slice_ids(brief):
+            if priority.strip("` *").upper() != "P1":
+                continue
+            for rid in sorted(set(re.findall(r"\b(" + ID + r")\b", spec)) | expand(spec)):
+                if rid not in covered:
+                    err("G16", f"slice '{name}' (P1): {rid} is in no task Contract of plan.md")
+    if design.exists() and not re.search(r"\bsize\b[:\s*`=-]*L\b", brief, re.I):
+        warn("G18", "design.md exists and brief.md does not state size L")
+
+
+def check_final(root: Path, rules: Rules, cfg: dict[str, str], trd: Path) -> None:
+    for rid, (_, row) in sorted(rules.items()):
+        if len(row) >= 2 and (row[1].strip("` ").lower() == cfg["planned_source"] or cfg["pending_marker"] in row[0]):
+            err("G19", f"{rid} is still planned or pending code")
+    for f in sorted(trd.rglob("*.md")):
+        if re.search(r"^## Planned", f.read_text(encoding="utf-8"), re.M):
+            err("G20", f"{f.name} still has a '## Planned' section")
+    changes = root / "changes"
+    if changes.is_dir():
+        for d in sorted(changes.iterdir()):
+            if d.is_dir() and d.name != "archive":
+                err("G21", f"changes/{d.name} is still open: promote it and archive it")
+
+
 def report(extra: str = "") -> int:
     for (code, what), ids in baseline.items():
         warn(code, f"earlier drift, outside this change, {what}: {', '.join(ids)}")
@@ -361,6 +478,9 @@ def main() -> int:
     parser.add_argument("--pack", type=Path, help="check a pack.md from the state folder")
     parser.add_argument("--rules", type=Path, help="check an approved-rules.md from the state folder")
     parser.add_argument("--plan", type=Path, help="check a plan for agents")
+    parser.add_argument("--trace", action="store_true", help="every non-planned PRD rule is cited by a test file")
+    parser.add_argument("--change", type=Path, help="check a change folder (brief.md, design.md, plan.md)")
+    parser.add_argument("--final", action="store_true", help="nothing planned, pending or open is left")
     args = parser.parse_args()
     cfg = load_config()
     vias = {v.strip().lower() for v in cfg["change_via"].split(",") if v.strip()}
@@ -368,6 +488,15 @@ def main() -> int:
     prd_rel, trd_rel = cfg["prd_dir"].rstrip("/"), cfg["trd_dir"].rstrip("/")
     prd, trd = root / prd_rel, root / trd_rel
     rules = read_md_rules(prd, cfg["prd_glob"])
+
+    if args.trace or args.change or args.final:
+        if args.trace:
+            check_trace(root, rules, cfg, vias)
+        if args.change:
+            check_change(args.change if args.change.is_absolute() else root / args.change, rules)
+        if args.final:
+            check_final(root, rules, cfg, trd)
+        return report()
 
     if args.pack or args.rules or args.plan:
         if args.pack:

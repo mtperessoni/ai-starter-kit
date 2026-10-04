@@ -3,7 +3,7 @@
 ## Steps
 | Step | Does | Leaves |
 |---|---|---|
-| I1 | K01 and K02. `Glob` the project root and two levels down for manifests and configuration: package manifests, lockfiles, test configs, linter configs, CI files, `Makefile`/`justfile`/`Taskfile.yml`, `CLAUDE.md`, `AGENTS.md`, `.specify/`, `docs/`, `.claude/`. Detect monorepo workspaces | file list |
+| I1 | K01 and K02. `Glob` the project root and two levels down for manifests and configuration: package manifests, lockfiles, test configs, linter configs, CI files, `Makefile`/`justfile`/`Taskfile.yml`, `CLAUDE.md`, `AGENTS.md`, `.specify/`, `docs/`, `.claude/`, `specs/`. Detect monorepo workspaces and whether spec-kit is in use (`.specify/` with templates or scripts, `/speckit-*` commands in `.claude/`) | file list |
 | I2 | Read `<kit>/stacks/README.md` and only the matching recipes. Read the project's own scripts (package scripts, Makefile targets, CI steps): they win over the recipe | stack profile |
 | I3 | Source layout: the source folders, whether code is organized by feature (folders per product area) or by layer (`controllers/`, `services/`, `models/`), the entry point, the test folders. Large trees: one Explore agent with these questions, answers only | layout |
 | I4 | Run each candidate command once with output to a file (`.claude/prd-gate/state/_install/`), read the summary: test runner on one existing test file, lint verify, type check, import check, the whole unit tier once (its failures become the first baseline). Write down the failure line format to derive `tests.failure_regex` | verified commands |
@@ -21,14 +21,15 @@
 | File | Fill with |
 |---|---|
 | `ai-kit.json` | `source_dirs`, `feature_root` (the features folder, or the source folder when code is organized by layer), `code_extensions` limited to the stack's, `test_patterns` and `ignore` from the recipe, `commands` and `tests` from I4 |
-| `.claude/skills/prd-gate/repo.md` | `base_branch`; `change_via` adapted (drop `prompt` when there are no prompts, add the consumers that exist); Layout; Big files (from the ratchet's `long_modules`); Reviewers (I10); Protected rules (from the constitution); Variants and tenants (I5); Consumers in sibling repositories (ask only if a contract leaves this repository); Change routing (how config and env changes are deployed here); Evidence of real sessions (logs, audit tables) |
+| `.claude/skills/prd-gate/repo.md` | `base_branch`; `change_via` adapted (drop `prompt` when there are no prompts, add the consumers that exist); Layout; Big files (from the ratchet's `long_modules`); Reviewers (I10); Spec-kit (`kept` when I1 found it in use and the team keeps it, else `none`); Legacy specs (`specs/` kept as history when the folder exists, else `<none>`); Protected rules (from the constitution); Variants and tenants (I5); Consumers in sibling repositories (ask only if a contract leaves this repository); Change routing (how config and env changes are deployed here); Evidence of real sessions (logs, audit tables) |
 | `CLAUDE.md` | Project line, the constitution index (one line per principle), the gate rule, the code structure summary with this repo's folders, `@AGENTS.md` |
-| `AGENTS.md` | Overview and stack, Commands (the `scripts/gates.sh` targets), Critical constraints (the kit's generic ones plus the domain ones from I5), Directory map from I3, Workflow, Finding things, Handing work to a subagent |
+| `AGENTS.md` | Overview and stack, Commands (the `scripts/gates.sh` targets), Critical constraints (the kit's generic ones plus the domain ones from I5), Directory map from I3 (with `changes/` and `changes/archive/`), Workflow (change folders by size), Finding things, Handing work to a subagent |
 | `.specify/memory/constitution.md` | Domain principles from I5 (each with what it forbids and how it is enforced), Technology Constraints from I2, ratification date |
 | `.github/workflows/ci.yml` | The recipe's CI setup step in place of the placeholder; branches that deploy (from existing deploy workflows) in `push.branches` |
 | `.github/workflows/claude-review.yml` | Project line; one section per constitution principle with its checks |
 | `.gitleaks.toml` | The recipe's ignore paths |
 | `docs/flow.md` | Leave the template; trd-create writes it |
+| `changes/archive/` | Create with `.gitkeep`; an existing `specs/` stays untouched |
 
 ## Verify
 All must pass, or be reported:

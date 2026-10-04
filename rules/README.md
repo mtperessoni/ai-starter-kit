@@ -24,6 +24,7 @@ Read only the file of the domain you need. IDs are stable: a new rule takes the 
 | `~/.claude/CLAUDE.md` | The global block: SA, RV, TS and WS rules that hold in any repository ([global/CLAUDE.md](../global/CLAUDE.md), installed by `install.sh`) |
 | `CLAUDE.md` | Constitution index, the gate rule (WF01), code structure summary |
 | `AGENTS.md` | Commands, critical constraints (CX), directory map, finding things (CE), handing work to a subagent (SA04) |
+| `changes/`, `changes/archive/` | WF26 to WF29, WF34: change folders (brief, design, plan) and their archive; project-owned, never touched by update |
 | `.specify/memory/constitution.md` | Binding principles, domain specific plus the process principles of the kit |
 | `docs/code-structure.md` | AR01 to AR14 |
 | `docs/prd/`, `docs/trd/`, `docs/flow.md`, `docs/adr/` | DS rules applied |
@@ -32,5 +33,6 @@ Read only the file of the domain you need. IDs are stable: a new rule takes the 
 | `.claude/skills/adr/` | DS23, DS27, DS28 |
 | `.claude/agents/<risk>-reviewer.md` | RV12 to RV16 |
 | `scripts/` and `ai-kit.json` | AR rules marked "ratchet", TS02 to TS08, TS22 |
+| `.claude/skills/prd-gate/scripts/gate.py` | WF31 to WF33 (`--trace`, `--change`, `--final`) |
 | `.github/workflows/` | TS20, TS23 to TS26, RV17, CX10 |
 | `.ai-kit/manifest.json` and the `/ai-kit` skill | IN rules |

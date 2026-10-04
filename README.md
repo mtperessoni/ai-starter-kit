@@ -32,7 +32,26 @@ flowchart LR
     G -->|rule change| R[Confront, interview, PRD, TRD, plan, then code]
     X --> V[Related tests per task, review capped, full suite once]
     R --> V
+    V --> M[Promote to PRD, TRD, ADR; archive the change folder]
 ```
+
+Every fact has one living home, and everything else cites it by ID. A change gets a folder `changes/NNN-<slug>/` sized by risk; it holds intent, plan and state, never truth. At the end what is durable is promoted to its living home and the folder moves to `changes/archive/`.
+
+| Size | When | Folder holds |
+|---|---|---|
+| S | Bug, approved rule, stale PRD, refactor | Nothing, or only `plan.md` |
+| M | Rule change with an evident design | `brief.md` (why, scope, slices, success criteria as rule IDs) and `plan.md` |
+| L | Rule change with a new data model, contract, integration, technical unknown or feature area | `brief.md`, `design.md` and `plan.md` |
+
+| Fact | Living home |
+|---|---|
+| Behavior, edge cases, targets | `docs/prd/` |
+| Code structure, invariants | `docs/trd/` |
+| Structural decision | `docs/adr/` |
+| Data model, API contract | The real artifact, linked from the TRD |
+| Principles | `.specify/memory/constitution.md` |
+
+Order of authority: constitution, PRD, TRD, code. An active plan governs only the order of work. `gate.py --trace`, `--change` and `--final` check that every rule has a test, every brief cites real rules, and nothing half-promoted reaches the base branch.
 
 | Skill | What it does |
 |---|---|
@@ -79,6 +98,7 @@ docs/prd/                       INDEX.md, README.md, CHANGELOG.md, prd.html, one
 docs/trd/                       README.md, one file per feature, infra.md, invariants.md, testing.md
 docs/code-structure.md          AR01 to AR14: where and how code lives
 docs/flow.md, docs/adr/         the one end-to-end diagram; decision records
+changes/, changes/archive/      change folders in flight (brief, design, plan) and the finished ones
 docs/templates/                 PRD section, TRD feature, feature CLAUDE.md, HTML shell, reviewer agent
 scripts/                        gates.sh, ratchet.py, related_tests.py, new_failures.py, move_lines.py
 .github/workflows/              CI and the automated Claude review on every pull request
@@ -127,7 +147,7 @@ People read the HTML (tabs per PRD, filters by where a rule changes, diagrams). 
 Yes. One PRD folder per independent flow, one TRD file per feature folder, nested by package in a monorepo.
 
 **Do I need spec-kit?**
-No. The constitution lives at spec-kit's path so the two work together, and the plan format of `/prd-gate` stands alone.
+No. The kit never installs it and no text of the kit depends on it. The change folders under `changes/` replace `spec.md`, `plan.md` and `tasks.md`, and the plan's `Constitution check` replaces spec-kit's Constitution Check and Complexity Tracking. The constitution stays at `.specify/memory/constitution.md` for compatibility. A project that keeps spec-kit marks it `kept` in `repo.md`: its `spec.md` then cites PRD rule IDs and defines no requirements of its own, `tasks.md` is not used, and a legacy `specs/` stays untouched as history.
 
 **What if the codebase is organized by layer, not by feature?**
 `/trd-create` maps what exists and writes a structure-only refactor plan: code moved by script, never retyped, the ratchet lowered wave by wave.

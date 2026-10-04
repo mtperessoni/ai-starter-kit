@@ -1,5 +1,5 @@
 <!--
-Target path: .specify/memory/constitution.md (spec-kit path; spec-kit itself is optional).
+Target path: .specify/memory/constitution.md (the path is kept for compatibility; spec-kit is optional).
 Keep each principle short: a rule, the controls that enforce it, and the registered exceptions.
 Principles marked [kit] come from the playbook and are recommended as-is; [domain] ones are yours.
 -->
@@ -34,7 +34,7 @@ No secret in source, prompt, config file or fixture. Configuration is typed and 
 
 ## Development Workflow
 1. **Gate first.** `/prd-gate` classifies every behavior change; a rule change goes PRD, TRD, plan, code.
-2. **Spec before code** when the change is a new feature: `/speckit-specify`, `/speckit-plan` (Constitution Check), `/speckit-tasks`.
+2. **Change folder by size** before code: S none or `plan.md`; M `brief.md` and `plan.md`; L also `design.md`, all under `changes/NNN-<slug>/`. What is durable is promoted to the PRD, TRD or ADR and the folder is archived.
 3. **Implement** test first, one commit per task.
 4. **Gates.** Lint, type check, ratchet and the full offline suite pass before any merge. Coverage may not decrease.
 
@@ -44,8 +44,8 @@ Everything in this repository is written in English.
 
 ## Governance
 This constitution supersedes any other convention in this repository.
-- Every pull request verifies compliance. A violation is fixed or explicitly justified in the plan's `Complexity Tracking` table.
-- Amendments require a pull request that changes this file, states the rationale and updates any spec or plan the change invalidates. Changing a protected rule requires an ADR in `docs/adr/`.
+- Every pull request verifies compliance. A violation is fixed or explicitly justified in the plan's `Constitution check` table.
+- Amendments require a pull request that changes this file, states the rationale and updates any plan the change invalidates. Changing a protected rule requires an ADR in `docs/adr/`.
 - Versioning is semantic: MAJOR for removing or redefining a principle, MINOR for a new principle or materially new rule, PATCH for wording.
 - Runtime guidance for AI agents lives in `AGENTS.md`. When `AGENTS.md` and this constitution disagree, this constitution wins.
 

@@ -44,6 +44,13 @@ jobs:
       - name: Docs gate (PRD, TRD, HTML parity)
         run: ./scripts/gates.sh docs --base origin/${{ github.base_ref || 'main' }}
 
+      - name: Rules traced to tests (LT08)
+        run: python .claude/skills/prd-gate/scripts/gate.py --trace
+
+      - name: Nothing planned or open (LT10, base branch only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: python .claude/skills/prd-gate/scripts/gate.py --final
+
       - name: Offline gate (no network, no database)
         run: ./scripts/gates.sh offline
 
