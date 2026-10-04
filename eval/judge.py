@@ -14,9 +14,10 @@ HEAD_LINES = 60
 DOC_EXT = (".md", ".html", ".txt")
 NO_JUDGE = {"prd_fidelity": None, "facts": None, "restating_files": None, "judge_cost_usd": None}
 
-RUBRIC = """You grade whether a PRD diff states the product facts of a change, strictly.
+RUBRIC = """You grade whether the PRD, after a change, states the product facts of that change, strictly.
+Read the diff for what changed and the full text of the touched PRD files for what the PRD says now.
 Verdict per fact, exactly one of:
-- stated: the PRD diff (added or changed rows and text) says the fact with the same numbers and boundaries. Example: fact "regular customers are capped at 20%" and the diff adds a row "non-VIP total discount is at most 20% of the subtotal" -> stated.
+- stated: the PRD after the change says the fact with the same numbers and boundaries (in the diff or in text the change left in place). Example: fact "regular customers are capped at 20%" and the diff adds a row "non-VIP total discount is at most 20% of the subtotal" -> stated.
 - missing: the diff does not say it, or says it vaguely or without the number. Example: same fact, diff only says "the cap was lowered" -> missing.
 - contradicted: the diff says something incompatible with the fact. Example: same fact, diff says "regular customers are capped at 25%" -> contradicted.
 For a fact that says a rule stays unchanged (no change, still documented), the verdict is stated when the diff does not alter or contradict it, contradicted when the diff alters it.
@@ -57,8 +58,13 @@ def build_prompt(project, scenario_dir, seed):
         head = "\n".join(text.splitlines()[:HEAD_LINES])
         parts.append(f"### {rel}\n{head}")
     others = "\n\n".join(parts) or "(none)"
+    touched = [f for f in grade.git(project, "diff", "--name-only", seed, "--", "docs/prd").split()
+               if f.endswith(".md")]
+    after = "\n\n".join(f"### {rel}\n{grade.read_text(project / rel) or ''}" for rel in touched)
+    after = after[:MAX_DIFF] or "(no PRD file touched)"
     return (f"{RUBRIC}\n## Decisions of the change\n{decisions}\n\n## Facts to check\n{facts}\n\n"
-            f"## PRD diff\n{diff}\n\n## Other doc files added (first {HEAD_LINES} lines)\n{others}\n")
+            f"## PRD diff\n{diff}\n\n## PRD after the change (touched files, full text)\n{after}\n\n"
+            f"## Other doc files added (first {HEAD_LINES} lines)\n{others}\n")
 
 
 def parse_verdicts(text):

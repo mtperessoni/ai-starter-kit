@@ -194,6 +194,11 @@ class JudgeTest(unittest.TestCase):
         self.assertNotIn("line 60", p)
         self.assertIn("- cap 20%", p)
 
+    def test_prompt_carries_the_full_touched_prd_file_so_unchanged_facts_are_visible(self):
+        p = judge.build_prompt(self.project, self.scn, self.seed)
+        self.assertIn("## PRD after the change", p)
+        self.assertIn("### docs/prd/01.md\n| PRC-01 | VIP 15% | x | code |", p)
+
     def test_scores_stated_minus_contradicted(self):
         verdicts = {"facts": [{"id": "f1", "verdict": "stated"}, {"id": "f2", "verdict": "stated"},
                               {"id": "f3", "verdict": "contradicted"}, {"id": "f4", "verdict": "missing"}],
