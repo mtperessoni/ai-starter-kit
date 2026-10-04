@@ -1,0 +1,17 @@
+{
+  "case": "C5",
+  "size": "L",
+  "rule_ids": ["CHK-01", "CHK-02", "CRD-01", "CRD-02", "CRD-03"],
+  "id_hint": "Illustrative IDs: CRD-01 customer balance, CRD-02 credit applied after discounts and shipping up to the order amount, CRD-03 balance decreases only on confirmation; CHK-01 (total) and CHK-02 (receipt) change. The fixture may number the new rules with a different prefix or place them in another section, so prd_patterns must match behavior text and names, not IDs.",
+  "prd_patterns": [
+    "(?i)store credit",
+    "store_credit_balance",
+    "store_credit_used",
+    "(?i)confirm",
+    "(?i)after (the )?(discounts?|shipping)"
+  ],
+  "dup_phrases": [
+    "(?i)store credit.{0,100}(after|up to|only)",
+    "(?i)balance.{0,60}(decreas|reduc).{0,60}confirm"
+  ]
+}

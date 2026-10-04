@@ -1,0 +1,16 @@
+{
+  "case": "C5",
+  "size": "M",
+  "rule_ids": ["PRC-03", "PRC-04"],
+  "id_hint": "Illustrative IDs: PRC-03 is the existing 30% cap, PRC-04 is the new non-VIP cap of 20%. The fixture may number rules differently and the run may modify PRC-03 instead of adding PRC-04, so prd_patterns must match behavior text and numbers, not IDs.",
+  "prd_patterns": [
+    "(?i)non-?\\s?VIP",
+    "20\\s*%",
+    "30\\s*%",
+    "(?i)VIP"
+  ],
+  "dup_phrases": [
+    "(?i)non-?\\s?VIP.{0,80}20\\s*%",
+    "(?i)20\\s*%.{0,80}non-?\\s?VIP"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "case": "C3",
+  "size": "S",
+  "rule_ids": ["SHP-02"],
+  "id_hint": "Illustrative ID: SHP-02 is the free shipping threshold. The fixture may number it differently. The PRD rule is already correct, so the run should leave the rule text saying 200.00 or more and match on behavior text and numbers, not IDs.",
+  "prd_patterns": [
+    "200\\.00",
+    "(?i)(or more|>=|at least|greater than or equal)"
+  ],
+  "dup_phrases": [
+    "(?i)free.{0,60}200\\.00",
+    "(?i)200\\.00.{0,60}free"
+  ]
+}

@@ -1,0 +1,9 @@
+- Scope: only the free shipping threshold check. An order with exactly 200.00 after discounts must ship for free.
+- The document already says shipping is free at 200.00 or more, so the product rule does not change. The behavior is wrong, not the rule.
+- Orders below 200.00 after discounts still pay the flat shipping of 15.00, including 199.99.
+- Orders above 200.00 still ship for free.
+- The amount compared is the subtotal after discounts, never the subtotal before discounts.
+- Rounding and totals: no change, the total is still subtotal minus discount plus shipping, rounded half up to cents.
+- Who is affected: any customer, VIP or not, with or without coupon, who lands exactly on 200.00.
+- Rollout: the fix applies to new orders only, past orders are not refunded or recalculated by this change.
+- Do not touch any other rule.

@@ -1,0 +1,8 @@
+{
+  "case": "C6",
+  "size": "S",
+  "rule_ids": [],
+  "id_hint": "A refactor touches no product rule, so no PRD change is expected. The TRD of the checkout feature should list the new modules. IDs in the hidden tests (PRC-*, SHP-*, CHK-*) are illustrative and only pin that behavior is unchanged.",
+  "prd_patterns": [],
+  "dup_phrases": []
+}

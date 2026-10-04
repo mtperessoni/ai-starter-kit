@@ -1,0 +1,1 @@
+We are launching store credit. A customer can have a balance, and at checkout it should pay part or all of the order. The balance should only go down once the order is confirmed, not while they are just looking at the receipt.
