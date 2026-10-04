@@ -33,3 +33,12 @@ Tests run narrow while working and wide once. Before these rules, agents took 13
 | TS20 | CI runs the offline gate before the full one and asserts the two disagree | Proves isolation on every merge | `.github/workflows/ci.yml` |
 | TS21 | The gate is tested by executing it: a test runs the offline gate against a canary that touches a database and asserts it exits non-zero **because of the guard** (not because of coverage, collection or a missing file). Never test a gate by checking that words are present in its script | With the test command replaced by `true`, every "the script contains X" pin stayed green | `tests/` gate tests; testing.md |
 | TS22 | `scripts/new_failures.py` compares a test log with `baseline-failures.txt` and prints only new failures | Makes TS04 one command in any stack | `scripts/gates.sh compare` |
+
+## CI
+
+| ID | Rule | Why | Lands in |
+|---|---|---|---|
+| TS23 | CI runs on pull requests and on pushes to every branch that deploys | A gate that runs only before a merge checks the parts and never the sum; measured: a deploy branch had seven deploys and zero CI runs | `.github/workflows/ci.yml` |
+| TS24 | A pull request cancels its own earlier runs; a push to a deploy branch never does | Cancelling the check while the deploy proceeds ships an artifact whose check never concluded; measured: three images deployed, zero completed CI runs | `.github/workflows/ci.yml` |
+| TS25 | Every CI job has a timeout (about 15 minutes) | A run stuck past it is hung, not slow | `.github/workflows/ci.yml` |
+| TS26 | CI order: lint, ratchet, docs gate, offline gate, full suite; secret scan as a separate job | Cheap checks fail first | `.github/workflows/ci.yml` |

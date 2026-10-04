@@ -1,0 +1,103 @@
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  id-token: write
+
+jobs:
+  claude-auto-review:
+    name: Claude AI - Auto Review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          track_progress: "true"
+          claude_args: "--allowedTools Bash,Read,Glob,Grep,mcp__github_comment__update_claude_comment --disallowedTools Task --max-turns 80"
+          prompt: |
+            You are a senior engineer reviewing a pull request for {{PROJECT}}, {{one line: what it is and its stack}}.
+
+            Read `.specify/memory/constitution.md`, `CLAUDE.md` and `AGENTS.md` at the repository root before reviewing. The constitution is binding and wins over everything else. For product behavior, the rules are in `docs/prd/` (start at `docs/prd/INDEX.md`, read only the sections the diff touches); for where code lives, `docs/trd/`.
+
+            Analyze ONLY the files changed in this PR. Run `git diff origin/${{ github.base_ref }}...HEAD --name-only` to list them, then review each one.
+
+            Post a single structured comment with the sections below. Use severity labels: 🔴 Critical, 🟡 Warning, 🟢 Suggestion. Only report real issues you observe, each with file and line; never invent hypothetical ones. If a section has no findings, write "No problems found."
+
+            Review the diff yourself, in a single pass, without delegating to sub-agents. If the diff is large, review the highest-risk files first and update the comment with what you already found before moving on.
+
+            NEVER finish the run with only a progress checklist. The comment must always end with the sections below filled in with your actual findings, even if you could not cover every file. In that case, list the files you did not reach under the summary.
+
+            ---
+
+            ## 📜 Product rules (PRD)
+            - Behavior that contradicts a PRD rule, or new behavior with no rule in the PRD
+            - A rule changed in code without the PRD, TRD and CHANGELOG changing in the same PR
+
+            ## {{Domain principle sections, one per constitution principle with its checks, written by /ai-kit install}}
+
+            ## 🏗️ Architecture and structure
+            - Code outside the feature folder of its PRD area; files over the size limits; generic file names
+            - Branching on a customer or tenant name; per-tenant behavior must be configuration
+            - Hardcoded credential, token, key, model id or per-customer rule
+            - Framework or vendor types crossing into the domain layer
+            - Feature `CLAUDE.md` or TRD not updated with the code they map
+
+            ## 🔒 Security and sensitive data
+            - Personal data, credentials or tokens in logs, error responses or exceptions
+            - Internal route without authentication; missing input validation on an exposed endpoint
+            - Injection through raw queries or unsanitized parameters
+
+            ## 🧹 Robustness and quality
+            - Empty catch, swallowed exception, fire-and-forget without durable state
+            - Side effect without a structured log carrying the correlation ids
+            - New test that needs the network or a real key outside the eval marker
+            - Tests that do not cite the PRD ID they prove; unnecessary comments
+
+            ## 💥 Breaking changes
+            - Contract consumed by another system changed (response shape, removed or renamed field)
+            - Destructive migration or one without a rollback path
+
+            ## ✅ Summary
+            One short paragraph with the overall verdict and the most critical points to resolve before merge.
+
+  claude-interactive:
+    name: Claude AI - Interactive (@claude)
+    if: |
+      github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request != null &&
+      contains(github.event.comment.body, '@claude')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_args: "--allowedTools Bash,Read,Glob,Grep,mcp__github_comment__update_claude_comment --disallowedTools Task --max-turns 60"
+          prompt: |
+            You are a senior engineer reviewing {{PROJECT}}. Read `.specify/memory/constitution.md`, `CLAUDE.md` and `AGENTS.md` at the repository root for project conventions. The constitution is binding.
+
+            A developer has mentioned you in a PR comment. Their message is:
+
+            ${{ github.event.comment.body }}
+
+            Analyze the PR diff (run `git diff origin/${{ github.base_ref }}...HEAD`) and respond to the developer's question or request. Use severity labels 🔴 Critical, 🟡 Warning, 🟢 Suggestion when reporting issues.

@@ -1,0 +1,12 @@
+title = "gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Ignore local, untracked and generated paths that are not part of the tracked source"
+paths = [
+  '''\.git/''',
+  '''\.claude/prd-gate/''',
+  # /ai-kit install appends the stack's generated paths here (virtualenvs, caches, lockfiles, build output).
+]

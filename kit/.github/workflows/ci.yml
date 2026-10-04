@@ -1,0 +1,63 @@
+name: CI
+
+# Runs on pull requests AND on pushes to the branches that deploy. A gate that
+# runs only before a merge checks the parts and never the sum: a pull request
+# verified against a base that then moves, or a commit pushed straight to the
+# branch, would reach an environment without the offline gate having run.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# A pull request cancels its own earlier runs; a push to a deploy branch does
+# not, because cancelling the verification while the deploy proceeds lets an
+# artifact ship whose check never concluded.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    # A run stuck past this is hung, not slow; fail fast.
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      # /ai-kit install replaces this step with the stack's setup and locked install.
+      - name: Set up the toolchain and install locked dependencies
+        run: echo "replaced by /ai-kit install" && exit 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Lint, format and types (verify only)
+        run: ./scripts/gates.sh lint
+
+      - name: Structure ratchet
+        run: ./scripts/gates.sh ratchet
+
+      - name: Docs gate (PRD, TRD, HTML parity)
+        run: ./scripts/gates.sh docs --base origin/${{ github.base_ref || 'main' }}
+
+      - name: Offline gate (no network, no database)
+        run: ./scripts/gates.sh offline
+
+      - name: Full suite
+        run: ./scripts/gates.sh full
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan tracked files for secrets
+        run: |
+          docker run --rm -v "${{ github.workspace }}:/repo" \
+            zricethezav/gitleaks:v8.18.4 detect \
+            --source=/repo --no-git --config=/repo/.gitleaks.toml \
+            --redact --verbose --exit-code=1

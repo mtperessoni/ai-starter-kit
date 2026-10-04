@@ -1,0 +1,7 @@
+# Every text file is LF in the repository and in every checkout, whatever the
+# machine's core.autocrlf says. A CRLF checkout on Windows breaks byte-for-byte
+# comparisons and produces lint noise that looks like a regression.
+* text=auto eol=lf
+
+# PowerShell scripts run on Windows only.
+*.ps1 text eol=crlf
