@@ -1,0 +1,53 @@
+# Execution (C5 step 9, and C2, C3, C6 with code)
+
+Read only by whoever executes. The main thread dispatches, commits and decides; the work goes to the `executor` and `reviewer` workers (`reference/workers.md`). Commands come from `repo.md`.
+
+## Where to execute
+| ID | Rule |
+|---|---|
+| E01 | A plan with more than 6 tasks, or touching a big file from `repo.md`: execute in a new session, with `/prd-gate resume <slug>`, starting from `state.md` and the plan. The C5 session already carries the confrontation, the interview and the writing, and every agent report adds to that |
+| E02 | A smaller plan may continue in the same session |
+
+## Order
+| ID | Step |
+|---|---|
+| E03 | Baseline: the failures of the last recorded full run go to `state/<slug>/baseline-failures.txt` (with none recorded, the full suite runs once before code). At the end (E18), only new failures count |
+| E04 | Per wave: tasks with disjoint Owns run in parallel; a big file has a serial chain. Each task goes to the `executor` with a one-line prompt (*"task T07 of plan `<path>`"*), on the model the plan marks |
+| E05 | Each return: check the diff of the listed files and commit only those, with the message the executor proposed. A gap in the return is resolved (a question to the user or a new task) before the task that depends on it |
+| E06 | End of the wave: review by the `reviewer` with the ceiling of `reference/review.md` (at most 5 rounds; fixes by the `executor` with the finding IDs) |
+| E07 | To continue an agent's work, resume it (SendMessage); do not open another one, which would reread everything. An agent the user interrupted is not resumed: first save what it left with `git --no-pager diff` into a patch in `state/<slug>/` |
+
+## Rule change in the middle of execution (short C5)
+When a new decision changes a rule (the reviewer found a case the rule does not cover, or the user changed their mind):
+
+| ID | Step |
+|---|---|
+| E08 | Stop the tasks that touch the rule (review.md V06). Show the current rule and the proposal in at most 15 lines, in product language (R07), and ask |
+| E09 | Approved: append a dated section to `approved-rules.md` (same format, old text literal for the CHANGELOG) and dispatch the `writer` with the request *"apply the YYYY-MM-DD section of approved-rules.md"*. No hand edits of PRD, HTML or CHANGELOG |
+| E10 | The `planner` only appends the new tasks to the plan; execution resumes. The review counter does not reset without explicit approval |
+
+## Cost per agent
+The weight of an agent is the context it resends on every call, times the number of calls. An executor with 300k tokens and 150 calls costs more than the rest of the route.
+
+| ID | Rule |
+|---|---|
+| E12 | No worker opens a subagent. Parallelism belongs only to the main thread, by wave |
+| E13 | Executor and fixer run on `sonnet`. `opus` only when the plan marks the task as a new safety decision (or another reason written on the task line) |
+| E14 | An agent that hit its ceiling, or passed about 150k tokens, is not resumed: the main thread opens a new agent with a handoff of at most 10 lines (files touched, red tests, next step). This prevails over E07 |
+| E15 | The worker prompt names the task's files, entry symbols and tests; it does not reread the whole plan, only its section |
+| E16 | Tests run with output redirected to a file, and only the `FAILED` and `ERROR` lines and the summary come back into context |
+| E17 | Brake: an agent that hits its ceiling twice, or a wave that takes more than twice the time of the previous one, stops the execution and goes to the user with what is left and the cost so far. Never run for hours without reporting |
+| E18 | **Tests only at the end.** During execution no agent runs the full suite: the executor runs only the tests related to what it touched, the mirror file and those that import or use the touched module (`Grep` of the module path in the test folders), with the single-file command of `repo.md` (no coverage). A failure in a test unrelated to what it touched is not investigated midway: it waits for the end. The full suite runs a single time, after all tasks are applied; then a closing task fixes the tests and the code that are wrong according to the PRD |
+| E19 | **Moving code is done by script.** In a refactor the agent decides the map (which symbol goes to which module) and a script cuts and pastes the blocks by line range or AST; the model only fixes imports and calls. Never retype a function body: it is slow and creates transcription errors. With huge test files, split code and tests first and prove statically (import check, type check, lint); run tests in parts afterwards |
+
+## Cost record
+| ID | Rule |
+|---|---|
+| E11 | At the end of each wave, append one line to `state.md`: wave, agents dispatched, review rounds, the most expensive agent (tokens and minutes). It is the baseline to compare one execution with the next and to know whether the process got cheaper |
+
+```markdown
+## Cost (E11)
+| Wave | Agents | Reviews | Most expensive |
+|---|---|---|---|
+| 1-A | 6 | 1/5 | T04 · 120k tokens · 9 min |
+```
