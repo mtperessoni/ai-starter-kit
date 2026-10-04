@@ -1,0 +1,9 @@
+- Scope: this is a bug in the quote, not a new rule. The product document already fixes the order of discounts: category sale, buy-x-get-y, percent coupon, bundle, fixed coupon, free-shipping flag, each step working on what the previous ones left. The code applies the bundle before the percent coupon.
+- Expected behavior: the percent coupon is calculated before the bundle. Example: BK-100 and BK-200 (100.00) with the bundle and SAVE10: coupon 10.00 first, then the bundle 15.00, total discount 25.00, total 75.00.
+- Controls that must keep working: the two books with the bundle alone give 15.00 off; SAVE10 alone on EL-200 plus HM-100 (200.00) gives 20.00 off.
+- Other combinations stay as today: bundle with a fixed coupon, bundle with a percent coupon of 20 percent. With SAVE20 (minimum 100.00) on the two books the discount is 20.00 + 15.00 = 35.00, total 65.00.
+- Two sets of the bundle (two of each book, 200.00) with SAVE10: coupon 20.00, bundle 30.00, total discount 50.00, total 150.00.
+- The 40 percent total discount cap keeps applying to the sum.
+- No change to coupon validity, minimums (the minimum is measured on the list subtotal of eligible lines), shipping, tax, or any rule text. The product document needs no rule edit beyond a changelog line.
+- Who is affected: carts that have a bundle and a percent coupon at the same time.
+- Rollout: as soon as merged, no flag. Orders already placed are not changed.

@@ -5,8 +5,11 @@ Compares the team's current flow (PRD and TRD plus spec-kit) with the living-tru
 ## Arms
 | Arm | Ref | Spec-kit | Protocol |
 |---|---|---|---|
-| **SK** (spec-kit flow) | `eval/speckit-baseline` = `main` plus the gate.py fixes found in round 1 | v1.1.0, initialized | `eval/arms/speckit.md` |
+| **SKU** (spec-kit suggested) | `eval/speckit-baseline` = `main` plus the gate.py fixes found in round 1 | v1.1.0, initialized | `eval/arms/speckit.md` |
+| **SKF** (spec-kit mandatory) | same | v1.1.0, initialized | `eval/arms/speckit-forced.md` |
 | **LT** (living truth) | `feat/living-truth` | none | `eval/arms/living.md` |
+
+SKU is how the kit and the team describe the flow today; SKF measures what spec-kit costs when it is actually run. Reports compare LT against each (`python eval/report.py <results> SKF`).
 
 The protocol is the one line a team member would give a new colleague about how the team works; it is the only arm-specific text in the prompt (`{protocol}` slot of `eval/prompt.md`). Round 1 showed that without it the agent skips spec-kit even when the constitution requires it, so SK must be told, the way the team tells people.
 
@@ -107,6 +110,19 @@ A run that SK fails on R4 is reported, not excluded: if the team's flow skips it
 python eval/run.py --dry-run                 # builds every pair, grades the seeds, no spend
 python eval/run.py                           # the 12 runs of the table above
 ```
+
+## Large suite
+A second fixture closer to a real service, so the flows face what makes context expensive: many features, cross-feature rules, a big file, a rule gap and an approved rule never implemented.
+
+| ID | Rule |
+|---|---|
+| LG01 | `eval/fixture-large/SPEC.md` is the single design of the large fixture: rule catalog with IDs per feature, module map with file names and entry symbols, the public API, the seeded defects and hooks for each scenario. Code, docs and scenarios are written from it |
+| LG02 | `eval/fixture-large/project/`: Python package `market` under `src/market/features/<f>/` with 12 features (catalog, pricing, promotions, inventory, cart, checkout, payments, shipping, tax, loyalty, returns, notifications) and `src/market/infra/` (in-memory repositories, clock, config, events). About 4,000 to 6,000 lines of source, a visible suite of at least 250 tests, green except the seeded defects, which no visible test covers |
+| LG03 | `promotions` has one module of about 700 lines (listed as a big file in `repo.md` and in the ratchet allowlist), so flows must read it by symbol |
+| LG04 | The PRD has one section per feature, about 80 rule rows in total, at least 10 of them spanning two or more features; one rule is approved with Source `planned` and not implemented; the TRD has one file per feature, invariants, testing and the flow; every feature has its `CLAUDE.md` map |
+| LG05 | Public API for hidden tests: `from market import api` only |
+| LG06 | Scenarios `eval/scenarios-large/L1..L8`, same layout as the small suite: L1 cross-feature rule change (M), L2 and L3 new features with data model and contract (L), L4 bug across features (S), L5 bug inside the big file (S), L6 refactor of the big file (C6, M), L7 rule gap (C5, M), L8 implement the approved `planned` rule (C2, S) |
+| LG07 | `eval/arms-large.json` points to the large fixture and scenarios; reps 2 on M and L, 1 on S; arms LT and SKU (the team's flow), plus SKF on L2 and L3 as a sensitivity check |
 
 ## Round 1 (2026-10-04), for the record
 Arms: `main` plus spec-kit without a protocol versus `feat/living-truth`; one rep, 8 runs, US$27.87. Both arms passed every hidden test. The SK arm never invoked spec-kit, so the round compared the kit without spec-kit against living truth: LT was 5% to 14% cheaper on S1, S3 and S4, and 11% more expensive and 61% slower on S2, where it hit the US$7.50 cap after archiving. Three runs patched two real gate.py bugs (G5 path comparison, HTML header row), which this round fixes in both arms.

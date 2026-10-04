@@ -55,8 +55,19 @@ def render_prompt(template, request, decisions, protocol):
             .replace("{decisions}", decisions.strip()))
 
 
-def build_args(arm_cfg, out):
+def suite_paths(cfg):
+    """(fixture, fill file, scenarios folder) of the config; the small suite when absent."""
+    fixture = HERE / cfg.get("fixture", "fixture")
+    fill = HERE / cfg["fill"] if cfg.get("fill") else fixture / "fill.json"
+    return fixture, fill, HERE / cfg.get("scenarios_dir", "scenarios")
+
+
+def build_args(arm_cfg, out, fixture=None, fill=None):
     cmd = [sys.executable, str(HERE / "build.py"), "--ref", arm_cfg["ref"], "--out", str(out)]
+    if fixture:
+        cmd += ["--fixture", str(fixture)]
+    if fill:
+        cmd += ["--fill", str(fill)]
     return cmd + ["--spec-kit"] if arm_cfg["spec_kit"] else cmd
 
 
@@ -107,13 +118,14 @@ def classify(jsonl, returncode):
 def run_pair(pair, cfg, args, projects, results, template):
     name, arm, sc = pair["name"], pair["arm"], pair["scenario"]
     arm_cfg = cfg["arms"][arm]
-    project, scenario = projects / name, HERE / "scenarios" / sc
+    fixture, fill, scenarios = suite_paths(cfg)
+    project, scenario = projects / name, scenarios / sc
     transcript = results / f"{name}.jsonl"
     if QUOTA_HIT.is_set():
         (results / f"{name}.metrics.json").write_text(json.dumps({"status": "skipped_rate_limit"}),
                                                       encoding="utf-8")
         return name, "skipped_rate_limit"
-    b = subprocess.run(build_args(arm_cfg, project), capture_output=True, text=True,
+    b = subprocess.run(build_args(arm_cfg, project, fixture, fill), capture_output=True, text=True,
                        encoding="utf-8", errors="replace")
     (results / f"{name}.build.log").write_text(b.stdout + b.stderr, encoding="utf-8")
     started_at = time.time()
@@ -179,7 +191,7 @@ def main(argv=None):
     with ThreadPoolExecutor(max_workers=max(1, parallel)) as pool:
         for name, status in pool.map(lambda p: run_pair(p, cfg, args, projects, results, template), pairs):
             print(f"{name}: {status}", flush=True)
-    print(report.write_report(results))
+    print(report.write_report(results, config=args.config or HERE / "arms.json"))
 
 
 if __name__ == "__main__":

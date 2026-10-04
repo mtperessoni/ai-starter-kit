@@ -1,0 +1,9 @@
+- Scope: implement the rule already approved in the product document as planned (LOY-07): the first paid order of a customer earns double the points it would normally earn. No change to the approved text.
+- "Normally earn" means the usual earning: 1 point per whole 1.00 of merchandise after discounts, doubled for VIP, nothing for gift cards. The first-order bonus doubles that result. So a standard customer's first order of 120.00 earns 240, a VIP's earns 480 (120 times 2 for VIP times 2 for the first order).
+- What counts as the first paid order: the first order of that customer that reaches paid. A declined payment (payment_failed) is not a first order; the next order that is paid is. The second paid order earns the normal points (120 for the same cart).
+- Points granted directly to a balance (grant) are not orders and do not use up the first-order bonus.
+- A coupon is part of "after discounts": a 120.00 order with a 10 percent coupon earns 108 normally, 216 as the first order.
+- Cancelling or returning keeps the existing rules: the points the order earned (including the bonus) are taken back, never below a zero balance. No new cancellation rule.
+- Product document: the LOY-07 Source changes from planned to the real code (points earning and the order-paid handler); no row marked planned remains; the technical map for loyalty lists it.
+- Who is affected: customers placing their first paid order.
+- Rollout: as soon as merged, no flag. Customers who already paid an order before the change are not first-time customers; no back-payment of points.

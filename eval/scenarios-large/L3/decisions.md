@@ -1,0 +1,13 @@
+- Scope: a new feature called stock alerts. A customer asks to be told, by email, when a product that has nothing available gets stock again. It is a new area of the product, with its own section in the product document.
+- When a request is allowed: only for a product with nothing available right now. If it is in stock, the request is refused with the reason `in_stock` (a policy error).
+- Asking twice for the same product returns the same alert, no duplicate.
+- A customer has at most 10 alerts waiting (not yet notified). The 11th is refused with `too_many_alerts` (a policy error). Alerts already notified do not count.
+- When stock arrives for a product that had nothing available (the existing restocked event), every waiting alert for that product is marked notified and the customer receives the `back_in_stock` email. This is a new notification template next to the existing ones.
+- A notified alert is never sent again. If the customer asks again after being notified (and the product is sold out again), a new alert is created.
+- "Nothing available" means available stock is zero, counting active reservations. Restocking a product that already had stock does not notify anyone.
+- An alert has: an id, the customer, the SKU, the creation date and a `notified` flag.
+- Rule ids: ALR-01 to ALR-05 in that order (only when sold out, asking twice, limit of 10 waiting, notify on restock, never sent twice).
+- Names fixed for the work: data model `StockAlert(alert_id, customer_id, sku, created_at, notified)`; functions `subscribe_stock_alert(customer_id, sku)` and `list_stock_alerts(customer_id)`, exposed through `market.api`. The email goes to the customer's address with the template `back_in_stock`.
+- Boundaries: no alert by phone or push, no automatic reservation, no unsubscribe, no alert for gift cards (they are never sold out), no change to how low-stock alerts to ops work.
+- Who is affected: customers who ask. Nothing changes for anyone else.
+- Rollout: as soon as merged, no flag.

@@ -93,6 +93,34 @@ class CommandTest(unittest.TestCase):
         self.assertEqual(sk[2:6], ["--ref", "eval/speckit-baseline", "--out", "out"])
         self.assertNotIn("--spec-kit", run.build_args(CFG["arms"]["LT"], "out"))
 
+    def test_build_args_pass_fixture_and_fill_from_the_config(self):
+        cmd = run.build_args(CFG["arms"]["LT"], "out", fixture=EVAL / "fixture-large", fill=EVAL / "fixture-large" / "fill.json")
+        self.assertEqual(cmd[cmd.index("--fixture") + 1], str(EVAL / "fixture-large"))
+        self.assertEqual(cmd[cmd.index("--fill") + 1], str(EVAL / "fixture-large" / "fill.json"))
+        self.assertNotIn("--fixture", run.build_args(CFG["arms"]["LT"], "out"))
+
+
+class LargeConfigTest(unittest.TestCase):
+    cfg = json.loads((EVAL / "arms-large.json").read_text(encoding="utf-8"))
+
+    def test_small_config_defaults(self):
+        self.assertEqual(run.suite_paths(CFG), (EVAL / "fixture", EVAL / "fixture" / "fill.json", EVAL / "scenarios"))
+
+    def test_large_config_paths(self):
+        self.assertEqual(run.suite_paths(self.cfg), (EVAL / "fixture-large", EVAL / "fixture-large" / "fill.json",
+                                                     EVAL / "scenarios-large"))
+
+    def test_large_round_decision(self):
+        self.assertEqual(set(self.cfg["arms"]), {"LT", "SKU", "SKF"})
+        self.assertEqual(self.cfg["timeout_min"], 75)
+        self.assertEqual(self.cfg["parallel"], 3)
+        self.assertEqual({k: v["budget_usd"] for k, v in self.cfg["scenarios"].items()},
+                         {"L1": 10, "L2": 20, "L3": 20, "L4": 8, "L5": 8, "L6": 10, "L7": 10, "L8": 8})
+        self.assertTrue(all(v["reps"] == 2 for v in self.cfg["scenarios"].values()))
+        self.assertEqual(len(run.plan_pairs(self.cfg)), 48)
+        for arm in self.cfg["arms"]:
+            self.assertEqual(self.cfg["arms"][arm], CFG["arms"][arm])
+
 
 if __name__ == "__main__":
     unittest.main()

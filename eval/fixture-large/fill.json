@@ -1,0 +1,92 @@
+{
+  "CLAUDE.md": {
+    "<project>": "Market",
+    "<One sentence: what this service or app is and who uses it.>": "A marketplace order service that prices a cart with promotions, checks out with shipping, tax and payment, and handles returns, used by the storefront.",
+    "**I. <Principle name> (NON-NEGOTIABLE).** <One line.>": "**I. Exact Money (NON-NEGOTIABLE).** Money is Decimal built from strings, rounded half up to cents only where a rule says so; never float.",
+    "**II. <Principle name>.** <One line.>": "**II. Deterministic Behavior.** The same inputs always give the same result; time comes from `infra.clock` and ids from `infra.ids`, never from the system.",
+    "**V. <Principle name>.** <One line.>": "**V. Stable Public API.** `from market import api` keeps its names and signatures.",
+    "<src>/app/": "src/market/",
+    "<src>/features/": "src/market/features/",
+    "<src>/infra/": "src/market/infra/",
+    "<src>": "src/market"
+  },
+  "AGENTS.md": {
+    "<project>": "Market",
+    "<One paragraph: what it is, stack, package manager.>": "A marketplace order service in Python 3.11+. Standard library only at runtime, pytest for tests, pip for the one dev dependency.",
+    "<install>                          # Install dependencies (locked)": "python -m pip install pytest      # Install the dev dependency",
+    "<dev>                              # Dev server": "python -c \"import market\"           # Import smoke check (a library has no server)",
+    "<Domain constraint.>": "**NEVER use float for money.** Money is `Decimal`, rounded half up to cents (see the PRD money rules).",
+    "<src>/app/": "src/market/",
+    "<src>/features/": "src/market/features/",
+    "<src>/infra/": "src/market/infra/",
+    "<src>": "src/market"
+  },
+  ".specify/memory/constitution.md": {
+    "# <Project> Constitution": "# Market Constitution",
+    "<Domain principle: auditability, rollback, configuration as data, safety...>": "Deterministic Behavior and Stable Public API",
+    "<...>": "The same inputs always give the same result: time comes from `infra.clock`, ids from `infra.ids`, no randomness, no network. The public surface `market.api` changes only through an ADR. Enforced by the visible suite and by review.",
+    "<Domain principle>": "Exact Money",
+    "<The rule in two or three sentences. What it forbids. How it is enforced (test, reviewer, gate).>": "Money is `Decimal` built from strings, never `float`, and rounded half up to cents only where a PRD rule says so. It forbids float arithmetic and any other rounding mode. Enforced by the tests of the pricing, promotions and tax rules and by review.",
+    "<Stack, persistence ownership, boundaries with other systems.>": "Python 3.11 or later, standard library only at runtime, pytest for tests. Everything is in memory and synchronous; there is no persistence and no network.",
+    "<YYYY-MM-DD>": "2026-01-05"
+  },
+  ".claude/skills/prd-gate/repo.md": {
+    "`<...>`": "placeholder",
+    "`<names>`": "`pricing`, `promotions`, `shipping`, `tax`",
+    "`specs/` kept as history, or `<none>`": "none",
+    "`specs/` (spec-kit) or `<none>`": "`specs/` (spec-kit)",
+    "| `<path>` | `<reason, until it is split>` |": "| `src/market/features/promotions/promotion_engine.py` | The promotion pipeline (category sales, buy-x-get-y, percent coupons, bundles, fixed coupons, free shipping) in one module until it is split; read it by symbol |",
+    "| `<security-sensitive area: auth, payments, personal data>` | `<security-reviewer>` |\n| `<architecture seams>` | `<architecture-reviewer>` |\n": "",
+    "| `<principle>` | constitution `<numeral>` | `<ADR / constitution amendment / no exception>` |": "| Exact money (Decimal, half up to cents) | constitution I | ADR |\n| Stable public API `market.api` | constitution V | ADR |",
+    "`<for example: web and mobile>`": "The storefront is the only consumer",
+    "`<per-tenant behavior is configuration, never a branch on the name>`": "There are no tenants",
+    "`<docs/prd/... section>` or `none`": "none",
+    "`<for example: Pricing>`": "Pricing",
+    "`<does the change affect what the customer pays?>`": "Does the change affect what the customer pays?",
+    "| `<backend>` | `<C:/Projects/backend>` | `git -C <path> grep -n \"<field>\" origin/<branch> -- src` (DTO validation, enums) |": "| none | none | No sibling repository consumes this one |",
+    "`<how config is published: endpoint, approval gate, versioning>`": "Not applicable: there is no configuration",
+    "`<infra repo>`": "the storefront repository",
+    "`<publish path>`": "Not applicable: there are no prompts",
+    "`<repo>`": "the storefront repository",
+    "`<agent calls, request logs, audit table>`": "none",
+    "`<table or log event names>`": "none",
+    "<src>/app/": "src/market/",
+    "<src>/features/": "src/market/features/",
+    "<src>/infra/": "src/market/infra/",
+    "<src>": "src/market",
+    "| Spec-kit | `none` \\| `kept` (LT11) |": "| Spec-kit | `none` (LT11) |"
+  },
+  "ai-kit.json": {
+    "\"feature_root\": \"src/features\"": "\"feature_root\": \"src/market/features\"",
+    "<test runner, for example: uv run pytest>": "python -m pytest",
+    "<args that exclude the integration tier, for example: --ignore=tests/integration>": "",
+    "<args for the integration tier, for example: tests/integration>": "tests/integration",
+    "<args that disable the coverage threshold, for example: --no-cov>": "",
+    "<verify only, for example: uv run ruff check . && uv run ruff format --check . && uv run mypy src>": "python -m compileall -q src",
+    "<repair, for example: uv run ruff check --fix . && uv run ruff format .>": "python -m compileall -q src",
+    "<catches import cycles, for example: uv run python -c \\\"import main\\\">": "python -c \\\"import market\\\"",
+    "<runs the given test files offline without coverage, for example: uv run pytest {files} --no-cov -q>": "python -m pytest {files} -q",
+    "\"long_modules\": {}": "\"long_modules\": {\"src/market/features/promotions/promotion_engine.py\": 673}"
+  },
+  ".github/workflows/ci.yml": {
+    "run: echo \"replaced by /ai-kit install\" && exit 1": "run: python -m pip install pytest"
+  },
+  ".github/workflows/claude-review.yml": {
+    "{{PROJECT}}": "Market",
+    "{{one line: what it is and its stack}}": "a marketplace order service in Python, standard library only",
+    "{{Domain principle sections, one per constitution principle with its checks, written by /ai-kit install}}": "## Exact money (constitution I)\n            - A float used for an amount, or rounding other than half up to cents\n\n            ## Stable public API (constitution V)\n            - A changed name or signature in market.api"
+  },
+  ".gitleaks.toml": {
+    "  # /ai-kit install appends the stack's generated paths here (virtualenvs, caches, lockfiles, build output).\n": "  '''\\.pytest_cache/''',\n  '''__pycache__/''',\n"
+  },
+  "docs/code-structure.md": {
+    "Features: <list>. Core features: <list>.": "Features: catalog, pricing, promotions, inventory, cart, checkout, payments, shipping, tax, loyalty, returns, notifications. Core features: catalog, pricing, promotions, inventory, cart, checkout, payments, shipping, tax.",
+    "<entry>": "__init__.py",
+    "<public entry>": "__init__.py",
+    "<ext>": "py",
+    "<src>/app/": "src/market/",
+    "<src>/features/": "src/market/features/",
+    "<src>/infra/": "src/market/infra/",
+    "<src>": "src/market"
+  }
+}

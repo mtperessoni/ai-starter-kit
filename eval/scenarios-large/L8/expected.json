@@ -1,0 +1,15 @@
+{
+  "case": "C2",
+  "size": "S",
+  "prd_facts": [
+    {"id": "f1", "fact": "The first paid order of a customer earns double the points it would normally earn."},
+    {"id": "f2", "fact": "A payment that fails does not count as a first order; the next paid order does."},
+    {"id": "f3", "fact": "Normal earning still applies underneath: 1 point per whole 1.00 of merchandise after discounts, doubled for VIP, none for gift cards."},
+    {"id": "f4", "fact": "LOY-07 now points to real code (points earning and the order-paid handler) and no rule is left marked planned."},
+    {"id": "f5", "fact": "Points granted directly to a balance do not count as a first order."}
+  ],
+  "dup_phrases": [
+    "(?i)first paid order.{0,80}(double|twice)",
+    "(?i)LOY-07.{0,200}points_for_order"
+  ]
+}

@@ -88,5 +88,33 @@ class CurrentFlowWithSpecKit(BuildChecks, unittest.TestCase):
         self.assertIn("# Orders Constitution", text)
 
 
+class CustomFixtureOption(unittest.TestCase):
+    def test_fixture_and_fill_options_are_used(self):
+        import shutil
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = Path(tmp) / "fx"
+            shutil.copytree(ROOT / "eval" / "fixture", fixture)
+            other = fixture / "other-fill.json"
+            other.write_text((fixture / "fill.json").read_text(encoding="utf-8"), encoding="utf-8")
+            (fixture / "fill.json").write_text("{}", encoding="utf-8")  # the default fill would leave placeholders
+            out = Path(tmp) / "project"
+            done = run([PY, str(BUILD), "--ref", "feat/living-truth", "--out", str(out), "--fixture", str(fixture),
+                        "--fill", str(other)], ROOT)
+            self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+            self.assertTrue((out / "src" / "orders").is_dir())
+
+    def test_default_fill_is_inside_the_fixture(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = Path(tmp) / "fx"
+            fixture.mkdir()
+            (fixture / "fill.json").write_text('{"a.txt": {"x": "y"}}', encoding="utf-8")
+            args = load_build().parse_args(["--ref", "r", "--out", "o", "--fixture", str(fixture)])
+            self.assertEqual(args.fixture, fixture)
+            self.assertEqual(args.fill, fixture / "fill.json")
+            args = load_build().parse_args(["--ref", "r", "--out", "o"])
+            self.assertEqual(args.fixture, ROOT / "eval" / "fixture")
+            self.assertEqual(args.fill, ROOT / "eval" / "fixture" / "fill.json")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,14 @@
+{
+  "case": "C3",
+  "size": "S",
+  "prd_facts": [
+    {"id": "f1", "fact": "Discounts apply in this order: category sale, buy-x-get-y, percent coupon, bundle, fixed coupon, free-shipping flag; each step works on what the previous steps left."},
+    {"id": "f2", "fact": "A percent coupon takes its percent off the current value of the eligible lines, rounded half up to cents once for the coupon."},
+    {"id": "f3", "fact": "A bundle gives its fixed amount off for every complete set of its SKUs in the cart."},
+    {"id": "f4", "fact": "The product rules were right and are not rewritten: the code was wrong, so no rule meaning changes."}
+  ],
+  "dup_phrases": [
+    "(?i)percent coupon.{0,80}(before|then).{0,40}bundle",
+    "(?i)order.{0,60}(category sale|sale).{0,160}percent coupon.{0,40}bundle"
+  ]
+}

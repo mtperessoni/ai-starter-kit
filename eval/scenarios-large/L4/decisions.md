@@ -1,0 +1,10 @@
+- Scope: this is a bug, not a new rule. The product document already says a coupon use is held when the order is placed, counts for good only when the payment is captured, and is given back when the payment fails or the order is cancelled. The behavior after a declined payment does not match it.
+- Expected behavior: when a payment is declined, the order becomes `payment_failed`, the stock hold is released and the coupon use is given back, so the cart can be paid again with the same coupon on the same cart.
+- Reported case: standard customer in SP, one headphones unit (EL-200, 120.00), coupon SAVE20 (20 percent, minimum 100.00, one use per customer). First attempt declined (`decline_1`), second attempt with an approved card (`ok_1`) on the same cart. The second order is `paid`, with discount 24.00 and total 114.48 (96.00 + 10.00 shipping + 7.68 tax + 0.80 tax on shipping).
+- After the decline the stock of the product is available again (5 units of EL-200 available, as before).
+- Cancelling a paid order already gives the coupon use back correctly; do not change it.
+- A paid order with a single-use coupon still uses it up: the same customer cannot use it on another cart.
+- The cart stays open after a decline, as the product document already says.
+- No change to prices, shipping, tax, limits, coupon validity, or any rule text. The product document needs no rule change; add an explicit "the use is given back on decline" note to the checkout or promotions rule only if it is not already there, plus a changelog line.
+- Who is affected: customers with a limited coupon whose payment is declined.
+- Rollout: as soon as merged, no flag. Uses already stuck from past declines are not repaired (out of scope).

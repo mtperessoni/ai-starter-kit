@@ -1,6 +1,6 @@
 """EV04: build a fresh evaluation project from the fixture and one kit ref.
 
-python eval/build.py --ref <git ref> --out <dir> [--spec-kit]
+python eval/build.py --ref <git ref> --out <dir> [--spec-kit] [--fixture <dir>] [--fill <file>]
 """
 
 import argparse
@@ -63,9 +63,9 @@ def extract_kit(ref: str, dest: Path) -> Path:
     return dest / "kit"
 
 
-def copy_fixture(out: Path) -> None:
+def copy_fixture(out: Path, fixture: Path = FIXTURE) -> None:
     shutil.copytree(
-        FIXTURE / "project", out, dirs_exist_ok=True,
+        fixture / "project", out, dirs_exist_ok=True,
         ignore=shutil.ignore_patterns("__pycache__", ".pytest_cache", "*.pyc"),
     )
 
@@ -77,14 +77,15 @@ def snapshot(root: Path) -> dict[str, str]:
     }
 
 
-def spec_kit_files() -> Path:
-    cached = CACHE / f"spec-kit-{SPEC_KIT_TAG}"
+def spec_kit_files(fixture: Path = FIXTURE) -> Path:
+    suffix = "" if fixture.resolve() == FIXTURE.resolve() else f"-{fixture.resolve().name}"
+    cached = CACHE / f"spec-kit-{SPEC_KIT_TAG}{suffix}"
     if cached.exists():
         return cached
     CACHE.mkdir(parents=True, exist_ok=True)
     work = Path(tempfile.mkdtemp(dir=CACHE))
     try:
-        copy_fixture(work)
+        copy_fixture(work, fixture)
         before = snapshot(work)
         run(["uvx", "--from", SPEC_KIT_FROM, "specify", "init", *SPEC_KIT_ARGS], work)
         shutil.rmtree(work / ".git", ignore_errors=True)
@@ -108,8 +109,8 @@ def spec_kit_files() -> Path:
     return cached
 
 
-def add_spec_kit(out: Path) -> None:
-    shutil.copytree(spec_kit_files(), out, dirs_exist_ok=True)
+def add_spec_kit(out: Path, fixture: Path = FIXTURE) -> None:
+    shutil.copytree(spec_kit_files(fixture), out, dirs_exist_ok=True)
 
 
 def under(rel: str, prefixes: tuple[str, ...]) -> bool:
@@ -146,8 +147,8 @@ def append_missing_lines(path: Path, text: str) -> None:
     path.write_text(current + "\n".join(missing) + "\n", encoding="utf-8", newline="\n")
 
 
-def apply_fill(out: Path) -> None:
-    fill = json.loads((FIXTURE / "fill.json").read_text(encoding="utf-8"))
+def apply_fill(out: Path, fill_file: Path = FIXTURE / "fill.json") -> None:
+    fill = json.loads(fill_file.read_text(encoding="utf-8"))
     for rel, pairs in fill.items():
         path = out / rel
         if not path.exists():
@@ -191,16 +192,16 @@ def seed_commit(out: Path) -> None:
     run(["git", "commit", "-q", "-m", "chore: seed"], out, env=GIT_ENV)
 
 
-def build(ref: str, out: Path, spec_kit: bool) -> None:
+def build(ref: str, out: Path, spec_kit: bool, fixture: Path = FIXTURE, fill: Path | None = None) -> None:
     if out.exists() and any(out.iterdir()):
         raise SystemExit(f"{out} is not empty")
     out.mkdir(parents=True, exist_ok=True)
-    copy_fixture(out)
+    copy_fixture(out, fixture)
     if spec_kit:
-        add_spec_kit(out)
+        add_spec_kit(out, fixture)
     with tempfile.TemporaryDirectory() as tmp:
         files = install_kit(extract_kit(ref, Path(tmp)), out)
-    apply_fill(out)
+    apply_fill(out, fill or fixture / "fill.json")
     leftovers = find_leftovers(out)
     if leftovers:
         raise SystemExit("placeholders left:\n" + "\n".join(leftovers))
@@ -213,13 +214,21 @@ def build(ref: str, out: Path, spec_kit: bool) -> None:
     seed_commit(out)
 
 
-def main() -> int:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--ref", required=True)
     parser.add_argument("--out", required=True, type=Path)
     parser.add_argument("--spec-kit", action="store_true")
-    args = parser.parse_args()
-    build(args.ref, args.out.resolve(), args.spec_kit)
+    parser.add_argument("--fixture", type=Path, default=FIXTURE, help="fixture folder (default eval/fixture)")
+    parser.add_argument("--fill", type=Path, help="fill file (default <fixture>/fill.json)")
+    args = parser.parse_args(argv)
+    args.fill = args.fill or args.fixture / "fill.json"
+    return args
+
+
+def main() -> int:
+    args = parse_args()
+    build(args.ref, args.out.resolve(), args.spec_kit, args.fixture.resolve(), args.fill.resolve())
     print(f"built {args.out} from {args.ref}{' with spec-kit ' + SPEC_KIT_TAG if args.spec_kit else ''}")
     return 0
 

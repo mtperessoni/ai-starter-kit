@@ -1,0 +1,16 @@
+{
+  "case": "C6",
+  "size": "M",
+  "prd_facts": [
+    {"id": "f1", "fact": "The PRD keeps every promotions rule PRM-01 to PRM-13 with the same meaning: no product rule is added, changed or removed."},
+    {"id": "f2", "fact": "The PRM-05 discount order is unchanged: category sale, buy-x-get-y, percent coupon, bundle, fixed coupon, free-shipping flag."},
+    {"id": "f3", "fact": "The PRM-11 cap of 40% of the eligible list subtotal and the PRM-12 gift card exclusion are unchanged."},
+    {"id": "f4", "fact": "The Source column of promotions rules points to real symbols; a row whose symbol moved points to the new module and nothing else in the row changes."},
+    {"id": "f5", "fact": "The promotions technical map lists the new modules the engine was split into and what each holds."},
+    {"id": "f6", "fact": "The promotions invariants and folder CLAUDE.md are updated to the new modules, and the engine is no longer listed as a big file when it is under the limit."}
+  ],
+  "dup_phrases": [
+    "(?i)promotion_engine",
+    "(?i)stage.{0,60}(module|file)"
+  ]
+}

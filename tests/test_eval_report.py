@@ -116,6 +116,34 @@ class InfraFailureTest(unittest.TestCase):
         self.assertTrue(res["gates_ok"])
 
 
+class ExpectedRepsTest(unittest.TestCase):
+    def test_reps_come_from_the_config(self):
+        cfg = {"scenarios": {"L1": {"reps": 2}, "L4": {"reps": 3}}}
+        counts = report.run_counts({"LT": {"L1": [{}]}}, "SKU", "LT", report.expected_reps(cfg))
+        self.assertEqual(counts["LT.L1"], {"found": 1, "expected": 2, "missing": 1})
+        self.assertEqual(counts["SKU.L4"]["expected"], 3)
+        self.assertNotIn("LT.S1", counts)
+
+    def test_default_is_the_small_suite_map(self):
+        self.assertEqual(report.expected_reps(None), report.EXPECTED_REPS)
+
+    def test_derived_from_files_when_no_config(self):
+        d = Path(tempfile.mkdtemp())
+        for name in ("LT-L1-r1", "LT-L1-r2", "SKU-L1-r1", "LT-L4-r1"):
+            (d / f"{name}.metrics.json").write_text(json.dumps({"status": "ok"}), encoding="utf-8")
+        self.assertEqual(report.derive_reps(d), {"L1": 2, "L4": 1})
+
+    def test_write_report_uses_the_config_reps(self):
+        d = Path(tempfile.mkdtemp())
+        (d / "LT-L1-r1.metrics.json").write_text(json.dumps({"status": "ok", "accept": 1.0}), encoding="utf-8")
+        cfg = d / "arms.json"
+        cfg.write_text(json.dumps({"scenarios": {"L1": {"reps": 2}}}), encoding="utf-8")
+        out = report.write_report(d, "SKU", "LT", config=cfg)
+        payload = json.loads(out.with_suffix(".json").read_text(encoding="utf-8"))
+        self.assertEqual(payload["runs"]["LT.L1"]["expected"], 2)
+        self.assertNotIn("LT.S1", payload["runs"])
+
+
 class CategoryTest(unittest.TestCase):
     def test_metrics_are_grouped_by_the_agreed_categories(self):
         self.assertEqual(list(report.GROUPS), ["tokens", "speed", "efficiency", "rework",

@@ -142,10 +142,27 @@ def evaluate(data, base=BASE, cand=CAND):
             "adopt": adopt, "work_list": work}
 
 
-def run_counts(data, base=BASE, cand=CAND):
+def expected_reps(cfg):
+    """{scenario: reps} from a config dict; the small-suite map when there is no config."""
+    if not cfg:
+        return dict(EXPECTED_REPS)
+    return {sc: int(spec["reps"]) for sc, spec in cfg["scenarios"].items()}
+
+
+def derive_reps(results):
+    """Highest repetition number found per scenario, when no config is given."""
+    reps = {}
+    for f in sorted(Path(results).glob("*.metrics.json")):
+        m = NAME.match(f.name[: -len(".metrics.json")])
+        if m:
+            reps[m["sc"]] = max(reps.get(m["sc"], 0), int(m["n"]))
+    return reps
+
+
+def run_counts(data, base=BASE, cand=CAND, reps=None):
     counts = {}
     for arm in (base, cand):
-        for sc, want in EXPECTED_REPS.items():
+        for sc, want in (reps or EXPECTED_REPS).items():
             have = len(data.get(arm, {}).get(sc, []))
             counts[f"{arm}.{sc}"] = {"found": have, "expected": want, "missing": max(0, want - have)}
     return counts
@@ -166,9 +183,9 @@ def fmt(v):
     return f"{v:.3f}".rstrip("0").rstrip(".") if isinstance(v, float) else str(v)
 
 
-def build(data, base=BASE, cand=CAND):
+def build(data, base=BASE, cand=CAND, reps=None):
     res = evaluate(data, base, cand)
-    counts = run_counts(data, base, cand)
+    counts = run_counts(data, base, cand, reps)
     lines = ["# Evaluation report", "", f"Candidate {cand} versus base {base}.", "", "## Runs", "", "| Arm and scenario | Found | Expected | Missing |",
              "|---|---|---|---|"]
     lines += [f"| {k} | {c['found']} | {c['expected']} | {c['missing']} |" for k, c in counts.items()]
@@ -197,8 +214,15 @@ def build(data, base=BASE, cand=CAND):
     return "\n".join(lines), {"runs": counts, "medians": medians(data), **res}
 
 
-def write_report(results, base=BASE, cand=CAND):
-    text, payload = build(load(results), base, cand)
+def write_report(results, base=BASE, cand=CAND, config=None):
+    """config: path of the arms json whose scenarios give the expected reps; derived from the files when absent."""
+    if config:
+        reps = expected_reps(json.loads(Path(config).read_text(encoding="utf-8")))
+    else:
+        reps = derive_reps(results)
+        if set(reps) <= set(EXPECTED_REPS):
+            reps = None  # the small suite: its fixed map
+    text, payload = build(load(results), base, cand, reps)
     out = Path(results) / ("report.md" if base == BASE else f"report-{cand}-vs-{base}.md")
     out.write_text(text, encoding="utf-8")
     out.with_suffix(".json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -206,6 +230,10 @@ def write_report(results, base=BASE, cand=CAND):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) not in (2, 3):
-        sys.exit("usage: report.py <results_dir> [base_arm]")
-    print(write_report(sys.argv[1], *(sys.argv[2:3] or [BASE])))
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("results")
+    ap.add_argument("base_arm", nargs="?", default=BASE)
+    ap.add_argument("--config", help="arms json that gives the expected repetitions")
+    a = ap.parse_args()
+    print(write_report(a.results, a.base_arm, config=a.config))
