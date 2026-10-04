@@ -1,11 +1,23 @@
 {
   "case": "C3",
   "size": "S",
-  "rule_ids": ["SHP-02"],
-  "id_hint": "Illustrative ID: SHP-02 is the free shipping threshold. The fixture may number it differently. The PRD rule is already correct, so the run should leave the rule text saying 200.00 or more and match on behavior text and numbers, not IDs.",
-  "prd_patterns": [
-    "200\\.00",
-    "(?i)(or more|>=|at least|greater than or equal)"
+  "prd_facts": [
+    {
+      "id": "f1",
+      "fact": "Shipping is free when the amount after discounts is 200.00 or more, so the boundary includes exactly 200.00."
+    },
+    {
+      "id": "f2",
+      "fact": "Orders below 200.00 after discounts, including 199.99, pay the flat shipping of 15.00."
+    },
+    {
+      "id": "f3",
+      "fact": "The amount compared is the subtotal after discounts, never before discounts."
+    },
+    {
+      "id": "f4",
+      "fact": "The product rule does not change: the PRD still says free at 200.00 or more and no other rule is touched."
+    }
   ],
   "dup_phrases": [
     "(?i)free.{0,60}200\\.00",

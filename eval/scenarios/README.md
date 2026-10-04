@@ -1,6 +1,6 @@
 # Scenarios
 
-Hidden tests import only the public API of the fixture (`from orders import ...`). Rule IDs in `expected.json` and in the test docstrings are illustrative: the fixture may number rules differently, so `prd_patterns` match behavior text and numbers.
+Hidden tests import only the public API of the fixture (`from orders import ...`). Rule IDs in the test docstrings are illustrative: the fixture may number rules differently. PRD fidelity is judged against the `prd_facts` of `expected.json`, stated in product language, and traceability takes the IDs from the PRD diff of the run.
 
 ## Expected result on the seed (hand computed)
 | Scenario | Tests | Expected seed result | Failing on seed |

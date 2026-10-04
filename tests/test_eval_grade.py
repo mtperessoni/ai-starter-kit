@@ -1,4 +1,4 @@
-"""Tests of eval/grade.py, eval/report.py and the pure parts of eval/run.py on a tiny fake project."""
+"""Tests of eval/grade.py on a tiny fake project."""
 
 import json
 import subprocess
@@ -10,8 +10,6 @@ from pathlib import Path
 EVAL = Path(__file__).resolve().parents[1] / "eval"
 sys.path.insert(0, str(EVAL))
 import grade  # noqa: E402
-import report  # noqa: E402
-import run  # noqa: E402
 
 PRD_SEED = "| ID | Rule | Source | Change via |\n|---|---|---|---|\n| PRC-01 | VIP 15% | src/mod.py | code |\n"
 PRD_NEW = PRD_SEED + "| PRC-02 | cap 20% | src/mod.py | planned |\n\n## Planned\n\nFR-001 the cap of 20% applies\n"
@@ -50,8 +48,8 @@ def make_scenario(root, case="C5"):
     write(root, "decisions.md", "dec")
     write(root, "hidden/test_h.py",
           "from mod import f\n\n\ndef test_a():\n    assert f() == 1\n\n\ndef test_b():\n    assert f() == 2\n")
-    exp = {"case": case, "size": "S", "rule_ids": ["PRC-01", "PRC-02"],
-           "prd_patterns": ["PRC-02", r"cap 20%"], "dup_phrases": [r"cap of 20%"]}
+    exp = {"case": case, "size": "S", "prd_facts": [{"id": "f1", "fact": "cap 20%"}],
+           "dup_phrases": [r"cap of 20%"]}
     write(root, "expected.json", json.dumps(exp))
 
 
@@ -85,9 +83,25 @@ class SeedDeltaTest(unittest.TestCase):
     def test_planned_left_counts_trd_planned_sections(self):
         self.assertEqual(grade.planned_left(self.root), 1)
 
-    def test_ids_in_tests_counts_only_tests_changed_since_seed(self):
+    def test_traceability_takes_ids_from_prd_rows_added_since_seed(self):
+        write(self.root, "docs/prd/01.md", PRD_SEED + "| PRC-02 | cap | src | code |\n| PRC-03 | x | src | code |\n")
+        git(self.root, "commit", "-q", "-am", "prd")
         files = grade.project_files(self.root)
-        self.assertEqual(grade.ids_in_tests(self.root, files, ["PRC-01", "PRC-02"], self.seed), 0.5)
+        self.assertEqual(grade.prd_diff_ids(self.root, self.seed), ["PRC-02", "PRC-03"])
+        self.assertEqual(grade.traceability(self.root, files, self.seed), 0.5)
+
+    def test_traceability_none_without_prd_rows(self):
+        self.assertIsNone(grade.traceability(self.root, grade.project_files(self.root), self.seed))
+
+
+class FakeTranscript:
+    """Stands in for eval/transcript.py so grade never needs a real jsonl."""
+
+    def __init__(self, **summary):
+        self.summary = summary
+
+    def summarize(self, path):
+        return self.summary
 
 
 class GradeTest(unittest.TestCase):
@@ -98,31 +112,83 @@ class GradeTest(unittest.TestCase):
         self.project.mkdir()
         make_project(self.project)
         make_scenario(self.scenario)
+        self.saved = sys.modules.get("transcript")
 
     def tearDown(self):
+        if self.saved is None:
+            sys.modules.pop("transcript", None)
+        else:
+            sys.modules["transcript"] = self.saved
         self.tmp.cleanup()
 
     def status(self):
         return subprocess.run(["git", "status", "--porcelain"], cwd=self.project,
                               capture_output=True, text=True).stdout
 
+    def commit_time(self, rev):
+        out = subprocess.run(["git", "log", "-1", "--format=%ct", rev], cwd=self.project,
+                             capture_output=True, text=True).stdout
+        return int(out.strip())
+
     def test_metrics(self):
         before = self.status()
-        m = grade.grade(self.project, self.scenario)
+        m = grade.grade(self.project, self.scenario, "LT")
         self.assertEqual(self.status(), before)
         self.assertFalse((self.project / "tests" / "hidden").exists())
-        self.assertEqual((m["hidden_passed"], m["hidden_total"], m["hidden_pass"]), (1, 2, 0.5))
+        self.assertEqual((m["hidden_passed"], m["hidden_total"], m["accept"]), (1, 2, 0.5))
         self.assertTrue(m["suite_green"])
         self.assertTrue(m["gate_ok"])
-        self.assertTrue(m["prd_ok"])
-        self.assertEqual(m["ids_in_tests"], 0.0)
+        self.assertEqual(m["traceability"], 0.0)
         self.assertTrue(m["docs_first"])
         self.assertEqual(m["planned_left"], 2)
-        self.assertEqual(m["dup_count"], 1)
-        self.assertEqual(m["fr_lines"], 1)
+        self.assertFalse(m["promoted"])
+        self.assertEqual((m["dup_count"], m["fr_lines"], m["single_source"]), (1, 1, 2))
         self.assertEqual(m["doc_bytes"], len(PRD_NEW) - len(PRD_SEED))
         self.assertEqual(m["commits_after_seed"], 2)
+        self.assertEqual((m["kit_self_fixes"], m["rework_commits"]), (0, 0))
+        self.assertIsNone(m["plan_coverage"])
+        self.assertIsNone(m["plan_drift"])
+
+    def test_without_transcript_efficiency_keys_are_none(self):
+        m = grade.grade(self.project, self.scenario, "LT")
+        for key in ("tokens_total", "cost_usd", "wall_min", "turns", "context_peak", "subagents",
+                    "tool_errors", "min_to_code", "protocol_adherence", "completed",
+                    "cost_per_accept", "prd_fidelity"):
+            self.assertIn(key, m)
+            self.assertIsNone(m[key], key)
+
+    def test_every_contract_metric_is_a_key(self):
+        m = grade.grade(self.project, self.scenario, "LT")
+        for key in ("accept", "suite_green", "gate_ok", "completed", "prd_fidelity", "plan_coverage",
+                    "plan_drift", "traceability", "docs_first", "promoted", "single_source",
+                    "tokens_total", "cost_usd", "wall_min", "turns", "context_peak", "subagents",
+                    "min_to_code", "doc_bytes", "cost_per_accept", "tool_errors",
+                    "kit_self_fixes", "rework_commits", "protocol_adherence"):
+            self.assertIn(key, m)
+
+    def test_transcript_fields_and_min_to_code(self):
+        sys.modules["transcript"] = FakeTranscript(
+            tokens_total=1000, cost_usd=2.0, wall_min=3.0, turns=9, context_peak=500, subagents=1,
+            tool_errors=2, skills=["prd-gate", "ai-kit:other"], is_error=False)
+        started = self.commit_time("HEAD") - 180
+        m = grade.grade(self.project, self.scenario, "LT", transcript="t.jsonl", started_at=started)
+        self.assertEqual((m["tokens_total"], m["cost_usd"], m["turns"]), (1000, 2.0, 9))
+        self.assertEqual(m["cost_per_accept"], 2.0)
+        self.assertAlmostEqual(m["min_to_code"], 3.0, places=1)
+        self.assertEqual(m["protocol_adherence"], 1.0)
+        self.assertTrue(m["completed"])
+
+    def test_completed_false_when_run_errored(self):
+        sys.modules["transcript"] = FakeTranscript(is_error=True, skills=[])
+        m = grade.grade(self.project, self.scenario, "LT", transcript="t.jsonl")
         self.assertFalse(m["completed"])
+        self.assertEqual(m["protocol_adherence"], 0.0)
+
+    def test_judge_result_feeds_f1_and_f7(self):
+        jr = {"prd_fidelity": 0.75, "restating_files": ["NOTES.md", "x.md"]}
+        m = grade.grade(self.project, self.scenario, "LT", judge_result=jr)
+        self.assertEqual(m["prd_fidelity"], 0.75)
+        self.assertEqual(m["single_source"], 4)
 
     def test_docs_first_false_and_none(self):
         git(self.project, "reset", "-q", "--hard", "HEAD~2")
@@ -130,79 +196,57 @@ class GradeTest(unittest.TestCase):
         git(self.project, "commit", "-q", "-am", "feat: first")
         write(self.project, "docs/prd/01.md", PRD_NEW)
         git(self.project, "commit", "-q", "-am", "docs: later")
-        self.assertFalse(grade.grade(self.project, self.scenario)["docs_first"])
+        self.assertFalse(grade.grade(self.project, self.scenario, "LT")["docs_first"])
         write(self.scenario, "expected.json", json.dumps({"case": "C3"}))
-        self.assertIsNone(grade.grade(self.project, self.scenario)["docs_first"])
+        self.assertIsNone(grade.grade(self.project, self.scenario, "LT")["docs_first"])
 
-    def test_claude_json(self):
-        cj = Path(self.tmp.name) / "c.json"
-        cj.write_text(json.dumps({"total_cost_usd": 1.5, "duration_ms": 120000, "num_turns": 7,
-                                  "usage": {"input_tokens": 10, "output_tokens": 20,
-                                            "cache_read_input_tokens": 30,
-                                            "cache_creation_input_tokens": 40}}))
-        m = grade.grade(self.project, self.scenario, cj)
-        self.assertEqual((m["cost_usd"], m["duration_min"], m["turns"]), (1.5, 2.0, 7))
-        self.assertEqual(m["tokens_total"], 100)
-        self.assertTrue(m["completed"])
+    def test_claude_md_under_src_is_docs_not_code(self):
+        git(self.project, "reset", "-q", "--hard", "HEAD~2")
+        write(self.project, "src/CLAUDE.md", "map\n")
+        git(self.project, "add", "src/CLAUDE.md")
+        git(self.project, "commit", "-q", "-m", "docs: map")
+        write(self.project, "docs/prd/01.md", PRD_NEW)
+        git(self.project, "commit", "-q", "-am", "docs: prd")
+        write(self.project, "src/mod.py", "def f():\n    return 1\n# y\n")
+        git(self.project, "commit", "-q", "-am", "feat: code")
+        commits = grade.commit_log(self.project, grade.seed_commit(self.project))
+        self.assertEqual(len(grade.code_commits(commits)), 1)
+        self.assertTrue(grade.docs_first(commits))
 
-    def test_cost_tolerates_missing_keys(self):
-        self.assertIsNone(grade.cost_metrics({})["cost_usd"])
-        mu = {"modelUsage": {"m": {"inputTokens": 5, "outputTokens": 6}}}
-        self.assertEqual(grade.cost_metrics(mu)["tokens_total"], 11)
-        self.assertIsNone(grade.cost_metrics(None)["turns"])
+    def test_kit_self_fixes_and_rework(self):
+        write(self.project, "scripts/gates.sh", "echo\n")
+        git(self.project, "add", "scripts")
+        git(self.project, "commit", "-q", "-m", "fix: gates")
+        write(self.project, ".specify/scripts/x.sh", "echo\n")
+        git(self.project, "add", ".specify")
+        git(self.project, "commit", "-q", "-m", "fix: speckit script")
+        write(self.project, "src/mod.py", "def f():\n    return 3\n")
+        git(self.project, "commit", "-q", "-am", "fix: again")
+        write(self.project, "src/mod.py", "def f():\n    return 4\n")
+        git(self.project, "commit", "-q", "-am", "chore: promote and archive")
+        m = grade.grade(self.project, self.scenario, "LT")
+        self.assertEqual(m["kit_self_fixes"], 2)
+        self.assertEqual(m["rework_commits"], 1)
 
+    def test_plan_coverage_and_drift(self):
+        plan = ("## Constitution check\n\n### T01 · first\nOwns: src/mod.py, tests/test_mod.py\n"
+                "### T02 · second\nOwns: src/never.py\n### T03 · Promote\n- PRD\n")
+        write(self.project, "changes/archive/001-cap/plan.md", plan)
+        write(self.project, "src/extra.py", "x = 1\n")
+        git(self.project, "add", "changes", "src/extra.py")
+        git(self.project, "commit", "-q", "-m", "feat: extra")
+        m = grade.grade(self.project, self.scenario, "LT")
+        self.assertEqual(m["plan_coverage"], 0.5)
+        self.assertEqual(m["plan_drift"], 0.5)
 
-def metrics(**kw):
-    base = {"hidden_passed": 4, "hidden_total": 4, "prd_ok": True, "gate_ok": True, "dup_count": 2,
-            "cost_usd": 10.0, "duration_min": 20.0, "completed": True}
-    return {**base, **kw}
-
-
-class DecisionRuleTest(unittest.TestCase):
-    def verdicts(self, a, b):
-        data = {"A": {"S1": a}, "B": {"S1": b}}
-        return {r: ok for r, ok, _ in report.evaluate(data)}
-
-    def test_all_pass(self):
-        v = self.verdicts(metrics(), metrics(cost_usd=10.9, duration_min=21.9))
-        self.assertTrue(all(v.values()), v)
-
-    def test_each_failure(self):
-        fails = {
-            "hidden_pass": metrics(hidden_passed=3),
-            "prd_ok": metrics(prd_ok=False),
-            "gate_ok": metrics(gate_ok=False),
-            "dup_count": metrics(dup_count=3),
-            "cost_usd": metrics(cost_usd=11.1),
-            "duration_min": metrics(duration_min=22.1),
-        }
-        for key, b in fails.items():
-            v = self.verdicts(metrics(), b)
-            failed = [r for r, ok in v.items() if not ok]
-            self.assertEqual(len(failed), 1, (key, v))
-            self.assertIn(key, failed[0])
-
-    def test_report_file(self):
-        with tempfile.TemporaryDirectory() as d:
-            for arm in "AB":
-                (Path(d) / f"{arm}-S1.metrics.json").write_text(json.dumps(metrics(status="ok")))
-            text = report.write_report(d).read_text(encoding="utf-8")
-        for needle in ("## Scenario S1", "## Totals", "PASS: gate_ok", "one repetition", "Within 10%"):
-            self.assertIn(needle, text)
-
-
-class RunTest(unittest.TestCase):
-    def test_command(self):
-        cmd = run.build_command(12, "claude")
-        self.assertEqual(cmd[:4], ["claude", "-p", "--output-format", "json"])
-        self.assertIn("--dangerously-skip-permissions", cmd)
-        self.assertEqual(cmd[-2:], ["--max-budget-usd", "12"])
-
-    def test_prompt_and_build_args(self):
-        self.assertEqual(run.render_prompt("R:{request} D:{decisions}", " a ", "b\n"), "R:a D:b")
-        self.assertIn("--spec-kit", run.build_args("A", "out"))
-        self.assertNotIn("--spec-kit", run.build_args("B", "out"))
-        self.assertEqual(run.build_args("A", "out")[2:4], ["--ref", "main"])
+    def test_protocol_adherence_per_arm_and_case(self):
+        sk = ["prd-gate", "speckit-specify", "speckit-plan"]
+        self.assertAlmostEqual(grade.protocol_adherence("SK", "C5", sk), 0.75)
+        self.assertEqual(grade.protocol_adherence("SK", "C5", sk + ["speckit.tasks"]), 1.0)
+        self.assertEqual(grade.protocol_adherence("LT", "C5", ["prd-gate"]), 1.0)
+        self.assertEqual(grade.protocol_adherence("SK", "C3", ["prd-gate"]), 1.0)
+        self.assertEqual(grade.protocol_adherence("LT", "C6", []), 0.0)
+        self.assertIsNone(grade.protocol_adherence("LT", "C6", None))
 
 
 if __name__ == "__main__":

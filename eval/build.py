@@ -130,9 +130,10 @@ def install_kit(kit: Path, out: Path) -> dict[str, dict[str, str]]:
         shutil.copyfile(src, dest)
         owner = "project" if under(rel, PROJECT_OWNED) else "kit"
         files[rel] = {"owner": owner, "sha256": hashlib.sha256(dest.read_bytes()).hexdigest()}
-    archive = out / "changes" / "archive"
-    archive.mkdir(parents=True, exist_ok=True)
-    (archive / ".gitkeep").write_text("", encoding="utf-8")
+    if (kit / "docs" / "templates" / "change-brief.md").is_file():
+        archive = out / "changes" / "archive"
+        archive.mkdir(parents=True, exist_ok=True)
+        (archive / ".gitkeep").write_text("", encoding="utf-8")
     return files
 
 

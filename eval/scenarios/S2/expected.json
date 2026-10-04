@@ -1,14 +1,35 @@
 {
   "case": "C5",
   "size": "L",
-  "rule_ids": ["CHK-01", "CHK-02", "CRD-01", "CRD-02", "CRD-03"],
-  "id_hint": "Illustrative IDs: CRD-01 customer balance, CRD-02 credit applied after discounts and shipping up to the order amount, CRD-03 balance decreases only on confirmation; CHK-01 (total) and CHK-02 (receipt) change. The fixture may number the new rules with a different prefix or place them in another section, so prd_patterns must match behavior text and names, not IDs.",
-  "prd_patterns": [
-    "(?i)store credit",
-    "store_credit_balance",
-    "store_credit_used",
-    "(?i)confirm",
-    "(?i)after (the )?(discounts?|shipping)"
+  "prd_facts": [
+    {
+      "id": "f1",
+      "fact": "A customer has a store credit balance in the same currency, zero by default (field store_credit_balance)."
+    },
+    {
+      "id": "f2",
+      "fact": "Checkout applies the credit after discounts and shipping, so it pays the final order amount."
+    },
+    {
+      "id": "f3",
+      "fact": "The credit used is the smaller of the balance and the order amount, never above the order amount and never below zero."
+    },
+    {
+      "id": "f4",
+      "fact": "The receipt has a new field store_credit_used (0.00 when none is used) and total is the amount still to be paid after the credit, 0.00 when fully covered."
+    },
+    {
+      "id": "f5",
+      "fact": "Checkout itself does not change the balance; it decreases only when the order is confirmed, by exactly store_credit_used."
+    },
+    {
+      "id": "f6",
+      "fact": "Confirming a receipt that used no credit leaves the balance as it is."
+    },
+    {
+      "id": "f7",
+      "fact": "VIP, coupon, cap and shipping rules do not change, and adding credit to a balance is out of scope."
+    }
   ],
   "dup_phrases": [
     "(?i)store credit.{0,100}(after|up to|only)",
