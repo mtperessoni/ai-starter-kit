@@ -100,7 +100,8 @@ button{font:inherit}
 .topbar{display:none}
 .panel{display:grid;grid-template-columns:minmax(0,1fr) var(--toc-w);grid-template-areas:"doc toc";gap:40px;max-width:1280px;margin:0 auto;padding:32px 40px 72px}
 .panel.off{position:absolute;left:-10000px;top:0;width:1100px;height:0;overflow:hidden;visibility:hidden}
-.doc{grid-area:doc;min-width:0;display:grid;gap:52px;align-content:start}
+.doc{grid-area:doc;min-width:0;display:grid;grid-template-columns:minmax(0,1fr);gap:52px;align-content:start}
+.doc>*{min-width:0}
 .toc{grid-area:toc;position:sticky;top:28px;align-self:start;max-height:calc(100vh - 56px);overflow:auto;font-size:13.5px;padding-left:14px;border-left:1px solid var(--line)}
 .toc h4{font:600 10.5px/1 var(--f-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:4px 0 12px}
 .toc ol{list-style:none;margin:0;padding:0;display:grid;gap:1px}
@@ -122,7 +123,13 @@ button{font:inherit}
 .stat.hot b{color:var(--red)}
 .stat.acc b{color:var(--accent-strong)}
 
-.doc section{display:grid;gap:16px;scroll-margin-top:24px}
+.doc section{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;scroll-margin-top:24px}
+.doc section>*{min-width:0}
+pre.mermaid{overflow-x:auto;max-width:100%}
+pre.mermaid svg{max-width:100%;height:auto}
+.doc :is(p,li,h2,h3,b,a,code,dd,dt){overflow-wrap:anywhere}
+.callout>*,.explain>*{min-width:0}
+@media (max-width:700px){.verified{white-space:normal}}
 .doc h2{font-size:25px;font-weight:700;display:flex;gap:14px;align-items:center;letter-spacing:-.02em}
 .doc h2 .num{flex:none;font:600 12px/1 var(--f-mono);color:var(--accent-ink);background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);width:34px;height:34px;border-radius:10px;display:grid;place-items:center;letter-spacing:0}
 .doc h3{font-size:17px;font-weight:600;margin-top:14px;display:flex;align-items:center;gap:10px}
@@ -156,6 +163,9 @@ button{font:inherit}
 .verified::before{content:"✓"}
 
 .tw{overflow-x:auto;border:1px solid var(--line);border-radius:16px;background:var(--surface);box-shadow:var(--shadow-sm)}
+.tw{max-width:100%}
+td{overflow-wrap:anywhere}
+td.id,td.via{overflow-wrap:normal}
 table{border-collapse:collapse;width:100%;font-size:14.5px}
 th{font:600 10.5px/1.2 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);text-align:left;padding:13px 16px;border-bottom:1px solid var(--line);background:var(--surface-2);white-space:nowrap}
 td{padding:13px 16px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--ink-2)}
@@ -164,7 +174,7 @@ tbody tr{transition:background .12s}
 tbody tr:hover td{background:color-mix(in srgb,var(--surface-2) 70%,transparent)}
 td.id{white-space:nowrap}
 td.id .pid{display:inline-block;font:600 11.5px/1 var(--f-mono);color:var(--accent-ink);background:var(--accent-soft);padding:5px 8px;border-radius:7px}
-td.rule{min-width:340px;color:var(--ink)}
+td.rule{min-width:min(340px,45vw);color:var(--ink)}
 td.rule b{color:var(--ink)}
 td.src{font:11.5px/1.5 var(--f-mono);color:var(--muted);max-width:250px;overflow-wrap:anywhere}
 td.via{white-space:nowrap}
