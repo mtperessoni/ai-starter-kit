@@ -12,12 +12,36 @@ import run  # noqa: E402
 CFG = json.loads((EVAL / "arms.json").read_text(encoding="utf-8"))
 
 
+class RateLimitTest(unittest.TestCase):
+    def write(self, lines):
+        import tempfile
+        f = Path(tempfile.mkdtemp()) / "t.jsonl"
+        f.write_text("\n".join(json.dumps(x) for x in lines) + "\n", encoding="utf-8")
+        return f
+
+    def test_session_limit_result_is_rate_limited(self):
+        f = self.write([{"type": "result", "is_error": True, "api_error_status": 429,
+                         "result": "You've hit your session limit"}])
+        self.assertEqual(run.classify(f, 1), "rate_limited")
+
+    def test_clean_result_is_ok_and_other_errors_crash(self):
+        self.assertEqual(run.classify(self.write([{"type": "result", "is_error": False}]), 0), "ok")
+        self.assertEqual(run.classify(self.write([{"type": "result", "is_error": True,
+                                                   "subtype": "error_max_budget_usd"}]), 1), "crash")
+
+    def test_arms_filter(self):
+        pairs = run.plan_pairs(CFG, arms=["LT"])
+        self.assertTrue(pairs and all(p["arm"] == "LT" for p in pairs))
+
+
 class ConfigTest(unittest.TestCase):
     def test_arms_json_matches_readme_table(self):
         self.assertEqual(CFG["timeout_min"], 60)
         self.assertEqual(CFG["parallel"], 4)
-        self.assertEqual(CFG["arms"]["SK"]["ref"], "eval/speckit-baseline")
-        self.assertTrue(CFG["arms"]["SK"]["spec_kit"])
+        for arm in ("SKU", "SKF"):
+            self.assertEqual(CFG["arms"][arm]["ref"], "eval/speckit-baseline")
+            self.assertTrue(CFG["arms"][arm]["spec_kit"])
+        self.assertIn("must", (EVAL / CFG["arms"]["SKF"]["protocol"]).read_text(encoding="utf-8"))
         self.assertEqual(CFG["arms"]["LT"]["ref"], "feat/living-truth")
         self.assertFalse(CFG["arms"]["LT"]["spec_kit"])
         caps = {k: (v["reps"], v["budget_usd"]) for k, v in CFG["scenarios"].items()}
@@ -32,12 +56,12 @@ class ConfigTest(unittest.TestCase):
 
 
 class PairsTest(unittest.TestCase):
-    def test_twelve_pairs_interleaved(self):
+    def test_pairs_interleaved_per_arm(self):
         pairs = run.plan_pairs(CFG)
-        self.assertEqual(len(pairs), 12)
+        self.assertEqual(len(pairs), 18)
         names = [p["name"] for p in pairs]
-        self.assertEqual(names[:4], ["SK-S1-r1", "LT-S1-r1", "SK-S1-r2", "LT-S1-r2"])
-        self.assertEqual(len(set(names)), 12)
+        self.assertEqual(names[:3], ["SKU-S1-r1", "SKF-S1-r1", "LT-S1-r1"])
+        self.assertEqual(len(set(names)), 18)
         self.assertEqual(next(p for p in pairs if p["name"] == "LT-S2-r2")["budget_usd"], 15)
 
     def test_only_filter_and_unknown(self):
@@ -64,7 +88,7 @@ class CommandTest(unittest.TestCase):
         self.assertIn("How this team works", out)
 
     def test_build_args(self):
-        sk = run.build_args(CFG["arms"]["SK"], "out")
+        sk = run.build_args(CFG["arms"]["SKF"], "out")
         self.assertIn("--spec-kit", sk)
         self.assertEqual(sk[2:6], ["--ref", "eval/speckit-baseline", "--out", "out"])
         self.assertNotIn("--spec-kit", run.build_args(CFG["arms"]["LT"], "out"))

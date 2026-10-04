@@ -20,6 +20,20 @@ The protocol is the one line a team member would give a new colleague about how 
 
 12 runs, interleaved by arm, 4 in parallel, timeout 60 minutes each. S1 and S2 are where the flows differ; S3 and S4 check that neither adds overhead to small changes.
 
+## Categories
+Every comparison rule belongs to one category; the scorecard tallies win, tie and loss per category, and the adoption rule reads them per category.
+
+| Category | Question it answers | Metrics |
+|---|---|---|
+| Quality (hard gates) | Does it deliver the right behavior without breaking anything? | Q1, Q2, Q3, Q4 |
+| Tokens | How much context does the flow consume? | E1 `tokens_total`, E5 `context_peak` (E6 reported) |
+| Speed | How fast does the change land? | E3 `wall_min`, E7 `min_to_code`, E4 `turns` |
+| Efficiency | What does each accepted result cost, now and for the next reader? | E2 `cost_usd`, E9 `cost_per_accept`, E8 `doc_bytes` |
+| Rework | How much work is done twice or patched? | R3 `rework_commits`, R2 `kit_self_fixes` |
+| Plan fidelity | Did the code follow the plan, and only the plan? | F2 `plan_coverage`, F3 `plan_drift` |
+| Source-of-truth fidelity | Do PRD, tests and code agree, with one home per rule? | F1 (gate), F4 `traceability`, F5 `docs_first`, F6 `promoted`, F7 `single_source` |
+| Errors | How often did tools or the protocol fail? | R1 `tool_errors`, R4 (gate) |
+
 ## Metrics
 Every metric has an ID, a definition, its source and its direction. Sources: **T** the run's `stream-json` transcript, **G** git of the project after the run, **H** hidden tests, **J** the judge (below).
 
@@ -71,7 +85,7 @@ Medians per scenario and arm; the **noise band** of a metric is the larger of 10
 
 1. **Hard gates.** LT is not adopted when any of these fails: Q1 mean of LT at least that of SK; Q2, Q3 and Q4 true in every LT run; F1 of LT at least SK minus 0.05; R4 of LT equal to 1.0.
 2. **Scorecard.** For every other metric and scenario: **win** when LT is better than SK by more than the noise band, **loss** when worse by more than the band, **tie** otherwise.
-3. **Adoption.** LT is adopted when the hard gates hold, E1, E2 and E3 are win or tie on both S1 and S2, and in each group (fidelity, efficiency, errors) the losses do not exceed the wins.
+3. **Adoption.** LT is adopted when the hard gates hold, E1, E2 and E3 are win or tie on both S1 and S2, and in each category of the table above the losses do not exceed the wins.
 4. Otherwise LT is not adopted, and the losing metrics become the work list for the next iteration.
 
 A run that SK fails on R4 is reported, not excluded: if the team's flow skips its own steps unattended, that is a property of the flow.

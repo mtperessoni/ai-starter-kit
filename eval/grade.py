@@ -264,7 +264,7 @@ def norm_skill(name):
 def protocol_adherence(arm, case, skills):
     if skills is None:
         return None
-    sk = str(arm).lower() in ("sk", "speckit", "a")
+    sk = str(arm).lower().startswith("sk") or str(arm).lower() in ("speckit", "a")
     need = REQUIRED["speckit"] if (sk and case == "C5") else ["prd-gate"]
     have = {norm_skill(s) for s in skills}
     return sum(1 for s in need if s in have) / len(need)

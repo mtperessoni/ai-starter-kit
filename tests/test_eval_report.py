@@ -97,6 +97,34 @@ class ScorecardTest(unittest.TestCase):
         self.assertEqual(self.cell(3, 0, "tool_errors")["verdict"], "loss")
 
 
+class InfraFailureTest(unittest.TestCase):
+    def test_rate_limited_and_skipped_runs_are_missing_not_losses(self):
+        import tempfile
+        d = Path(tempfile.mkdtemp())
+        (d / "LT-S1-r1.metrics.json").write_text(json.dumps({"status": "ok", "accept": 1.0}), encoding="utf-8")
+        (d / "LT-S1-r2.metrics.json").write_text(json.dumps({"status": "rate_limited", "accept": 0.0}),
+                                                 encoding="utf-8")
+        (d / "SKF-S1-r1.metrics.json").write_text(json.dumps({"status": "skipped_rate_limit"}), encoding="utf-8")
+        runs = report.load(d)
+        self.assertEqual(len(runs["LT"]["S1"]), 1)
+        self.assertNotIn("SKF", runs)
+
+    def test_base_arm_is_configurable(self):
+        d = data()
+        d["SKF"] = d.pop("SK")
+        res = report.evaluate(d, base="SKF")
+        self.assertTrue(res["gates_ok"])
+
+
+class CategoryTest(unittest.TestCase):
+    def test_metrics_are_grouped_by_the_agreed_categories(self):
+        self.assertEqual(list(report.GROUPS), ["tokens", "speed", "efficiency", "rework",
+                                               "plan_fidelity", "source_fidelity", "errors"])
+        self.assertEqual(report.GROUPS["rework"], {"rework_commits": "lower", "kit_self_fixes": "lower"})
+        self.assertIn("min_to_code", report.GROUPS["speed"])
+        self.assertIn("context_peak", report.GROUPS["tokens"])
+
+
 class AdoptionTest(unittest.TestCase):
     def test_slow_cost_on_s1_blocks(self):
         res = report.evaluate(data(lt=run(cost_usd=15.0)))
@@ -110,7 +138,7 @@ class AdoptionTest(unittest.TestCase):
         d["LT"]["S3"] = [run(wall_min=40.0)]
         res = report.evaluate(d)
         self.assertTrue(res["speed_ok"])
-        self.assertEqual(res["tally"]["efficiency"]["loss"], 1)
+        self.assertEqual(res["tally"]["speed"]["loss"], 1)
         self.assertFalse(res["groups_ok"])
         self.assertFalse(res["adopt"])
 
@@ -122,7 +150,7 @@ class AdoptionTest(unittest.TestCase):
         self.assertFalse(res["groups_ok"])
         d2 = data(lt=run(tool_errors=9, plan_drift=0.0), sk=run(tool_errors=4))
         res2 = report.evaluate(d2)
-        self.assertTrue(res2["tally"]["fidelity"]["win"] >= 1)
+        self.assertTrue(res2["tally"]["plan_fidelity"]["win"] >= 1)
         self.assertTrue(res2["groups_ok"] is False)  # errors group still has losses over wins
 
     def test_equal_runs_adopt_with_ties(self):

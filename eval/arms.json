@@ -2,7 +2,8 @@
   "timeout_min": 60,
   "parallel": 4,
   "arms": {
-    "SK": {"ref": "eval/speckit-baseline", "spec_kit": true, "protocol": "arms/speckit.md"},
+    "SKU": {"ref": "eval/speckit-baseline", "spec_kit": true, "protocol": "arms/speckit.md"},
+    "SKF": {"ref": "eval/speckit-baseline", "spec_kit": true, "protocol": "arms/speckit-forced.md"},
     "LT": {"ref": "feat/living-truth", "spec_kit": false, "protocol": "arms/living.md"}
   },
   "scenarios": {

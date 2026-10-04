@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -18,16 +19,21 @@ import judge  # noqa: E402
 import report  # noqa: E402
 
 
+QUOTA_HIT = threading.Event()
+
+
 def load_config(path=None):
     return json.loads(Path(path or HERE / "arms.json").read_text(encoding="utf-8"))
 
 
-def plan_pairs(cfg, only=None):
+def plan_pairs(cfg, only=None, arms=None):
     """arm x scenario x rep, interleaved so a late failure hits both arms alike."""
     pairs = []
     for sc, spec in cfg["scenarios"].items():
         for rep in range(1, int(spec["reps"]) + 1):
             for arm in cfg["arms"]:
+                if arms and arm not in arms:
+                    continue
                 pairs.append({"name": f"{arm}-{sc}-r{rep}", "arm": arm, "scenario": sc, "rep": rep,
                               "budget_usd": spec["budget_usd"]})
     if only:
@@ -76,7 +82,26 @@ def run_claude(project, prompt, budget, timeout_s, out_jsonl, log):
             kill_tree(proc)
             proc.communicate()
             return "timeout"
-    return "ok" if proc.returncode == 0 else "crash"
+    return classify(out_jsonl, proc.returncode)
+
+
+def classify(jsonl, returncode):
+    """ok, crash, or rate_limited: a quota stop is infrastructure, not a property of the flow."""
+    result = None
+    for line in Path(jsonl).read_text(encoding="utf-8", errors="replace").splitlines():
+        try:
+            e = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(e, dict) and e.get("type") == "result":
+            result = e
+    text = str((result or {}).get("result", "")).lower()
+    if result and (result.get("api_error_status") == 429 or "session limit" in text
+                   or "usage limit" in text or "rate limit" in text):
+        return "rate_limited"
+    if returncode == 0 and result and not result.get("is_error"):
+        return "ok"
+    return "crash"
 
 
 def run_pair(pair, cfg, args, projects, results, template):
@@ -84,6 +109,10 @@ def run_pair(pair, cfg, args, projects, results, template):
     arm_cfg = cfg["arms"][arm]
     project, scenario = projects / name, HERE / "scenarios" / sc
     transcript = results / f"{name}.jsonl"
+    if QUOTA_HIT.is_set():
+        (results / f"{name}.metrics.json").write_text(json.dumps({"status": "skipped_rate_limit"}),
+                                                      encoding="utf-8")
+        return name, "skipped_rate_limit"
     b = subprocess.run(build_args(arm_cfg, project), capture_output=True, text=True,
                        encoding="utf-8", errors="replace")
     (results / f"{name}.build.log").write_text(b.stdout + b.stderr, encoding="utf-8")
@@ -98,6 +127,8 @@ def run_pair(pair, cfg, args, projects, results, template):
                                (HERE / arm_cfg["protocol"]).read_text(encoding="utf-8"))
         status = run_claude(project, prompt, pair["budget_usd"], args.timeout_min * 60, transcript,
                             results / f"{name}.stderr.log")
+    if status == "rate_limited":
+        QUOTA_HIT.set()
     wall_min = round((time.time() - started_at) / 60, 3)
     (results / f"{name}.run.json").write_text(json.dumps(
         {"name": name, "arm": arm, "scenario": sc, "rep": pair["rep"], "status": status,
@@ -124,6 +155,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", help="arms.json (default eval/arms.json)")
     ap.add_argument("--only", nargs="+", help="rerun only these pairs, e.g. LT-S1-r2")
+    ap.add_argument("--arms", nargs="+", help="run only these arms, e.g. LT SKF")
     ap.add_argument("--parallel", type=int)
     ap.add_argument("--timeout-min", type=float)
     ap.add_argument("--out", help="results folder (default eval/results/<stamp>)")
@@ -143,7 +175,7 @@ def main(argv=None):
     projects.mkdir(parents=True, exist_ok=True)
     template = (HERE / "prompt.md").read_text(encoding="utf-8")
 
-    pairs = plan_pairs(cfg, args.only)
+    pairs = plan_pairs(cfg, args.only, args.arms)
     with ThreadPoolExecutor(max_workers=max(1, parallel)) as pool:
         for name, status in pool.map(lambda p: run_pair(p, cfg, args, projects, results, template), pairs):
             print(f"{name}: {status}", flush=True)
