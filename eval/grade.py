@@ -273,7 +273,10 @@ def protocol_adherence(arm, case, skills):
 def efficiency(transcript):
     """Inputs of E1 to E6, R1 and R4 from eval/transcript.py; every key None when unavailable."""
     keys = ("tokens_total", "cost_usd", "wall_min", "turns", "context_peak", "subagents",
-            "tool_errors", "subagent_token_share", "skills", "is_error", "started_at")
+            "tool_errors", "subagent_token_share", "skills", "is_error", "started_at",
+            "tokens_main", "tokens_subagents", "tool_calls", "error_rate", "test_runs",
+            "failed_test_runs", "review_rounds", "subagent_detail", "subagent_tokens_median",
+            "subagent_tool_calls_median", "subagent_errors")
     empty = {k: None for k in keys}
     if transcript is None:
         return empty
@@ -285,7 +288,47 @@ def efficiency(transcript):
     return {k: s.get(k) for k in keys}
 
 
-def grade(project, scenario_dir, arm, transcript=None, started_at=None, judge_result=None):
+def review_fix_commits(commits, detail, has_transcript):
+    """X5: commits made after the first reviewer subagent started, or after the first commit whose
+    subject names a review; 0 when the run shows no review, None without a transcript."""
+    if not has_transcript:
+        return None
+    times = [d["started_at"] for d in detail or [] if d.get("review") and d.get("started_at")]
+    if times:
+        t0 = min(times)
+        return sum(1 for c in commits if c["time"] is not None and c["time"] > t0)
+    for i, c in enumerate(commits):
+        if re.search(r"review", c["subject"], re.I):
+            return len(commits) - i - 1
+    return 0
+
+
+def subagent_metrics(detail, tasks, cov, wall_min):
+    """X2 and X4: wasted subagents (no file change, not a review), tasks per executor, minutes per task."""
+    detail = detail or []
+    executors = [d for d in detail if not d.get("review")]
+    wasted = sum(1 for d in detail if not d.get("file_changes") and not d.get("review"))
+    n = len(tasks) if tasks else 0
+    done = round(cov * n) if cov is not None else None
+    return {
+        "subagents_wasted": wasted if detail else 0,
+        "tasks_per_executor": done / len(executors) if executors and done is not None else None,
+        "min_per_task": wall_min / n if n and isinstance(wall_min, (int, float)) else None,
+    }
+
+
+def blind_metrics(rr):
+    rr = rr or {}
+    counts = rr.get("blind_findings") or {}
+    out = {k: rr.get(k) for k in ("blind_findings_total", "blind_bugs", "blind_approve",
+                                  "review_cost_usd")}
+    for sev in ("critical", "high", "medium", "low"):
+        out[f"blind_{sev}"] = counts.get(sev) if counts else None
+    return out
+
+
+def grade(project, scenario_dir, arm, transcript=None, started_at=None, judge_result=None,
+          review_result=None):
     project, scenario = Path(project).resolve(), Path(scenario_dir).resolve()
     exp = json.loads((scenario / "expected.json").read_text(encoding="utf-8"))
     files = project_files(project)
@@ -298,8 +341,9 @@ def grade(project, scenario_dir, arm, transcript=None, started_at=None, judge_re
     codes = code_commits(commits)
     changed_in_code_commits = {f for c in codes for f in c["files"]}
     code_changed = sorted({f for c in commits for f in c["files"] if is_code_path(f)})
+    tasks = plan_fidelity.load_tasks(project, seed)
     cov, drift = plan_fidelity.coverage_and_drift(
-        plan_fidelity.load_tasks(project, seed), changed_in_code_commits, code_changed,
+        tasks, changed_in_code_commits, code_changed,
         all_changed={f for c in commits for f in c["files"]})
     start = started_at if started_at is not None else eff["started_at"]
     min_to_code = None
@@ -329,7 +373,19 @@ def grade(project, scenario_dir, arm, transcript=None, started_at=None, judge_re
         "kit_self_fixes": kit_self_fixes(commits), "rework_commits": rework_commits(commits),
         "protocol_adherence": protocol_adherence(arm, exp.get("case"), eff["skills"]),
         "commits_after_seed": len(commits),
+        "tokens_main": eff["tokens_main"], "tokens_subagents": eff["tokens_subagents"],
+        "tool_calls": eff["tool_calls"], "error_rate": eff["error_rate"],
+        "test_runs": eff["test_runs"], "failed_test_runs": eff["failed_test_runs"],
+        "review_rounds": eff["review_rounds"],
+        "subagent_tokens_median": eff["subagent_tokens_median"],
+        "subagent_tool_calls_median": eff["subagent_tool_calls_median"],
+        "subagent_errors": eff["subagent_errors"],
+        "review_fix_commits": review_fix_commits(commits, eff["subagent_detail"], bool(transcript)),
+        **subagent_metrics(eff["subagent_detail"], tasks, cov, eff["wall_min"]),
+        **blind_metrics(review_result),
     })
+    if not transcript:
+        m["subagents_wasted"] = None
     return m
 
 

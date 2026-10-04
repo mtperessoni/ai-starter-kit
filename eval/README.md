@@ -124,5 +124,19 @@ A second fixture closer to a real service, so the flows face what makes context 
 | LG06 | Scenarios `eval/scenarios-large/L1..L8`, same layout as the small suite: L1 cross-feature rule change (M), L2 and L3 new features with data model and contract (L), L4 bug across features (S), L5 bug inside the big file (S), L6 refactor of the big file (C6, M), L7 rule gap (C5, M), L8 implement the approved `planned` rule (C2, S) |
 | LG07 | `eval/arms-large.json` points to the large fixture and scenarios; reps 2 on M and L, 1 on S; arms LT and SKU (the team's flow), plus SKF on L2 and L3 as a sensitivity check |
 
+## Efficiency analysis
+The questions the final analysis answers, each with its metrics. All come from the transcript (T), git (G), hidden tests (H) or the blind review (B).
+
+| ID | Question | Metrics | Source |
+|---|---|---|---|
+| X1 | Token consumption | `tokens_total`, `tokens_main`, `tokens_subagents`, `context_peak`, `cost_usd` | T |
+| X2 | Efficiency of the subagents spawned | `subagents`, `subagent_tokens_median`, `subagent_tool_calls_median`, `subagent_errors`, `subagents_wasted` (no file change and no review output attributed), `tasks_per_executor` (plan tasks committed over executors spawned), `subagent_token_share` | T, G |
+| X3 | Error rate during implementation | `tool_calls`, `tool_errors`, `error_rate` (errors over calls), `test_runs`, `failed_test_runs`, `kit_self_fixes` | T, G |
+| X4 | Time to complete | `wall_min`, `min_to_code`, `min_per_task` (wall over plan tasks) | T, G |
+| X5 | Reviews needed for good code | `review_rounds` (highest `review: N/5` seen, else reviewer subagents spawned), `review_fix_commits` (commits after the first review), `blind_findings_total` after the run | T, G, B |
+| X6 | Code with fewest problems | `accept` (hidden tests), `suite_green`, `blind_bugs` (critical plus high findings of kind bug or rule mismatch), `blind_findings` by severity, `blind_approve` | H, G, B |
+
+**Blind review (B).** `eval/review.py` runs `claude -p --model sonnet` once per run on the source and test diff since the seed (no docs, no `specs/` or `changes/`, so the reviewer cannot tell the arm) plus the touched PRD sections as the rules to check against. It returns findings with severity (critical, high, medium, low) and kind (bug, rule_mismatch, test_gap, maintainability), and whether it would approve. Same prompt and rubric for every run.
+
 ## Round 1 (2026-10-04), for the record
 Arms: `main` plus spec-kit without a protocol versus `feat/living-truth`; one rep, 8 runs, US$27.87. Both arms passed every hidden test. The SK arm never invoked spec-kit, so the round compared the kit without spec-kit against living truth: LT was 5% to 14% cheaper on S1, S3 and S4, and 11% more expensive and 61% slower on S2, where it hit the US$7.50 cap after archiving. Three runs patched two real gate.py bugs (G5 path comparison, HTML header row), which this round fixes in both arms.

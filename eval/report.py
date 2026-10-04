@@ -18,10 +18,37 @@ GROUPS = {
     "plan_fidelity": {"plan_coverage": HIGHER, "plan_drift": LOWER},
     "source_fidelity": {"traceability": HIGHER, "docs_first": HIGHER, "promoted": HIGHER,
                         "single_source": LOWER},
-    "errors": {"tool_errors": LOWER},
+    "errors": {"tool_errors": LOWER, "error_rate": LOWER},
+    "subagents": {"subagent_tokens_median": LOWER, "subagent_errors": LOWER,
+                  "subagents_wasted": LOWER, "tasks_per_executor": HIGHER},
+    "reviews": {"review_rounds": LOWER, "review_fix_commits": LOWER,
+                "blind_findings_total": LOWER, "blind_approve": HIGHER},
+    "code_quality": {"accept": HIGHER, "suite_green": HIGHER, "blind_bugs": LOWER,
+                     "blind_critical": LOWER, "blind_high": LOWER},
 }
+# Efficiency analysis: question -> (title, {metric: direction or None when it only describes})
+QUESTIONS = {
+    "X1": ("Token consumption", {"tokens_total": LOWER, "tokens_main": LOWER,
+                                 "tokens_subagents": LOWER, "context_peak": LOWER,
+                                 "cost_usd": LOWER}),
+    "X2": ("Efficiency of the subagents", {
+        "subagents": None, "subagent_tokens_median": LOWER, "subagent_tool_calls_median": LOWER,
+        "subagent_errors": LOWER, "subagents_wasted": LOWER, "tasks_per_executor": HIGHER,
+        "subagent_token_share": None}),
+    "X3": ("Error rate during implementation", {
+        "tool_calls": None, "tool_errors": LOWER, "error_rate": LOWER, "test_runs": None,
+        "failed_test_runs": LOWER, "kit_self_fixes": LOWER}),
+    "X4": ("Time to complete", {"wall_min": LOWER, "min_to_code": LOWER, "min_per_task": LOWER}),
+    "X5": ("Reviews needed for good code", {
+        "review_rounds": LOWER, "review_fix_commits": LOWER, "blind_findings_total": LOWER}),
+    "X6": ("Code with fewest problems", {
+        "accept": HIGHER, "suite_green": HIGHER, "blind_bugs": LOWER, "blind_critical": LOWER,
+        "blind_high": LOWER, "blind_medium": LOWER, "blind_low": LOWER, "blind_approve": HIGHER}),
+}
+SIZES = ("S", "M", "L")
 GATE_ONLY = ["accept", "suite_green", "gate_ok", "completed", "prd_fidelity", "protocol_adherence"]
-REPORT_ONLY = ["subagents", "subagent_token_share"]
+REPORT_ONLY = ["subagents", "subagent_token_share"] + [
+    k for _, ms in QUESTIONS.values() for k in ms]
 SPEED_KEYS = ("tokens_total", "cost_usd", "wall_min")
 F1_SLACK = 0.05
 BAND = 0.10
@@ -183,7 +210,55 @@ def fmt(v):
     return f"{v:.3f}".rstrip("0").rstrip(".") if isinstance(v, float) else str(v)
 
 
-def build(data, base=BASE, cand=CAND, reps=None):
+def ranks(medians_by_arm, direction):
+    """1 is best; equal medians share a rank; arms without a value or metrics without a direction are left out."""
+    vals = {a: v for a, v in medians_by_arm.items() if v is not None}
+    if direction is None:
+        return {}
+    ordered = sorted(vals.values(), reverse=direction == HIGHER)
+    return {a: ordered.index(v) + 1 for a, v in vals.items()}
+
+
+def analyze(data, sizes=None):
+    """X1 to X6: per metric the median per arm over all runs and per scenario size, plus each arm's rank."""
+    sizes = sizes or {}
+    arms = sorted(data)
+    out = {}
+    for qid, (title, metrics) in QUESTIONS.items():
+        rows = {}
+        for key, direction in metrics.items():
+            scopes = {"all": lambda sc: True}
+            scopes.update({z: (lambda sc, z=z: sizes.get(sc) == z) for z in SIZES})
+            row = {"direction": direction}
+            for scope, pick in scopes.items():
+                med = {a: median(values([m for sc, runs in data[a].items() if pick(sc) for m in runs], key))
+                       for a in arms}
+                row[scope] = {"median": med, "rank": ranks(med, direction)}
+            rows[key] = row
+        out[qid] = {"title": title, "metrics": rows}
+    return out
+
+
+def analysis_lines(an, arms):
+    lines = ["", "## Efficiency analysis", "",
+             "Median per arm over the runs of the scope; `#n` is the rank of the arm on that metric "
+             "(1 is best, none for descriptive metrics).", ""]
+    for qid, q in an.items():
+        lines += [f"### {qid} {q['title']}", "", "| Metric | Scope | " + " | ".join(arms) + " |",
+                  "|---|---|" + "---|" * len(arms)]
+        for key, row in q["metrics"].items():
+            for scope in ("all", *SIZES):
+                cell = row[scope]
+                if scope != "all" and all(v is None for v in cell["median"].values()):
+                    continue
+                vals = [fmt(cell["median"][a]) + (f" #{cell['rank'][a]}" if a in cell["rank"] else "")
+                        for a in arms]
+                lines.append(f"| {key} | {scope} | " + " | ".join(vals) + " |")
+        lines.append("")
+    return lines
+
+
+def build(data, base=BASE, cand=CAND, reps=None, sizes=None):
     res = evaluate(data, base, cand)
     counts = run_counts(data, base, cand, reps)
     lines = ["# Evaluation report", "", f"Candidate {cand} versus base {base}.", "", "## Runs", "", "| Arm and scenario | Found | Expected | Missing |",
@@ -211,7 +286,27 @@ def build(data, base=BASE, cand=CAND, reps=None):
     missing = sum(c["missing"] for c in counts.values())
     if missing:
         lines += [f"{missing} run(s) are missing; medians use only the runs present.", ""]
-    return "\n".join(lines), {"runs": counts, "medians": medians(data), **res}
+    an = analyze(data, sizes)
+    lines += analysis_lines(an, sorted(data))
+    return "\n".join(lines), {"runs": counts, "medians": medians(data), "analysis": an, **res}
+
+
+def scenario_sizes(config):
+    """{scenario: size} from the expected.json files of the config's scenarios folder."""
+    if not config:
+        return {}
+    cfg_path = Path(config)
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    folder = cfg_path.resolve().parent / cfg.get("scenarios_dir", "scenarios")
+    sizes = {}
+    for sc in cfg.get("scenarios", {}):
+        try:
+            exp = json.loads((folder / sc / "expected.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(exp, dict) and exp.get("size"):
+            sizes[sc] = exp["size"]
+    return sizes
 
 
 def write_report(results, base=BASE, cand=CAND, config=None):
@@ -222,10 +317,12 @@ def write_report(results, base=BASE, cand=CAND, config=None):
         reps = derive_reps(results)
         if set(reps) <= set(EXPECTED_REPS):
             reps = None  # the small suite: its fixed map
-    text, payload = build(load(results), base, cand, reps)
+    text, payload = build(load(results), base, cand, reps, scenario_sizes(config))
     out = Path(results) / ("report.md" if base == BASE else f"report-{cand}-vs-{base}.md")
     out.write_text(text, encoding="utf-8")
     out.with_suffix(".json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    (Path(results) / "analysis.json").write_text(json.dumps(payload["analysis"], indent=2),
+                                                 encoding="utf-8")
     return out
 
 

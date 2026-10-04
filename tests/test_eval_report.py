@@ -147,7 +147,11 @@ class ExpectedRepsTest(unittest.TestCase):
 class CategoryTest(unittest.TestCase):
     def test_metrics_are_grouped_by_the_agreed_categories(self):
         self.assertEqual(list(report.GROUPS), ["tokens", "speed", "efficiency", "rework",
-                                               "plan_fidelity", "source_fidelity", "errors"])
+                                               "plan_fidelity", "source_fidelity", "errors",
+                                               "subagents", "reviews", "code_quality"])
+        self.assertEqual(report.GROUPS["code_quality"]["blind_bugs"], "lower")
+        self.assertEqual(report.GROUPS["reviews"]["blind_approve"], "higher")
+        self.assertEqual(report.GROUPS["errors"]["error_rate"], "lower")
         self.assertEqual(report.GROUPS["rework"], {"rework_commits": "lower", "kit_self_fixes": "lower"})
         self.assertIn("min_to_code", report.GROUPS["speed"])
         self.assertIn("context_peak", report.GROUPS["tokens"])
@@ -190,6 +194,73 @@ class AdoptionTest(unittest.TestCase):
         res = report.evaluate(data(scenarios=("S1",)))
         self.assertFalse(res["speed_ok"])
         self.assertFalse(res["adopt"])
+
+
+class AnalysisTest(unittest.TestCase):
+    def d3(self):
+        return {
+            "LT": {"S1": [run(tokens_total=100.0, blind_bugs=0, accept=1.0)],
+                   "L1": [run(tokens_total=900.0, blind_bugs=2, accept=0.5)]},
+            "SKU": {"S1": [run(tokens_total=200.0, blind_bugs=1, accept=1.0)],
+                    "L1": [run(tokens_total=500.0, blind_bugs=0, accept=1.0)]},
+            "SKF": {"S1": [run(tokens_total=300.0, blind_bugs=None)],
+                    "L1": [run(tokens_total=700.0, blind_bugs=3)]},
+        }
+
+    def test_all_arms_medians_ranks_and_sizes(self):
+        an = report.analyze(self.d3(), {"S1": "S", "L1": "L"})
+        self.assertEqual(list(an), ["X1", "X2", "X3", "X4", "X5", "X6"])
+        row = an["X1"]["metrics"]["tokens_total"]
+        self.assertEqual(row["all"]["median"], {"LT": 500.0, "SKF": 500.0, "SKU": 350.0})
+        self.assertEqual(row["all"]["rank"], {"SKU": 1, "LT": 2, "SKF": 2})
+        self.assertEqual(row["S"]["rank"], {"LT": 1, "SKU": 2, "SKF": 3})
+        self.assertEqual(row["L"]["median"]["LT"], 900.0)
+        self.assertIsNone(row["M"]["median"]["LT"])
+        bugs = an["X6"]["metrics"]["blind_bugs"]
+        self.assertEqual(bugs["S"]["rank"], {"LT": 1, "SKU": 2})  # SKF has no value
+        acc = an["X6"]["metrics"]["accept"]
+        self.assertEqual(acc["all"]["rank"]["SKU"], 1)  # higher is better
+
+    def test_descriptive_metric_has_no_rank_and_no_sizes_still_works(self):
+        an = report.analyze(self.d3())
+        self.assertEqual(an["X2"]["metrics"]["subagents"]["all"]["rank"], {})
+        self.assertIsNone(an["X1"]["metrics"]["tokens_total"]["S"]["median"]["LT"])
+
+    def test_every_metric_of_x1_to_x6_is_present(self):
+        an = report.analyze(self.d3())
+        want = {"X1": ["tokens_total", "tokens_main", "tokens_subagents", "context_peak", "cost_usd"],
+                "X2": ["subagents", "subagent_tokens_median", "subagent_tool_calls_median",
+                       "subagent_errors", "subagents_wasted", "tasks_per_executor",
+                       "subagent_token_share"],
+                "X3": ["tool_calls", "tool_errors", "error_rate", "test_runs", "failed_test_runs",
+                       "kit_self_fixes"],
+                "X4": ["wall_min", "min_to_code", "min_per_task"],
+                "X5": ["review_rounds", "review_fix_commits", "blind_findings_total"],
+                "X6": ["accept", "suite_green", "blind_bugs", "blind_high", "blind_approve"]}
+        for q, keys in want.items():
+            for k in keys:
+                self.assertIn(k, an[q]["metrics"], k)
+
+    def test_report_section_and_analysis_json(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            cfg = d / "arms.json"
+            cfg.write_text(json.dumps({"scenarios_dir": "scn", "scenarios": {
+                "S1": {"reps": 1}, "L1": {"reps": 1}}}), encoding="utf-8")
+            for sc, size in (("S1", "S"), ("L1", "L")):
+                (d / "scn" / sc).mkdir(parents=True)
+                (d / "scn" / sc / "expected.json").write_text(json.dumps({"size": size}))
+            res = d / "res"
+            res.mkdir()
+            for arm, scs in self.d3().items():
+                for sc, runs in scs.items():
+                    (res / f"{arm}-{sc}-r1.metrics.json").write_text(json.dumps(runs[0]))
+            text = report.write_report(res, config=cfg).read_text(encoding="utf-8")
+            an = json.loads((res / "analysis.json").read_text(encoding="utf-8"))
+        self.assertIn("## Efficiency analysis", text)
+        self.assertIn("### X6 Code with fewest problems", text)
+        self.assertIn("| tokens_total | S | 100 #1 | 300 #3 | 200 #2 |", text)
+        self.assertEqual(an["X1"]["metrics"]["tokens_total"]["L"]["median"]["SKU"], 500.0)
 
 
 class FileTest(unittest.TestCase):

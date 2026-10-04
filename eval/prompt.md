@@ -6,6 +6,10 @@ Follow this repository's own instructions end to end: classify the request, docu
 
 {protocol}
 
+## How work is executed here
+
+Execute the plan the way the repository's execution rules say (`.claude/skills/prd-gate/reference/execution.md` and `workers.md`): each task goes to an `executor` subagent with a one-line prompt, the main thread commits each task, and at the end of each wave a `reviewer` subagent reviews the diff with the review ceiling, saying `review: N/5` every round and sending findings back to an executor until the review is clean or the ceiling is reached.
+
 ## Request
 
 {request}

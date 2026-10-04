@@ -17,6 +17,7 @@ sys.path.insert(0, str(HERE))
 import grade  # noqa: E402
 import judge  # noqa: E402
 import report  # noqa: E402
+import review  # noqa: E402
 
 
 QUOTA_HIT = threading.Event()
@@ -148,12 +149,15 @@ def run_pair(pair, cfg, args, projects, results, template):
     metrics = {}
     if status != "build_failed":
         try:
-            jr = None
+            jr = rr = None
             if not args.dry_run:
-                jr = judge.judge(project, scenario, grade.seed_commit(project))
+                seed = grade.seed_commit(project)
+                jr = judge.judge(project, scenario, seed)
                 (results / f"{name}.judge.json").write_text(json.dumps(jr, indent=2), encoding="utf-8")
+                rr = review.review(project, scenario, seed)
+                (results / f"{name}.review.json").write_text(json.dumps(rr, indent=2), encoding="utf-8")
             metrics = grade.grade(project, scenario, arm=arm, transcript=transcript,
-                                  started_at=started_at, judge_result=jr)
+                                  started_at=started_at, judge_result=jr, review_result=rr)
         except Exception as e:  # a grading failure must not stop the other pairs
             metrics = {"grade_error": str(e)}
     if metrics.get("wall_min") is None and not args.dry_run:
@@ -179,6 +183,7 @@ def main(argv=None):
     parallel = args.parallel or cfg["parallel"]
     if args.dry_run:
         os.environ["EVAL_NO_JUDGE"] = "1"
+        os.environ["EVAL_NO_REVIEW"] = "1"
 
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     results = Path(args.out) if args.out else HERE / "results" / stamp

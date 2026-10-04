@@ -248,6 +248,69 @@ class GradeTest(unittest.TestCase):
         self.assertEqual(grade.protocol_adherence("LT", "C6", []), 0.0)
         self.assertIsNone(grade.protocol_adherence("LT", "C6", None))
 
+    def test_new_keys_and_review_merge(self):
+        sys.modules["transcript"] = FakeTranscript(
+            tokens_total=10, wall_min=4.0, is_error=False, skills=[], tool_calls=7, error_rate=0.1,
+            test_runs=2, failed_test_runs=1, review_rounds=2, tokens_main=6, tokens_subagents=4,
+            subagent_detail=[{"review": False, "file_changes": 0, "started_at": None}],
+            subagent_tokens_median=4, subagent_tool_calls_median=2, subagent_errors=0)
+        rr = {"blind_findings": {"critical": 1, "high": 0, "medium": 0, "low": 0},
+              "blind_findings_total": 1, "blind_bugs": 1, "blind_approve": False, "review_cost_usd": 0.1}
+        m = grade.grade(self.project, self.scenario, "LT", transcript="t.jsonl", review_result=rr)
+        self.assertEqual((m["tool_calls"], m["test_runs"], m["failed_test_runs"], m["review_rounds"]),
+                         (7, 2, 1, 2))
+        self.assertEqual((m["tokens_main"], m["tokens_subagents"]), (6, 4))
+        self.assertEqual(m["subagents_wasted"], 1)
+        self.assertEqual(m["blind_bugs"], 1)
+        self.assertEqual(m["blind_critical"], 1)
+        self.assertEqual(m["review_fix_commits"], 0)
+
+    def test_new_keys_none_without_transcript(self):
+        m = grade.grade(self.project, self.scenario, "LT")
+        for k in ("tokens_main", "tool_calls", "review_fix_commits", "subagents_wasted",
+                  "tasks_per_executor", "blind_bugs", "blind_approve"):
+            self.assertIsNone(m[k], k)
+
+
+class EfficiencyMetricsTest(unittest.TestCase):
+    def commits(self, *times):
+        return [{"time": t, "subject": f"c{t}", "files": []} for t in times]
+
+    def test_review_fix_commits_from_reviewer_timestamp(self):
+        detail = [{"review": False, "started_at": 5.0}, {"review": True, "started_at": 20.0},
+                  {"review": True, "started_at": 40.0}]
+        self.assertEqual(grade.review_fix_commits(self.commits(10, 25, 30), detail, True), 2)
+
+    def test_review_fix_commits_subject_fallback_none_and_zero(self):
+        cs = self.commits(1, 2, 3)
+        cs[0]["subject"] = "chore: review fixes"
+        self.assertEqual(grade.review_fix_commits(cs, [], True), 2)
+        self.assertEqual(grade.review_fix_commits(self.commits(1, 2), [], True), 0)
+        self.assertIsNone(grade.review_fix_commits(cs, [], False))
+
+    def test_subagent_metrics(self):
+        detail = [{"review": False, "file_changes": 3}, {"review": False, "file_changes": 0},
+                  {"review": True, "file_changes": 0}]
+        m = grade.subagent_metrics(detail, [{"id": "T1"}, {"id": "T2"}, {"id": "T3"}, {"id": "T4"}],
+                                   0.5, 20.0)
+        self.assertEqual(m["subagents_wasted"], 1)
+        self.assertEqual(m["tasks_per_executor"], 1.0)  # 2 tasks done over 2 executors
+        self.assertEqual(m["min_per_task"], 5.0)
+
+    def test_subagent_metrics_without_plan_or_executors(self):
+        m = grade.subagent_metrics([], None, None, 10.0)
+        self.assertEqual((m["subagents_wasted"], m["tasks_per_executor"], m["min_per_task"]),
+                         (0, None, None))
+
+    def test_blind_metrics_merge(self):
+        rr = {"blind_findings": {"critical": 0, "high": 2, "medium": 1, "low": 0},
+              "blind_findings_total": 3, "blind_bugs": 1, "blind_approve": False,
+              "review_cost_usd": 0.4}
+        m = grade.blind_metrics(rr)
+        self.assertEqual((m["blind_high"], m["blind_bugs"], m["blind_approve"]), (2, 1, False))
+        self.assertIsNone(grade.blind_metrics(None)["blind_bugs"])
+        self.assertIsNone(grade.blind_metrics({})["blind_high"])
+
 
 if __name__ == "__main__":
     unittest.main()
