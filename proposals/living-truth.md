@@ -1,6 +1,6 @@
 # Proposal: living truth plus change deltas
 
-Status: candidate on branch `feat/living-truth`, not merged until the evaluation in `eval/` shows it is at least as good as the current flow (PRD, TRD and spec-kit) on quality and not worse on cost (M01).
+Status: adopted on 2026-10-04 on the evidence of the small suite and the first large-suite runs (same hidden-test quality as the spec-kit flow, cheaper and faster on rule changes; see `eval/README.md`). The 48-run large round keeps running and its analysis is recorded in `eval/results/` when it ends.
 
 ## Problem
 The kit tells every project to run spec-kit (`/speckit-specify`, `/speckit-plan`, `/speckit-tasks`) but never installs it, and spec-kit's `spec.md` holds requirements (FR-xxx) that duplicate the PRD rule rows. Two homes for the same behavior drift apart; a `spec.md` from months ago reads as authority while describing an old intent.
