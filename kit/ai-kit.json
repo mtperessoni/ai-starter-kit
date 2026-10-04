@@ -1,17 +1,72 @@
 {
-  "source_dirs": ["src"],
+  "source_dirs": [
+    "src"
+  ],
   "feature_root": "src/features",
-  "code_extensions": [".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".go", ".rs", ".java", ".kt", ".cs", ".rb", ".php", ".swift", ".dart"],
-  "test_patterns": ["**/tests/**", "**/test/**", "**/__tests__/**", "**/test_*", "**/*_test.*", "**/*.test.*", "**/*.spec.*", "**/*_spec.*"],
-  "ignore": ["**/node_modules/**", "**/.venv/**", "**/venv/**", "**/dist/**", "**/build/**", "**/target/**", "**/.next/**", "**/vendor/**", "**/__pycache__/**"],
+  "code_extensions": [
+    ".py",
+    ".ts",
+    ".tsx",
+    ".js",
+    ".jsx",
+    ".mjs",
+    ".go",
+    ".rs",
+    ".java",
+    ".kt",
+    ".cs",
+    ".rb",
+    ".php",
+    ".swift",
+    ".dart"
+  ],
+  "test_patterns": [
+    "**/tests/**",
+    "**/test/**",
+    "**/__tests__/**",
+    "**/test_*",
+    "**/*_test.*",
+    "**/*.test.*",
+    "**/*.spec.*",
+    "**/*_spec.*"
+  ],
+  "ignore": [
+    "**/node_modules/**",
+    "**/.venv/**",
+    "**/venv/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/target/**",
+    "**/.next/**",
+    "**/vendor/**",
+    "**/__pycache__/**"
+  ],
   "limits": {
     "module_lines": 500,
     "test_lines": 1200,
     "feature_map_lines": 20,
     "id_header_lines": 15
   },
-  "banned_names": ["helpers", "utils", "shared", "common", "misc", "state"],
-  "unique_name_exempt": ["__init__", "index", "main", "mod", "conftest", "setup", "types", "page", "layout", "route"],
+  "banned_names": [
+    "helpers",
+    "utils",
+    "shared",
+    "common",
+    "misc",
+    "state"
+  ],
+  "unique_name_exempt": [
+    "__init__",
+    "index",
+    "main",
+    "mod",
+    "conftest",
+    "setup",
+    "types",
+    "page",
+    "layout",
+    "route"
+  ],
   "id_pattern": "\\b[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\\d+\\b",
   "allowlist": {
     "long_modules": {},
@@ -22,8 +77,21 @@
     "no_feature_map": [],
     "long_feature_maps": {}
   },
+  "commands": {
+    "test": "<test runner, for example: uv run pytest>",
+    "offline_args": "<args that exclude the integration tier, for example: --ignore=tests/integration>",
+    "integration_args": "<args for the integration tier, for example: tests/integration>",
+    "no_coverage_args": "<args that disable the coverage threshold, for example: --no-cov>",
+    "lint": "<verify only, for example: uv run ruff check . && uv run ruff format --check . && uv run mypy src>",
+    "fix": "<repair, for example: uv run ruff check --fix . && uv run ruff format .>",
+    "import_check": "<catches import cycles, for example: uv run python -c \"import main\">",
+    "offline_unset": [
+      "DATABASE_URL"
+    ],
+    "offline_flag": "OFFLINE_ONLY"
+  },
   "tests": {
-    "runner": "<command that runs the given test files without coverage, for example: uv run pytest {files} --no-cov -q>",
+    "runner": "<runs the given test files offline without coverage, for example: uv run pytest {files} --no-cov -q>",
     "native_related": "",
     "failure_regex": "^(?:FAILED|ERROR)\\s+(\\S+)",
     "log_dir": ".claude/prd-gate/state/_tests"

@@ -24,16 +24,19 @@ Parsed by `scripts/gate.py`. Keep the two-column table format and the key names.
 
 ## Commands
 
+Always through `scripts/gates.sh`; the stack commands behind each target are in `ai-kit.json` ("commands", "tests").
+
 | Purpose | Command |
 |---|---|
-| One test file, no coverage | `<for example: uv run pytest path/to/test_x.py --no-cov -q>` |
-| Related tests of a change | `<for example: vitest related <files> --run · or the mirror test plus Grep of importers>` |
-| Full suite (once, at the end of a delivery) | `<for example: ./scripts/gates.sh offline>` |
-| Lint, verify only | `<for example: ./scripts/gates.sh lint>` |
-| Lint, repair | `<for example: ./scripts/gates.sh fix>` |
-| Import and cycle check | `<for example: python -c "import main" · tsc --noEmit>` |
-| Structure ratchet | `<for example: pytest tests/test_architecture.py · node scripts/ratchet.mjs>` |
-| Test output to a file | `<command> > .claude/prd-gate/state/<slug>/test.log 2>&1`, then Grep `FAILED\|ERROR` and the summary line |
+| Related tests of a change (while working) | `scripts/gates.sh related [files]` (ratchet, then mirror tests and importers; only failures and the summary are printed, the log goes to `.claude/prd-gate/state/_tests/`) |
+| One test file, no coverage | `scripts/gates.sh one <file>` |
+| Baseline before the first code task | `scripts/gates.sh baseline <slug>` |
+| Full suite, once at the end, against the baseline | `scripts/gates.sh compare <slug>` |
+| Lint, verify only | `scripts/gates.sh lint` |
+| Lint, repair | `scripts/gates.sh fix`, then `lint` |
+| Import and cycle check | `scripts/gates.sh imports` |
+| Structure ratchet | `scripts/gates.sh ratchet` |
+| Move code by line range | `python scripts/move_lines.py <source> <start> <end> <destination> [--at LINE]` |
 
 ## Layout
 
