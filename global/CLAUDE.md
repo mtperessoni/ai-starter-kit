@@ -1,8 +1,4 @@
-<!--
-Append the block below to ~/.claude/CLAUDE.md. It loads in every session of every repository,
-so it stays short: only rules that hold everywhere. Repository rules go to the repo's CLAUDE.md.
--->
-
+<!-- ai-kit:start (managed by ai-starter-kit install; edit the kit, not this block) -->
 ## Working with subagents
 - A subagent prompt carries the contract (the rule rows or IDs it must satisfy) and file paths; never whole documents pasted in.
 - A subagent writes its work to files and returns at most 20 lines: Done / Files / Tests / Gaps. The main thread does not reread what it wrote.
@@ -22,3 +18,4 @@ so it stays short: only rules that hold everywhere. Repository rules go to the r
 - Edit markdown and HTML with Write and Edit directly, never through ad hoc scripts.
 - Count and list with the Grep tool rather than the shell.
 - No push and no pull request without my explicit request.
+<!-- ai-kit:end -->
