@@ -1,5 +1,6 @@
 {
   "CLAUDE.md": {
+    "`<layout of this repository, filled at install>`": "`by feature: one folder per product area under src/orders/features/`",
     "<project>": "Orders",
     "<One sentence: what this service or app is and who uses it.>": "A small Python service that prices a cart and closes it into a receipt, used by the storefront.",
     "**I. <Principle name> (NON-NEGOTIABLE).** <One line.>": "**I. Exact Money (NON-NEGOTIABLE).** Money is Decimal, rounded half up to cents; never float.",
@@ -11,6 +12,7 @@
     "<src>": "src/orders"
   },
   "AGENTS.md": {
+    "`<folder>/`: `<its role, the areas with files there and its map>`": "`src/orders/features/`: `one folder per product area (pricing, shipping, checkout), each with its CLAUDE.md map`",
     "<project>": "Orders",
     "<One paragraph: what it is, stack, package manager.>": "A small Python 3.11+ service that prices a cart and closes it into a receipt. Standard library only at runtime, pytest for tests, pip for the one dev dependency.",
     "<install>                          # Install dependencies (locked)": "python -m pip install pytest      # Install the dev dependency",
@@ -31,6 +33,10 @@
     "<YYYY-MM-DD>": "2026-01-05"
   },
   ".claude/skills/prd-gate/repo.md": {
+    "`<free text from ai-kit.json layout>`": "`by feature: one folder per product area under src/orders/features/`",
+    "`<feature folders, or see ai-kit.json areas>`": "`pricing, shipping, checkout`",
+    "`<feature folders plus ai-kit.json map_dirs>`": "`the feature folders`",
+    "`<a new feature folder (recommended), or the place docs/code-structure.md names>`": "`a new feature folder under src/orders/features/`",
     "`<...>`": "placeholder",
     "`<names>`": "`pricing`, `shipping`",
     "`specs/` kept as history, or `<none>`": "none",
@@ -57,6 +63,8 @@
     "| Spec-kit | `none` \\| `kept` (LT11) |": "| Spec-kit | `none` (LT11) |"
   },
   "ai-kit.json": {
+    "<one line, in this project's own words, on how code is organized today; feature folders under feature_root are the recommendation, never a requirement>": "by feature: one folder per product area under src/orders/features/",
+    "<makes a fresh clone or worktree ready to test, for example: uv sync --frozen>": "python -m pip install --quiet pytest",
     "\"feature_root\": \"src/features\"": "\"feature_root\": \"src/orders/features\"",
     "<test runner, for example: uv run pytest>": "python -m pytest",
     "<args that exclude the integration tier, for example: --ignore=tests/integration>": "",
@@ -79,6 +87,12 @@
     "  # /ai-kit install appends the stack's generated paths here (virtualenvs, caches, lockfiles, build output).\n": "  '''\\.pytest_cache/''',\n  '''__pycache__/''',\n"
   },
   "docs/code-structure.md": {
+    "`<default: a new folder under the feature root>`": "`a new folder under src/orders/features/`",
+    "`<the direction that applies to this layout, as AR09 lists it>`": "`a feature uses infra and another feature only through its public entry; core features do not import peripheral ones; infra never imports a feature`",
+    "`<beside the code in <area folder>/tests/, or the stack's mirrored tree>`": "`beside the code, in the tests/ folder of each feature`",
+    "| `<area>` | `<glob of its files, for code outside the feature root>` | `<folder with its CLAUDE.md>` |": "| none | all code is under the feature root | none |",
+    "`<one line on how code is organized here, in this project's words>`": "`by feature: one folder per product area under src/orders/features/`",
+    "`<folders with a CLAUDE.md besides the feature folders>`": "`none`",
     "Features: <list>. Core features: <list>.": "Features: pricing, shipping, checkout. Core features: pricing, shipping.",
     "<entry>": "__init__.py",
     "<public entry>": "__init__.py",
