@@ -18,6 +18,9 @@ scripts/gates.sh compare <slug>    # ONCE, at the end of a delivery: the full su
 scripts/gates.sh lint              # Lint, format check, types, structure linter rules: verifies, as CI does
 scripts/gates.sh fix               # Repairs; then run lint
 scripts/gates.sh imports           # Import check (cycles)
+scripts/gates.sh setup             # Make a fresh clone or worktree ready to test
+scripts/gates.sh hotspots          # Files ranked by recent commits times lines
+scripts/gates.sh contracts         # Schema and contract snapshots against their source
 scripts/gates.sh ratchet           # Structure ratchet (docs/code-structure.md)
 scripts/gates.sh docs              # PRD, TRD and HTML consistency
 scripts/gates.sh integration       # Integration tier: disk and image guards first, cleanup on every exit
@@ -67,10 +70,8 @@ Violating any of these breaks the architecture or the safety model. Follow stric
 
 ## Directory map
 
-- `<src>/app/`: entry, route assembly and dependency wiring
-- `<src>/features/<f>/`: one folder per product feature. Each has a `CLAUDE.md` map (up to 20 lines), a public entry, `domain/` (pure rules, no IO), services with IO, and `tests/`
-- `<src>/infra/`: shared code (persistence, providers, observability, config, auth)
-- `tests/integration/`, `tests/eval/`, and unit tests beside the code in `<src>/features/<f>/tests/`
+- `<folder>/`: `<its role, the areas with files there and its map>`; one line per real folder, filled at install (layout in `docs/code-structure.md`; feature folders are recommended, not required)
+- `tests/integration/`, `tests/eval/`, and unit tests where `docs/trd/testing.md` says
 - `changes/NNN-<slug>/`: one folder per change in flight (`brief.md` for size M and L, `design.md` for size L, `plan.md`). Holds intent, plan and state, never truth
 - `changes/archive/`: finished changes, moved there with `git mv` when promoted. History only, never read for current behavior
 - `docs/prd/`, `docs/trd/`, `docs/adr/`, `docs/code-structure.md`, `docs/flow.md`
@@ -90,14 +91,15 @@ Living truth plus change folders, in this order. Do not skip steps.
 Load only what the task needs. Every step below is one Glob, Grep or ranged Read.
 
 1. **Product rules.** `docs/prd/INDEX.md` lists every PRD file (one per section) with the rule IDs it defines. `Grep "<ID>" docs/prd` finds a rule; the same ID in a test docstring finds its tests. A human-reading HTML, if any, is never read for work.
-2. **Where it lives in the code.** `docs/trd/README.md` lists the feature maps. `docs/trd/<feature>.md` gives the files, the entry points by symbol name, the tests and what must not break.
+2. **Where it lives in the code.** `docs/trd/README.md` lists the areas. The area map (its `CLAUDE.md`, or its row in a folder map) and `docs/trd/<area>.md` give the files, the entry points by symbol name, the tests and what must not break.
 3. **Repo rules by kind of change** are in `docs/trd/invariants.md`; **how to test** is in `docs/trd/testing.md`.
 4. **Big files** (listed in `.claude/skills/prd-gate/repo.md`): Grep for the symbol, then Read that range. Never read them whole.
-5. **History of an area:** `git log --oneline -- <paths from its TRD file>`.
+5. **Generated files** (`generated_patterns` in `ai-kit.json`) are never edited and not searched: change the source and regenerate. **Schema and contracts:** read the snapshot listed in `contracts` and linked from the TRD, never the migration history (DS30).
+6. **History of an area:** `git log --oneline -- <paths from its TRD file>`.
 
 Keeping it true:
 
-- A code change that moves a file, an entry point or a test of a feature updates `docs/trd/<feature>.md` and the feature's `CLAUDE.md` in the same commit. Names only, never line numbers or default values.
+- A code change that moves a file, an entry point or a test of an area updates `docs/trd/<area>.md` and the area's map in the same commit. Names only, never line numbers or default values.
 - A change to product behavior updates the PRD file that owns the rule ID and moves the superseded wording to `docs/prd/CHANGELOG.md`: the PRD body holds only what is valid today.
 - The `prd-gate` skill runs this flow and checks it with `.claude/skills/prd-gate/scripts/gate.py`.
 

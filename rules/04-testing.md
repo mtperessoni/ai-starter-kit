@@ -26,13 +26,24 @@ Tests run narrow while working and wide once. Before these rules, agents took 13
 | TS13 | Do not compare test totals to prove two gates differ; ask each gate what it collects (a `divergence` target) | A leaked variable changes what runs and skips, never what is collected | testing.md |
 | TS14 | The integration tier is not collected by the offline target at all (ignored path), not merely refused at connect time | Session-scoped fixtures start containers before function-scoped guards exist | testing.md |
 | TS15 | Every test cites the PRD rule ID it proves (docstring or test name) | `Grep "<ID>"` finds rule, code and test together | AR06; DS |
-| TS16 | Tests live beside the code in `features/<f>/tests/`; test harnesses have their own name (`<subject>_harness`), never a generic one | Locality; generic names collide | AR10 |
+| TS16 | Tests live as AR10 says; harnesses have their own name (`<subject>_harness`), never a generic one | Locality; generic names collide | AR10 |
 | TS17 | Mocks and monkeypatches target the module of the **caller**, not the module that defines the name nor a re-export | A patch in the wrong place does not fail, it just stops having effect | AR11 |
 | TS18 | Root-level test configuration (for example `conftest.py` with autouse guards) lives at the repository root, so tests inside feature folders get the same guards | Moving tests beside code once ran 119 tests without the offline guard | LS |
 | TS19 | Lint has two targets: one that verifies (as CI does) and one that repairs; agents run the verifying one before returning | Agents that only "fix" hide what they changed | testing.md |
 | TS20 | CI runs the offline gate before the full one and asserts the two disagree | Proves isolation on every merge | `.github/workflows/ci.yml` |
 | TS21 | The gate is tested by executing it: a test runs the offline gate against a canary that touches a database and asserts it exits non-zero **because of the guard** (not because of coverage, collection or a missing file). Never test a gate by checking that words are present in its script | With the test command replaced by `true`, every "the script contains X" pin stayed green | `tests/` gate tests; testing.md |
 | TS22 | `scripts/new_failures.py` compares a test log with `baseline-failures.txt` and prints only new failures | Makes TS04 one command in any stack | `scripts/gates.sh compare` |
+
+## Speed and reliability
+
+| ID | Rule | Why | Lands in |
+|---|---|---|---|
+| TS37 | Feedback budget: `scripts/gates.sh related` prints its wall time and warns above `tests.related_budget_seconds`; with `tests.junit_xml` set it lists the slowest tests. Over budget is a readiness finding (split the slow test or its fixture), never a reason to skip related tests | The related run is paid on every task; without a measured budget it creeps up unnoticed until agents skip it | `scripts/related_tests.py` |
+| TS38 | A test that failed and passed on the same code goes to `tests.flaky` with its date and the cause when known; `new_failures.py` reports it as flaky, not new; the list shrinks as each one is fixed or deleted | A flaky failure read as new sends the agent hunting a regression it did not cause, and read as noise it hides a real one | `scripts/new_failures.py`; review |
+| TS39 | Snapshot and golden files (`tests.snapshot_patterns`) are never updated to make a test pass: the runner's update mode runs only for a change whose PRD ID changed the expected output, named in the return; `related` flags a change that touches them | Regenerating a snapshot turns a failing test green without proving anything, the same loosening as TS09 | `scripts/related_tests.py`; review |
+| TS40 | Tests are parallel-safe: no fixed ports, shared files or shared database names; each test gets its own temp dir and unique resource names, so parallel agents and worktrees never break each other | Two agents running tests at once collide on the same port or file and both see failures neither caused | review; testing.md |
+| TS41 | Test data comes from small builders or factories per subject beside the tests; test-support files obey the module limit; no shared fixture file grows past it | One shared fixture file grows with every test, is read whole by every agent and breaks unrelated tests when it changes | ratchet (module limit); review |
+| TS42 | Before changing legacy code without tests, a characterization test (golden master or approval test) records today's behavior of the touched path, citing the area; then the change | Without a recorded behavior the agent cannot tell a fix from a regression in code nobody specified | review; readiness plan |
 
 ## Containers and disk
 

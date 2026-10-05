@@ -57,7 +57,7 @@ Order of authority: constitution, PRD, TRD, code. An active plan governs only th
 |---|---|
 | `/ai-kit` | Global. `install` detects the stack, copies and adapts the kit, configures the linter with a day-one baseline, verifies every command by running it. `update` brings kit improvements without overwriting the project's edits. `doctor` reports drift |
 | `/prd-create` | Writes the PRDs: one folder per independent flow, one small file per section, rule rows with source and change via, glossary with code names, journey, configuration, risks, open questions, and the HTML reading version |
-| `/trd-create` | Writes the technical map: one file per feature, invariants with their proof, the testing guide, the end-to-end flow, and a `CLAUDE.md` of at most 20 lines in every feature folder |
+| `/trd-create` | Writes the technical map in any layout: one file per product area, invariants with their proof, the testing guide, the end-to-end flow, and a `CLAUDE.md` of at most 20 lines in every feature folder or declared map folder. In an existing codebase it writes the incremental readiness plan, and offers the move to feature folders as an option |
 | `/prd-gate` | The gate for every change. Classifies the request, loads only the rule and the map it needs, checks the doc against the code, and for a rule change runs confront, interview, PRD, TRD, plan, then subagents implement |
 | `/adr` | Records architecture decisions with at least two honest negatives and two real alternatives |
 
@@ -96,13 +96,16 @@ ai-kit.json                     stack commands, structure limits, ratchet allowl
 .claude/agents/                 one findings-only reviewer per risk class of the domain
 docs/prd/                       INDEX.md, README.md, CHANGELOG.md, prd.html, one folder per PRD
 docs/trd/                       README.md, one file per feature, infra.md, invariants.md, testing.md
-docs/code-structure.md          AR01 to AR14: where and how code lives
+docs/code-structure.md          AR01 to AR28: where and how code lives, and this repository's layout
+docs/ai-readiness.md            the readiness checklist by category, used by trd-create and doctor
 docs/flow.md, docs/adr/         the one end-to-end diagram; decision records
 changes/, changes/archive/      change folders in flight (brief, design, plan) and the finished ones
 docs/templates/                 PRD section, TRD feature, feature CLAUDE.md, HTML shell, reviewer agent
 scripts/                        gates.sh, ratchet.py, related_tests.py, new_failures.py, move_lines.py,
-                                telemetry_hook.py, run_probe.py, retro.py
-.claude/settings.json           the telemetry hooks, merged into the project's own
+                                hotspots.py, contract_drift.py, telemetry_hook.py, run_probe.py, retro.py
+.claude/settings.json           the telemetry hooks and the gate permissions, merged into the project's own;
+                                reads of generated and vendored paths denied
+.ignore                         generated and vendored paths kept out of search
 .ai-kit/runs/                   run telemetry (git-ignored)
 .github/workflows/              CI and the automated Claude review on every pull request
 .gitattributes, .gitleaks.toml  LF everywhere; secret scan
@@ -122,7 +125,8 @@ The full catalog, with the reason for each rule and the file that enforces it, i
 | Subagents | One-line prompts pointing to a briefing section; outputs written to a state folder; returns of at most 20 or 30 lines; no nested subagents; ceilings of calls and minutes ([SA](rules/02-subagents.md)) |
 | Tests | Test first; only the mirror test and the importers of what changed while working; the full suite once at the end against a baseline, so agents never chase failures they did not cause ([TS](rules/04-testing.md)) |
 | Review | At most 5 rounds per delivery, scoped re-review, stop and ask on an open Critical ([RV](rules/03-review.md)) |
-| Structure | One folder per PRD area, size limits, unique descriptive file names, the PRD ID in every module and test, a `CLAUDE.md` map per feature, enforced by a shrink-only ratchet ([AR](rules/05-code-structure.md)) |
+| Structure | Feature folders recommended, any layout declared and accepted; in every layout: size and complexity limits, one responsibility per file, unique descriptive names, the PRD ID in every module and test, a `CLAUDE.md` map where the agent works, no runtime-built dispatch, no dead code, enforced by a shrink-only ratchet ([AR](rules/05-code-structure.md)) |
+| Readiness | Incremental in the current layout: hotspots first, characterization tests before touching untested code, extract on touch, search noise excluded, schema snapshots, a time budget for related tests ([checklist](kit/docs/ai-readiness.md)) |
 | Writing | Everything in English, tables over prose, no em dash, no comments without a critical why ([WS](rules/08-writing-style.md)) |
 
 ## Stacks
@@ -155,8 +159,11 @@ Yes. One PRD folder per independent flow, one TRD file per feature folder, neste
 **Do I need spec-kit?**
 No. The kit never installs it and no text of the kit depends on it. The change folders under `changes/` replace `spec.md`, `plan.md` and `tasks.md`, and the plan's `Constitution check` replaces spec-kit's Constitution Check and Complexity Tracking. The constitution stays at `.specify/memory/constitution.md` for compatibility. A project that keeps spec-kit marks it `kept` in `repo.md`: its `spec.md` then cites PRD rule IDs and defines no requirements of its own, `tasks.md` is not used, and a legacy `specs/` stays untouched as history.
 
-**What if the codebase is organized by layer, not by feature?**
-`/trd-create` maps what exists and writes a structure-only refactor plan: code moved by script, never retyped, the ratchet lowered wave by wave.
+**What if the codebase is organized by layer, or is legacy, not by feature?**
+Feature folders are a recommendation, not a precondition. `/ai-kit install` declares the layout you have in `ai-kit.json` (`layout`, `areas` as globs per product area, `map_dirs` for the folders that get a `CLAUDE.md`), and every other rule applies as is: maps, size limits, IDs, related tests, the ratchet. `/trd-create` then writes an incremental readiness plan in that layout, ranked by hotspots, with characterization tests before any split. Moving to feature folders is a separate, optional plan (code moved by script, the ratchet lowered wave by wave). Feature folders and legacy areas can coexist: a new area can start in `features/` while the old ones stay where they are.
+
+**Does it work with my language or framework?**
+Every rule has a part that works on plain text in any language (the ratchet, related tests, hotspots, contract snapshots), a part the stack's linter enforces when it needs syntax (configured from the [recipe](stacks/README.md)), and review as the fallback when no tool exists. Framework conventions (imposed file names, required base classes, routing by convention, tests in a mirrored tree) are declared in `ai-kit.json`, never fought.
 
 ## Repository layout
 

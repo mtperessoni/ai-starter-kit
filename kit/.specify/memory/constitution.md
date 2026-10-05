@@ -15,10 +15,10 @@ Principles marked [kit] come from the playbook and are recommended as-is; [domai
 Every behavior starts as a failing test. External services and models are replaced by deterministic fakes in the unit suite, which runs with no network and no database; the gate script sets that environment itself. Tests that need a real model or the network carry a marker and never gate a merge. While working, only related tests run; the full suite runs once per delivery against a recorded baseline.
 
 ### III. Documents Are the Source of Truth [kit]
-Product behavior lives in `docs/prd/` as rule rows with permanent IDs; code maps live in `docs/trd/`, one per feature. A rule change updates PRD and TRD, and is approved by a person, before any code. Every module and test cites the IDs it implements or proves. Superseded wording moves literally to the CHANGELOG.
+Product behavior lives in `docs/prd/` as rule rows with permanent IDs; code maps live in `docs/trd/`, one per area. A rule change updates PRD and TRD, and is approved by a person, before any code. Every module and test cites the IDs it implements or proves. Superseded wording moves literally to the CHANGELOG.
 
 ### IV. AI-Readable Code [kit]
-Code follows `docs/code-structure.md`: one feature folder per PRD area, size limits, one responsibility per file with a unique descriptive name, composition over inheritance, explicit state. A structural ratchet enforces it and its allowlist only shrinks.
+Code follows `docs/code-structure.md`: one area per PRD area (feature folders recommended, any declared layout), size limits, one responsibility per file with a unique descriptive name, composition over inheritance, explicit state. A structural ratchet enforces it and its allowlist only shrinks.
 
 ### V. Bounded Agent Work [kit]
 Agents work against a contract and communicate through files; every agent has a ceiling of calls and time; code review has a ceiling of rounds per delivery; decisions that change behavior or weaken a safety control go back to a person.

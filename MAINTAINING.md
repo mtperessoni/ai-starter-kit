@@ -10,6 +10,7 @@ The kit is the source of the rules; projects receive them through `/ai-kit updat
 | M03 | Skill files stay lean: `SKILL.md` holds phases and rules, details live in `reference/` behind IDs, examples are marked illustrative |
 | M04 | Nothing in `kit/` names a stack. Stack knowledge lives only in `stacks/` |
 | M05 | Everything is in English, tables over prose, no em dash |
+| M06 | Every new rule has a text-level part (works in any language), a recipe part when it needs syntax (`stacks/`), and review as the fallback when no tool exists |
 
 ## Bringing an improvement back from a project
 1. Write down what happened and what it cost (time, tokens, rounds); that becomes the "Why" of the rule.
@@ -35,5 +36,7 @@ The kit has no version numbers beyond commits: `/ai-kit` records the short commi
 ## Candidates (not yet proven)
 | Candidate | Idea | What would prove it |
 |---|---|---|
-| Path-scoped rules | `.claude/rules/*.md` with `paths:` frontmatter load only when matching files are touched; testing rules could load only when a test file is edited, PRD writing rules only under `docs/prd/` | Measure session context and rule compliance with and without, on the same tasks |
+| Path-scoped rules | `.claude/rules/*.md` with `paths:` frontmatter load only when matching files are touched; testing rules could load only when a test file is edited, PRD writing rules only under `docs/prd/` | Measure session context and rule compliance with and without, on the same tasks; more useful now that layer folders can scope rules by path |
+| Format hook | A PostToolUse hook formats the edited file, non-blocking (`commands.fix_file {file}`) | Lint-fix rounds and tokens per task with and without, in `eval/` |
+| Code intelligence | A language server for go-to-definition and references in large legacy code, where the Claude Code version supports it | Tokens and tool calls to locate callers versus Grep, in `eval/` |
 | Generated HTML | Build `prd.html` from the markdown by script instead of by hand | Writer time per rule change versus hand edits, with the same reader experience |

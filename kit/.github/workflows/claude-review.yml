@@ -51,11 +51,14 @@ jobs:
             ## {{Domain principle sections, one per constitution principle with its checks, written by /ai-kit install}}
 
             ## 🏗️ Architecture and structure
-            - Code outside the feature folder of its PRD area; files over the size limits; generic file names
+            - Code outside the files of its PRD area (per `docs/code-structure.md` "This repository's layout"); files over the size limits; generic file names
+            - Dispatch through names assembled at runtime instead of a literal call site or a named dispatch table (AR22)
+            - A hand edit to a generated file instead of regenerating it (AR28)
+            - A snapshot or golden file updated without a PRD ID that changed the expected output (TS39)
             - Branching on a customer or tenant name; per-tenant behavior must be configuration
             - Hardcoded credential, token, key, model id or per-customer rule
             - Framework or vendor types crossing into the domain layer
-            - Feature `CLAUDE.md` or TRD not updated with the code they map
+            - Area map (`CLAUDE.md`) or TRD not updated with the code they map
 
             ## 🔒 Security and sensitive data
             - Personal data, credentials or tokens in logs, error responses or exceptions

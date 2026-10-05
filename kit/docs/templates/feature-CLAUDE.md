@@ -1,6 +1,6 @@
-# features/<f> · <Feature name>
+# <area folder or files> · <Area name>
 
-<One sentence: what this feature does.>
+<One sentence: what this area does.>
 
 - Rules: ORD-01 to ORD-12 in `docs/prd/product/05-orders.md`; PAY-03 in `06-payment.md`; index in `docs/prd/INDEX.md`.
 - Entry: `OrderService` (`order_service.py`), facade that composes the collaborators; stable public interface.
@@ -11,6 +11,6 @@ Must not break:
 - an order is never charged twice for the same cart (ORD-04);
 - cancellation after payment always refunds (ORD-09).
 
-Tests: `tests/` in this folder. Outside it: `tests/integration/test_order_flow.py`.
+Tests: `tests/` in this folder, or where AR10 puts them. Outside it: `tests/integration/test_order_flow.py`.
 
 TRD: `docs/trd/orders.md`

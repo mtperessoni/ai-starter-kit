@@ -12,18 +12,18 @@ Gaps: <list, or "none">
 
 ## feature-mapper
 
-Maps ONE feature (or one area in N4). Input: the row of `features.md` (folder, PRD sections).
+Maps ONE area wherever its files live: its feature folder, or the globs of its `areas` entry in `ai-kit.json`. Input: the row of `features.md` (folder or globs, PRD sections).
 
-1. **Batch 1:** `Glob` of the folder; the PRD sections' rule tables (`Grep "^| " <section files>`); `Grep` of the PRD ID prefixes in the folder (docstrings and headers); the tests folder.
+1. **Batch 1:** `Glob` of the folder or the area globs; the PRD sections' rule tables (`Grep "^| " <section files>`); `Grep` of the PRD ID prefixes in those files (docstrings and headers); the tests of the area.
 2. For each file: its role in one line, its main symbols, the PRD IDs it implements. Group files by kind (root, `domain/`, services, agents, adapters) as the folder does.
 3. **How it enters the flow:** the path from the external trigger (route, handler, job, event) to the result, by symbols, in at most 10 steps. Verify each entry point has a caller outside the tests (`Grep` the symbol); otherwise mark it "not wired".
 4. **Tests:** test files and what each covers, with the IDs they cite; fakes and harnesses used.
 5. **Must not break:** the 3 to 8 properties whose breakage hurts most (each with the PRD ID or invariant).
 6. **Known pitfalls:** traps a newcomer falls into (a patch that must target the caller module, a path computed from the module location, a lock, an ordering).
-7. Write `docs/trd/<feature>.md` from `docs/templates/trd-feature.md`, and `<feature folder>/CLAUDE.md` from `docs/templates/feature-CLAUDE.md` (at most 20 lines, pointing to the TRD).
+7. Write `docs/trd/<area>.md` from `docs/templates/trd-feature.md`. Write `<feature folder>/CLAUDE.md` from `docs/templates/feature-CLAUDE.md` (at most 20 lines, pointing to the TRD) only when the area has its own folder; otherwise the index-writer covers it in a folder map.
 8. Ceiling: about 50 tool calls.
 
-Return: files written, entry points not wired, files over the size limits of `docs/code-structure.md`, gaps.
+Return: files written, entry points not wired, hotspots over the limits of `docs/code-structure.md` (files and tests), gaps.
 
 ## infra-mapper
 
@@ -31,14 +31,15 @@ Maps the shared code (`infra/` or its equivalent), configuration and environment
 
 ## rules-writer
 
-1. `docs/trd/invariants.md` from `docs/templates/invariants.md`: the repository rules by kind of change (any change; new environment variable; removed variable; new external call; new model call, if any; new table or column with personal data; new migration; new state; new endpoint or dependency; logs and metrics; tests; configuration), each with the next free `I-NN` and its proof: a test file name (structural tests first) or a principle of the constitution. Sources: the constitution, `AGENTS.md` critical constraints, `docs/code-structure.md`, every structural test in the repository.
-2. `docs/trd/testing.md` from `docs/templates/testing.md`: the gate targets of `scripts/gates.sh` and what each runs, how to run one file, the test configuration (markers, paths, timeouts, coverage), the guards (network, database), the fakes and harnesses with what each fakes, and the patterns that avoid rework.
+1. `docs/trd/invariants.md` from `docs/templates/invariants.md`: the repository rules by kind of change (any change; new environment variable; removed variable; new external call; new model call, if any; new table or column with personal data; new migration; new state; new endpoint or dependency; logs and metrics; tests; configuration), each with the next free `I-NN` and its proof: a test file name (structural tests first) or a principle of the constitution. Per kind of change, add the "Pattern to copy" (DS31): an existing file that is the reference implementation. Sources: the constitution, `AGENTS.md` critical constraints, `docs/code-structure.md`, every structural test in the repository.
+2. `docs/trd/testing.md` from `docs/templates/testing.md`: the gate targets of `scripts/gates.sh` and what each runs, how to run one file, the test configuration (markers, paths, timeouts, coverage), the guards (network, database), the fakes and harnesses with what each fakes, and the patterns that avoid rework. Add the schema and contract snapshots (DS30): file, command, and the `contracts` entry of `ai-kit.json`; invariants link them.
 
-Return: invariant count by kind, gaps.
+Return: invariant count by kind, patterns to copy found, contract snapshots found, hotspots over the limits, gaps.
 
 ## index-writer
 
-1. `docs/trd/README.md` from `docs/templates/trd-readme.md`: one row per feature (what it covers, TRD link, folder, PRD sections linked), then the cross-cutting files.
+1. `docs/trd/README.md` from `docs/templates/trd-readme.md`: one row per area (what it covers, TRD link, folder or globs, PRD sections linked), then the cross-cutting files.
+1b. For each folder of `map_dirs`, write its `CLAUDE.md` from `docs/templates/folder-CLAUDE.md` (at most 20 lines, one row per area with its files there, PRD IDs and TRD link).
 2. `docs/flow.md`: the one end-to-end mermaid diagram of the system (triggers, features, external systems, failure exits), with a short legend. It is the single overview; other docs link to it.
 3. `docs/prd/INDEX.md`: fill the TRD column of every section with the feature maps that implement it.
 4. Run `python .claude/skills/prd-gate/scripts/gate.py` and fix every error in the files you wrote.
