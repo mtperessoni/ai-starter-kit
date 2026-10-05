@@ -42,7 +42,7 @@ class ConfigTest(unittest.TestCase):
             self.assertEqual(CFG["arms"][arm]["ref"], "eval/speckit-baseline")
             self.assertTrue(CFG["arms"][arm]["spec_kit"])
         self.assertIn("must", (EVAL / CFG["arms"]["SKF"]["protocol"]).read_text(encoding="utf-8"))
-        self.assertEqual(CFG["arms"]["LT"]["ref"], "feat/living-truth")
+        self.assertEqual(CFG["arms"]["LT"]["ref"], "HEAD")
         self.assertFalse(CFG["arms"]["LT"]["spec_kit"])
         caps = {k: (v["reps"], v["budget_usd"]) for k, v in CFG["scenarios"].items()}
         self.assertEqual(caps, {"S1": (2, 8), "S2": (2, 15), "S3": (1, 8), "S4": (1, 8)})
@@ -51,7 +51,7 @@ class ConfigTest(unittest.TestCase):
         for arm in CFG["arms"].values():
             text = (EVAL / arm["protocol"]).read_text(encoding="utf-8")
             self.assertTrue(text.strip())
-            self.assertNotIn("—", text)
+            self.assertNotIn(chr(0x2014), text)
         self.assertIn("{protocol}", (EVAL / "prompt.md").read_text(encoding="utf-8"))
 
 

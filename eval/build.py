@@ -56,6 +56,16 @@ def run(cmd: list[str], cwd: Path, check: bool = True, env: dict[str, str] | Non
     return done.stdout
 
 
+def resolve_ref(ref: str) -> str:
+    """The ref itself, or `origin/<ref>` when only the remote branch exists (a CI checkout)."""
+    for candidate in (ref, f"origin/{ref}"):
+        done = subprocess.run(["git", "rev-parse", "--verify", "--quiet", f"{candidate}^{{commit}}"],
+                              cwd=ROOT, capture_output=True)
+        if done.returncode == 0:
+            return candidate
+    raise SystemExit(f"ref not found, locally or on origin: {ref}")
+
+
 def extract_kit(ref: str, dest: Path) -> Path:
     data = subprocess.run(["git", "archive", ref, "kit"], cwd=ROOT, capture_output=True, check=True).stdout
     with tarfile.open(fileobj=io.BytesIO(data)) as tar:
@@ -187,12 +197,17 @@ def write_manifest(out: Path, ref: str, files: dict[str, dict[str, str]]) -> Non
 def seed_commit(out: Path) -> None:
     run(["git", "init", "-q", "-b", "main"], out)
     run(["git", "config", "core.autocrlf", "false"], out)
+    gates = out / "scripts" / "gates.sh"
+    if gates.exists():
+        # The index bit alone leaves the file 644 on disk, which POSIX git reports as modified.
+        gates.chmod(gates.stat().st_mode | 0o111)
     run(["git", "add", "-A"], out)
     run(["git", "update-index", "--chmod=+x", "scripts/gates.sh"], out, check=False)
     run(["git", "commit", "-q", "-m", "chore: seed"], out, env=GIT_ENV)
 
 
 def build(ref: str, out: Path, spec_kit: bool, fixture: Path = FIXTURE, fill: Path | None = None) -> None:
+    ref = resolve_ref(ref)
     if out.exists() and any(out.iterdir()):
         raise SystemExit(f"{out} is not empty")
     out.mkdir(parents=True, exist_ok=True)
