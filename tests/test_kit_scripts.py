@@ -225,6 +225,35 @@ class RatchetTest(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         self.assertIn("lower the entry", r.stdout)
 
+    def skip_checks(self, names: list[str]) -> None:
+        config_path = self.p.root / "ai-kit.json"
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        config["ratchet"] = {"skip": names}
+        config_path.write_text(json.dumps(config), encoding="utf-8")
+
+    def test_a_skipped_check_reports_nothing_and_needs_no_allowlist(self) -> None:
+        write(self.p.root, "src/features/orders/order_report.py", '"""ORD-01."""\n' + "x = 1\n" * 520)
+        write(self.p.root, "src/features/orders/utils.py", '"""ORD-01."""\n')
+        self.skip_checks(["long_modules", "generic_names"])
+        r = self.p.py("scripts/ratchet.py")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        init = json.loads(self.p.py("scripts/ratchet.py", "--init").stdout)
+        self.assertNotIn("long_modules", init)
+        self.assertNotIn("banned_names", init)
+
+    def test_a_check_that_is_not_skipped_still_fails(self) -> None:
+        write(self.p.root, "src/features/orders/order_report.py", '"""ORD-01."""\n' + "x = 1\n" * 520)
+        self.skip_checks(["long_tests"])
+        r = self.p.py("scripts/ratchet.py")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("order_report.py", r.stdout)
+
+    def test_an_unknown_skip_name_is_reported(self) -> None:
+        self.skip_checks(["nope"])
+        r = self.p.py("scripts/ratchet.py")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("ratchet.skip: unknown check nope", r.stdout)
+
     def test_generic_names_and_missing_ids_and_maps_fail(self) -> None:
         write(self.p.root, "src/features/orders/utils.py", '"""ORD-01."""\n')
         write(self.p.root, "src/features/orders/pricing.py", "def price():\n    return 1\n")

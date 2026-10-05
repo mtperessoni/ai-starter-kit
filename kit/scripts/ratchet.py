@@ -35,6 +35,9 @@ GENERATED_MARKER = (
 MARKER_LINES = 5
 
 
+CHECK_ALIASES = {"generic_names": "banned_names"}
+
+
 def measure(root, cfg) -> dict:
     limits = cfg["limits"]
     id_re = re.compile(cfg["id_pattern"])
@@ -136,11 +139,14 @@ def main() -> int:
     root = repo_root()
     cfg = load(root)
     current = measure(root, cfg)
+    skipped = {CHECK_ALIASES.get(n, n) for n in cfg.get("ratchet", {}).get("skip", [])}
+    unknown = sorted(skipped - set(current))
+    current = {k: v for k, v in current.items() if k not in skipped}
     if args.init:
         print(json.dumps({k: (sorted(v) if isinstance(v, set) else v) for k, v in current.items()}, indent=2))
         return 0
     allowed = cfg["allowlist"]
-    problems = layout_problems(root, cfg)
+    problems = layout_problems(root, cfg) + [f"ratchet.skip: unknown check {n}" for n in unknown]
     for key, value in current.items():
         if isinstance(value, dict):
             problems += ratchet_counts(key, value, allowed.get(key, {}))

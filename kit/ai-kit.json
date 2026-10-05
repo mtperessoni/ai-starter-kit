@@ -91,6 +91,9 @@
     "crowded_dirs": {},
     "generated_without_marker": []
   },
+  "ratchet": {
+    "skip": []
+  },
   "contracts": [],
   "commands": {
     "test": "<test runner, for example: uv run pytest>",
