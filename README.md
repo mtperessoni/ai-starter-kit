@@ -100,10 +100,16 @@ docs/code-structure.md          AR01 to AR14: where and how code lives
 docs/flow.md, docs/adr/         the one end-to-end diagram; decision records
 changes/, changes/archive/      change folders in flight (brief, design, plan) and the finished ones
 docs/templates/                 PRD section, TRD feature, feature CLAUDE.md, HTML shell, reviewer agent
-scripts/                        gates.sh, ratchet.py, related_tests.py, new_failures.py, move_lines.py
+scripts/                        gates.sh, ratchet.py, related_tests.py, new_failures.py, move_lines.py,
+                                telemetry_hook.py, run_probe.py, retro.py
+.claude/settings.json           the telemetry hooks, merged into the project's own
+.ai-kit/runs/                   run telemetry (git-ignored)
 .github/workflows/              CI and the automated Claude review on every pull request
 .gitattributes, .gitleaks.toml  LF everywhere; secret scan
 ```
+
+## Run telemetry
+Hooks record every tool call, subagent, compaction and wait of a run in `.ai-kit/runs/<change>/` (git-ignored), and `scripts/gates.sh` adds the time, memory and disk of each test and build. Outputs are never stored and secrets are redacted. At the end of a delivery `scripts/gates.sh retro` writes `retro.md`: findings only for what passed a threshold of `ai-kit.json` `telemetry` (slow calls, heavy subagents, loops, big outputs, memory, disk), none when the run stayed within all of them. The final report lists them. Rules: [rules/11-telemetry.md](rules/11-telemetry.md).
 
 ## The rules, in short
 

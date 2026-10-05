@@ -40,7 +40,7 @@ Phases cited in the references: F1 context, F2 PRD versus code check, F5 PRD and
 ## C5 route
 | Step | Who | Does | Leaves |
 |---|---|---|---|
-| 1 | this conversation | Slug, case and approver (`git config user.name`) in `state.md` | state |
+| 1 | this conversation | Slug, case and approver (`git config user.name`) in `state.md`; `scripts/gates.sh context <slug>` names the run for telemetry | state |
 | 2 | `surveyor` | Context, freshness, impact (K01..K10), pre-interview | `pack.md`, `impact.md`, confrontation |
 | 3 | this conversation | Confrontation and question: **This is the change I want** · **Do not touch this rule** (C2/C3) · **Adjust the request** (back to 2) | decision |
 | 4 | this conversation | Interview (`reference/interview.md`) of what is still open | `interview.md`, `approved-rules.md` |
@@ -79,4 +79,4 @@ Worker: Agent `general-purpose`, `model: "sonnet"` (the executor on the task's m
 | `scripts/gate.py` | run only: `python .claude/skills/prd-gate/scripts/gate.py [--base REF] [--pack F] [--rules F] [--plan F] [--change DIR] [--trace] [--final]` |
 
 ## Final
-Case, IDs touched, commits, plan path and out-of-scope divergences.
+Case, IDs touched, commits, plan path and out-of-scope divergences. With code: the findings of `scripts/gates.sh retro`, or one line saying the run stayed within every threshold (E20).

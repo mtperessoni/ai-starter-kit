@@ -15,6 +15,9 @@ Read-only. Reports, in at most 25 lines, what drifted from the kit and from its 
 | Change folders | `changes/archive/` exists; no stale folder in `changes/` outside `archive/` on the base branch (`gate.py --final`) |
 | State folder | `.claude/prd-gate/` ignored by git |
 | Container hygiene | A `Dockerfile` or compose file without the `docker` section in `ai-kit.json`, or a compose service, volume or network without the repo label, is drift. Run `scripts/gates.sh guard` (read-only) and report its refusals, the Docker disk file warning and the unlabelled images it lists |
+| Telemetry hooks | `.claude/settings.json` registers `scripts/telemetry_hook.py` for the 12 events of TM03; `.ai-kit/runs/` is git-ignored; the `telemetry` section exists in `ai-kit.json` |
+| Last run's coverage | In `.ai-kit/runs/<latest>/retro.md` (or `summary.json`): the Coverage line; a low share of calls with a duration or no probes means the hook or `run_probe.py` is not wired |
+| Last retro findings | Count and titles of the Findings section of that `retro.md`; none is reported as within every threshold |
 | Global block | `~/.claude/CLAUDE.md` contains the kit block (between the `ai-kit` markers) |
 
 End with the fixes, each as the command or skill that applies it (`/ai-kit update`, `/trd-create` mode N2, `/prd-gate`).

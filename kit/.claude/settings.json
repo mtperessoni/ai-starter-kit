@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [{"hooks": [{"type": "command", "command": "python scripts/telemetry_hook.py", "async": true}]}],
+    "UserPromptSubmit": [{"hooks": [{"type": "command", "command": "python scripts/telemetry_hook.py", "async": true}]}],
+    "PreToolUse": [{"matcher": "*", "hooks": [{"type": "command", "command": "python scripts/telemetry_hook.py", "async": true}]}],
+    "PostToolUse": [{"matcher": "*", "hooks": [{"type": "command", "command": "python scripts/telemetry_hook.py", "async": true}]}],
+    "PostToolUseFailure": [{"matcher": "*", "hooks": [{"type": "command", "command": "python scripts/telemetry_hook.py", "async": true}]}],
+    "SubagentStart": [{"hooks": [{"type": "command", "command": "python scripts/telemetry_hook.py", "async": true}]}],
+    "SubagentStop": [{"hooks": [{"type": "command", "command": "python scripts/telemetry_hook.py", "async": true}]}],
+    "Notification": [{"hooks": [{"type": "command", "command": "python scripts/telemetry_hook.py", "async": true}]}],
+    "PreCompact": [{"hooks": [{"type": "command", "command": "python scripts/telemetry_hook.py", "async": true}]}],
+    "PostCompact": [{"hooks": [{"type": "command", "command": "python scripts/telemetry_hook.py", "async": true}]}],
+    "Stop": [{"hooks": [{"type": "command", "command": "python scripts/telemetry_hook.py", "async": true}]}],
+    "SessionEnd": [{"hooks": [{"type": "command", "command": "python scripts/telemetry_hook.py", "async": true}]}]
+  }
+}

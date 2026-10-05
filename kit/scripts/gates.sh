@@ -34,6 +34,8 @@ usage: scripts/gates.sh <target> [args]
   imports          the import check (catches cycles)
   ratchet          structure ratchet (docs/code-structure.md)
   docs [args]      the prd-gate docs gate
+  context <name>   name the run context (.ai-kit/runs/current) for the telemetry
+  retro [args]     the run retrospective (scripts/retro.py): --context <name>, --prune
 USAGE
     exit 2
 }
@@ -46,10 +48,18 @@ print(" ".join(value) if isinstance(value, list) else value)
 PY
 }
 
+# Every test and build target runs through the probe: same output, same exit code, plus one resources line.
+probe() {
+    local label="$1"
+    shift
+    python scripts/run_probe.py --label "$label" -- "$@"
+}
+
 offline() {
-    local args=()
+    local label="$1" args=()
+    shift
     for v in $(cmd offline_unset); do args+=(-u "$v"); done
-    env "${args[@]}" "$(cmd offline_flag)=1" bash -c "$*"
+    env "${args[@]}" "$(cmd offline_flag)=1" python scripts/run_probe.py --label "$label" -- bash -c "$*"
 }
 
 # Limits (env, defaults in scripts/docker_hygiene.py): MIN_FREE_GB 10, IMAGE_CAP 8, IMAGE_CAP_GB 6,
@@ -80,28 +90,28 @@ mkdir -p "$LOG_DIR"
 case "$target" in
 related)
     python scripts/ratchet.py
-    offline "python scripts/related_tests.py $* --run"
+    offline related "python scripts/related_tests.py $* --run"
     ;;
 one)
-    offline "$(cmd test) $(cmd offline_args) $(cmd no_coverage_args) $*"
+    offline one "$(cmd test) $(cmd offline_args) $(cmd no_coverage_args) $*"
     ;;
 offline)
-    offline "$(cmd test) $(cmd offline_args) $*"
+    offline offline "$(cmd test) $(cmd offline_args) $*"
     ;;
 integration)
     guards
     trap after_docker EXIT
-    bash -c "$(cmd test) $(cmd integration_args) $*"
+    probe integration bash -c "$(cmd test) $(cmd integration_args) $*"
     ;;
 full)
     guards
     trap after_docker EXIT
-    bash -c "$(cmd test) $*"
+    probe full bash -c "$(cmd test) $*"
     ;;
 build)
     guards
     trap after_docker EXIT
-    "${DOCKER[@]}" compose build "$@"
+    probe build "${DOCKER[@]}" compose build "$@"
     ;;
 guard)
     guards
@@ -128,7 +138,7 @@ baseline)
     slug="${1:?usage: gates.sh baseline <slug>}"
     dir=".claude/prd-gate/state/$slug"
     mkdir -p "$dir"
-    offline "$(cmd test) $(cmd offline_args)" > "$dir/baseline.log" 2>&1 || true
+    offline offline "$(cmd test) $(cmd offline_args)" > "$dir/baseline.log" 2>&1 || true
     python scripts/new_failures.py --extract "$dir/baseline.log" > "$dir/baseline-failures.txt"
     echo "baseline failures: $(wc -l < "$dir/baseline-failures.txt") (log: $dir/baseline.log)"
     ;;
@@ -136,7 +146,7 @@ compare)
     slug="${1:?usage: gates.sh compare <slug>}"
     dir=".claude/prd-gate/state/$slug"
     mkdir -p "$dir"
-    offline "$(cmd test) $(cmd offline_args)" > "$dir/final.log" 2>&1 || true
+    offline offline "$(cmd test) $(cmd offline_args)" > "$dir/final.log" 2>&1 || true
     tail -n 1 "$dir/final.log"
     python scripts/new_failures.py "$dir/baseline-failures.txt" "$dir/final.log"
     ;;
@@ -151,6 +161,15 @@ imports)
     ;;
 ratchet)
     python scripts/ratchet.py "$@"
+    ;;
+context)
+    name="${1:?usage: gates.sh context <name>}"
+    mkdir -p .ai-kit/runs
+    printf '%s
+' "$name" > .ai-kit/runs/current
+    ;;
+retro)
+    python scripts/retro.py "$@"
     ;;
 docs)
     python .claude/skills/prd-gate/scripts/gate.py "$@"
