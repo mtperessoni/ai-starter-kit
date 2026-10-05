@@ -7,7 +7,7 @@ description: Mandatory gate for every task that touches product behavior in this
 
 The PRD is the source of truth for behavior. A rule change goes **PRD, then TRD, then plan, then code**: starting from the code reproduces the defect and loses the decision. Documents age: when document, code and request disagree, ask citing both sides.
 
-Everything specific to this repository (base branch, commands, big files, reviewers, protected rules, extra interview dimensions, sibling repositories) is in `repo.md`. Read it once per session, in the first batch. Everything written by this skill is in English.
+Everything specific to this repository (base branch, commands, big files, reviewers, protected rules, extra interview dimensions, sibling repositories) is in `repo.md`. Read it once per session, in the first batch. Prose written by this skill (PRD, TRD, interview, gate output) is in the language of `repo.md` `language` (default English); IDs, code, commits and file names stay English.
 
 ## Context economy
 Everything that enters here is reread every round.
@@ -60,7 +60,7 @@ Worker: Agent `general-purpose`, `model: "sonnet"` (the executor on the task's m
 |---|---|
 | R01 | Nothing in `docs/`, the source folder or tests before its time: C5 from step 5 on; C2, C3, C4 and C6 after the user confirms the case. A requested diagnosis is only a diagnosis |
 | R02 | Code and PRD answer the facts; the user answers the intent |
-| R03 | Everything written is in English. No em dash (U+2014) in docs, code or commits. Push and PR only on the user's explicit request |
+| R03 | Prose is in the `repo.md` `language` (default English); IDs, code, commit messages and file names are always English. No em dash (U+2014) in docs, code or commits. Push and PR only on the user's explicit request |
 | R04 | The interview runs here: a worker never talks to the user |
 | R05 | Code review: at most 5 rounds per delivery; an open Critical at round 5 stops everything and goes to the user (`reference/review.md`) |
 | R06 | Every agent has a ceiling and returns what is missing; none is re-dispatched in a loop (review.md V08) |

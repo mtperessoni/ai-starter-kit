@@ -17,9 +17,12 @@ Parsed by `scripts/gate.py`. Keep the two-column table format and the key names.
 | change_via | code, config, env, prompt, data, backend, frontend |
 | pending_marker | pending code |
 | planned_source | planned |
+| language | English |
 | planned_heading | Planned |
 | pack_budget_lines | 120 |
 | plan_budget_kb | 60 |
+
+`language`: language of the PRD and TRD prose, the interview and the gate output. IDs, code, commits and file names stay English. The installer sets it from the language of the existing docs.
 
 `planned_heading`: the TRD heading (`## <value>`) that lists rules not built yet; G8 checks the IDs under it and G20 fails `--final` while it exists. Set it to the project's own word (for example `Planejado`).
 
