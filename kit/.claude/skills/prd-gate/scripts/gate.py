@@ -49,6 +49,7 @@ DEFAULTS = {
 errors: list[str] = []
 warnings: list[str] = []
 baseline: dict[tuple[str, str], list[str]] = {}
+rule_table_ids: set[str] = set()  # IDs of rows in tables whose last header column is "Change via"
 
 Rules = dict[str, tuple[Path, list[str]]]
 
@@ -96,6 +97,7 @@ def load_config() -> dict[str, str]:
 
 def tokens(text: str) -> list[str]:
     text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", text)
+    text = re.sub(r"`[^`]*`", lambda m: m.group(0).replace("<", " ").replace(">", " "), text)
     text = re.sub(r"</?[a-zA-Z][^>]*>", " ", text)
     text = html.unescape(text).replace("\\|", "|")
     return re.findall(r"\w+", text.lower())
@@ -116,11 +118,19 @@ def is_table_line(line: str) -> bool:
 def read_md_rules(prd: Path, pattern: str) -> Rules:
     rules: Rules = {}
     for f in sorted(prd.glob(pattern)):
+        is_rule_table = False
         for line in f.read_text(encoding="utf-8").splitlines():
             m = ROW.match(line)
             if not m:
+                if not line.startswith("|"):
+                    is_rule_table = False
+                elif not SEPARATOR.match(line):
+                    last = cells(line.strip().strip("|"))[-1]
+                    is_rule_table = last.lower() == "change via"
                 continue
             rid = m.group(1)
+            if is_rule_table:
+                rule_table_ids.add(rid)
             if rid in rules:
                 err("G1", f"duplicate ID {rid}: {rules[rid][0].name} and {f.name}")
             rules[rid] = (f, cells(m.group(2)))
@@ -532,9 +542,10 @@ def main() -> int:
                     err("G4", f"em dash in {f.relative_to(root).as_posix()}:{n}")
 
     for rid, row in sorted(new.items()):
-        if len(row) >= 3 and (not row[1] or not row[2]):
+        rule_row = rid in rule_table_ids and len(row) >= 3
+        if rule_row and (not row[1] or not row[2]):
             err("G3", f"{rid} without Source or Change via")
-        elif len(row) >= 3 and row[2].strip("` ").lower() not in vias:
+        elif rule_row and row[2].strip("` ").lower() not in vias:
             warn("G3", f"{rid}: Change via '{row[2]}' outside {sorted(vias)}")
         if cfg["pending_marker"] in row[0] and len(row) >= 2 and cfg["planned_source"] not in row[1].lower():
             warn("G9", f"{rid} marked '{cfg['pending_marker']}' with Source other than '{cfg['planned_source']}'")

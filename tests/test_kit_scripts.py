@@ -133,6 +133,40 @@ class GateTest(unittest.TestCase):
         r = self.p.py(self.gate)
         self.assertIn("G6", r.stdout)
 
+    def test_a_consistent_rewording_does_not_report_the_html_untouched(self) -> None:
+        section = self.p.root / "docs/prd/shop/05-orders.md"
+        section.write_text(section.read_text(encoding="utf-8").replace("at least one item", "one or more items"), encoding="utf-8")
+        page = self.p.root / "docs/prd/prd.html"
+        page.write_text(page.read_text(encoding="utf-8").replace("at least one item", "one or more items"), encoding="utf-8")
+        (self.p.root / "docs/prd/CHANGELOG.md").write_text("# CHANGELOG\n\nORD-01 reworded.\n", encoding="utf-8")
+        r = self.p.py(self.gate)
+        self.assertNotIn("was not touched", r.stdout)
+        self.assertEqual(r.returncode, 0, r.stdout)
+
+    def test_open_questions_table_gets_no_change_via_warning(self) -> None:
+        section = self.p.root / "docs/prd/shop/05-orders.md"
+        section.write_text(
+            section.read_text(encoding="utf-8")
+            + "\n| ID | Question | Default adopted | Blocks |\n|---|---|---|---|\n"
+            + "| Q1-01 | Refund window? | 30 days | ORD-02 |\n"
+            + "\n| ID | Rule | Source | Change via |\n|---|---|---|---|\n"
+            + "| ORD-03 | Bad via row. | src/x.py | magic |\n",
+            encoding="utf-8",
+        )
+        r = self.p.py(self.gate, "--base", "HEAD")
+        self.assertNotIn("Q1-01: Change via", r.stdout)
+        self.assertIn("ORD-03: Change via", r.stdout)
+
+    def test_backtick_placeholder_matches_its_escaped_html(self) -> None:
+        section = self.p.root / "docs/prd/shop/05-orders.md"
+        section.write_text(section.read_text(encoding="utf-8").replace("at least one item.", "at least one item, stored as `<fileKey>`."), encoding="utf-8")
+        page = self.p.root / "docs/prd/prd.html"
+        page.write_text(page.read_text(encoding="utf-8").replace("at least one item.", "at least one item, stored as <code>&lt;fileKey&gt;</code>."), encoding="utf-8")
+        (self.p.root / "docs/prd/CHANGELOG.md").write_text("# CHANGELOG\n\nORD-01 reworded.\n", encoding="utf-8")
+        r = self.p.py(self.gate)
+        self.assertNotIn("G6", r.stdout)
+        self.assertEqual(r.returncode, 0, r.stdout)
+
     def test_em_dash_is_rejected(self) -> None:
         section = self.p.root / "docs/prd/shop/05-orders.md"
         section.write_text(section.read_text(encoding="utf-8") + "\nA note " + chr(0x2014) + " here.\n", encoding="utf-8")
