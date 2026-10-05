@@ -1,4 +1,22 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(scripts/gates.sh:*)",
+      "Bash(bash scripts/gates.sh:*)",
+      "Bash(python scripts/ratchet.py:*)",
+      "Bash(python scripts/related_tests.py:*)",
+      "Bash(python scripts/new_failures.py:*)",
+      "Bash(python scripts/hotspots.py:*)",
+      "Bash(python scripts/contract_drift.py:*)",
+      "Bash(python .claude/skills/prd-gate/scripts/gate.py:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git --no-pager diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)"
+    ],
+    "deny": []
+  },
   "hooks": {
     "SessionStart": [{"hooks": [{"type": "command", "command": "python scripts/telemetry_hook.py", "async": true}]}],
     "UserPromptSubmit": [{"hooks": [{"type": "command", "command": "python scripts/telemetry_hook.py", "async": true}]}],

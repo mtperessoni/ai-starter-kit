@@ -32,7 +32,7 @@ Phases cited in the references: F1 context, F2 PRD versus code check, F5 PRD and
 
 ## Light route (C1, C2, C3, C4, C6)
 1. **Batch A:** `Read repo.md` (first time in the session); `Grep` the term or ID in `docs/prd/INDEX.md`; `Read docs/trd/README.md`; `git fetch -q && git rev-list --count HEAD..origin/<base_branch>`.
-2. **Batch B:** the tables of the IDs, the feature's `CLAUDE.md` (`src/features/<f>/CLAUDE.md`) and its TRD (`docs/trd/<f>.md`); with code, the lines of `docs/trd/invariants.md` it cites.
+2. **Batch B:** the tables of the IDs, the area's map (`CLAUDE.md` of its feature folder, or of the map folders its TRD lists) and its TRD (`docs/trd/<area>.md`); with code, the lines of `docs/trd/invariants.md` it cites.
 3. **F2 (C2, C3, C4):** the Source exists, does what the rule says and **has a caller outside the tests** (`Grep` the symbol in the source folder). Divergence: side by side, and ask which is right.
 4. Answer. Branch behind: `git diff --stat HEAD..origin/<base_branch> -- <paths read>`; pull only if it touches the scope.
 5. With code (C2, C3, C6): after the user's confirmation (R01), follow `reference/execution.md`.
@@ -65,7 +65,7 @@ Worker: Agent `general-purpose`, `model: "sonnet"` (the executor on the task's m
 | R05 | Code review: at most 5 rounds per delivery; an open Critical at round 5 stops everything and goes to the user (`reference/review.md`) |
 | R06 | Every agent has a ceiling and returns what is missing; none is re-dispatched in a loop (review.md V08) |
 | R07 | Questions to the user in product language, with a usage example; IDs only in the read-back |
-| R08 | Code and TRD follow `docs/code-structure.md` (AR01 to AR14): the right feature folder, the size limits, one responsibility per file, composition, the PRD ID in the docstring of each module and test, the feature's `CLAUDE.md` and TRD updated in the same commit. The ratchet (command in `repo.md`) never regresses |
+| R08 | Code and TRD follow `docs/code-structure.md` (AR01 to AR28): the right area per the repository's layout, the size limits, one responsibility per file, composition, the PRD ID in the first comment of each module and test, the area's map and TRD updated in the same commit. The ratchet (command in `repo.md`) never regresses |
 
 ## Files
 | File | Who reads it |

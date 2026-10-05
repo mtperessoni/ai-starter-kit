@@ -27,7 +27,11 @@ Read only the file of the domain you need. IDs are stable: a new rule takes the 
 | `AGENTS.md` | Commands, critical constraints (CX), disk and container hygiene (TS27, TS29, TS33, TS34), directory map, finding things (CE), handing work to a subagent (SA04) |
 | `changes/`, `changes/archive/` | WF26 to WF29, WF34: change folders (brief, design, plan) and their archive; project-owned, never touched by update |
 | `.specify/memory/constitution.md` | Binding principles, domain specific plus the process principles of the kit |
-| `docs/code-structure.md` | AR01 to AR14 |
+| `docs/code-structure.md` | AR01 to AR28 |
+| `docs/ai-readiness.md` | The readiness checklist by category, citing rule IDs (PC11, IN13) |
+| `.ignore` | CE22, AR28: generated and vendored paths excluded from search |
+| `.claude/settings.json` | CE22, IN11: gate allow list, read deny for generated and vendored paths |
+| `scripts/hotspots.py`, `scripts/contract_drift.py` | PC12; DS30 |
 | `docs/prd/`, `docs/trd/`, `docs/flow.md`, `docs/adr/` | DS rules applied |
 | `.claude/skills/prd-create/`, `trd-create/` | PC rules: how the PRD and TRD are first written |
 | `.claude/skills/prd-gate/` | WF, SA, RV, TS rules as operating procedure, plus `repo.md` |

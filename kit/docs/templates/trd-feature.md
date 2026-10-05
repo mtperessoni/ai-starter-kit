@@ -1,10 +1,12 @@
-# TRD · <feature>
+# TRD · <area>
 
-<One line: what this feature does.> 1:1 map of `<src>/features/<feature>/`.
+<One line: what this area does.> 1:1 map of the area's folder or files, wherever they live.
 
 Rules in the PRD (ID, file in `docs/prd/<prd>/`): PAY-01..12 ([07](../prd/<prd>/07-payment.md)); ORD-04 ([08](../prd/<prd>/08-orders.md)).
 
 ## Where it lives
+
+May span several folders; one table per folder.
 
 Root:
 
@@ -19,6 +21,8 @@ Root:
 | `domain/charge_policy.py` | Decides retry or failure from the provider answer | `decide_retry` | PAY-05 |
 
 ## How it enters the flow
+When wiring is by framework convention, name the convention and the files it binds (AR22).
+
 1. `POST /checkout/pay` (`payment_routes.py::pay`) receives the cart id.
 2. `ChargeService.charge` loads the cart and calls the provider through `infra/providers/payment_client.py::PaymentClient`.
 3. `decide_retry` reads the answer; on timeout the cart is kept and `PAYMENT_TIMEOUT` is logged.

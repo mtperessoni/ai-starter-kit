@@ -18,13 +18,13 @@ Every change in this repository and every question about product behavior starts
 
 ## Code structure
 
-All code follows `docs/code-structure.md` (rules AR01 to AR14); `scripts/gates.sh ratchet` and the linter rules behind `scripts/gates.sh lint` enforce it. The short version:
+All code follows `docs/code-structure.md` (rules AR01 to AR28); `scripts/gates.sh ratchet` and the linter rules behind `scripts/gates.sh lint` enforce it. The short version:
 
-- **Where:** `<src>/features/<f>/` per PRD area; `<src>/infra/` for what is shared; `<src>/app/` composes. Start a task by reading the feature's `CLAUDE.md` and its TRD in `docs/trd/`.
+- **Where:** `<layout of this repository, filled at install>`; feature folders (`<src>/features/<f>/` per PRD area) are recommended, any declared layout works. Start a task by reading the area's map (`CLAUDE.md`) and its TRD in `docs/trd/`.
 - **Size:** module up to 500 lines, function up to 80, class up to 300, test file up to 1,200. One responsibility per file, named after it and unique in the repo; never `helpers`, `utils`, `shared`, `common`, `misc`, `state`.
-- **Shape:** composition over mixins; explicit state, no shared mutable closures; re-export only in a feature's public entry.
-- **Traceability:** every feature module cites the PRD IDs it implements, every test the ID it proves; update the feature's `CLAUDE.md` and TRD in the same commit as the code.
-- **Tests:** next to the code in `features/<f>/tests/`; mocks target the module of the caller. While working, run only the tests related to what you touched; the full suite runs once, at the end of a delivery.
+- **Shape:** composition over mixins; explicit state, no shared mutable closures; re-export only in an area's public entry.
+- **Traceability:** every module of an area cites the PRD IDs it implements, every test the ID it proves; update the area's map and TRD in the same commit as the code.
+- **Tests:** where the stack expects them, beside the code or its mirrored tree (AR10); mocks target the module of the caller. While working, run only the tests related to what you touched; the full suite runs once, at the end of a delivery.
 - **Moving code:** by script (line ranges or AST), never retyped.
 - **Language:** everything in English: code, docs, PRD, TRD, artifacts, commits.
 

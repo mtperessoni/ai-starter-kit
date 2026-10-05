@@ -30,7 +30,7 @@ The PRD says what the product does and why; the TRD says where it lives in the c
 
 | ID | Rule | Why | Lands in |
 |---|---|---|---|
-| DS15 | One TRD file per feature (`docs/trd/<f>.md`), 1:1 with `src/features/<f>/`. Sections: Where it lives, How it enters the flow, Tests, Must not break, Known pitfalls, History. The TRD never repeats PRD rules; it cites IDs | Code map separate from rules | `kit/docs/templates/trd-feature.md` |
+| DS15 | One TRD file per area (`docs/trd/<area>.md`), 1:1 with the area, wherever its files live. Sections: Where it lives, How it enters the flow, Tests, Must not break, Known pitfalls, History. The TRD never repeats PRD rules; it cites IDs | Code map separate from rules | `kit/docs/templates/trd-feature.md` |
 | DS16 | `docs/trd/README.md` lists feature, TRD file, folder and the PRD sections it implements; plus cross-cutting files (`infra.md`, `invariants.md`, `testing.md`) | The router from rule to code | `kit/docs/templates/trd-readme.md` |
 | DS17 | Before code, a rule change writes a `## Planned (<change>, <branch>)` section at the end of the feature TRD: files to change or create, symbols, entry into the flow, tests to write, invariants new or affected, what must not break. The plan and the agents start from this approved map, not from the current code | Agents implement a reviewed design | trd-planned.md |
 | DS18 | The final task of every plan promotes: PRD markers removed, superseded wording to CHANGELOG, Source filled with real files; TRD "Planned" merged into the body with the names the code actually used | Docs end the delivery true | agent-plan.md "Mandatory final task" |
@@ -42,6 +42,8 @@ The PRD says what the product does and why; the TRD says where it lives in the c
 | DS27 | ADR quality bars: at least two honest negatives (ones an opponent would recognize), at least two genuinely considered alternatives with what each was good at and the specific reason it lost; 400 to 700 words; a decision with one option is a constraint, not an ADR | An ADR with weak negatives is a sales pitch, not a record | `docs/adr/README.md`; `/adr` skill |
 | DS28 | An accepted ADR is never edited to say the opposite: a new ADR supersedes it and the old status becomes `Superseded by NNNN`. Numbering is sequential and never reused | The folder preserves what was believed at the time, including where it was wrong | `docs/adr/README.md` |
 | DS29 | New docs start from the templates in `docs/templates/` (PRD section, TRD feature, feature `CLAUDE.md`) | Every file of a kind has the same shape, so agents scan it the same way | `docs/templates/` |
+| DS30 | Current schema and contracts have one readable snapshot each (database schema, API schema, message contracts): the framework's own file when it has one, otherwise a dump. `contracts` in `ai-kit.json` lists file and command; `scripts/gates.sh contracts` fails on drift. The TRD links them; agents read the snapshot, never the migration history | The current schema is the sum of every migration; replaying them by reading costs many files and the agent can still get it wrong | `scripts/contract_drift.py` |
+| DS31 | `docs/trd/invariants.md` names, per kind of change, the pattern to copy: an existing file that is the reference implementation | An agent that copies a real file of the repository matches its conventions; one that invents from a description does not | trd-create rules-writer |
 
 ## The gate script
 

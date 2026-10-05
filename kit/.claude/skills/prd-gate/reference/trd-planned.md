@@ -5,7 +5,7 @@ IDs, texts and paths in the examples are illustrative: always read the real line
 The TRD says where each feature lives in the code and what must not break; the rules stay in the PRD and the TRD never repeats them. Before code, it receives the design of the target state, so the plan and the agents start from an approved map and not from the current code.
 
 ## "Planned" section
-At the end of the feature file (`docs/trd/<feature>.md`, 1:1 with `src/features/<feature>/`, rule AR13), before "History". Proposed paths and names follow `docs/code-structure.md` (feature folder, file named after its responsibility, size limits):
+At the end of the area file (`docs/trd/<area>.md`, 1:1 with the area, rule AR13), before "History". Proposed paths and names follow the repository's layout in `docs/code-structure.md` (the area's folder or globs, file named after its responsibility, size limits); the paths in the example are illustrative:
 
 ```markdown
 ## Planned (<name of the change>, <branch>)

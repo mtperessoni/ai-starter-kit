@@ -36,6 +36,9 @@ usage: scripts/gates.sh <target> [args]
   docs [args]      the prd-gate docs gate
   context <name>   name the run context (.ai-kit/runs/current) for the telemetry
   retro [args]     the run retrospective (scripts/retro.py): --context <name>, --prune
+  setup            make a fresh clone or worktree ready to test (commands.setup)
+  hotspots [args]  code files ranked by commits x lines: what the readiness plan splits first
+  contracts        schema and API snapshots (ai-kit.json "contracts") still match the code
 USAGE
     exit 2
 }
@@ -173,6 +176,19 @@ retro)
     ;;
 docs)
     python .claude/skills/prd-gate/scripts/gate.py "$@"
+    ;;
+setup)
+    setup_cmd="$(python -c 'import json; print(json.load(open("ai-kit.json", encoding="utf-8"))["commands"].get("setup", ""))')"
+    case "$setup_cmd" in
+    "" | "<"*) echo "commands.setup is not set in ai-kit.json" >&2; exit 2 ;;
+    esac
+    bash -c "$setup_cmd"
+    ;;
+hotspots)
+    python scripts/hotspots.py "$@"
+    ;;
+contracts)
+    python scripts/contract_drift.py
     ;;
 *)
     usage

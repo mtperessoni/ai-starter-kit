@@ -43,7 +43,11 @@ Always through `scripts/gates.sh`; the stack commands behind each target are in 
 | Item | Value |
 |---|---|
 | Source folder | `<src>` |
-| Feature folders | `<src>/features/<f>/` (map: `docs/trd/README.md`) |
+| Layout description | `<free text from ai-kit.json layout>` |
+| Feature root | `<src>/features/` (`ai-kit.json` `feature_root`; map: `docs/trd/README.md`) |
+| Areas | `<feature folders, or see ai-kit.json areas>` |
+| Map folders | `<feature folders plus ai-kit.json map_dirs>` |
+| Where a new area goes | `<a new feature folder (recommended), or the place docs/code-structure.md names>` |
 | Core features (must not import peripheral ones) | `<names>` |
 | Shared code | `<src>/infra/` |
 | Change folder | `changes/` (LT01; finished ones in `changes/archive/`) |

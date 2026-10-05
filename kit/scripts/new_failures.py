@@ -1,4 +1,4 @@
-"""New failures against a baseline (rule TS04).
+"""New failures against a baseline (rule TS04); known flaky tests (tests.flaky, TS38) are listed, not counted.
 
 Usage: python scripts/new_failures.py --extract <log> > <baseline-failures.txt>
        python scripts/new_failures.py <baseline-failures.txt> <log>
@@ -23,7 +23,9 @@ def failures(log: Path, pattern: re.Pattern) -> set[str]:
 
 
 def main() -> int:
-    pattern = re.compile(load(repo_root())["tests"]["failure_regex"])
+    tests = load(repo_root())["tests"]
+    pattern = re.compile(tests["failure_regex"])
+    flaky_ids = set(tests.get("flaky", []))
     args = sys.argv[1:]
     if len(args) == 2 and args[0] == "--extract":
         for f in sorted(failures(Path(args[1]), pattern)):
@@ -34,7 +36,10 @@ def main() -> int:
         return 2
     baseline_path, log = Path(args[0]), Path(args[1])
     baseline = {line.strip() for line in baseline_path.read_text(encoding="utf-8").splitlines() if line.strip()} if baseline_path.exists() else set()
-    new = sorted(failures(log, pattern) - baseline)
+    found = failures(log, pattern) - baseline
+    for f in sorted(found & flaky_ids):
+        print(f"FLAKY {f} (tests.flaky, TS38: not counted)")
+    new = sorted(found - flaky_ids)
     for f in new:
         print(f"NEW {f}")
     print(f"new failures: {len(new)} (baseline: {len(baseline)})")
