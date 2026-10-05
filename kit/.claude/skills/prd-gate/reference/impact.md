@@ -5,12 +5,12 @@ IDs, texts and paths in the examples are illustrative: always read the real line
 ## Sweep
 | ID | Where to look | How |
 |---|---|---|
-| K01 | Rules that cite the ID | `Grep "<ID>"` in the test folders for tests citing the rule" docs/prd` outside its own row |
+| K01 | Rules that cite the ID | `Grep "<ID>" docs/prd` outside its own row |
 | K02 | Same section and neighboring sections of the journey | Rows of the same table; the previous and next step of the end-to-end journey |
 | K03 | Variants | Where `repo.md` documents them. A rule that cites only one variant almost always has a pair in the other |
 | K04 | Tenants | Where `repo.md` documents them; per-tenant differences |
-| K05 | Invariants and tests | `docs/trd/invariants.md` for the kind of change; `Grep "<ID>"` in the test folders for tests citing the rule\|FR-0NN"` in the test folders for tests citing the rule or the FR |
-| K06 | Active changes | `Grep "<ID>"` in the test folders for tests citing the rule" changes --glob "!archive/**"`; a change folder in progress in the area |
+| K05 | Invariants and tests | `docs/trd/invariants.md` for the kind of change; `Grep "<ID>\|FR-0NN"` in the test folders for tests citing the rule or the FR |
+| K06 | Active changes | `Grep "<ID>" changes --glob "!archive/**"`; a change folder in progress in the area |
 | K07 | Open questions, contract, governance | Linked `Q-`, `R-`, `S-` rows; what consumers persist; the Change via column; README "What weighs most today" |
 | K08 | Consumer contract in a sibling repository | If the change touches a field, value or key that goes to another repository, check its validation there before the interview (commands in `repo.md`). A value the consumer does not accept breaks the whole delivery |
 | K09 | Safety net removed or weakened | Does the change remove or loosen a list, guard, fallback, switch or wait? List what it covered and what becomes uncovered (failure, delay, end of session, disconnection). It becomes a trade-off in the confrontation and an interview question; never an extra task during execution (review.md V06) |
