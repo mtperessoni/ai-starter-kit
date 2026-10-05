@@ -42,6 +42,8 @@ DEFAULTS = {
     "change_via": "code, config, env, prompt, data, backend, frontend",
     "pending_marker": "pending code",
     "planned_source": "planned",
+    "planned_heading": "Planned",
+    "language": "English",
     "pack_budget_lines": "120",
     "plan_budget_kb": "60",
 }
@@ -441,8 +443,8 @@ def check_final(root: Path, rules: Rules, cfg: dict[str, str], trd: Path) -> Non
         if len(row) >= 2 and (row[1].strip("` ").lower() == cfg["planned_source"] or cfg["pending_marker"] in row[0]):
             err("G19", f"{rid} is still planned or pending code")
     for f in sorted(trd.rglob("*.md")):
-        if re.search(r"^## Planned", f.read_text(encoding="utf-8"), re.M):
-            err("G20", f"{f.name} still has a '## Planned' section")
+        if re.search(r"^## " + re.escape(cfg["planned_heading"]), f.read_text(encoding="utf-8"), re.M):
+            err("G20", f"{f.name} still has a '## {cfg['planned_heading']}' section")
     changes = root / "changes"
     if changes.is_dir():
         for d in sorted(changes.iterdir()):
@@ -571,10 +573,10 @@ def main() -> int:
     known = set(rules) | page_ids
     for f in trd.rglob("*.md"):
         text = f.read_text(encoding="utf-8")
-        for block in re.findall(r"^## Planned.*?(?=^## |\Z)", text, re.S | re.M):
+        for block in re.findall(r"^## " + re.escape(cfg["planned_heading"]) + r".*?(?=^## |\Z)", text, re.S | re.M):
             for rid in sorted(set(re.findall(r"\b(" + ID + r")\b", block))):
                 if not rid.startswith("I-") and rid not in known:
-                    err("G8", f"{f.name}: 'Planned' cites {rid}, which does not exist in the PRD")
+                    err("G8", f"{f.name}: '{cfg['planned_heading']}' cites {rid}, which does not exist in the PRD")
 
     return report(f", base {base[:10]}, {len(rules)} rules")
 
