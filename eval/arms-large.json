@@ -16,7 +16,7 @@
       "protocol": "arms/speckit-forced.md"
     },
     "LT": {
-      "ref": "feat/living-truth",
+      "ref": "HEAD",
       "spec_kit": false,
       "protocol": "arms/living.md"
     }

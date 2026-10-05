@@ -24,6 +24,27 @@ def run(cmd, cwd):
     return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, encoding="utf-8", check=False)
 
 
+BASELINE = "eval/speckit-baseline"
+
+
+def ref_available(ref):
+    try:
+        load_build().resolve_ref(ref)
+        return True
+    except SystemExit:
+        return False
+
+
+class ResolveRef(unittest.TestCase):
+    def test_a_local_ref_resolves_to_itself(self):
+        self.assertEqual(load_build().resolve_ref("HEAD"), "HEAD")
+
+    def test_an_unknown_ref_is_a_clear_error(self):
+        with self.assertRaises(SystemExit) as ctx:
+            load_build().resolve_ref("no-such-ref-xyz")
+        self.assertIn("no-such-ref-xyz", str(ctx.exception))
+
+
 class BuildChecks:
     ref = ""
     spec_kit = False
@@ -64,20 +85,22 @@ class BuildChecks:
 
 
 class LivingTruthArm(BuildChecks, unittest.TestCase):
-    ref = "feat/living-truth"
+    ref = "HEAD"
 
     def test_no_spec_kit_files(self):
         self.assertFalse((self.out / ".claude" / "commands").exists())
         self.assertFalse((self.out / ".specify" / "templates").exists())
 
 
+@unittest.skipUnless(ref_available(BASELINE), f"{BASELINE} not available in this checkout")
 class CurrentFlowWithoutSpecKit(BuildChecks, unittest.TestCase):
-    ref = "main"
+    ref = BASELINE
 
 
-@unittest.skipUnless(os.environ.get("EVAL_SPEC_KIT") == "1", "set EVAL_SPEC_KIT=1 to run the spec-kit path (network)")
+@unittest.skipUnless(os.environ.get("EVAL_SPEC_KIT") == "1" and ref_available(BASELINE),
+                     "set EVAL_SPEC_KIT=1 to run the spec-kit path (network), needs the baseline ref")
 class CurrentFlowWithSpecKit(BuildChecks, unittest.TestCase):
-    ref = "main"
+    ref = BASELINE
     spec_kit = True
 
     def test_spec_kit_files_are_present(self):
@@ -98,7 +121,7 @@ class CustomFixtureOption(unittest.TestCase):
             other.write_text((fixture / "fill.json").read_text(encoding="utf-8"), encoding="utf-8")
             (fixture / "fill.json").write_text("{}", encoding="utf-8")  # the default fill would leave placeholders
             out = Path(tmp) / "project"
-            done = run([PY, str(BUILD), "--ref", "feat/living-truth", "--out", str(out), "--fixture", str(fixture),
+            done = run([PY, str(BUILD), "--ref", "HEAD", "--out", str(out), "--fixture", str(fixture),
                         "--fill", str(other)], ROOT)
             self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
             self.assertTrue((out / "src" / "orders").is_dir())

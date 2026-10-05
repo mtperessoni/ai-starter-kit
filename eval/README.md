@@ -7,7 +7,7 @@ Compares the team's current flow (PRD and TRD plus spec-kit) with the living-tru
 |---|---|---|---|
 | **SKU** (spec-kit suggested) | `eval/speckit-baseline` = `main` plus the gate.py fixes found in round 1 | v1.1.0, initialized | `eval/arms/speckit.md` |
 | **SKF** (spec-kit mandatory) | same | v1.1.0, initialized | `eval/arms/speckit-forced.md` |
-| **LT** (living truth) | `feat/living-truth` | none | `eval/arms/living.md` |
+| **LT** (living truth) | `HEAD` (the kit as checked out; it was `feat/living-truth` during the 2026-10-04 rounds) | none | `eval/arms/living.md` |
 
 SKU is how the kit and the team describe the flow today; SKF measures what spec-kit costs when it is actually run. Reports compare LT against each (`python eval/report.py <results> SKF`).
 

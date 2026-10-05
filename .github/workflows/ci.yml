@@ -23,9 +23,13 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # eval tests build the kit from eval/speckit-baseline with git archive
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Install pytest (the eval fixtures and hidden tests run on it)
+        run: python -m pip install --quiet pytest
       - name: Script tests (gate, ratchet, related tests, baseline, move, gates.sh)
         run: python -m unittest discover -s tests -v
 

@@ -56,6 +56,16 @@ def run(cmd: list[str], cwd: Path, check: bool = True, env: dict[str, str] | Non
     return done.stdout
 
 
+def resolve_ref(ref: str) -> str:
+    """The ref itself, or `origin/<ref>` when only the remote branch exists (a CI checkout)."""
+    for candidate in (ref, f"origin/{ref}"):
+        done = subprocess.run(["git", "rev-parse", "--verify", "--quiet", f"{candidate}^{{commit}}"],
+                              cwd=ROOT, capture_output=True)
+        if done.returncode == 0:
+            return candidate
+    raise SystemExit(f"ref not found, locally or on origin: {ref}")
+
+
 def extract_kit(ref: str, dest: Path) -> Path:
     data = subprocess.run(["git", "archive", ref, "kit"], cwd=ROOT, capture_output=True, check=True).stdout
     with tarfile.open(fileobj=io.BytesIO(data)) as tar:
@@ -193,6 +203,7 @@ def seed_commit(out: Path) -> None:
 
 
 def build(ref: str, out: Path, spec_kit: bool, fixture: Path = FIXTURE, fill: Path | None = None) -> None:
+    ref = resolve_ref(ref)
     if out.exists() and any(out.iterdir()):
         raise SystemExit(f"{out} is not empty")
     out.mkdir(parents=True, exist_ok=True)
