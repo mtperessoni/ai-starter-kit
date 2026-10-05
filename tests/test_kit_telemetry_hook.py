@@ -205,6 +205,10 @@ class FoundInTheRealEvaluation(HookCase):
     def test_concurrent_async_hooks_never_interleave_or_repeat_a_seq(self):
         env = {k: v for k, v in os.environ.items() if k != "AI_KIT_CONTEXT"}
         env["AI_KIT_CONTEXT"] = "c"
+        # Busy CPUs widen the window in which Windows reports a lock being deleted as PermissionError.
+        burners = [subprocess.Popen([sys.executable, "-c", "import time\nt=time.time()\nwhile time.time()-t<4: pass"])
+                   for _ in range(max(2, (os.cpu_count() or 2)))]
+        self.addCleanup(lambda: [b.kill() for b in burners])
         procs = []
         for i in range(24):
             p = {"session_id": "s1", "hook_event_name": "PostToolUse", "tool_name": "Bash", "cwd": str(self.proj),

@@ -37,7 +37,7 @@ SCANNED = (
 )
 SYNTAX_TOKENS = {
     "ID", "f", "feature", "file", "slug", "source", "start", "end", "destination", "path", "module",
-    "subject", "responsibility", "paths from its TRD file", "prd", "NNN-slug",
+    "subject", "responsibility", "paths from its TRD file", "prd", "NNN-slug", "area", "area folder",
 }
 PLACEHOLDER = re.compile(r"(?<!\$)\{\{[^}\n]*\}\}|<([^<>\n]{2,})>")
 GIT_ENV = {
