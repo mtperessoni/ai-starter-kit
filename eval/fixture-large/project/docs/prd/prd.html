@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Market PRDs</title>
+<style>
+body{font:16px/1.6 system-ui,sans-serif;max-width:60rem;margin:2rem auto;padding:0 1rem}
+table{border-collapse:collapse;width:100%;margin:1rem 0}
+td,th{border:1px solid #ccd;padding:.4rem .6rem;text-align:left}
+</style>
+</head>
+<body>
+<h1>Market</h1>
+<p>Marketplace order service: catalog, pricing, promotions, inventory, cart, checkout, payments, shipping, tax, loyalty, returns and notifications. Money is a Decimal, rounded half up to cents only where a rule says so.</p>
+
+<section id="s02">
+<h2>Catalog</h2>
+<table class="rules"><thead><tr><th>ID</th><th>Rule</th><th>Source</th></tr></thead><tbody>
+<tr data-via="code"><td>CAT-01</td><td>A SKU has 3 to 20 characters: uppercase letters, digits and hyphen. A product name has 1 to 80 characters after trimming.</td><td>src/market/features/catalog/product_validation.py::validate_product</td></tr>
+<tr data-via="config"><td>CAT-02</td><td>A price is above 0.00, has at most 2 decimals and is at most 100000.00. Setting: `catalog.max_price`.</td><td>src/market/features/catalog/product_validation.py::validate_product</td></tr>
+<tr data-via="code"><td>CAT-03</td><td>A category is one of books, electronics, fashion, grocery, home, toys, gift_card. Weight is 1 to 30000 g, except gift cards, which weigh 0. Books, grocery and gift cards are tax exempt, all others standard. Spans: catalog, tax.</td><td>src/market/features/catalog/product_validation.py::validate_product</td></tr>
+<tr data-via="code"><td>CAT-04</td><td>A SKU already in the catalog cannot be added again.</td><td>src/market/features/catalog/product_store.py::add_product</td></tr>
+<tr data-via="code"><td>CAT-05</td><td>A deactivated product cannot be put in a cart or bought, and it stays visible in past orders. Spans: catalog, cart, checkout.</td><td>src/market/features/catalog/product_store.py::require_sellable</td></tr>
+<tr data-via="config"><td>CAT-06</td><td>One price update may not change a price by more than 50%. Setting: `catalog.max_price_change_percent`.</td><td>src/market/features/catalog/product_validation.py::validate_price_change</td></tr>
+<tr data-via="code"><td>CAT-07</td><td>Search matches names or SKUs containing the text, ignoring case, only active products, sorted by name (or by price up or down), with an optional category and maximum price.</td><td>src/market/features/catalog/catalog_search.py::search_products</td></tr>
+</tbody></table>
+</section>
+
+<section id="s03">
+<h2>Pricing</h2>
+<table class="rules"><thead><tr><th>ID</th><th>Rule</th><th>Source</th></tr></thead><tbody>
+<tr data-via="code"><td>PRC-01</td><td>A line subtotal is the current catalog price times the quantity; the cart subtotal is the sum of line subtotals. A cart line never stores a price, and an order keeps the prices it was placed with. Spans: catalog, cart, checkout.</td><td>src/market/features/pricing/price_calculator.py::quote_lines</td></tr>
+<tr data-via="code"><td>PRC-02</td><td>An empty cart quotes zero everywhere. The total is the subtotal minus all discounts and never goes below 0.00.</td><td>src/market/features/pricing/price_calculator.py::quote_lines</td></tr>
+<tr data-via="config"><td>PRC-03</td><td>Volume break per line, before any promotion: 10 or more units of one SKU get 5% off that line, 50 or more get 10% (rounded half up to cents). Settings: `pricing.volume_tier1_qty`, `pricing.volume_tier1_percent`, `pricing.volume_tier2_qty`, `pricing.volume_tier2_percent`.</td><td>src/market/features/pricing/volume_breaks.py::volume_discount</td></tr>
+<tr data-via="code"><td>PRC-04</td><td>A discount shared by several lines is split in proportion to their value, rounded half up to cents, with the last line taking the remainder so the pieces add up exactly. Tax and refunds use the line total after this split. Spans: pricing, promotions, tax, returns.</td><td>src/market/infra/money.py::allocate</td></tr>
+<tr data-via="code"><td>PRC-05</td><td>Gift cards never get a volume break. Spans: catalog, pricing.</td><td>src/market/features/pricing/volume_breaks.py::volume_percent</td></tr>
+<tr data-via="code"><td>PRC-06</td><td>The quote lists every discount with its code, kind and amount, and the coupons it rejected with the reason.</td><td>src/market/features/pricing/price_calculator.py::quote_lines</td></tr>
+</tbody></table>
+</section>
+
+<section id="s04">
+<h2>Promotions</h2>
+<table class="rules"><thead><tr><th>ID</th><th>Rule</th><th>Source</th></tr></thead><tbody>
+<tr data-via="code"><td>PRM-01</td><td>Coupon codes ignore case and surrounding spaces. A code that is not found is rejected as `unknown`; a rejected coupon never fails the quote, it is listed with its reason.</td><td>src/market/features/promotions/coupon_store.py::normalize_code</td></tr>
+<tr data-via="code"><td>PRM-02</td><td>A percent coupon takes its percent off the current value of the eligible lines (rounded half up to cents once for the coupon), only if the eligible list subtotal reaches its minimum, otherwise `below_minimum`. A coupon may be limited to some categories.</td><td>src/market/features/promotions/promotion_engine.py::stage_percent_coupons</td></tr>
+<tr data-via="code"><td>PRM-03</td><td>A coupon is valid from its start date to its expiry date, both days included.</td><td>src/market/features/promotions/coupon_validation.py::check_coupon</td></tr>
+<tr data-via="code"><td>PRM-04</td><td>A coupon has an optional limit per customer and an optional global limit. A use is held when the order is placed, counts for good when the payment is captured, and is given back when the payment fails or the order is cancelled. Spans: promotions, checkout, cart.</td><td>src/market/features/promotions/promotion_usage.py::hold_uses</td></tr>
+<tr data-via="code"><td>PRM-05</td><td>Discounts apply in this order: category sale, buy-x-get-y, percent coupon, bundle, fixed coupon, free-shipping flag. Each step works on what the previous steps left.</td><td>src/market/features/promotions/promotion_engine.py::PIPELINE</td></tr>
+<tr data-via="code"><td>PRM-06</td><td>At most one coupon of each kind (percent, fixed, free shipping) applies to an order; the first one in the cart wins, the others are rejected as `kind_already_applied`.</td><td>src/market/features/promotions/promotion_engine.py::_resolve_coupons</td></tr>
+<tr data-via="code"><td>PRM-07</td><td>A category sale takes its percent off every eligible line of its category from its start date to its end date, both days included.</td><td>src/market/features/promotions/promotion_engine.py::stage_category_sales</td></tr>
+<tr data-via="code"><td>PRM-08</td><td>Buy 2 get 1 free: for every 3 units of the rule's SKU one unit is free, valued at that line's current value per unit (rounded half up to cents).</td><td>src/market/features/promotions/promotion_engine.py::stage_bogo</td></tr>
+<tr data-via="code"><td>PRM-09</td><td>A bundle gives its fixed amount off for every complete set of its SKUs in the cart (sets = the smallest quantity among its SKUs), never more than the current value of the bundle lines.</td><td>src/market/features/promotions/promotion_engine.py::stage_bundles</td></tr>
+<tr data-via="code"><td>PRM-10</td><td>A fixed coupon takes its amount off the current total of the eligible lines, only if the minimum is reached, never more than that total.</td><td>src/market/features/promotions/promotion_engine.py::stage_fixed_coupons</td></tr>
+<tr data-via="config"><td>PRM-11</td><td>All promotion discounts together never exceed 40% of the eligible list subtotal; a step that would pass the limit is cut to what is left. Setting: `promo.max_total_discount_percent`.</td><td>src/market/features/promotions/promotion_engine.py::_headroom</td></tr>
+<tr data-via="code"><td>PRM-12</td><td>Gift cards are never discounted by any promotion and do not count toward coupon minimums. Spans: catalog, promotions.</td><td>src/market/features/promotions/promotion_engine.py::_eligible</td></tr>
+<tr data-via="code"><td>PRM-13</td><td>A free-shipping coupon follows the same validity checks and gives no money discount; it only sets the free-shipping flag the checkout passes to shipping. Spans: promotions, shipping.</td><td>src/market/features/promotions/promotion_engine.py::stage_free_shipping</td></tr>
+</tbody></table>
+</section>
+
+<section id="s05">
+<h2>Inventory</h2>
+<table class="rules"><thead><tr><th>ID</th><th>Rule</th><th>Source</th></tr></thead><tbody>
+<tr data-via="code"><td>INV-01</td><td>Stock on hand is never negative.</td><td>src/market/features/inventory/stock_store.py::set_on_hand</td></tr>
+<tr data-via="code"><td>INV-02</td><td>Available stock is the stock on hand minus the quantities held by active reservations.</td><td>src/market/features/inventory/stock_store.py::available</td></tr>
+<tr data-via="code"><td>INV-03</td><td>A reservation is all or nothing: if any line is short, nothing is held and the error names every short SKU.</td><td>src/market/features/inventory/reservations.py::reserve</td></tr>
+<tr data-via="config"><td>INV-04</td><td>A reservation holds stock for 30 minutes; after that it expires and the stock is available again. Setting: `inventory.reservation_minutes`.</td><td>src/market/features/inventory/reservations.py::expire_due</td></tr>
+<tr data-via="code"><td>INV-05</td><td>Releasing an active reservation gives its stock back; releasing it again changes nothing.</td><td>src/market/features/inventory/reservations.py::release</td></tr>
+<tr data-via="code"><td>INV-06</td><td>Committing an active reservation removes the quantities from stock on hand and ends the hold; a released or expired reservation cannot be committed.</td><td>src/market/features/inventory/reservations.py::commit</td></tr>
+<tr data-via="code"><td>INV-07</td><td>Gift cards are not stock-tracked: always available, never reserved. Spans: catalog, inventory.</td><td>src/market/features/inventory/stock_store.py::available</td></tr>
+<tr data-via="config"><td>INV-08</td><td>When available stock falls to 5 or below from above 5, a low-stock event is raised once; when a SKU with nothing available gets stock, a restocked event is raised. Setting: `inventory.low_stock_threshold`. Spans: inventory, notifications.</td><td>src/market/features/inventory/low_stock.py::check_low_stock</td></tr>
+</tbody></table>
+</section>
+
+<section id="s06">
+<h2>Cart</h2>
+<table class="rules"><thead><tr><th>ID</th><th>Rule</th><th>Source</th></tr></thead><tbody>
+<tr data-via="config"><td>CRT-01</td><td>A line has 1 to 99 units; setting a quantity of 0 removes the line. Setting: `cart.max_qty`.</td><td>src/market/features/cart/cart_service.py::set_quantity</td></tr>
+<tr data-via="code"><td>CRT-02</td><td>Adding a SKU already in the cart adds to its quantity (the total still stays within 99).</td><td>src/market/features/cart/cart_service.py::add_item</td></tr>
+<tr data-via="config"><td>CRT-03</td><td>A cart has at most 20 different SKUs. Setting: `cart.max_lines`.</td><td>src/market/features/cart/cart_service.py::add_item</td></tr>
+<tr data-via="code"><td>CRT-04</td><td>Only known and active products can be added. Spans: catalog, cart.</td><td>src/market/features/cart/cart_service.py::add_item</td></tr>
+<tr data-via="code"><td>CRT-05</td><td>A quantity above the available stock cannot be added. Spans: inventory, cart.</td><td>src/market/features/cart/cart_service.py::add_item</td></tr>
+<tr data-via="code"><td>CRT-06</td><td>A coupon can be put on a cart only if it is valid for that cart right now; otherwise the reason is returned as an error. Reapplying the same code changes nothing. Spans: promotions, cart.</td><td>src/market/features/cart/cart_coupons.py::apply_coupon</td></tr>
+<tr data-via="config"><td>CRT-07</td><td>A cart untouched for 7 days is expired and cannot be changed or bought. Setting: `cart.ttl_days`.</td><td>src/market/features/cart/cart_expiry.py::is_expired</td></tr>
+</tbody></table>
+</section>
+
+<section id="s07">
+<h2>Checkout</h2>
+<table class="rules"><thead><tr><th>ID</th><th>Rule</th><th>Source</th></tr></thead><tbody>
+<tr data-via="code"><td>CHK-01</td><td>An order is placed only from an open, unexpired cart with at least one line whose products are all still sellable. Spans: checkout, cart, catalog.</td><td>src/market/features/checkout/order_placement.py::place_order</td></tr>
+<tr data-via="code"><td>CHK-02</td><td>Placing an order runs in this order: quote, validate, reserve stock, hold coupon uses, create the order, charge, then commit or roll back. Spans: checkout, cart, pricing, promotions, inventory, payments.</td><td>src/market/features/checkout/order_placement.py::place_order</td></tr>
+<tr data-via="code"><td>CHK-03</td><td>Order total = merchandise after discounts + shipping + tax - loyalty discount, never below 0.00. Spans: checkout, pricing, shipping, tax, loyalty.</td><td>src/market/features/checkout/order_quote.py::build_quote</td></tr>
+<tr data-via="code"><td>CHK-04</td><td>Loyalty points are redeemed after tax: the loyalty discount reduces the amount to pay, not the tax base. Spans: checkout, loyalty, tax.</td><td>src/market/features/checkout/order_quote.py::build_quote</td></tr>
+<tr data-via="code"><td>CHK-05</td><td>An order with any physical item needs an address; a gift-card-only order does not. Spans: checkout, shipping, catalog.</td><td>src/market/features/checkout/order_validation.py::validate_checkout</td></tr>
+<tr data-via="code"><td>CHK-06</td><td>When a payment fails, the stock hold is released and the coupon uses are given back; the order becomes payment_failed and the cart stays open for another try. Spans: checkout, payments, inventory, promotions.</td><td>src/market/features/checkout/order_placement.py::_rollback</td></tr>
+<tr data-via="config"><td>CHK-07</td><td>Merchandise after discounts must be at least 10.00. Setting: `checkout.min_order_total`.</td><td>src/market/features/checkout/order_validation.py::validate_checkout</td></tr>
+<tr data-via="code"><td>CHK-08</td><td>An order moves pending, then paid or payment_failed; paid, then shipped, then delivered; a delivered order becomes partially_refunded or refunded through returns.</td><td>src/market/features/checkout/order_lifecycle.py::mark_shipped</td></tr>
+<tr data-via="code"><td>CHK-09</td><td>Only a paid order (not yet shipped) can be cancelled: full refund of what was captured, stock back, coupon uses given back, points earned reversed and redeemed points returned. Spans: checkout, payments, inventory, promotions, loyalty.</td><td>src/market/features/checkout/order_lifecycle.py::cancel_order</td></tr>
+<tr data-via="code"><td>CHK-10</td><td>An order is not placed if a coupon on the cart is no longer valid; the customer gets the reason. Spans: checkout, promotions.</td><td>src/market/features/checkout/order_validation.py::validate_checkout</td></tr>
+</tbody></table>
+</section>
+
+<section id="s08">
+<h2>Payments</h2>
+<table class="rules"><thead><tr><th>ID</th><th>Rule</th><th>Source</th></tr></thead><tbody>
+<tr data-via="code"><td>PAY-01</td><td>Accepted methods are card, pix and gift card; any other method is rejected.</td><td>src/market/features/payments/payment_service.py::charge</td></tr>
+<tr data-via="config"><td>PAY-02</td><td>Card can be paid in 1 to 6 installments with 1.99% interest per extra installment (rounded half up to cents), each installment at least 10.00; pix and gift card are 1 installment. Settings: `payments.max_installments`, `payments.min_installment`, `payments.interest_percent_per_extra_installment`.</td><td>src/market/features/payments/installments.py::installment_plan</td></tr>
+<tr data-via="code"><td>PAY-03</td><td>A declined payment records the decline code, is never captured, and raises a payment-failed event.</td><td>src/market/features/payments/payment_service.py::charge</td></tr>
+<tr data-via="config"><td>PAY-04</td><td>A payment that times out at the gateway is tried again, up to 3 attempts in all; if every attempt times out it is declined as `gateway_timeout`. Setting: `payments.max_attempts`.</td><td>src/market/features/payments/payment_service.py::charge</td></tr>
+<tr data-via="code"><td>PAY-05</td><td>Paying with a gift card takes the amount from its balance; not enough balance declines as `insufficient_balance`, an unknown code as `unknown_gift_card`.</td><td>src/market/features/payments/payment_service.py::charge</td></tr>
+<tr data-via="code"><td>PAY-06</td><td>The same idempotency key returns the first payment and never charges twice.</td><td>src/market/features/payments/payment_service.py::charge</td></tr>
+<tr data-via="code"><td>PAY-07</td><td>The sum of refunds of a payment never exceeds what was captured; refunds of a gift-card payment go back to the card balance.</td><td>src/market/features/payments/payment_service.py::refund</td></tr>
+<tr data-via="code"><td>PAY-08</td><td>Interest on installments is not refunded; a refund returns at most the order amount.</td><td>src/market/features/payments/payment_service.py::refund</td></tr>
+</tbody></table>
+</section>
+
+<section id="s09">
+<h2>Shipping</h2>
+<table class="rules"><thead><tr><th>ID</th><th>Rule</th><th>Source</th></tr></thead><tbody>
+<tr data-via="code"><td>SHP-01</td><td>Standard shipping starts at 10.00 to SP, 18.00 to RJ, MG and ES, and 30.00 to any other region.</td><td>src/market/features/shipping/shipping_zones.py::zone_for</td></tr>
+<tr data-via="config"><td>SHP-02</td><td>The first 1000 g are included; each further started 500 g adds 3.00. Setting: `shipping.surcharge_per_500g`.</td><td>src/market/features/shipping/shipping_rules.py::weight_surcharge</td></tr>
+<tr data-via="config"><td>SHP-03</td><td>Standard shipping is free when merchandise after discounts is 200.00 or more, 100.00 or more for VIP customers. Settings: `shipping.free_threshold`, `shipping.free_threshold_vip`. Spans: shipping, pricing, customers.</td><td>src/market/features/shipping/shipping_rules.py::free_threshold</td></tr>
+<tr data-via="code"><td>SHP-04</td><td>An order of only gift cards has no shipping: fee 0.00, no delivery days. Spans: catalog, shipping, checkout.</td><td>src/market/features/shipping/shipping_rules.py::is_digital_only</td></tr>
+<tr data-via="config"><td>SHP-05</td><td>Express costs 1.5 times the standard fee before any waiver (rounded half up to cents) and is never free; it is not offered for gift-card-only orders. Setting: `shipping.express_multiplier`.</td><td>src/market/features/shipping/shipping_fee.py::quote_shipping</td></tr>
+<tr data-via="config"><td>SHP-06</td><td>Delivery takes 3, 5 or 8 days (standard) and 1, 2 or 4 (express) by zone; an order over 30000 g of physical goods is refused. A free-shipping coupon waives the standard fee (free reason `coupon`); threshold and coupon waivers apply to standard only. Setting: `shipping.max_weight_grams`. Spans: shipping, promotions (coupon waiver).</td><td>src/market/features/shipping/shipping_fee.py::quote_shipping</td></tr>
+</tbody></table>
+</section>
+
+<section id="s10">
+<h2>Tax</h2>
+<table class="rules"><thead><tr><th>ID</th><th>Rule</th><th>Source</th></tr></thead><tbody>
+<tr data-via="code"><td>TAX-01</td><td>The tax rate follows the delivery region: 8% SP, 10% RJ, 9% MG, 7% elsewhere; without an address the customer's region is used.</td><td>src/market/features/tax/tax_rates.py::rate_for</td></tr>
+<tr data-via="code"><td>TAX-02</td><td>Exempt products (books, grocery, gift cards) pay no tax; a tax-exempt customer pays none at all. Spans: catalog, tax.</td><td>src/market/features/tax/tax_calculator.py::compute_tax</td></tr>
+<tr data-via="code"><td>TAX-03</td><td>Tax per line is the rate on the line total after discounts, rounded half up to cents, then summed. Spans: pricing, promotions, tax.</td><td>src/market/features/tax/tax_calculator.py::compute_tax</td></tr>
+<tr data-via="code"><td>TAX-04</td><td>Shipping is taxed at the same rate (rounded half up to cents); free shipping has no tax.</td><td>src/market/features/tax/tax_calculator.py::compute_tax</td></tr>
+<tr data-via="code"><td>TAX-05</td><td>Tax is added on top of the price, never included in it.</td><td>src/market/features/tax/tax_calculator.py::compute_tax</td></tr>
+</tbody></table>
+</section>
+
+<section id="s11">
+<h2>Loyalty</h2>
+<table class="rules"><thead><tr><th>ID</th><th>Rule</th><th>Source</th></tr></thead><tbody>
+<tr data-via="code"><td>LOY-01</td><td>A customer earns 1 point for each whole 1.00 of merchandise after discounts, when the order is paid; shipping and tax earn nothing. Spans: checkout, loyalty.</td><td>src/market/features/loyalty/points_earning.py::points_for_order</td></tr>
+<tr data-via="config"><td>LOY-02</td><td>VIP customers earn double. Setting: `loyalty.vip_multiplier`.</td><td>src/market/features/loyalty/points_earning.py::tier_multiplier</td></tr>
+<tr data-via="code"><td>LOY-03</td><td>Gift cards earn no points. Spans: catalog, loyalty.</td><td>src/market/features/loyalty/loyalty_events.py::on_order_paid</td></tr>
+<tr data-via="config"><td>LOY-04</td><td>Points can be redeemed in multiples of 100 (100 points = 1.00), at least 500 at a time, up to the balance and up to 50% of the merchandise after discounts. Settings: `loyalty.redeem_step`, `loyalty.redeem_min_points`, `loyalty.max_redeem_percent`. Spans: checkout, loyalty.</td><td>src/market/features/loyalty/points_redemption.py::redemption_value</td></tr>
+<tr data-via="config"><td>LOY-05</td><td>Points expire 365 days after they were earned; the oldest are spent first. Setting: `loyalty.expiry_days`.</td><td>src/market/features/loyalty/points_ledger.py::expire_lots</td></tr>
+<tr data-via="code"><td>LOY-06</td><td>A cancelled order or a return takes back the points it earned (never below a zero balance); a cancelled order gives back the points redeemed on it. Spans: loyalty, checkout, returns.</td><td>src/market/features/loyalty/loyalty_events.py::on_order_cancelled</td></tr>
+<tr data-via="code"><td>LOY-07</td><td>*(approved 2026-03-10, pending code)* The first paid order of a customer earns double the points it would normally earn.</td><td>planned</td></tr>
+</tbody></table>
+</section>
+
+<section id="s12">
+<h2>Returns</h2>
+<table class="rules"><thead><tr><th>ID</th><th>Rule</th><th>Source</th></tr></thead><tbody>
+<tr data-via="config"><td>RET-01</td><td>A return must start within 30 days after delivery, on a delivered or partially refunded order. Setting: `returns.window_days`.</td><td>src/market/features/returns/return_policy.py::check_eligibility</td></tr>
+<tr data-via="code"><td>RET-02</td><td>Gift cards and grocery cannot be returned. Spans: catalog, returns.</td><td>src/market/features/returns/return_policy.py::check_eligibility</td></tr>
+<tr data-via="code"><td>RET-03</td><td>The refund is the line total after discounts, divided by the line quantity, times the units returned (rounded half up to cents), plus the tax of those units the same way. Spans: pricing, tax, returns.</td><td>src/market/features/returns/refund_calculator.py::compute_refund</td></tr>
+<tr data-via="code"><td>RET-04</td><td>Shipping is refunded only for reasons `defective` or `wrong_item`, and only when this return brings the returned units to every unit of the order. Spans: shipping, returns.</td><td>src/market/features/returns/refund_calculator.py::compute_refund</td></tr>
+<tr data-via="code"><td>RET-05</td><td>A customer cannot return more units than bought minus already returned; reasons are defective, wrong_item, changed_mind, other.</td><td>src/market/features/returns/return_policy.py::check_eligibility</td></tr>
+<tr data-via="code"><td>RET-06</td><td>Returned goods go back to stock, except when the reason is `defective`. Spans: returns, inventory.</td><td>src/market/features/returns/return_service.py::request_return</td></tr>
+<tr data-via="code"><td>RET-07</td><td>A completed return refunds the payment, lowers the order status and takes back the points earned on the returned merchandise. Spans: returns, payments, checkout, loyalty.</td><td>src/market/features/returns/return_service.py::request_return</td></tr>
+</tbody></table>
+</section>
+
+<section id="s13">
+<h2>Notifications</h2>
+<table class="rules"><thead><tr><th>ID</th><th>Rule</th><th>Source</th></tr></thead><tbody>
+<tr data-via="code"><td>NTF-01</td><td>A paid order sends the order_confirmation email to the customer. Spans: checkout, notifications.</td><td>src/market/features/notifications/notification_events.py::on_order_paid</td></tr>
+<tr data-via="code"><td>NTF-02</td><td>A failed payment sends payment_failed to the customer. Spans: payments, notifications.</td><td>src/market/features/notifications/notification_events.py::on_payment_failed</td></tr>
+<tr data-via="code"><td>NTF-03</td><td>A cancelled order sends order_cancelled; a completed return sends return_completed.</td><td>src/market/features/notifications/notification_events.py::on_order_cancelled</td></tr>
+<tr data-via="code"><td>NTF-04</td><td>A low-stock event sends low_stock to ops@market.test. Spans: inventory, notifications.</td><td>src/market/features/notifications/notification_events.py::on_low_stock</td></tr>
+<tr data-via="code"><td>NTF-05</td><td>The same template for the same order and recipient is sent only once.</td><td>src/market/features/notifications/dispatcher.py::send</td></tr>
+</tbody></table>
+</section>
+</body>
+</html>

@@ -34,6 +34,23 @@ Tests run narrow while working and wide once. Before these rules, agents took 13
 | TS21 | The gate is tested by executing it: a test runs the offline gate against a canary that touches a database and asserts it exits non-zero **because of the guard** (not because of coverage, collection or a missing file). Never test a gate by checking that words are present in its script | With the test command replaced by `true`, every "the script contains X" pin stayed green | `tests/` gate tests; testing.md |
 | TS22 | `scripts/new_failures.py` compares a test log with `baseline-failures.txt` and prints only new failures | Makes TS04 one command in any stack | `scripts/gates.sh compare` |
 
+## Containers and disk
+
+Measured on one Windows machine in a single day of agent work: about 44 GB of unbounded background task output, and a Docker disk file of 49.5 GB with 19 GB in use. A first fix (labels, caps, a manual cleanup) still leaked, because it relied on a test `finally` and on someone running the cleanup.
+
+| ID | Rule | Why | Lands in |
+|---|---|---|---|
+| TS27 | Build an image only for a test that proves services start together; everything else uses a throwaway database container (testcontainers or equivalent) or in-process fakes. Images are built once per test session, never per module | Building images is the most expensive thing a test does, in time and in disk | testing.md "Containers"; AGENTS.md |
+| TS28 | Every image, container, volume and network the repository creates carries `<namespace>.repo=<repo>` and `<namespace>.purpose=test\|dev\|spike` (named in `ai-kit.json` "docker"), one tag per image. Stacks started by tests are `purpose=test`; the dev stack is `dev` | Only labelled objects can be cleaned without touching another project; `test` versus `dev` lets a sweep run next to a developer's stack | `ai-kit.json`; compose files; stack recipe |
+| TS29 | Build and pull only through `scripts/gates.sh build\|integration\|full`: they refuse below `MIN_FREE_GB` free, above the labelled image cap (`IMAGE_CAP`, `IMAGE_CAP_GB`) or the cap over all images (`TOTAL_IMAGE_CAP_GB`) | A full disk stopped agents mid-write and corrupted a container snapshot | `scripts/docker_hygiene.py`; `scripts/gates.sh` |
+| TS30 | Those targets clean up from an `EXIT` trap, so a failed or interrupted run cleans up too: sweep, build cache bounded by size (`--max-used-space`, `BUILD_CACHE_MAX_GB`), old task outputs deleted. Never bound the cache with an age filter | `--filter until=24h` keeps everything built today; `--keep-storage` became a floor, not a ceiling | `scripts/gates.sh`; TS21 test with a fake Docker |
+| TS31 | A killed run cannot clean up after itself. The integration tier's session setup sweeps test-labelled containers, volumes and networks older than `DOCKER_STALE_MINUTES` at start and at end; younger ones may be another session's live run and stay | Agents run the test runner directly, past the gates, and get killed by tool timeouts mid-stack | stack recipe; `scripts/gates.sh sweep` |
+| TS32 | A teardown that fails (`compose down`, container stop) fails the test session; it is never ignored | An ignored `down` failure leaves the stack and nobody learns of it | stack recipe |
+| TS33 | A one-off container is `--rm` and labelled `purpose=test`; an image pulled only for it is removed in the same step. A spike removes its images, and the third-party images it pulled, when it ends | Helper and spike images are the ones nobody remembers | AGENTS.md |
+| TS34 | Background commands have bounded output: no `tail -f`, no printing poll loops; output goes to a file under `clean-outputs`' care | One unbounded background output filled tens of GB | AGENTS.md; `scripts/clean_task_outputs.py` |
+| TS35 | On Docker Desktop, space freed inside Docker returns to the host only when Docker Desktop is quit, or after compacting the disk file as admin. The guard warns above `DOCKER_DISK_WARN_GB` with the steps | The disk file never shrinks by itself: 49.5 GB on disk for 19 GB in use | `scripts/docker_hygiene.py check-docker-disk` |
+| TS36 | A script that shells out to bash on Windows finds Git Bash, never `C:\Windows\System32\bash.exe` (the WSL launcher) | With the WSL launcher first on `PATH`, the guards silently never ran | `tests/` gate tests; stack recipe |
+
 ## CI
 
 | ID | Rule | Why | Lands in |

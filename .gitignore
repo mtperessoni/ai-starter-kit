@@ -2,3 +2,7 @@ __pycache__/
 *.pyc
 .claude/prd-gate/
 .ai-kit-test/
+eval/results/**
+!eval/results/*/
+!eval/results/*/report.md
+eval/.cache/

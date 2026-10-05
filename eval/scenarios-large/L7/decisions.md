@@ -1,0 +1,9 @@
+- Scope: the return window rule. Standard customers keep 30 days after delivery; VIP customers get 60 days after delivery.
+- Which date: the window counts from delivery, as today. A return is still allowed only on a delivered or partially refunded order.
+- Configuration: the 60 days is a tunable number, new config key `returns.vip_window_days` with default 60. The existing key `returns.window_days` (default 30) keeps meaning the standard window.
+- Which tier counts: the customer's tier when the return is requested.
+- Example: delivered order, 45 days later: the VIP return is completed, the standard customer is refused (policy error). At 25 days both are completed. At 61 days the VIP is refused too.
+- Everything else about returns is unchanged: gift cards and grocery cannot be returned, quantity limits, reasons, refund amounts, shipping refund, restock, points taken back.
+- Product document: the return window rule states 30 days for standard and 60 for VIP and names both config keys; add a changelog entry.
+- Who is affected: VIP customers returning after day 30. Standard customers and returns inside 30 days see no change.
+- Rollout: as soon as merged, no flag. Orders delivered before the change follow the new window as well; no migration.

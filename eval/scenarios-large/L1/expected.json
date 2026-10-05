@@ -1,0 +1,16 @@
+{
+  "case": "C5",
+  "size": "M",
+  "prd_facts": [
+    {"id": "f1", "fact": "The free-shipping threshold applies to the merchandise after discounts and after the loyalty discount."},
+    {"id": "f2", "fact": "Loyalty points are redeemed before shipping is quoted: price and discounts, then redemption, then shipping, then tax."},
+    {"id": "f3", "fact": "The loyalty discount reduces the amount to pay but not the tax base."},
+    {"id": "f4", "fact": "Thresholds are unchanged: 200.00 standard and 100.00 VIP, reached when merchandise is equal or above."},
+    {"id": "f5", "fact": "The shipping, checkout and loyalty rules are consistent with each other and cross-reference each other."},
+    {"id": "f6", "fact": "Redemption limits (multiples of 100, at least 500, up to 50% of merchandise after discounts) and express and free-shipping-coupon behavior do not change."}
+  ],
+  "dup_phrases": [
+    "(?i)free.shipping.{0,120}(after|net of).{0,60}(loyalty|points|redemption)",
+    "(?i)(points|loyalty).{0,60}redeem.{0,60}before.{0,30}shipping"
+  ]
+}

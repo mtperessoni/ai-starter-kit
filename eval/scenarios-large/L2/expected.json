@@ -1,0 +1,17 @@
+{
+  "case": "C5",
+  "size": "L",
+  "prd_facts": [
+    {"id": "f1", "fact": "Only a customer with a delivered or partially refunded order containing the product can review it; others are refused with not_verified_buyer."},
+    {"id": "f2", "fact": "A rating is a whole number from 1 to 5 and the text is at most 500 characters; otherwise it is a validation error."},
+    {"id": "f3", "fact": "A customer has one review per product; submitting again replaces it and keeps the same review id."},
+    {"id": "f4", "fact": "The average rating of a product is the mean of its ratings rounded half up to 1 decimal, or none when there are no reviews."},
+    {"id": "f5", "fact": "Reviews of a product are listed newest first."},
+    {"id": "f6", "fact": "A review has an id, customer, SKU, rating, optional text, creation date and a verified flag that is always true."},
+    {"id": "f7", "fact": "The PRD has a new reviews section with rules REV-01 to REV-05."}
+  ],
+  "dup_phrases": [
+    "(?i)review.{0,120}(delivered|partially.refunded)",
+    "(?i)average.{0,40}rating.{0,80}(half.up|1 decimal|one decimal)"
+  ]
+}

@@ -3,7 +3,7 @@
 ## Steps
 | Step | Does | Leaves |
 |---|---|---|
-| I1 | K01 and K02. `Glob` the project root and two levels down for manifests and configuration: package manifests, lockfiles, test configs, linter configs, CI files, `Makefile`/`justfile`/`Taskfile.yml`, `CLAUDE.md`, `AGENTS.md`, `.specify/`, `docs/`, `.claude/`. Detect monorepo workspaces | file list |
+| I1 | K01 and K02. `Glob` the project root and two levels down for manifests and configuration: package manifests, lockfiles, test configs, linter configs, CI files, `Makefile`/`justfile`/`Taskfile.yml`, `CLAUDE.md`, `AGENTS.md`, `.specify/`, `docs/`, `.claude/`, `specs/`, `Dockerfile*`, compose files. Detect whether tests use Docker (a compose file started by tests, `testcontainers` or equivalent in dependencies). Detect monorepo workspaces and whether spec-kit is in use (`.specify/` with templates or scripts, `/speckit-*` commands in `.claude/`) | file list |
 | I2 | Read `<kit>/stacks/README.md` and only the matching recipes. Read the project's own scripts (package scripts, Makefile targets, CI steps): they win over the recipe | stack profile |
 | I3 | Source layout: the source folders, whether code is organized by feature (folders per product area) or by layer (`controllers/`, `services/`, `models/`), the entry point, the test folders. Large trees: one Explore agent with these questions, answers only | layout |
 | I4 | Run each candidate command once with output to a file (`.claude/prd-gate/state/_install/`), read the summary: test runner on one existing test file, lint verify, type check, import check, the whole unit tier once (its failures become the first baseline). Write down the failure line format to derive `tests.failure_regex` | verified commands |
@@ -11,7 +11,7 @@
 | I6 | Plan table (K03): every file with create, merge, replace or skip; commands for `ai-kit.json`; linter rules to add; the branch name. Wait for yes | approval |
 | I7 | Copy the payload from `<kit>/kit/` following `ownership.md`. Kit-owned files are copied byte for byte. Never copy `gitignore.kit` as a file: append its lines to `.gitignore` | files |
 | I8 | Fill the project-owned files (table below). No `<...>` or `{{...}}` placeholder may remain outside `docs/templates/` | filled files |
-| I9 | Structure enforcement from the recipe: add the linter rules for AR03, AR04, AR05, AR09 at the kit's limits with a baseline of today's violations (shrink-only); in Python, write `tests/test_architecture.py` as the recipe says. Run `python scripts/ratchet.py --init` and put its output into `ai-kit.json` `allowlist`. Update `docs/code-structure.md` "Checked by" when a rule ends as "review" | enforcement |
+| I9 | Structure enforcement from the recipe: add the linter rules for AR03, AR04, AR05, AR09 at the kit's limits with a baseline of today's violations (shrink-only); in Python, write `tests/test_architecture.py` as the recipe says. Run `python scripts/ratchet.py --init` and put its output into `ai-kit.json` `allowlist`. Update `docs/code-structure.md` "Checked by" when a rule ends as "review". When I1 found Docker: the container rules TS27 to TS36 as the recipe's "Containers" section says (labels on every compose service, volume, network and build, `purpose` from the environment, a session sweep in the integration tier, guards before builds, teardown failures that fail) | enforcement |
 | I10 | Reviewers: for each risk class chosen in I5, copy `docs/templates/reviewer-agent.md` to `.claude/agents/<risk>-reviewer.md` and fill it: the principle it guards, 4 to 7 checks specific to this code (read the relevant folders by symbol), severities, 3 examples. Register them in `repo.md` "Reviewers" | agents |
 | I11 | Verify (below). Fix what fails; what cannot be fixed becomes a line in the report | results |
 | I12 | Write `.ai-kit/manifest.json` (`ownership.md`). Commit `chore: install ai-starter-kit <version>` (one commit; the PRD and TRD come later in their own commits) | commit |
@@ -20,15 +20,16 @@
 ## Filling the project-owned files
 | File | Fill with |
 |---|---|
-| `ai-kit.json` | `source_dirs`, `feature_root` (the features folder, or the source folder when code is organized by layer), `code_extensions` limited to the stack's, `test_patterns` and `ignore` from the recipe, `commands` and `tests` from I4 |
-| `.claude/skills/prd-gate/repo.md` | `base_branch`; `change_via` adapted (drop `prompt` when there are no prompts, add the consumers that exist); Layout; Big files (from the ratchet's `long_modules`); Reviewers (I10); Protected rules (from the constitution); Variants and tenants (I5); Consumers in sibling repositories (ask only if a contract leaves this repository); Change routing (how config and env changes are deployed here); Evidence of real sessions (logs, audit tables) |
+| `ai-kit.json` | `source_dirs`, `feature_root` (the features folder, or the source folder when code is organized by layer), `code_extensions` limited to the stack's, `test_patterns` and `ignore` from the recipe, `commands` and `tests` from I4; when I1 found Docker, `"docker": {"label_namespace": "<reverse DNS of the project, for example org.acme>", "repo": "<this repository's short name>"}` (no section means the Docker targets do nothing) |
+| `.claude/skills/prd-gate/repo.md` | `base_branch`; `change_via` adapted (drop `prompt` when there are no prompts, add the consumers that exist); Layout; Big files (from the ratchet's `long_modules`); Reviewers (I10); Spec-kit (`kept` when I1 found it in use and the team keeps it, else `none`); Legacy specs (`specs/` kept as history when the folder exists, else `<none>`); Protected rules (from the constitution); Variants and tenants (I5); Consumers in sibling repositories (ask only if a contract leaves this repository); Change routing (how config and env changes are deployed here); Evidence of real sessions (logs, audit tables) |
 | `CLAUDE.md` | Project line, the constitution index (one line per principle), the gate rule, the code structure summary with this repo's folders, `@AGENTS.md` |
-| `AGENTS.md` | Overview and stack, Commands (the `scripts/gates.sh` targets), Critical constraints (the kit's generic ones plus the domain ones from I5), Directory map from I3, Workflow, Finding things, Handing work to a subagent |
+| `AGENTS.md` | Overview and stack, Commands (the `scripts/gates.sh` targets), Critical constraints (the kit's generic ones plus the domain ones from I5), Directory map from I3 (with `changes/` and `changes/archive/`), Workflow (change folders by size), Finding things, Handing work to a subagent |
 | `.specify/memory/constitution.md` | Domain principles from I5 (each with what it forbids and how it is enforced), Technology Constraints from I2, ratification date |
 | `.github/workflows/ci.yml` | The recipe's CI setup step in place of the placeholder; branches that deploy (from existing deploy workflows) in `push.branches` |
 | `.github/workflows/claude-review.yml` | Project line; one section per constitution principle with its checks |
 | `.gitleaks.toml` | The recipe's ignore paths |
 | `docs/flow.md` | Leave the template; trd-create writes it |
+| `changes/archive/` | Create with `.gitkeep`; an existing `specs/` stays untouched |
 
 ## Verify
 All must pass, or be reported:
@@ -38,6 +39,7 @@ All must pass, or be reported:
 - `python scripts/related_tests.py <one existing source file>` prints its mirror test and importers; `scripts/gates.sh related <that file>` runs them and prints only failures and the summary
 - `scripts/gates.sh baseline install` records the baseline; `scripts/gates.sh compare install` reports zero new failures
 - `python .claude/skills/prd-gate/scripts/gate.py` only reports that `docs/prd/INDEX.md` does not exist yet (expected until prd-create)
+- When the `docker` section exists: `scripts/gates.sh guard` passes or names what to remove, and `scripts/gates.sh sweep` runs; `docker image ls --filter label=<namespace>.repo=<repo>` lists the images the repository built after one `scripts/gates.sh build`
 - A search for U+2014 over the files written (the Grep tool with the pattern `\x{2014}`) finds no em dash
 
 ## Report

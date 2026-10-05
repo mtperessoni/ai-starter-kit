@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orders PRDs</title>
+<style>
+body{font:16px/1.6 system-ui,sans-serif;max-width:60rem;margin:2rem auto;padding:0 1rem}
+table{border-collapse:collapse;width:100%;margin:1rem 0}
+td,th{border:1px solid #ccd;padding:.4rem .6rem;text-align:left}
+</style>
+</head>
+<body>
+<h1>Orders</h1>
+<p>Pricing, shipping and checkout of an order. Money is a Decimal, rounded half up to cents.</p>
+
+<section id="s02">
+<h2>Step 1 · Pricing</h2>
+<table class="rules"><thead><tr><th>ID</th><th>Rule</th><th>Source</th></tr></thead><tbody>
+<tr data-via="code"><td>PRC-01</td><td>VIP customers get 15% off the subtotal.</td><td>src/orders/features/pricing/discount_calculator.py::compute_discount</td></tr>
+<tr data-via="code"><td>PRC-02</td><td>A coupon gives its percentage off the subtotal.</td><td>src/orders/features/pricing/discount_calculator.py::compute_discount</td></tr>
+<tr data-via="code"><td>PRC-03</td><td>The total discount never exceeds 30% of the subtotal.</td><td>src/orders/features/pricing/discount_calculator.py::compute_discount</td></tr>
+<tr data-via="code"><td>PRC-04</td><td>The VIP and coupon percentages are added together before the cap applies.</td><td>src/orders/features/pricing/discount_calculator.py::compute_discount</td></tr>
+</tbody></table>
+</section>
+
+<section id="s03">
+<h2>Step 2 · Shipping</h2>
+<table class="rules"><thead><tr><th>ID</th><th>Rule</th><th>Source</th></tr></thead><tbody>
+<tr data-via="code"><td>SHP-01</td><td>Shipping costs 15.00.</td><td>src/orders/features/shipping/shipping_fee.py::shipping_fee</td></tr>
+<tr data-via="code"><td>SHP-02</td><td>Shipping is free when the subtotal after discounts is 200.00 or more.</td><td>src/orders/features/shipping/shipping_fee.py::shipping_fee</td></tr>
+</tbody></table>
+</section>
+
+<section id="s04">
+<h2>Step 3 · Checkout</h2>
+<table class="rules"><thead><tr><th>ID</th><th>Rule</th><th>Source</th></tr></thead><tbody>
+<tr data-via="code"><td>CHK-01</td><td>The total is the subtotal minus the discount plus shipping; every amount is rounded half up to cents.</td><td>src/orders/features/checkout/checkout_flow.py::compute_totals</td></tr>
+<tr data-via="code"><td>CHK-02</td><td>Checkout returns a Receipt with subtotal, discount, shipping and total, all Decimal.</td><td>src/orders/features/checkout/checkout_flow.py::Receipt</td></tr>
+<tr data-via="code"><td>CHK-03</td><td>A cart with no items is rejected with a ValueError.</td><td>src/orders/features/checkout/checkout_flow.py::validate_cart</td></tr>
+<tr data-via="code"><td>CHK-04</td><td>Every item needs a quantity of at least 1 and a price of zero or more, otherwise a ValueError.</td><td>src/orders/features/checkout/checkout_flow.py::validate_item</td></tr>
+<tr data-via="code"><td>CHK-05</td><td>A coupon percent must be above 0 and at most 100, otherwise a ValueError.</td><td>src/orders/features/checkout/checkout_flow.py::validate_coupon</td></tr>
+<tr data-via="code"><td>CHK-06</td><td>A customer needs a non-empty id, otherwise a ValueError.</td><td>src/orders/features/checkout/checkout_flow.py::validate_customer</td></tr>
+<tr data-via="code"><td>CHK-07</td><td>The receipt text lists Subtotal, Discount, Shipping and Total, in that order.</td><td>src/orders/features/checkout/checkout_flow.py::render_receipt_text</td></tr>
+</tbody></table>
+</section>
+</body>
+</html>

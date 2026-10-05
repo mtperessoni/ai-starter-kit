@@ -1,0 +1,12 @@
+- Scope: a new feature called product reviews. It is a new area of the product, with its own section in the product document.
+- Who can review: only a customer with a delivered or partially refunded order that contains the product. Anyone else is refused with the reason `not_verified_buyer` (a policy error).
+- A review has: an id, the customer, the product SKU, a rating, an optional text, the date it was created, and a `verified` flag that is always true.
+- Rating: a whole number from 1 to 5. Text: optional, at most 500 characters. Anything else is a validation error.
+- One review per customer per product. Submitting again replaces the previous one and keeps the same review id.
+- Average rating of a product: the mean of its ratings, rounded half up to 1 decimal; no reviews means no value (None). Example: 5 and 4 give 4.5; 5, 4 and 4 give 4.3.
+- Reviews of a product are listed newest first.
+- Rule ids: REV-01 to REV-05, in that order (eligibility, rating and text limits, one per customer and product, average, listing order).
+- Names fixed for the work: data model `Review(review_id, customer_id, sku, rating, text, created_at, verified)`; functions `submit_review(customer_id, sku, rating, text="")`, `list_reviews(sku)`, `average_rating(sku)`, all exposed through `market.api`. The code lives in a new `features/reviews/` folder.
+- Boundaries: reviews do not change prices, stock, loyalty points or notifications. No moderation, no editing history, no deleting, no photos, no helpfulness votes, no review of a product that is only in a cancelled, paid or shipped order.
+- Who is affected: customers with received orders. Existing orders are eligible without migration.
+- Rollout: as soon as merged, no flag.

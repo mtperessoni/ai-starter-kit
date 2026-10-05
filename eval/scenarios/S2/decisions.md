@@ -1,0 +1,11 @@
+- Scope: a customer gets a store credit balance, which is money in the same currency, zero by default.
+- Checkout uses the credit after the discounts and after shipping are applied, so it pays the final order amount.
+- The credit used is the smaller of the balance and the order amount. It never goes above the order amount and never below zero.
+- The receipt gets a new field named `store_credit_used` (Decimal, 0.00 when none is used). The customer field is named `store_credit_balance`, default 0.
+- On the receipt, `total` is the amount still to be paid after the store credit. If the credit covers everything, `total` is 0.00. `subtotal`, `discount` and `shipping` keep their meaning.
+- Checkout itself must not change the balance. The balance decreases only when the order is confirmed, through `orders.confirm(receipt, customer)`, by exactly `receipt.store_credit_used`.
+- Confirming a receipt that used no credit leaves the balance as it is.
+- Edge cases: a balance equal to the order amount pays it fully; a balance larger than the order amount keeps the remainder; a customer with no credit sees no change in any receipt.
+- Rounding: same as today, half up to cents. Credit amounts are in cents.
+- Who is affected: every customer, but only those with a balance see any difference. VIP, coupon, cap and shipping rules do not change.
+- Rollout: available as soon as it is merged, no flag. Existing customers start with a balance of zero, no data migration. Adding credit to a balance is out of scope.

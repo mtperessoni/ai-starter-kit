@@ -1,0 +1,14 @@
+{
+  "case": "C3",
+  "size": "S",
+  "prd_facts": [
+    {"id": "f1", "fact": "A coupon use is held when the order is placed, counts for good when the payment is captured, and is given back when the payment fails or the order is cancelled."},
+    {"id": "f2", "fact": "When a payment fails, the stock hold is released and the coupon uses are given back; the order becomes payment_failed and the cart stays open for another try."},
+    {"id": "f3", "fact": "An order is not placed if a coupon on the cart is no longer valid, and the customer gets the reason."},
+    {"id": "f4", "fact": "The product rules were right and are not rewritten: the code was wrong, so the rule meaning does not change."}
+  ],
+  "dup_phrases": [
+    "(?i)(given back|released|returned).{0,80}(decline|fail)",
+    "(?i)coupon use.{0,80}(decline|payment fail)"
+  ]
+}

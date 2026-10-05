@@ -46,7 +46,9 @@ Always through `scripts/gates.sh`; the stack commands behind each target are in 
 | Feature folders | `<src>/features/<f>/` (map: `docs/trd/README.md`) |
 | Core features (must not import peripheral ones) | `<names>` |
 | Shared code | `<src>/infra/` |
-| Spec folder | `specs/` (spec-kit) or `<none>` |
+| Change folder | `changes/` (LT01; finished ones in `changes/archive/`) |
+| Spec-kit | `none` \| `kept` (LT11) |
+| Legacy specs | `specs/` kept as history, or `<none>` (LT07, LT11) |
 
 ## Big files (read by symbol only)
 

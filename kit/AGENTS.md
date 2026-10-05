@@ -4,7 +4,7 @@
 
 `.specify/memory/constitution.md` is binding and it wins over this file when they disagree. `CLAUDE.md` carries the index of its principles; read the full principle your change touches before writing code.
 
-Order of authority: the constitution, then the PRD (`docs/prd/`) on product behavior, then the spec (`specs/`) on how and in what order it is built, then the code. See "Finding things" below.
+Order of authority: the constitution, then the PRD (`docs/prd/`) on behavior, then the TRD (`docs/trd/`) on structure, then the code. An active plan in `changes/` governs only the order of work; nothing under `changes/archive/` or a legacy `specs/` is read to learn current behavior. See "Finding things" below.
 
 ## Commands
 
@@ -20,6 +20,11 @@ scripts/gates.sh fix               # Repairs; then run lint
 scripts/gates.sh imports           # Import check (cycles)
 scripts/gates.sh ratchet           # Structure ratchet (docs/code-structure.md)
 scripts/gates.sh docs              # PRD, TRD and HTML consistency
+scripts/gates.sh integration       # Integration tier: disk and image guards first, cleanup on every exit
+scripts/gates.sh build [args]      # The only way to build images: same guards, same cleanup
+scripts/gates.sh sweep             # Remove test containers, volumes, networks left by killed runs
+scripts/gates.sh docker-clean      # Every labelled leftover; reports other projects' images, never removes them
+scripts/gates.sh clean-outputs     # Delete old or oversized background task outputs
 ```
 
 The stack commands behind each target are in `ai-kit.json`.
@@ -29,6 +34,14 @@ The stack commands behind each target are in `ai-kit.json`.
 - The full suite runs once, at the end of a delivery, compared with the recorded baseline of failures. A failure unrelated to what you touched waits for the end.
 - Redirect test output to a file and read only the failures and the summary.
 - The full gate sets its own environment (no network, no database for the unit tier); never rely on your shell's variables to make it offline. See `docs/trd/testing.md`.
+
+### Disk and container hygiene
+- Never start a background command with unbounded output: no `tail -f`, no printing poll loops. Output goes to a file; read its tail or the failure summary.
+- Prefer a throwaway database container or in-process fakes over building images; only a test that proves services start together builds images, once per session.
+- Every image, container, volume and network carries the labels named in `ai-kit.json` "docker" (`<namespace>.repo`, `<namespace>.purpose=test|dev|spike`), one tag per image. Stacks started by tests are `purpose=test`.
+- Build or pull only through `scripts/gates.sh build|integration|full`; they refuse when the disk or an image cap is short and clean up on every exit. Run long integration runs in the background with output to a file and a timeout longer than the run, so they are not killed mid-stack.
+- A one-off container is `--rm` and labelled `purpose=test`; an image pulled only for it is removed in the same step. A spike removes its images, and the third-party images it pulled, when it ends.
+- Clean up with `scripts/gates.sh docker-clean` and `clean-outputs`. On Docker Desktop, freed space returns to the host only after Docker Desktop is quit, or after compacting its disk file as admin.
 
 ## Critical constraints
 
@@ -51,17 +64,19 @@ Violating any of these breaks the architecture or the safety model. Follow stric
 - `<src>/features/<f>/`: one folder per product feature. Each has a `CLAUDE.md` map (up to 20 lines), a public entry, `domain/` (pure rules, no IO), services with IO, and `tests/`
 - `<src>/infra/`: shared code (persistence, providers, observability, config, auth)
 - `tests/integration/`, `tests/eval/`, and unit tests beside the code in `<src>/features/<f>/tests/`
-- `specs/`: spec-kit features. Source of truth for how and in what order something gets built; the product rules it implements come from `docs/prd/`
+- `changes/NNN-<slug>/`: one folder per change in flight (`brief.md` for size M and L, `design.md` for size L, `plan.md`). Holds intent, plan and state, never truth
+- `changes/archive/`: finished changes, moved there with `git mv` when promoted. History only, never read for current behavior
 - `docs/prd/`, `docs/trd/`, `docs/adr/`, `docs/code-structure.md`, `docs/flow.md`
 
 ## Workflow
 
-Spec-driven, in this order. Do not skip steps.
+Living truth plus change folders, in this order. Do not skip steps.
 
 1. `/prd-gate` classifies the request; a rule change updates PRD and TRD and produces the plan
-2. `/speckit-specify`, `/speckit-plan` (Constitution Check), `/speckit-tasks` when a new spec is needed
+2. The change folder by size, decided at classification: **S** no folder or only `plan.md`; **M** `brief.md` and `plan.md`; **L** `brief.md`, `design.md` and `plan.md`. The plan header carries a `## Constitution check`
 3. Implementation test first, one task per agent, one commit per task
 4. Gates before merge: lint, type check, full suite green, coverage not decreasing, ratchet green
+5. Promote: what is durable goes to its living home (PRD, TRD, ADR, schema or contract) and the folder is archived with `git mv changes/NNN-<slug> changes/archive/NNN-<slug>`
 
 ## Finding things
 

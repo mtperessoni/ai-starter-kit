@@ -1,0 +1,12 @@
+- Scope: the free-shipping threshold (standard shipping only) is judged on the merchandise after discounts AND after the loyalty discount. Today it is judged before the points are applied.
+- Order of calculation at checkout: price and discounts, then loyalty redemption, then shipping, then tax. Points are redeemed before shipping is quoted.
+- The loyalty discount still reduces only the amount to pay: it does not reduce the tax base. Tax is on the line totals after discounts, and on the shipping fee, as today.
+- Order total stays: merchandise after discounts + shipping + tax - loyalty discount, never below 0.00.
+- Redemption rules do not change: multiples of 100 points (100 points = 1.00), at least 500 at a time, up to the balance, up to 50% of the merchandise after discounts. The 50% limit is still measured on merchandise after discounts, before shipping.
+- Thresholds do not change: 200.00 for standard customers, 100.00 for VIP, "or more" (equal to the threshold is free).
+- Example: standard customer in SP, merchandise 200.00 (1800 g), redeems 500 points (5.00). Merchandise after redemption is 195.00, below 200.00, so shipping is charged: 10.00 plus 6.00 for the 800 g above the first 1000 g, 16.00. Tax is 8% of 200.00 = 16.00 plus 8% of 16.00 = 1.28, so 17.28. Total 200.00 + 16.00 + 17.28 - 5.00 = 228.28. Without points shipping is free and the total is 216.00.
+- A VIP who redeems 500 points on a cart of 100.00 or more of merchandise keeps free shipping when the merchandise after redemption is still 100.00 or more.
+- Express shipping is never free, a free-shipping coupon still waives standard shipping, gift-card-only orders still have no shipping. None of these change.
+- Points earned on the order do not change.
+- Who is affected: only customers who redeem points on an order that is within the points amount of the threshold.
+- Rollout: as soon as merged, no flag, no migration. Orders already placed keep their amounts.

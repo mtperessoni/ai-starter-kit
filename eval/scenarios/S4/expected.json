@@ -1,0 +1,23 @@
+{
+  "case": "C6",
+  "size": "S",
+  "prd_facts": [
+    {
+      "id": "f1",
+      "fact": "No product rule changes: the PRD keeps every rule exactly as it was."
+    },
+    {
+      "id": "f2",
+      "fact": "The free shipping threshold of 200.00 and the flat shipping of 15.00 are still documented unchanged."
+    },
+    {
+      "id": "f3",
+      "fact": "The discount caps (30% VIP) and half up rounding to cents are still documented unchanged."
+    },
+    {
+      "id": "f4",
+      "fact": "No new rule rows, no planned markers and no behavior statements were added to the PRD."
+    }
+  ],
+  "dup_phrases": []
+}

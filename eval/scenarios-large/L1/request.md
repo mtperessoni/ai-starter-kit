@@ -1,0 +1,1 @@
+Customers who pay part of an order with loyalty points are still getting free shipping as if they had paid the full merchandise value. The free-shipping threshold should be measured on the merchandise after the points are redeemed, not before.

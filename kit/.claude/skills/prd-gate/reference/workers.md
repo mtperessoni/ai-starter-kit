@@ -16,7 +16,7 @@ Gaps: <list, or "none">
 Context, freshness and impact, in sequence, for a rule change.
 
 1. **Batch 1, one message:** `Read .claude/skills/prd-gate/repo.md`; `Grep` the request's terms in `docs/prd/INDEX.md`; `Read docs/trd/README.md`; `Grep` the terms in the PRD section files to find the rows; `git fetch -q && git rev-parse --short HEAD && git rev-list --count HEAD..origin/<base_branch>`.
-2. **Batch 2:** the tables of the sections involved; the TRD feature file; `Grep "<IDs>" docs/prd specs <test folders>`; the lines of `docs/trd/invariants.md` for the kind of change; the constitution principle the change touches (title and excerpt).
+2. **Batch 2:** the tables of the sections involved; the TRD feature file; `Grep "<IDs>" docs/prd changes <test folders>` (never `changes/archive/`, LT07); the lines of `docs/trd/invariants.md` for the kind of change; the constitution principle the change touches (title and excerpt).
 3. **Freshness:** check the Source of each rule that will change (file and symbol exist, behavior matches). A divergence goes into the pack; an out-of-scope divergence is only noted, with no new call.
 4. **Impact:** follow `reference/impact.md` (K01 to K10, trade-offs, protections). K08 to K10 are never skipped: discovered during execution, they become extra rounds with the user. Write `impact.md` already in the confrontation format from there: it is what the main thread shows the user.
 5. **Pre-interview:** for each dimension D01 to D15 of `reference/interview.md` plus the extra ones of `repo.md`, mark `answered: <source>`, `not applicable: <reason>` or `open: <question with scenario and recommended default>`.
@@ -49,8 +49,8 @@ Request: <one line>
 ## Open questions linked
 - Q-CHK-04 <one line>
 
-## Specs and tests
-- specs/007-checkout/spec.md FR-012
+## Changes and tests
+- changes/007-checkout/plan.md
 - src/features/checkout/tests/test_payment_call.py
 
 ## Divergences
@@ -82,8 +82,8 @@ Return: commits, IDs touched, the last line of the gate, gaps.
 
 Builds the plan for agents. Input: `approved-rules.md`, `pack.md`, the "Planned" section of the TRD files touched.
 
-1. Read `reference/agent-plan.md` and decide where the plan lives (amendment of an active spec, a new plan, or only a publish or deploy task).
-2. Write the tasks in the format there, with the final promotion task, and copy the "Plan execution rules" into the plan header. Before writing, check with `git log` which tasks the plan depends on are already done. Run `python .claude/skills/prd-gate/scripts/gate.py --plan <plan>`: fix every ERROR. Commit `docs(specs): <sentence>`.
+1. Read `reference/agent-plan.md` and decide size and where the plan lives (LT04, "Where the plan lives"). For size M and L write `brief.md` (`docs/templates/change-brief.md`, LT02) and, for L, `design.md` (`docs/templates/change-design.md`, LT03) first; the brief cites rule IDs only and `gate.py --change <dir>` must pass (LT09).
+2. Write the tasks in the format there, with the final promotion task, and copy the "Plan execution rules" and the `## Constitution check` (LT05) into the plan header. Before writing, check with `git log` which tasks the plan depends on are already done. Run `python .claude/skills/prd-gate/scripts/gate.py --plan <plan>`: fix every ERROR. Commit `docs(changes): <sentence>`.
 3. Structure (SKILL.md R08, `docs/code-structure.md`): every task names the feature (`src/features/<f>/`), the files it creates or changes, named after their responsibility, and the tests in `features/<f>/tests/`; no task creates a file above the limits or with a generic name; a task that changes the pieces of a feature updates its `CLAUDE.md` and TRD.
 4. Cost (execution.md E12 to E17): rules cited by ID, never copied outside the owning task; each task section at most 25 lines, naming files, entry symbols and tests; the whole plan around 30 KB. Replace the old path with the new one instead of keeping both in parallel, unless a rollback switch requires it: a double path makes every test be touched twice. Model `sonnet`; `opus` only with a reason on the line (E13). Reviewer from `repo.md`.
 

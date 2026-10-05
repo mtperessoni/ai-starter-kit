@@ -13,6 +13,15 @@ IDs, texts and paths in the examples are illustrative: always read the real line
 | C5 rule change | Changed rule, new rule, gap in the PRD, or a fix to a defect the PRD documents as current behavior | "change", "it should", "from now on", "add", "fix" something the PRD describes as today's behavior | Full flow F1 to F7 |
 | C6 refactor | Structure changes and behavior does not | "rename", "extract", "move", "split", "clean up" | Area TRD + invariants; F6 if files, entry points or tests move |
 
+## Size (LT04)
+Stated in the case line: `C5 · size L · <one line>`. It decides which files the change folder holds (`agent-plan.md`, "Where the plan lives").
+
+| Size | When | Change folder |
+|---|---|---|
+| S | C1, C2, C3, C4, C6 | None, or only `plan.md` |
+| M | C5 with an evident design: no new data model, contract, external dependency or open technical unknown | `brief.md`, `plan.md` |
+| L | C5 with a new data model, contract, external integration, technical unknown, or a new feature area | `brief.md`, `design.md`, `plan.md` |
+
 ## Classification traps
 | Situation | Right case | Why |
 |---|---|---|

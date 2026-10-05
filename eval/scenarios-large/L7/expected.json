@@ -1,0 +1,15 @@
+{
+  "case": "C5",
+  "size": "M",
+  "prd_facts": [
+    {"id": "f1", "fact": "A return must start within 30 days after delivery for standard customers and within 60 days for VIP customers."},
+    {"id": "f2", "fact": "The VIP window is a tunable number in the config key returns.vip_window_days with default 60; the standard window stays in returns.window_days with default 30."},
+    {"id": "f3", "fact": "A return is allowed only on a delivered or partially refunded order, and the window counts from delivery."},
+    {"id": "f4", "fact": "Other return rules (gift cards and grocery excluded, quantity limits, refund amounts, restock, points taken back) do not change."},
+    {"id": "f5", "fact": "The change is recorded in the PRD changelog."}
+  ],
+  "dup_phrases": [
+    "(?i)vip.{0,80}60 days",
+    "returns\\.vip_window_days"
+  ]
+}

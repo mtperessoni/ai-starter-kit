@@ -5,13 +5,31 @@ IDs, texts and paths in the examples are illustrative: always read the real line
 The plan comes only from the PRD and the TRD already committed: the rule IDs are the contract. An agent that receives the rule row and the map does not need to rediscover the domain.
 
 ## Where the plan lives
+Folder `changes/NNN-<slug>/` with the next free number (LT01); size from the case line (LT04). Nothing in `changes/archive/` or a legacy `specs/` is read for current behavior (LT07).
+
+| Size | Files in the folder |
+|---|---|
+| S | None, or only `plan.md` |
+| M | `brief.md` (LT02, template `docs/templates/change-brief.md`) and `plan.md` |
+| L | `brief.md`, `design.md` (LT03, template `docs/templates/change-design.md`) and `plan.md` |
+
 | Situation | Where |
 |---|---|
-| The area has an active spec implementing the touched rules | Spec amendment: new FRs at the end of `specs/NNN-*/spec.md` and the new tasks in a file of their own, `specs/NNN-*/plan-<slug>.md`, with one line in the main plan pointing to it. Never append to a plan already past about 60 KB: every executor reads the header and its section, and a big file costs on every read |
-| It does not | `specs/NNN-<slug>/plan.md` with the next free number, in the format below |
-| Only prompt, config or env change | The plan is the publish or deploy task (routing below); no spec |
+| Only prompt, config or env change | The plan is the publish or deploy task (routing below); no folder |
+| A change folder already covers the touched rules | Add tasks to its `plan.md`; never append to a plan past about 60 KB, start a new folder (a big file costs on every executor read). No amendment path into a `spec.md` (LT12) |
 
-Plan commit: `docs(specs): <sentence>`, no push.
+Compatibility (LT11): a legacy `specs/` stays untouched as history. With `repo.md` "Spec-kit" `kept`, its `spec.md` cites PRD rule IDs and defines no FR, and `tasks.md` is not used: this plan is.
+
+Plan commit: `docs(changes): <sentence>`, no push. After writing: `gate.py --plan <plan>` and, for M and L, `gate.py --change changes/NNN-<slug>` (LT09).
+
+## Plan header
+Order: title, `## Constitution check`, `## Plan execution rules`, tasks.
+
+| Principle touched | How the plan honors it, or the justified violation |
+|---|---|
+| <III. ...> | <task or decision that honors it> |
+
+One row per principle the change touches (LT05); it replaces spec-kit's Constitution Check and Complexity Tracking. Order of authority while planning: constitution, PRD, TRD, code; the plan governs only the order of work (LT07).
 
 ## Routing by Change via
 The table is in `repo.md`, "Change routing". `code` always becomes agent tasks in the format below; anything owned by another repository becomes a handoff note with the rule rows, outside this plan.
@@ -47,11 +65,13 @@ The plan header copies these lines under `## Plan execution rules`, so whoever e
 
 ## Mandatory final task
 ```markdown
-### TNN · Promote PRD and TRD
+### TNN · Promote
 - PRD: old text literally to the CHANGELOG, remove superseded rows and markers, fill the Source (prd-writing.md, "Promotion")
 - HTML, if any: the same edit
 - TRD: merge "Planned" into the body (trd-planned.md, "Promotion")
-- prd-gate gate green, full suite and lint green
+- `design.md` (L): decisions to `docs/adr/` (`/adr`), data model to the real schema or migration plus the TRD, contracts to the real artifact plus a TRD link (LT03)
+- Archive: `git mv changes/NNN-<slug> changes/archive/NNN-<slug>` (LT06)
+- prd-gate gate green (`gate.py --final` clean when it is the last open change, LT10), full suite and lint green
 ```
 
 ## Presentation

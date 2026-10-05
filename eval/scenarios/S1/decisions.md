@@ -1,0 +1,9 @@
+- Scope: only the maximum total discount changes. Regular (non-VIP) customers are capped at 20% of the subtotal. VIP customers stay capped at 30% of the subtotal.
+- Who is affected: every customer that is not VIP, whatever coupon they use. VIPs see no change at all.
+- The VIP discount (15%), the coupon percentage and the way they add up do not change. Only the ceiling does.
+- A non-VIP customer whose coupon is exactly 20% or lower is not affected, the cap only bites above 20%.
+- Edge case: a non-VIP customer with a coupon of 30% or 50% gets 20% off the subtotal, nothing more.
+- Rounding: no change, the total is still rounded half up to cents.
+- Naming: public API and field names stay exactly as they are. The coupon percent is a number such as 10 for 10%.
+- Rollout: applies to every order from now on, no flag, no migration, no data to fix.
+- Nobody is notified and no other rule (shipping, receipt, rounding) is touched.

@@ -11,6 +11,7 @@ Brings kit improvements into a project that already has the kit, without overwri
 | U4 | For each project-owned file whose template changed in the kit: show only the new sections, keys or rules and propose adding them; never replace values |
 | U5 | New kit files: add them (kit-owned) or propose them (project-owned). Files removed from the kit: ask before deleting the project's copy |
 | U6 | New keys in `ai-kit.json` get their defaults; new linter rules from an updated recipe are proposed with a baseline |
+| U6b | Read `CHANGELOG.md` of the kit: for each entry between `old` and `new`, in order, execute its `On update:` line (create folders, add `ai-kit.json` keys, seed allowlists, propose new sections) and list each in the plan table of U7 |
 | U7 | Plan table (K03): replace, merge, propose, skip; wait for yes |
 | U8 | Apply, run the Verify list of `install.md`, update the manifest (version, date, hashes) |
 | U9 | Commit `chore: update ai-starter-kit to <new>` with the kit log lines in the body; report |

@@ -11,7 +11,10 @@ Read-only. Reports, in at most 25 lines, what drifted from the kit and from its 
 | Docs gate | `python .claude/skills/prd-gate/scripts/gate.py`: errors and earlier drift |
 | PRD and TRD coverage | Every feature folder has a TRD file and a `CLAUDE.md` of at most 20 lines; every INDEX row with IDs has a TRD |
 | Ratchet trend | Allowlist sizes versus the manifest's install snapshot (`long_modules`, `no_prd_id`, ...) |
+| Stale spec-kit references | `Grep "speckit" ` in `.specify/memory/constitution.md` and `AGENTS.md`; a hit while `repo.md` "Spec-kit" is `none` is drift, fixed by `/ai-kit update` |
+| Change folders | `changes/archive/` exists; no stale folder in `changes/` outside `archive/` on the base branch (`gate.py --final`) |
 | State folder | `.claude/prd-gate/` ignored by git |
+| Container hygiene | A `Dockerfile` or compose file without the `docker` section in `ai-kit.json`, or a compose service, volume or network without the repo label, is drift. Run `scripts/gates.sh guard` (read-only) and report its refusals, the Docker disk file warning and the unlabelled images it lists |
 | Global block | `~/.claude/CLAUDE.md` contains the kit block (between the `ai-kit` markers) |
 
 End with the fixes, each as the command or skill that applies it (`/ai-kit update`, `/trd-create` mode N2, `/prd-gate`).

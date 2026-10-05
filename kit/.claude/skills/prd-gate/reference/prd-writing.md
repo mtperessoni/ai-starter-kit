@@ -27,7 +27,7 @@ Style: English, product language; a technical term only in backticks and explain
 New entry at the top:
 
 ```markdown
-## <Name of the change> (YYYY-MM-DD, <approver>, <spec or branch>)
+## <Name of the change> (YYYY-MM-DD, <approver>, <change folder or branch>)
 
 Reason: <one sentence>. IDs: CHK-02, CHK-13.
 

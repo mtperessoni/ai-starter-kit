@@ -1,0 +1,7 @@
+- Scope: a pure refactor of the checkout code. Behavior must stay exactly the same, for every rule, including rounding and shipping.
+- Split by responsibility: validation of the input, totals (subtotal, discount, shipping), rounding, and building the receipt. Each in its own module under the checkout feature.
+- The public entry stays `checkout(cart, customer, coupon=None)` and the public names (`checkout`, `Cart`, `CartItem`, `Customer`, `Coupon`, `Receipt`) keep working from `orders`.
+- No product rule changes, so the product documents stay as they are. The technical map of the checkout feature must reflect the new modules.
+- Existing tests must keep passing and keep citing the rules they check.
+- Do not fix anything you notice along the way. If a behavior looks wrong, leave it and mention it in the summary.
+- Rollout: nothing to roll out, no flag, no data change.

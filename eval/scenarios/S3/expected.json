@@ -1,0 +1,26 @@
+{
+  "case": "C3",
+  "size": "S",
+  "prd_facts": [
+    {
+      "id": "f1",
+      "fact": "Shipping is free when the amount after discounts is 200.00 or more, so the boundary includes exactly 200.00."
+    },
+    {
+      "id": "f2",
+      "fact": "Orders below 200.00 after discounts, including 199.99, pay the flat shipping of 15.00."
+    },
+    {
+      "id": "f3",
+      "fact": "The amount compared is the subtotal after discounts, never before discounts."
+    },
+    {
+      "id": "f4",
+      "fact": "The product rule does not change: the PRD still says free at 200.00 or more and no other rule is touched."
+    }
+  ],
+  "dup_phrases": [
+    "(?i)free.{0,60}200\\.00",
+    "(?i)200\\.00.{0,60}free"
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "timeout_min": 75,
+  "parallel": 3,
+  "fixture": "fixture-large",
+  "fill": "fixture-large/fill.json",
+  "scenarios_dir": "scenarios-large",
+  "arms": {
+    "SKU": {
+      "ref": "eval/speckit-baseline",
+      "spec_kit": true,
+      "protocol": "arms/speckit.md"
+    },
+    "SKF": {
+      "ref": "eval/speckit-baseline",
+      "spec_kit": true,
+      "protocol": "arms/speckit-forced.md"
+    },
+    "LT": {
+      "ref": "feat/living-truth",
+      "spec_kit": false,
+      "protocol": "arms/living.md"
+    }
+  },
+  "scenarios": {
+    "L1": {
+      "reps": 2,
+      "budget_usd": 10
+    },
+    "L2": {
+      "reps": 2,
+      "budget_usd": 20
+    },
+    "L3": {
+      "reps": 2,
+      "budget_usd": 20
+    },
+    "L4": {
+      "reps": 2,
+      "budget_usd": 8
+    },
+    "L5": {
+      "reps": 2,
+      "budget_usd": 8
+    },
+    "L6": {
+      "reps": 2,
+      "budget_usd": 10
+    },
+    "L7": {
+      "reps": 2,
+      "budget_usd": 10
+    },
+    "L8": {
+      "reps": 2,
+      "budget_usd": 8
+    }
+  }
+}

@@ -1,0 +1,11 @@
+- Scope: a pure refactor of `features/promotions/promotion_engine.py` (about 700 lines). No product behavior changes: every quote, discount, rejection reason and rounding stays exactly as it is today.
+- Targets: `promotion_engine.py` at most 350 lines after the split; every Python file in the promotions folder at most 300 lines; nothing in the folder outside what is needed for the split moves.
+- Public surface stays: `evaluate` and `explain` remain importable from `promotion_engine`; callers in pricing, cart and checkout change nothing. The promotions package re-exports stay as they are.
+- Suggested cut lines (the team may choose others): the context and helpers, coupon intake, the stages, and the pipeline with `evaluate`. The pipeline order stays exactly as the product document states.
+- Boundaries: promotions may still import nothing from other features (see the module map); new modules follow the same naming style as the existing ones (one responsibility per file).
+- Product document: untouched. No rule is added, changed or removed. All rules PRM-01 to PRM-13 stay with the same text, and their Source column keeps pointing to real symbols, so if a rule points to a moved symbol the Source path is updated to the new module and nothing else in the row changes.
+- Technical map: the promotions TRD file, the invariants file and the promotions folder CLAUDE.md list the new modules and what each one holds, and how a task finds a stage without reading the whole engine.
+- Big-file lists: `repo.md` and the ratchet allowlist drop `promotion_engine.py` as a big file when it falls under the limit.
+- Tests: the visible tests keep passing and may be moved or split to mirror the new modules; behavior tests are not changed.
+- Who is affected: only people working in the code. No customer-visible change.
+- Rollout: as soon as merged, no flag.

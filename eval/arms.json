@@ -1,0 +1,15 @@
+{
+  "timeout_min": 60,
+  "parallel": 4,
+  "arms": {
+    "SKU": {"ref": "eval/speckit-baseline", "spec_kit": true, "protocol": "arms/speckit.md"},
+    "SKF": {"ref": "eval/speckit-baseline", "spec_kit": true, "protocol": "arms/speckit-forced.md"},
+    "LT": {"ref": "feat/living-truth", "spec_kit": false, "protocol": "arms/living.md"}
+  },
+  "scenarios": {
+    "S1": {"reps": 2, "budget_usd": 8},
+    "S2": {"reps": 2, "budget_usd": 15},
+    "S3": {"reps": 1, "budget_usd": 8},
+    "S4": {"reps": 1, "budget_usd": 8}
+  }
+}

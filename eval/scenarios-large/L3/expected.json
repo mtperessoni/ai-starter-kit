@@ -1,0 +1,17 @@
+{
+  "case": "C5",
+  "size": "L",
+  "prd_facts": [
+    {"id": "f1", "fact": "A customer can ask for an alert only on a product with nothing available; otherwise it is refused with in_stock."},
+    {"id": "f2", "fact": "Asking twice for the same product returns the same alert."},
+    {"id": "f3", "fact": "A customer has at most 10 alerts waiting (not yet notified); the 11th is refused with too_many_alerts."},
+    {"id": "f4", "fact": "When stock arrives for a product that had nothing available, every waiting alert is marked notified and the customer gets the back_in_stock email."},
+    {"id": "f5", "fact": "A notified alert is not sent again; a new request after being notified creates a new alert."},
+    {"id": "f6", "fact": "The notification rules list the new back_in_stock template."},
+    {"id": "f7", "fact": "The PRD has a new stock alerts section with rules ALR-01 to ALR-05."}
+  ],
+  "dup_phrases": [
+    "(?i)back_in_stock",
+    "(?i)alert.{0,120}(nothing available|sold.out|out of stock)"
+  ]
+}

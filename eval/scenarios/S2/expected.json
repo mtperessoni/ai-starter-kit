@@ -1,0 +1,38 @@
+{
+  "case": "C5",
+  "size": "L",
+  "prd_facts": [
+    {
+      "id": "f1",
+      "fact": "A customer has a store credit balance in the same currency, zero by default (field store_credit_balance)."
+    },
+    {
+      "id": "f2",
+      "fact": "Checkout applies the credit after discounts and shipping, so it pays the final order amount."
+    },
+    {
+      "id": "f3",
+      "fact": "The credit used is the smaller of the balance and the order amount, never above the order amount and never below zero."
+    },
+    {
+      "id": "f4",
+      "fact": "The receipt has a new field store_credit_used (0.00 when none is used) and total is the amount still to be paid after the credit, 0.00 when fully covered."
+    },
+    {
+      "id": "f5",
+      "fact": "Checkout itself does not change the balance; it decreases only when the order is confirmed, by exactly store_credit_used."
+    },
+    {
+      "id": "f6",
+      "fact": "Confirming a receipt that used no credit leaves the balance as it is."
+    },
+    {
+      "id": "f7",
+      "fact": "VIP, coupon, cap and shipping rules do not change, and adding credit to a balance is out of scope."
+    }
+  ],
+  "dup_phrases": [
+    "(?i)store credit.{0,100}(after|up to|only)",
+    "(?i)balance.{0,60}(decreas|reduc).{0,60}confirm"
+  ]
+}
