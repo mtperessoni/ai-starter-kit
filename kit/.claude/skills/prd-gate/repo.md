@@ -24,7 +24,7 @@ Parsed by `scripts/gate.py`. Keep the two-column table format and the key names.
 
 `language`: language of the PRD and TRD prose, the interview and the gate output. IDs, code, commits and file names stay English. The installer sets it from the language of the existing docs.
 
-`planned_heading`: the TRD heading (`## <value>`) that lists rules not built yet; G8 checks the IDs under it and G20 fails `--final` while it exists. Set it to the project's own word (for example `Planejado`).
+`planned_heading`: the level-2 TRD heading that lists rules not built yet; G8 checks the IDs under it and G20 fails `--final` while it exists. Set it to the project's own word (for example `Planejado`).
 
 `html`: the hand-maintained reading version (one tab per PRD, built by `/prd-create` from `docs/templates/prd.html`). The gate checks that every rule row has the same words there. `none` only for a repository that explicitly opts out.
 
