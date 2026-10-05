@@ -1,6 +1,7 @@
 """Readiness scripts of the kit: hotspots (PC12) and contract snapshots (DS30), against a throwaway project."""
 
 import json
+import sys
 import unittest
 
 from tests.test_kit_scripts import BASH, Project, run, write
@@ -34,7 +35,9 @@ class ContractDriftTest(unittest.TestCase):
         self.p = Project()
         config_path = self.p.root / "ai-kit.json"
         config = json.loads(config_path.read_text(encoding="utf-8"))
-        config["contracts"] = [{"file": "db/schema.sql", "command": "echo create table orders;"}]
+        # Not `echo create table orders;`: sh reads the `;` as the end of the command, cmd.exe prints it.
+        command = f'"{sys.executable}" -c "print(\'create table orders;\')"'
+        config["contracts"] = [{"file": "db/schema.sql", "command": command}]
         config_path.write_text(json.dumps(config), encoding="utf-8")
 
     def tearDown(self) -> None:
