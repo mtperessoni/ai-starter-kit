@@ -197,6 +197,10 @@ def write_manifest(out: Path, ref: str, files: dict[str, dict[str, str]]) -> Non
 def seed_commit(out: Path) -> None:
     run(["git", "init", "-q", "-b", "main"], out)
     run(["git", "config", "core.autocrlf", "false"], out)
+    gates = out / "scripts" / "gates.sh"
+    if gates.exists():
+        # The index bit alone leaves the file 644 on disk, which POSIX git reports as modified.
+        gates.chmod(gates.stat().st_mode | 0o111)
     run(["git", "add", "-A"], out)
     run(["git", "update-index", "--chmod=+x", "scripts/gates.sh"], out, check=False)
     run(["git", "commit", "-q", "-m", "chore: seed"], out, env=GIT_ENV)
