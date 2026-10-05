@@ -22,7 +22,7 @@ TARGET = re.compile(r"(?:\.(?:py|js|ts|tsx|jsx|go|rs|cs)\b|::|\btest_\w+)")
 TARGET_ARGS = re.compile(r"\b(?:pytest|jest|vitest|unittest)\b(.*)", re.S)
 WRAPPERS = re.compile(r"(^|[;&|(]\s*)(?:(?:env\s+)?(?:\w+=\S*\s+)*(?:rtk\s+(?:proxy\s+)?|timeout\s+\S+\s+|time\s+|nice\s+|nohup\s+|sudo\s+))+")
 NOT_IN_HASH = ("description", "timeout", "run_in_background")
-LOCK_WAIT_S, LOCK_STALE_S = 2.0, 5.0
+LOCK_WAIT_S, LOCK_STALE_S = 5.0, 10.0
 
 
 def redact(text):
@@ -211,7 +211,8 @@ class Lock:
                 os.close(os.open(self.path, os.O_CREAT | os.O_EXCL | os.O_WRONLY))
                 self.held = True
                 return self
-            except FileExistsError:
+            except (FileExistsError, PermissionError):
+                # Windows answers PermissionError while another process is deleting the lock.
                 try:
                     if time.time() - os.path.getmtime(self.path) > LOCK_STALE_S:
                         os.remove(self.path)
