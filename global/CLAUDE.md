@@ -13,6 +13,13 @@
 - Test output goes to a file; only failures and the summary come back into context.
 - Write the failing test first.
 
+## Docker and disk
+- Build an image only when a test must prove services start together; otherwise a throwaway database container or in-process fakes. Ask whether a cheaper test exists before building.
+- When the repository has `scripts/gates.sh`, build and run integration only through it (`build`, `integration`, `full`): it guards disk and image caps and cleans up on every exit.
+- A one-off container is `--rm`; an image pulled only for it is removed in the same step. Remove spike images when the spike ends.
+- Never start a background command with unbounded output; long runs go to a file, in the background, with a timeout longer than the run, so they are not killed mid-stack.
+- Before ending a session that used Docker, leave nothing of yours running or dangling. Delete only what is clearly yours; other projects' images and volumes are listed for me, never removed.
+
 ## Editing
 - Move code by script (line ranges or AST), never retype a function body.
 - Edit markdown and HTML with Write and Edit directly, never through ad hoc scripts.

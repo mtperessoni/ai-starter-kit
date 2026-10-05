@@ -20,6 +20,11 @@ scripts/gates.sh fix               # Repairs; then run lint
 scripts/gates.sh imports           # Import check (cycles)
 scripts/gates.sh ratchet           # Structure ratchet (docs/code-structure.md)
 scripts/gates.sh docs              # PRD, TRD and HTML consistency
+scripts/gates.sh integration       # Integration tier: disk and image guards first, cleanup on every exit
+scripts/gates.sh build [args]      # The only way to build images: same guards, same cleanup
+scripts/gates.sh sweep             # Remove test containers, volumes, networks left by killed runs
+scripts/gates.sh docker-clean      # Every labelled leftover; reports other projects' images, never removes them
+scripts/gates.sh clean-outputs     # Delete old or oversized background task outputs
 ```
 
 The stack commands behind each target are in `ai-kit.json`.
@@ -29,6 +34,14 @@ The stack commands behind each target are in `ai-kit.json`.
 - The full suite runs once, at the end of a delivery, compared with the recorded baseline of failures. A failure unrelated to what you touched waits for the end.
 - Redirect test output to a file and read only the failures and the summary.
 - The full gate sets its own environment (no network, no database for the unit tier); never rely on your shell's variables to make it offline. See `docs/trd/testing.md`.
+
+### Disk and container hygiene
+- Never start a background command with unbounded output: no `tail -f`, no printing poll loops. Output goes to a file; read its tail or the failure summary.
+- Prefer a throwaway database container or in-process fakes over building images; only a test that proves services start together builds images, once per session.
+- Every image, container, volume and network carries the labels named in `ai-kit.json` "docker" (`<namespace>.repo`, `<namespace>.purpose=test|dev|spike`), one tag per image. Stacks started by tests are `purpose=test`.
+- Build or pull only through `scripts/gates.sh build|integration|full`; they refuse when the disk or an image cap is short and clean up on every exit. Run long integration runs in the background with output to a file and a timeout longer than the run, so they are not killed mid-stack.
+- A one-off container is `--rm` and labelled `purpose=test`; an image pulled only for it is removed in the same step. A spike removes its images, and the third-party images it pulled, when it ends.
+- Clean up with `scripts/gates.sh docker-clean` and `clean-outputs`. On Docker Desktop, freed space returns to the host only after Docker Desktop is quit, or after compacting its disk file as admin.
 
 ## Critical constraints
 
