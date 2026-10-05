@@ -20,6 +20,9 @@ RUNNER = re.compile(SEP + r"(?:python\d?\s+-m\s+)?(?:pytest|unittest|jest|vitest
                     r"(?:npm|pnpm|yarn)\s+(?:run\s+)?test|go\s+test|cargo\s+test|dotnet\s+test)\b")
 TARGET = re.compile(r"(?:\.(?:py|js|ts|tsx|jsx|go|rs|cs)\b|::|\btest_\w+)")
 TARGET_ARGS = re.compile(r"\b(?:pytest|jest|vitest|unittest)\b(.*)", re.S)
+WRAPPERS = re.compile(r"(^|[;&|(]\s*)(?:(?:env\s+)?(?:\w+=\S*\s+)*(?:rtk\s+(?:proxy\s+)?|timeout\s+\S+\s+|time\s+|nice\s+|nohup\s+|sudo\s+))+")
+NOT_IN_HASH = ("description", "timeout", "run_in_background")
+LOCK_WAIT_S, LOCK_STALE_S = 2.0, 5.0
 
 
 def redact(text):
@@ -28,6 +31,7 @@ def redact(text):
 
 
 def classify(cmd):
+    cmd = WRAPPERS.sub(r"\1", cmd)
     m = re.search(r"scripts/gates\.sh\s+(\w+)", cmd)
     if m:
         return GATE_CLASS.get(m.group(1), "shell")
@@ -111,7 +115,8 @@ def build_event(p, now):
             raw = str(ti.get("file_path") or ti.get("path") or ti.get("pattern") or ti.get("url")
                       or ti.get("description") or "")
         e["cmd"] = redact(raw)[:160]
-        e["h"] = hashlib.sha1(json.dumps(ti, sort_keys=True).encode()).hexdigest()[:12]
+        same = {k: v for k, v in ti.items() if k not in NOT_IN_HASH}
+        e["h"] = hashlib.sha1(json.dumps(same, sort_keys=True).encode()).hexdigest()[:12]
         if low in ("edit", "write", "multiedit") and ti.get("file_path"):
             e["files"] = [ti["file_path"]]
     if "duration_ms" in p:
@@ -192,6 +197,39 @@ def write_meta(folder, ctx, e):
         json.dump(meta, f)
 
 
+class Lock:
+    """Async hooks run in parallel; without it, lines interleave and seq repeats."""
+
+    def __init__(self, path):
+        self.path = path
+        self.held = False
+
+    def __enter__(self):
+        deadline = time.time() + LOCK_WAIT_S
+        while True:
+            try:
+                os.close(os.open(self.path, os.O_CREAT | os.O_EXCL | os.O_WRONLY))
+                self.held = True
+                return self
+            except FileExistsError:
+                try:
+                    if time.time() - os.path.getmtime(self.path) > LOCK_STALE_S:
+                        os.remove(self.path)
+                        continue
+                except OSError:
+                    pass
+                if time.time() > deadline:
+                    return self
+                time.sleep(0.005)
+
+    def __exit__(self, *exc):
+        if self.held:
+            try:
+                os.remove(self.path)
+            except OSError:
+                pass
+
+
 def main():
     p = json.loads(sys.stdin.read())
     root = find_root(p.get("cwd"))
@@ -203,18 +241,19 @@ def main():
     now = time.time()
     e = build_event(p, now)
     path = os.path.join(folder, "events.jsonl")
-    e["seq"] = next_seq(path)
-    with open(path, "a", encoding="utf8") as f:
-        f.write(json.dumps(e) + "\n")
     max_mb = 5
     try:
         with open(os.path.join(root, "ai-kit.json"), encoding="utf8") as f:
             max_mb = float(json.load(f).get("telemetry", {}).get("max_events_mb", 5))
     except Exception:
         pass
-    cap(path, max_mb, now)
-    if e["ev"] in ("SessionStart", "SessionEnd"):
-        write_meta(folder, ctx, e)
+    with Lock(os.path.join(folder, "events.lock")):
+        e["seq"] = next_seq(path)
+        with open(path, "a", encoding="utf8") as f:
+            f.write(json.dumps(e) + "\n")
+        cap(path, max_mb, now)
+        if e["ev"] in ("SessionStart", "SessionEnd"):
+            write_meta(folder, ctx, e)
 
 
 if __name__ == "__main__":

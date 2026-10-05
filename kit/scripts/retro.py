@@ -15,17 +15,23 @@ import retro_detectors as det  # noqa: E402
 
 
 def jsonl(path: Path) -> list[dict]:
-    out = []
+    """Every object on every line; a line holding two interleaved writes yields both."""
+    out, decoder = [], json.JSONDecoder()
     try:
-        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
-            try:
-                d = json.loads(line)
-                if isinstance(d, dict):
-                    out.append(d)
-            except ValueError:
-                continue
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
     except OSError:
-        pass
+        return out
+    for line in lines:
+        i, s = 0, line.strip()
+        while i < len(s):
+            try:
+                d, i = decoder.raw_decode(s, i)
+            except ValueError:
+                break
+            if isinstance(d, dict):
+                out.append(d)
+            while i < len(s) and s[i].isspace():
+                i += 1
     return out
 
 
@@ -310,7 +316,8 @@ def main(argv=None) -> int:
         s = analyze(root, ctx)
         print(f"retro {ctx}: {len(s['findings'])} finding(s), wall {s['totals']['wall_s']} s, wait {s['totals']['human_wait_s']} s")
         for f in s["findings"][:10]:
-            print(f"  {f['id']} [{f['severity']}] {f['value']} > {f['threshold']} seq {f['evidence']['seq'][:5]}")
+            print(f"  {f['id']} [{f['severity']}] value {f['value']}, threshold {f['threshold']}, "
+                  f"seq {f['evidence']['seq'][:5]}")
         print(f"  report: .ai-kit/runs/{ctx}/retro.md")
     except Exception as exc:  # noqa: BLE001
         print(f"retro: failed softly: {exc}", file=sys.stderr)

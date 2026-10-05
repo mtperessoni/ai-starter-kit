@@ -199,5 +199,44 @@ class RobustTest(HookCase):
         self.assertLess(time.perf_counter() - t, 0.3)
 
 
+class FoundInTheRealEvaluation(HookCase):
+    """Defects the 2026-10-05 telemetry evaluation exposed in a real session with subagents."""
+
+    def test_concurrent_async_hooks_never_interleave_or_repeat_a_seq(self):
+        env = {k: v for k, v in os.environ.items() if k != "AI_KIT_CONTEXT"}
+        env["AI_KIT_CONTEXT"] = "c"
+        procs = []
+        for i in range(24):
+            p = {"session_id": "s1", "hook_event_name": "PostToolUse", "tool_name": "Bash", "cwd": str(self.proj),
+                 "tool_input": {"command": f"echo {i}", "description": "x" * 400}, "tool_use_id": f"t{i}",
+                 "tool_response": {"stdout": "y" * 2000, "stderr": ""}, "duration_ms": 5}
+            procs.append(subprocess.Popen([sys.executable, str(HOOK)], stdin=subprocess.PIPE, env=env,
+                                          cwd=str(self.proj), text=True))
+            procs[-1].stdin.write(json.dumps(p))
+            procs[-1].stdin.close()
+        for proc in procs:
+            proc.wait(timeout=30)
+        events = self.events("c")
+        self.assertEqual(len(events), 24)
+        self.assertEqual(sorted(e["seq"] for e in events), list(range(1, 25)))
+
+    def test_the_hash_ignores_the_description_so_repeats_match(self):
+        a = self.bash_with("python -c 'import sys; sys.exit(1)'", "first try")
+        b = self.bash_with("python -c 'import sys; sys.exit(1)'", "again")
+        self.assertEqual(a["h"], b["h"])
+
+    def test_wrapper_prefixes_do_not_hide_the_class(self):
+        self.assertEqual(self.bash("rtk docker build --help")["cls"], "docker.build")
+        self.assertEqual(self.bash("rtk proxy git status")["cls"], "git")
+        self.assertEqual(self.bash("timeout 30 pytest -q")["cls"], "test.full")
+        self.assertEqual(self.bash("env CI=1 rtk proxy bash scripts/gates.sh full")["cls"], "test.full")
+
+    def bash_with(self, command, description):
+        p = {"session_id": "s1", "hook_event_name": "PreToolUse", "tool_name": "Bash",
+             "tool_input": {"command": command, "description": description}, "tool_use_id": "tu"}
+        self.run_hook(p, {"AI_KIT_CONTEXT": "h"})
+        return self.events("h")[-1]
+
+
 if __name__ == "__main__":
     unittest.main()
