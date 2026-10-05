@@ -6,7 +6,7 @@ from pathlib import Path
 
 DEFAULTS = {
     "long_call_s": 300, "long_test_s": 300, "long_subagent_min": 30, "subagent_tokens": 150000,
-    "subagent_tools": 50, "context_peak_tokens": 200000, "big_output_kb": 100, "loop_repeats": 3,
+    "subagent_tools": 50, "context_peak_tokens": 200000, "big_output_kb": 20, "loop_repeats": 3,
     "edit_repeats": 8, "error_rate": 0.15, "memory_mb": 2048, "disk_drop_mb": 1024, "dead_mb": 500,
     "max_events_mb": 5, "keep_days": 14,
 }

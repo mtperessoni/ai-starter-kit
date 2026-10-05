@@ -15,17 +15,23 @@ import retro_detectors as det  # noqa: E402
 
 
 def jsonl(path: Path) -> list[dict]:
-    out = []
+    """Every object on every line; a line holding two interleaved writes yields both."""
+    out, decoder = [], json.JSONDecoder()
     try:
-        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
-            try:
-                d = json.loads(line)
-                if isinstance(d, dict):
-                    out.append(d)
-            except ValueError:
-                continue
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
     except OSError:
-        pass
+        return out
+    for line in lines:
+        i, s = 0, line.strip()
+        while i < len(s):
+            try:
+                d, i = decoder.raw_decode(s, i)
+            except ValueError:
+                break
+            if isinstance(d, dict):
+                out.append(d)
+            while i < len(s) and s[i].isspace():
+                i += 1
     return out
 
 

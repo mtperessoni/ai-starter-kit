@@ -334,6 +334,21 @@ class OutputsTests(unittest.TestCase):
         self.assertLess(len(lines), 300)
 
 
+class FoundInTheRealEvaluation(unittest.TestCase):
+    """Defects the 2026-10-05 telemetry evaluation exposed in a real session with subagents."""
+
+    def test_two_events_written_on_one_line_are_both_read(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "events.jsonl"
+            path.write_text('{"seq": 1, "ev": "a"}{"seq": 2, "ev": "b"}\n{"seq": 3, "ev": "c"}\nnot json\n',
+                            encoding="utf-8")
+            self.assertEqual([e["seq"] for e in retro.jsonl(path)], [1, 2, 3])
+
+    def test_the_default_big_output_is_below_what_claude_code_returns(self):
+        """Claude Code cuts a tool output near 30 KB before the model sees it."""
+        self.assertLess(det.DEFAULTS["big_output_kb"], 29)
+
+
 class PruneTests(unittest.TestCase):
     def test_prune_by_age_and_archived(self):
         root = project(clean_log().ev, ctx="old")

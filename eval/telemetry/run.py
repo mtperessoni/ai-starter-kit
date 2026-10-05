@@ -31,7 +31,7 @@ PROBLEM_PROMPT = """You are testing this repository's run telemetry. Do exactly 
 2. Use the Agent tool (general-purpose) with this prompt: "Run the Bash command `python -c \\"import time; time.sleep(30)\\"` once and reply done."
 3. Use the Agent tool (general-purpose) with this prompt: "Run the Bash command `bash scripts/gates.sh full` once and reply with its last line."
 4. Use the Agent tool (general-purpose) with this prompt: "Run the Bash command `python -c \\"print('x' * 300000)\\"` once and reply done."
-5. Use the Agent tool (general-purpose) with this prompt: "Run the Bash command `python -c \\"import sys; sys.exit(1)\\"` three times, as three separate Bash calls, ignoring the failure, then reply done."
+5. Use the Agent tool (general-purpose) with this prompt: "Run exactly the Bash command `python -c \\"import sys; sys.exit(1)\\"` three times, as three separate Bash calls. Do not change it and append nothing to it: it must fail each time. Then reply done."
 6. Use the Agent tool (general-purpose) with this prompt: "Run the Bash command `python scripts/run_probe.py --label mem -- python -c \\"b = bytearray(300 * 1024 * 1024); import time; time.sleep(1)\\"` once and reply done."
 7. Use the Agent tool (general-purpose) with this prompt: "Run the Bash command `docker build --help` once, then the Bash command `timeout 3 tail -f /dev/null`, ignoring failures, and reply done."
 8. Answer: done."""

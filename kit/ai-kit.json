@@ -104,7 +104,7 @@
     "subagent_tokens": 150000,
     "subagent_tools": 50,
     "context_peak_tokens": 200000,
-    "big_output_kb": 100,
+    "big_output_kb": 20,
     "loop_repeats": 3,
     "edit_repeats": 8,
     "error_rate": 0.15,
