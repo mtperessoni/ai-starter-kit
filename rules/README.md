@@ -16,6 +16,7 @@ Read only the file of the domain you need. IDs are stable: a new rule takes the 
 | [08-writing-style.md](08-writing-style.md) | WS | Language, punctuation, comments, commits, tables |
 | [09-lessons.md](09-lessons.md) | LS | What was measured and why each rule exists |
 | [10-creation-and-install.md](10-creation-and-install.md) | PC, IN | Creating the PRD and TRD; installing and updating the kit per project |
+| [11-telemetry.md](11-telemetry.md) | TM | Run telemetry: hooks, probes, the retro at the end of a delivery, thresholds |
 
 ## Where the rules end up
 
@@ -33,6 +34,8 @@ Read only the file of the domain you need. IDs are stable: a new rule takes the 
 | `.claude/skills/adr/` | DS23, DS27, DS28 |
 | `.claude/agents/<risk>-reviewer.md` | RV12 to RV16 |
 | `scripts/` and `ai-kit.json` | AR rules marked "ratchet", TS02 to TS08, TS22, TS28 to TS31, TS35 (`docker_hygiene.py`, `clean_task_outputs.py`, the `docker` section) |
+| `.claude/settings.json`, `.ai-kit/runs/` | TM03, TM12: the telemetry hooks (project-owned, merged) and the git-ignored run artifacts |
+| `scripts/telemetry_hook.py`, `run_probe.py`, `retro.py` and the `telemetry` section of `ai-kit.json` | TM01 to TM11 |
 | `.claude/skills/prd-gate/scripts/gate.py` | WF31 to WF33 (`--trace`, `--change`, `--final`) |
 | `.github/workflows/` | TS20, TS23 to TS26, RV17, CX10 |
 | `.ai-kit/manifest.json` and the `/ai-kit` skill | IN rules |

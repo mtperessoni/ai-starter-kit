@@ -40,7 +40,7 @@ Every change to product behavior follows **PRD, then TRD, then plan, then code**
 | WF22 | When the branch is behind the base: `git diff --stat HEAD..origin/<base> -- <paths read>`; pull only if it touches the scope | Avoid needless merges mid-task | SKILL.md light route step 4 |
 | WF23 | Resumption: `/prd-gate resume <slug>` reads only `state.md` and the current phase file; the pack is still valid when `git diff --quiet <base> origin/<base> -- <pack paths>` holds | Resuming costs one small file, not a replay | SKILL.md "State" |
 | WF24 | Explaining what the system did in a real session: ask for its id and read the recorded evidence before concluding; without it, list the code paths that could explain it and which evidence would separate them | No confident guesses about production behavior | classification.md |
-| WF25 | Final report: case, IDs touched, commits, plan path, out-of-scope divergences | The user sees outcome and debt in one place | SKILL.md "Final" |
+| WF25 | Final report: case, IDs touched, commits, plan path, out-of-scope divergences, and the retro findings of the run (or that it stayed within every threshold, TM) | The user sees outcome, debt and process problems in one place | SKILL.md "Final" |
 | WF26 | Where the plan lives: `changes/NNN-<slug>/plan.md` with the next free number (S: only when the change has tasks), or only a publish or deploy task when the change is config or env. Workflow state stays in `.claude/prd-gate/state/<slug>/` | The plan sits in one folder with the intent of its change; the legacy spec amendment path no longer exists | agent-plan.md; AGENTS.md "Directory map" |
 
 ## Change folders and living truth

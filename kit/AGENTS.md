@@ -25,6 +25,8 @@ scripts/gates.sh build [args]      # The only way to build images: same guards, 
 scripts/gates.sh sweep             # Remove test containers, volumes, networks left by killed runs
 scripts/gates.sh docker-clean      # Every labelled leftover; reports other projects' images, never removes them
 scripts/gates.sh clean-outputs     # Delete old or oversized background task outputs
+scripts/gates.sh context <name>    # Name the run for telemetry (prd-gate does it with the slug)
+scripts/gates.sh retro             # End of a delivery: what was slow, expensive, looping or wasteful
 ```
 
 The stack commands behind each target are in `ai-kit.json`.
@@ -42,6 +44,11 @@ The stack commands behind each target are in `ai-kit.json`.
 - Build or pull only through `scripts/gates.sh build|integration|full`; they refuse when the disk or an image cap is short and clean up on every exit. Run long integration runs in the background with output to a file and a timeout longer than the run, so they are not killed mid-stack.
 - A one-off container is `--rm` and labelled `purpose=test`; an image pulled only for it is removed in the same step. A spike removes its images, and the third-party images it pulled, when it ends.
 - Clean up with `scripts/gates.sh docker-clean` and `clean-outputs`. On Docker Desktop, freed space returns to the host only after Docker Desktop is quit, or after compacting its disk file as admin.
+
+### Run telemetry
+- Hooks record every tool call, subagent, compaction and wait as one line in `.ai-kit/runs/<context>/events.jsonl` (git-ignored); `gates.sh` test and build targets add `resources.jsonl` (time, memory, disk, tests collected). Tool outputs are never stored; commands are truncated and secrets redacted.
+- Nothing to run while working: the hook is silent and never blocks.
+- At the end of a delivery, after the full suite, run `scripts/gates.sh retro`. It writes `retro.md` with findings only for metrics past the thresholds of `ai-kit.json` `telemetry`; a run within every threshold has none. Report the findings, or say the run stayed within every threshold.
 
 ## Critical constraints
 

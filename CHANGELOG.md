@@ -4,6 +4,13 @@ User-visible changes to the kit, newest first. Projects receive them through `/a
 
 ## Unreleased
 
+Run telemetry: every run leaves summarized artifacts and a retrospective names what was slow, expensive, looping or wasteful.
+
+- Hooks record tool calls, subagents, compactions and waits to `.ai-kit/runs/<context>/` (git-ignored); `gates.sh` test and build targets go through `run_probe.py` for time, memory and disk; `gates.sh retro` writes `retro.md` with findings only past the thresholds of `ai-kit.json` `telemetry`.
+- prd-gate: step 1 runs `gates.sh context <slug>`; E20 runs the retro after the full suite and the final report lists the findings or says the run stayed within every threshold.
+- Rules TM01 to TM12 in `rules/11-telemetry.md`.
+- On update: copy `scripts/telemetry_hook.py`, `scripts/run_probe.py` and `scripts/retro.py`; merge the kit's hooks into `.claude/settings.json` keeping the project's own; add the `telemetry` section to `ai-kit.json` with the defaults; add `.ai-kit/runs/` to `.gitignore`.
+
 Living truth plus change deltas: every fact has one living home; a change folder holds intent, plan and state, never truth.
 
 - The kit no longer depends on spec-kit: `/speckit-*` and `specs/` are gone from CLAUDE.md, AGENTS.md, the constitution, the skills and the rule catalog.
