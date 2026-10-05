@@ -4,6 +4,17 @@ User-visible changes to the kit, newest first. Projects receive them through `/a
 
 ## Unreleased
 
+Adoption in an existing repository: the kit installs without losing the project's docs language, TRD heading, gates script or structural test.
+
+- prd-gate repo.md Gate config: `language` (default English) for the PRD, TRD, interview and gate output, read by R03 and `reference/workers.md`; `planned_heading` (default `Planned`) read by G8 and G20.
+- `scripts/gates.sh` delegates to `scripts/gates.project.sh` when it exists: targets the kit does not define, and targets in `ai-kit.json` `commands.project_targets` (default `[]`), run there with their arguments.
+- `scripts/ratchet.py`: `ai-kit.json` `ratchet.skip` (default `[]`) names checks to skip (`long_modules`, `long_tests`, `banned_names` or its alias `generic_names`, and the others `--init` prints); install.md says to skip the checks a project's own structural test already covers.
+- prd-gate `reference/impact.md`: rows K01, K05 and K06 restored (K06 pointed at K01's text).
+- prd-gate G3: the Source and Change via checks apply only to tables whose last header column is "Change via", so open-question tables no longer warn once per row.
+- prd-gate G6: text inside markdown code spans (for example `<fileKey>`) is no longer stripped as an HTML tag, so it matches the escaped placeholder in the HTML.
+- `docs/templates/prd.html`: explicit grid tracks (`minmax(0,1fr)`), so wide tables, mermaid diagrams and long tokens wrap or scroll inside their box and the page never exceeds 100% width.
+- On update: add `language` and `planned_heading` to the `repo.md` Gate config table, filled from the project's existing docs (language of the prose, the TRD heading in use) and not from the defaults when they differ; add `commands.project_targets: []` and `ratchet: {"skip": []}` to `ai-kit.json`; copy `scripts/gates.sh` and `scripts/ratchet.py`; when the project has its own gates script or structural test, rename it to `scripts/gates.project.sh` and list its targets in `project_targets`, or list the overlapping checks in `ratchet.skip`; copy `docs/templates/prd.html` into the project's `prd.html` only by proposing the CSS diff.
+
 Run telemetry: every run leaves summarized artifacts and a retrospective names what was slow, expensive, looping or wasteful.
 
 - Hooks record tool calls, subagents, compactions and waits to `.ai-kit/runs/<context>/` (git-ignored); `gates.sh` test and build targets go through `run_probe.py` for time, memory and disk; `gates.sh retro` writes `retro.md` with findings only past the thresholds of `ai-kit.json` `telemetry`.
