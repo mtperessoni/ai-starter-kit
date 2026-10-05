@@ -104,7 +104,8 @@
     "offline_unset": [
       "DATABASE_URL"
     ],
-    "offline_flag": "OFFLINE_ONLY"
+    "offline_flag": "OFFLINE_ONLY",
+    "project_targets": []
   },
   "tests": {
     "runner": "<runs the given test files offline without coverage, for example: uv run pytest {files} --no-cov -q>",

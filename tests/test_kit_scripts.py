@@ -458,6 +458,35 @@ class GatesShTest(unittest.TestCase):
         self.assertEqual(r.returncode, 2)
         self.assertIn("commands.setup is not set", r.stderr)
 
+    def project_override(self, targets: list[str] | None = None) -> None:
+        write(self.p.root, "scripts/gates.project.sh", 'echo "project:$*"\n')
+        if targets is not None:
+            config_path = self.p.root / "ai-kit.json"
+            config = json.loads(config_path.read_text(encoding="utf-8"))
+            config["commands"]["project_targets"] = targets
+            config_path.write_text(json.dumps(config), encoding="utf-8")
+
+    def test_a_target_the_kit_lacks_goes_to_the_project_script(self) -> None:
+        self.project_override()
+        r = run(self.p.root, BASH, "scripts/gates.sh", "divergence", "--strict")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("project:divergence --strict", r.stdout)
+
+    def test_a_listed_target_goes_to_the_project_script_even_when_the_kit_has_it(self) -> None:
+        self.project_override(["setup"])
+        r = run(self.p.root, BASH, "scripts/gates.sh", "setup", "x")
+        self.assertIn("project:setup x", r.stdout)
+
+    def test_an_unlisted_kit_target_still_runs_the_kit(self) -> None:
+        self.project_override(["offline"])
+        config_path = self.p.root / "ai-kit.json"
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        config["commands"]["setup"] = "echo setup-ran"
+        config_path.write_text(json.dumps(config), encoding="utf-8")
+        r = run(self.p.root, BASH, "scripts/gates.sh", "setup")
+        self.assertIn("setup-ran", r.stdout)
+        self.assertNotIn("project:", r.stdout)
+
     def test_an_unknown_target_prints_usage(self) -> None:
         r = run(self.p.root, BASH, "scripts/gates.sh", "nope")
         self.assertEqual(r.returncode, 2)

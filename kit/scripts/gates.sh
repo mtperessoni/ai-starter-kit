@@ -39,6 +39,9 @@ usage: scripts/gates.sh <target> [args]
   setup            make a fresh clone or worktree ready to test (commands.setup)
   hotspots [args]  code files ranked by commits x lines: what the readiness plan splits first
   contracts        schema and API snapshots (ai-kit.json "contracts") still match the code
+
+With scripts/gates.project.sh present, any other target, and every target in ai-kit.json
+commands.project_targets, runs there with its arguments.
 USAGE
     exit 2
 }
@@ -89,6 +92,18 @@ after_docker() {
 target="$1"
 shift
 mkdir -p "$LOG_DIR"
+
+PROJECT_GATES="scripts/gates.project.sh"
+delegate() { exec bash "$PROJECT_GATES" "$target" "$@"; }
+# commands.project_targets: targets the project keeps even when this file defines them.
+if [ -f "$PROJECT_GATES" ] && python - "$target" <<'PY'
+import json, sys
+listed = json.load(open("ai-kit.json", encoding="utf-8")).get("commands", {}).get("project_targets", [])
+sys.exit(0 if sys.argv[1] in listed else 1)
+PY
+then
+    delegate "$@"
+fi
 
 case "$target" in
 related)
@@ -191,6 +206,7 @@ contracts)
     python scripts/contract_drift.py
     ;;
 *)
+    [ -f "$PROJECT_GATES" ] && delegate "$@"
     usage
     ;;
 esac
