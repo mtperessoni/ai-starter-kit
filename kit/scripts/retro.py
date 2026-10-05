@@ -316,7 +316,8 @@ def main(argv=None) -> int:
         s = analyze(root, ctx)
         print(f"retro {ctx}: {len(s['findings'])} finding(s), wall {s['totals']['wall_s']} s, wait {s['totals']['human_wait_s']} s")
         for f in s["findings"][:10]:
-            print(f"  {f['id']} [{f['severity']}] {f['value']} > {f['threshold']} seq {f['evidence']['seq'][:5]}")
+            print(f"  {f['id']} [{f['severity']}] value {f['value']}, threshold {f['threshold']}, "
+                  f"seq {f['evidence']['seq'][:5]}")
         print(f"  report: .ai-kit/runs/{ctx}/retro.md")
     except Exception as exc:  # noqa: BLE001
         print(f"retro: failed softly: {exc}", file=sys.stderr)
