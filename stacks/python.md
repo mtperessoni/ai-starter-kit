@@ -35,6 +35,13 @@ Proxies worth adding to ruff: `C901` (complexity) and `PLR0915` (statements).
 ## Offline guard
 An autouse fixture in the **root** `conftest.py` blocks `socket.socket.connect` outside loopback; under the offline flag it also blocks loopback and database driver connects, and fails instead of skipping. The integration tier's session fixtures never load in the offline target because it ignores that path.
 
+## Containers
+When the repository uses Docker (a `Dockerfile`, a compose file, `testcontainers` in dependencies), the installer adds the `docker` section to `ai-kit.json` and wires TS27 to TS36:
+- `tests/integration/conftest.py`: a session-scoped autouse fixture imports `sweep` and `load_labels` from `scripts.docker_hygiene` and sweeps stale leftovers when the session starts and when it ends (skipped under the offline flag); the fixture that builds images calls `check_disk`, `check_image_cap` and `check_total_images` first and fails the session when one refuses.
+- Testcontainers: the root `conftest.py` patches `DockerContainer.start` to add the test labels, and fails the session when `TESTCONTAINERS_RYUK_DISABLED` is true (Ryuk reaps containers of a killed run).
+- Compose: the label anchor is `<namespace>.purpose: ${<PROJECT>_PURPOSE:-dev}`; a stack fixture sets it to `test` and tears down with `down -v --remove-orphans`, failing when `down` fails.
+- A test that runs `scripts/gates.sh` finds Git Bash on Windows (skip `System32` and `WindowsApps`, fall back to `<git>/../bin/bash.exe`).
+
 ## CI setup
 ```yaml
       - uses: astral-sh/setup-uv@v3

@@ -18,8 +18,15 @@ usage: scripts/gates.sh <target> [args]
   related [files]  the ratchet, then the tests related to the change (mirror + importers)
   one <file>       one test file, offline, no coverage threshold
   offline          the whole unit tier with NO network and NO database: once, at the end
-  integration      the integration tier (needs a database)
-  full             everything
+  integration      the integration tier (needs Docker): guards first; on exit, even a failed or
+                   interrupted one: sweep, build cache bounded, old task outputs deleted
+  full             everything: same guards, same exit cleanup
+  build [args]     docker compose build: same guards, same exit cleanup
+  guard            disk, image-cap and Docker disk file guards (guard-disk, guard-images run one each)
+  sweep            remove this repo's test containers, volumes and networks older than
+                   DOCKER_STALE_MINUTES (60): what a killed run left behind
+  docker-clean     remove labelled leftovers of any age and report unlabelled images (never touches those)
+  clean-outputs    delete Claude Code task outputs older than 2 days or over 200 MB
   baseline <slug>  run offline and record its failures as the slug's baseline
   compare <slug>   run offline and print only failures that are not in the baseline
   lint             verify lint, format and types, as CI does
@@ -45,6 +52,26 @@ offline() {
     env "${args[@]}" "$(cmd offline_flag)=1" bash -c "$*"
 }
 
+# Limits (env, defaults in scripts/docker_hygiene.py): MIN_FREE_GB 10, IMAGE_CAP 8, IMAGE_CAP_GB 6,
+# TOTAL_IMAGE_CAP_GB 20, BUILD_CACHE_MAX_GB 3, DOCKER_STALE_MINUTES 60, DOCKER_DISK_WARN_GB 40.
+# GATES_FREE_GB_OVERRIDE and DOCKER_CLI are for tests.
+read -ra DOCKER <<< "${DOCKER_CLI:-docker}"
+guard_disk() { python scripts/docker_hygiene.py check-disk; }
+guard_images() { python scripts/docker_hygiene.py check-image-cap; }
+guards() {
+    guard_disk
+    guard_images
+    python scripts/docker_hygiene.py check-docker-disk
+}
+prune_cache() { python scripts/docker_hygiene.py prune-cache || echo "build cache prune failed, continuing" >&2; }
+sweep() { python scripts/docker_hygiene.py sweep || echo "sweep failed, continuing" >&2; }
+# Runs on every exit of a Docker target, failed or interrupted, so a broken run never leaves the disk to fill.
+after_docker() {
+    sweep
+    prune_cache
+    python scripts/clean_task_outputs.py || echo "clean-outputs failed, continuing" >&2
+}
+
 [ $# -ge 1 ] || usage
 target="$1"
 shift
@@ -62,10 +89,40 @@ offline)
     offline "$(cmd test) $(cmd offline_args) $*"
     ;;
 integration)
+    guards
+    trap after_docker EXIT
     bash -c "$(cmd test) $(cmd integration_args) $*"
     ;;
 full)
+    guards
+    trap after_docker EXIT
     bash -c "$(cmd test) $*"
+    ;;
+build)
+    guards
+    trap after_docker EXIT
+    "${DOCKER[@]}" compose build "$@"
+    ;;
+guard)
+    guards
+    ;;
+sweep)
+    sweep
+    ;;
+guard-disk)
+    guard_disk
+    ;;
+guard-images)
+    guard_images
+    ;;
+prune-cache)
+    prune_cache
+    ;;
+docker-clean)
+    python scripts/docker_hygiene.py clean
+    ;;
+clean-outputs)
+    python scripts/clean_task_outputs.py "$@"
     ;;
 baseline)
     slug="${1:?usage: gates.sh baseline <slug>}"
