@@ -20,6 +20,9 @@ Read-only. Reports, in at most 25 lines, what drifted from the kit and from its 
 | Telemetry hooks | `.claude/settings.json` registers `scripts/telemetry_hook.py` for the 12 events of TM03; `.ai-kit/runs/` is git-ignored; the `telemetry` section exists in `ai-kit.json` |
 | Last run's coverage | In `.ai-kit/runs/<latest>/retro.md` (or `summary.json`): the Coverage line; a low share of calls with a duration or no probes means the hook or `run_probe.py` is not wired |
 | Last retro findings | Count and titles of the Findings section of that `retro.md`; none is reported as within every threshold |
+| Leftover prd-gate | `.claude/skills/prd-gate/` or `.claude/prd-gate/` exists, or `Grep "prd-gate"` hits CLAUDE.md, AGENTS.md, the constitution, settings, `ai-kit.json` or `docs/`: drift (K-80), fixed by `/ai-kit update` |
+| Hand HTML under generated | `repo.md` `html_mode` is `generated` and `build_prd_html.py --check` fails: the HTML was edited by hand, rebuild it instead (K-63) |
+| Commit trailers | `scripts/gates.sh trailers` on the last 20 commits; missing `Rules:` or `Case: none` is drift (K-72) |
 | Global block | `~/.claude/CLAUDE.md` contains the kit block (between the `ai-kit` markers) |
 
 End with the fixes, each as the command or skill that applies it (`/ai-kit update`, `/trd-create` mode N2, `/prd-flow`).

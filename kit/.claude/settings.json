@@ -9,6 +9,7 @@
       "Bash(python scripts/hotspots.py:*)",
       "Bash(python scripts/contract_drift.py:*)",
       "Bash(python .claude/skills/prd-flow/scripts/gate.py:*)",
+      "Bash(python .claude/skills/prd-flow/scripts/build_prd_html.py:*)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
       "Bash(git --no-pager diff:*)",
