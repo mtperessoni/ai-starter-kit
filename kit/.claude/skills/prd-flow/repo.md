@@ -21,12 +21,24 @@ Parsed by `scripts/gate.py`. Keep the two-column table format and the key names.
 | planned_heading | Planned |
 | pack_budget_lines | 120 |
 | plan_budget_kb | 60 |
+| proposed_marker | proposed |
+| html_mode | generated |
+| html_template | docs/templates/prd.html |
+| trd_budget_lines | 250 |
+
+`proposed_marker`: the word inside `*(proposed)*`, the marker of a rule that comes only from documents (K-11). G30 fails `--final` while one is left.
+
+`html_mode`: `generated` (the HTML is built by `scripts/build_prd_html.py`, G29 checks it is current) or `hand` (maintained by hand, G5, G6 and G10 check it). Absent key means `hand`.
+
+`html_template`: the template the build renders into `html`.
+
+`trd_budget_lines`: lines a TRD file may have before G26 warns; an area over it splits into parts (`reference/trd-planned.md`).
 
 `language`: language of the PRD and TRD prose, the interview and the gate output. IDs, code, commits and file names stay English. The installer sets it from the language of the existing docs.
 
 `planned_heading`: the level-2 TRD heading that lists rules not built yet; G8 checks the IDs under it and G20 fails `--final` while it exists. Set it to the project's own word (for example `Planejado`).
 
-`html`: the hand-maintained reading version (one tab per PRD, built by `/prd-create` from `docs/templates/prd.html`). The gate checks that every rule row has the same words there. `none` only for a repository that explicitly opts out.
+`html`: the reading version (one tab per PRD). With `html_mode` `generated` it is rendered from `docs/prd/` and never edited; with `hand` it is maintained by hand and the gate checks that every rule row has the same words there. `none` only for a repository that explicitly opts out.
 
 ## Commands
 
@@ -92,6 +104,22 @@ What a request cannot change by itself. Used by `reference/impact.md`.
 | Variants (platforms, channels, engines) | `<docs/prd/... section>` or `none` | `<for example: web and mobile>` |
 | Tenants or customers | `<docs/prd/... section>` or `none` | `<per-tenant behavior is configuration, never a branch on the name>` |
 
+## Rule owners (K-24)
+
+Who decides on a section. When a change touches an owned section and the approver is not the owner, the confrontation names the owner, step 4 does not close until the user states the owner agreed, and the CHANGELOG records `decided by <owner>, written by <approver>`. Delete the rows when nobody owns a section.
+
+| PRD files (glob) | Owner | How they approve |
+|---|---|---|
+| `<docs/prd/product/04-*.md>` | `<name or role>` | `<in the interview, a PR review, a message>` |
+
+## Shared PRDs (K-71)
+
+PRD folders kept identical in a sibling repository. `gate.py --sibling` fails G28 when they differ (line endings normalized) and warns when the sibling path is absent locally. Delete the rows when none is shared.
+
+| PRD folder | Sibling repository path | Source of truth |
+|---|---|---|
+| `<docs/prd/triage-documents>` | `<C:/Projects/backend/docs/prd/triage-documents>` | `<this repository or the sibling>` |
+
 ## Extra interview dimensions
 
 Domain dimensions added after D15 of `reference/interview.md`.
@@ -105,6 +133,8 @@ Domain dimensions added after D15 of `reference/interview.md`.
 | Repository | Local path | What to check |
 |---|---|---|
 | `<backend>` | `<C:/Projects/backend>` | `git -C <path> grep -n "<field>" origin/<branch> -- src` (DTO validation, enums) |
+
+K08 uses `scripts/gates.sh contracts` when snapshots are configured (K-74). A row here with no snapshot configured is a prompt for trd-create and `/ai-kit install` to propose configuring them.
 
 ## Change routing (planner)
 
