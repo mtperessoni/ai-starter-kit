@@ -1,4 +1,4 @@
-"""gate.py --trd (K-54): TRD paths, symbols and IDs against the tracked files (G23 to G26)."""
+"""gate.py --trd: TRD paths, symbols and IDs against the tracked files (G23 to G26)."""
 
 import re
 from pathlib import Path
@@ -18,7 +18,7 @@ MAX_ROW_FILES = 20
 class Tracked:
     def __init__(self, root: Path) -> None:
         self.root = root
-        self.files = [f for f in git(root, "ls-files").splitlines() if f]
+        self.files = [f for f in git(root, "-c", "core.quotepath=false", "ls-files", "-z").split("\0") if f]
         self.tops = {f.split("/")[0] for f in self.files if "/" in f}
         self.texts: dict[str, str] = {}
 
@@ -73,6 +73,7 @@ def strip_planned(lines: list[str], heading: str) -> list[str]:
 
 def check_row(rel: str, header: list[str], row: list[str], tracked: Tracked, g23: set[str]) -> None:
     low = [h.lower() for h in header]
+    row = row + [""] * (len(header) - len(row))
     if "changes or creates" in low and "creates" in row[low.index("changes or creates")].lower():
         return
     paths = []

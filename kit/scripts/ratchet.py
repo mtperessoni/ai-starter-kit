@@ -119,14 +119,14 @@ def invariant_gaps(root, cfg) -> int | None:
     for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
         if not line.lstrip().startswith("|"):
             continue
-        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        cells = [c.strip() for c in re.split(r"(?<!\\)\|", line.strip().strip("|"))]
         if all(re.fullmatch(r":?-{2,}:?", c) for c in cells if c):
             continue
         if proof is None and any(c.lower() == "proof" for c in cells):
             proof = [c.lower() for c in cells].index("proof")
             continue
         cell = cells[proof] if proof is not None and proof < len(cells) else cells[-1]
-        if "gap" in cell.lower():
+        if re.search(r"\bgap\b", cell, re.I) and not re.search(r"\bno gap\b", cell, re.I):
             gaps += 1
     return gaps
 

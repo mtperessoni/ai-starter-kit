@@ -1,4 +1,4 @@
-"""Build the PRD reading page from the markdown in docs/prd (K-60, K-61). Stdlib only, deterministic.
+"""Build the PRD reading page from the markdown in docs/prd. Stdlib only, deterministic.
 
     python build_prd_html.py            write the page (repo.md `html`)
     python build_prd_html.py --check    exit 1 when the page differs from a fresh render
@@ -88,7 +88,7 @@ def index_entries(prd_dir: Path) -> list[tuple[str, str, str, list[tuple[Path, s
                 continue
             link = INDEX_LINK.search(line) if entries and line.startswith("|") else None
             if link:
-                cells = [c.strip() for c in line.strip().strip("|").split("|")]
+                cells = [c.strip().replace("\\|", "|") for c in re.split(r"(?<!\\)\|", line.strip().strip("|"))]
                 entries[-1][3].append((prd_dir / link.group(1), cells[1] if len(cells) > 1 else ""))
     if entries:
         return entries

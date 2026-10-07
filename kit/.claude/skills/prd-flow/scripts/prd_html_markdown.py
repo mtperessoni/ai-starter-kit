@@ -47,6 +47,9 @@ def marker_class(text: str) -> str:
     return "mk"
 
 
+SAFE_SCHEMES = {"http", "https", "mailto"}
+
+
 class Inline:
     """Inline markdown (code, links, bold, italics, markers) to escaped HTML."""
 
@@ -73,8 +76,11 @@ class Inline:
 
     def link(self, label: str, url: str, keep: Callable[[str], str]) -> str:
         href, go = self.resolve(url)
+        scheme = re.match(r"^([a-zA-Z][a-zA-Z0-9+.-]*):", href)
+        if scheme and scheme.group(1).lower() not in SAFE_SCHEMES:
+            return label
         extra = f' data-go="{attr(go)}"' if go else ""
-        if re.match(r"^[a-z]+:", href):
+        if scheme:
             extra += ' target="_blank" rel="noopener"'
         return keep(f'<a href="{attr(href)}"{extra}>') + label + keep("</a>")
 

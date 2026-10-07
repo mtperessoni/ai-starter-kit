@@ -37,7 +37,7 @@ DEFAULTS = {
 errors: list[str] = []
 warnings: list[str] = []
 baseline: dict[tuple[str, str], list[str]] = {}
-rule_table_ids: set[str] = set()  # IDs of rows in tables whose last header column is "Change via"
+rule_table_ids: set[str] = set()  # IDs of rows in tables whose header has a "Change via" column
 
 Rules = dict[str, tuple[Path, list[str]]]
 
@@ -113,8 +113,7 @@ def read_md_rules(prd: Path, pattern: str) -> Rules:
                 if not line.startswith("|"):
                     is_rule_table = False
                 elif not SEPARATOR.match(line):
-                    last = cells(line.strip().strip("|"))[-1]
-                    is_rule_table = last.lower() == "change via"
+                    is_rule_table = "change via" in [c.lower() for c in cells(line.strip().strip("|"))]
                 continue
             rid = m.group(1)
             if is_rule_table:
@@ -145,14 +144,26 @@ def expand(spec: str) -> set[str]:
 
 
 def literal_rows(text: str) -> list[tuple[str, str]]:
-    found, current = [], ""
+    found: list[tuple[int, str, str]] = []
+    current, dated = "", 0
     for line in text.splitlines():
+        if re.match(r"^## \d{4}-\d\d-\d\d", line):
+            dated += 1
+            continue
         m = re.match(r"^#{2,3} (\S+\.md)\s*$", line)
         if m:
             current = m.group(1)
         elif is_table_line(line.strip()) and current:
-            found.append((current, line.strip()))
-    return found
+            row = ROW.match(line.strip())
+            if row:
+                found = [x for x in found if not (x[0] < dated and ROW.match(x[2]) and ROW.match(x[2]).group(1) == row.group(1))]
+            found.append((dated, current, line.strip()))
+    return [(rel, line) for _, rel, line in found]
+
+
+def ends_with_path(path: Path, rel: str) -> bool:
+    parts = Path(rel).parts
+    return bool(parts) and path.parts[-len(parts):] == parts
 
 
 def section(text: str, title: str) -> str:

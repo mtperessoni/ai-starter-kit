@@ -8,6 +8,7 @@ from gate_core import Rules, cells, err, is_table_line
 STATES = {"user", "doc", "assumed-confirmed", "n/a", "question"}
 BASE_DIMENSIONS = [f"D{n:02d}" for n in range(1, 16)]
 HEADING = re.compile(r"^## Dimensions\b.*$", re.M)
+DATED = re.compile(r"\d{4}-\d\d-\d\d")
 DIMENSION = re.compile(r"^(D\d+)\b")
 
 
@@ -27,9 +28,14 @@ def extra_dimensions() -> list[str]:
     return found
 
 
-def sections(text: str) -> list[str]:
-    parts = HEADING.split(text)
-    return parts[1:]
+def sections(text: str) -> list[tuple[bool, str]]:
+    heads = list(HEADING.finditer(text))
+    found = []
+    for i, m in enumerate(heads):
+        end = heads[i + 1].start() if i + 1 < len(heads) else len(text)
+        body = re.split(r"^## ", text[m.end():end], maxsplit=1, flags=re.M)[0]
+        found.append((bool(DATED.search(m.group(0))), body))
+    return found
 
 
 def known_question(qid: str, rules_text: str, prd: Path) -> bool:
@@ -48,7 +54,7 @@ def check_interview(rules_path: Path, prd: Path, rules: Rules) -> None:
         err("Q3", "interview.md without a '## Dimensions' table")
         return
     rules_text = rules_path.read_text(encoding="utf-8")
-    for n, block in enumerate(blocks):
+    for n, (dated, block) in enumerate(blocks):
         seen: set[str] = set()
         for line in block.splitlines():
             if not is_table_line(line.strip()):
@@ -67,7 +73,7 @@ def check_interview(rules_path: Path, prd: Path, rules: Rules) -> None:
                     err("Q3", f"{dim}: state question without a Q- ID in Answer")
                 elif not known_question(qid.group(0), rules_text, prd):
                     err("Q3", f"{dim}: {qid.group(0)} exists neither in approved-rules.md nor in the PRD")
-        if n == 0:
+        if n == 0 and not dated:
             for dim in [*BASE_DIMENSIONS, *extra_dimensions()]:
                 if dim not in seen:
                     err("Q3", f"interview.md without the dimension {dim}")

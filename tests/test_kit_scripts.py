@@ -558,6 +558,13 @@ class InvariantGapRatchetTest(unittest.TestCase):
         self.allow(2)
         self.assertEqual(self.p.py("scripts/ratchet.py").returncode, 0)
 
+    def test_escaped_pipes_and_the_word_gap_in_other_forms_do_not_count(self) -> None:
+        rows = ["| I-01 | a \\| gap | gate |", "| I-02 | B | no gap here |", "| I-03 | C | gaps closed |", "| I-04 | D | gap |"]
+        self.inv.write_text("| ID | Rule | Proof |\n|---|---|---|\n" + "\n".join(rows) + "\n", encoding="utf-8", newline="\n")
+        self.allow(1)
+        r = self.p.py("scripts/ratchet.py")
+        self.assertEqual(r.returncode, 0, r.stdout)
+
     def test_an_absent_key_or_file_is_no_error(self) -> None:
         self.allow(None)
         r = self.p.py("scripts/ratchet.py")
@@ -602,6 +609,17 @@ class CommitTrailersTest(unittest.TestCase):
         self.commit("docs/notes.md", "docs: notes")
         self.assertEqual(self.check().returncode, 0)
 
+    def test_a_bad_range_prints_the_git_error_and_exits_2(self) -> None:
+        r = self.p.py("scripts/commit_trailers.py", "nope..HEAD")
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("nope", r.stderr)
+
+    def test_a_path_with_a_space_and_non_ascii_letters_is_seen(self) -> None:
+        self.commit("src/features/orders/my café.py", "feat: spaced")
+        r = self.check()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("feat: spaced", r.stdout)
+
     @unittest.skipUnless(BASH, "bash not available")
     def test_gates_trailers_runs_the_check_on_a_range(self) -> None:
         self.commit("src/features/orders/d.py", "feat: d")
@@ -619,6 +637,21 @@ class MoveLinesTest(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
             self.assertEqual((root / "a.py").read_text(encoding="utf-8"), "one\nfour\n")
             self.assertEqual((root / "b.py").read_text(encoding="utf-8"), "head\ntwo\nthree\n")
+
+
+class KitIdsTest(unittest.TestCase):
+    def test_no_contract_id_ships_in_the_kit_or_the_installer(self) -> None:
+        import re
+
+        root = KIT.parent
+        pattern = re.compile(r"\bK-\d\d\b")
+        hits = []
+        for folder in (root / "kit", root / "installer"):
+            for f in folder.rglob("*") if folder.is_dir() else []:
+                if f.is_file() and ".git" not in f.parts and "__pycache__" not in f.parts:
+                    text = f.read_bytes().decode("utf-8", errors="ignore")
+                    hits += [f"{f.relative_to(root).as_posix()}: {m.group(0)}" for m in pattern.finditer(text)]
+        self.assertEqual(hits, [])
 
 
 if __name__ == "__main__":

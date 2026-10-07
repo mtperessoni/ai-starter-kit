@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests.test_kit_scripts import Project, run, write
+from tests.test_kit_scripts import PY, Project, run, write
 
 GATE = ".claude/skills/prd-flow/scripts/gate.py"
 REPO_MD = ".claude/skills/prd-flow/repo.md"
@@ -93,6 +93,21 @@ class TrdTest(unittest.TestCase):
         self.assertEqual(run(self.p.root, "git", "status", "--porcelain").stdout, before)
 
 
+class TrdEdgeTest(unittest.TestCase):
+    def test_a_short_row_and_a_non_ascii_file_name(self) -> None:
+        p = Project()
+        try:
+            write(p.root, "src/features/orders/café.py", "x = 1\n")
+            write(p.root, "docs/trd/orders.md", "| File | Role | Main symbols | IDs |\n|---|---|---|---|\n"
+                  "| `order_service.py` |\n| `café.py` | Coffee | `x` | |\n")
+            commit(p)
+            r = p.py(GATE, "--trd")
+            self.assertNotIn("Traceback", r.stderr)
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        finally:
+            p.close()
+
+
 class SiblingTest(unittest.TestCase):
     def setUp(self) -> None:
         self.p = Project()
@@ -137,6 +152,22 @@ class SiblingTest(unittest.TestCase):
         r = self.p.py(GATE, "--sibling")
         self.assertIn("ERROR G28", r.stdout)
         self.assertIn("extra.md", r.stdout)
+
+    def test_a_relative_sibling_path_resolves_against_the_repository_root(self) -> None:
+        write(self.p.root, "other/shop/a.md", "one\nthree\n")
+        self.share(Path("other/shop"))
+        r = run(self.p.root / "src", PY, str(self.p.root / GATE), "--sibling")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("ERROR G28", r.stdout)
+
+    def test_a_heading_with_a_suffix_is_still_the_shared_section(self) -> None:
+        repo = self.p.root / REPO_MD
+        text = repo.read_text(encoding="utf-8")
+        self.assertRegex(text, r"(?m)^## Shared PRDs")
+        repo.write_text(text.replace("## Shared PRDs", "## Shared PRDs (note)", 1), encoding="utf-8")
+        write(self.sib_root, "docs/prd/shop/a.md", "one\nthree\n")
+        self.share(self.sibling)
+        self.assertIn("ERROR G28", self.p.py(GATE, "--sibling").stdout)
 
     def test_an_absent_sibling_is_a_warning(self) -> None:
         self.share(self.sibling / "nope")

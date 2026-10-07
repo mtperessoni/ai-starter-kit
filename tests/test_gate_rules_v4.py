@@ -86,6 +86,17 @@ class InterviewTest(unittest.TestCase):
         self.put(interview() + f"\n## Dimensions (2026-10-08)\n| Dimension | State | Answer |\n|---|---|---|\n\n{CONFIRMED}\n")
         self.assertIn("ERROR Q3", self.gate().stdout)
 
+    def test_a_confirmed_line_in_a_later_section_does_not_count(self) -> None:
+        self.put(interview(confirmed=False) + f"\n## Notes\n{CONFIRMED}\n")
+        self.assertIn("ERROR Q3", self.gate().stdout)
+
+    def test_a_dated_first_block_needs_only_its_listed_dimensions(self) -> None:
+        text = interview(["D05"], confirmed=True).replace("## Dimensions", "## Dimensions (2026-10-08)")
+        self.put(text)
+        self.assertNotIn("ERROR Q3", self.gate().stdout)
+        self.put(interview([], confirmed=True).replace("## Dimensions", "## Dimensions (2026-10-08)"))
+        self.assertIn("ERROR Q3", self.gate().stdout)
+
     def test_an_extra_dimension_is_required_and_a_placeholder_is_not(self) -> None:
         self.put(interview())
         self.assertNotIn("D16", self.gate().stdout)
@@ -120,9 +131,39 @@ class AppliedTest(unittest.TestCase):
     def test_a_row_not_in_the_prd_is_q4(self) -> None:
         self.assertIn("ERROR Q4", self.gate(NEW_ROW).stdout)
 
+    def test_a_file_name_that_only_ends_the_same_is_not_the_same_file(self) -> None:
+        write(self.p.root, RULES, approved(ORD1).replace("## shop/05-orders.md", "## 5-orders.md"))
+        self.assertIn("ERROR Q4", self.p.py(GATE, "--rules", RULES, "--applied").stdout)
+        self.assertIn("ERROR Q2", self.p.py(GATE, "--rules", RULES).stdout)
+
+    def test_a_later_dated_section_replaces_an_earlier_row(self) -> None:
+        later = ORD1.replace("at least one item", "two items")
+        text = approved(ORD1) + f"\n## 2026-10-08\n\n### shop/05-orders.md\n| ID | Rule | Source | Change via |\n|---|---|---|---|\n{later}\n"
+        write(self.p.root, RULES, text)
+        r = self.p.py(GATE, "--rules", RULES, "--applied")
+        self.assertNotIn("repeated", r.stdout)
+        self.assertIn("ERROR Q4", r.stdout)
+        self.assertEqual(r.stdout.count("ERROR Q4"), 1, r.stdout)
+        write(self.p.root, RULES, text.replace(later, ORD1))
+        r = self.p.py(GATE, "--rules", RULES, "--applied")
+        self.assertNotIn("Q4", r.stdout)
+        self.assertNotIn("repeated", r.stdout)
+
     def test_without_the_flag_q4_does_not_run(self) -> None:
         write(self.p.root, RULES, approved(NEW_ROW))
         self.assertNotIn("Q4", self.p.py(GATE, "--rules", RULES).stdout)
+
+
+class ChangeViaColumnTest(unittest.TestCase):
+    def test_a_table_with_an_example_column_is_a_rule_table(self) -> None:
+        p = Project()
+        try:
+            path = p.root / ORDERS
+            path.write_text(path.read_text(encoding="utf-8") + "\n| ID | Rule | Source | Change via | Example |\n|---|---|---|---|---|\n"
+                            "| ORD-03 | Orders can be reopened. | src/x.py | bogus | a cart |\n", encoding="utf-8", newline="\n")
+            self.assertIn("WARNING G3", p.py(GATE, "--base", "HEAD").stdout)
+        finally:
+            p.close()
 
 
 class ProposedTest(unittest.TestCase):
@@ -210,6 +251,16 @@ class RemoteTest(unittest.TestCase):
         self.push_branch("changes/001-limit/brief.md", "# Brief\n\nSize: S\n")
         write(self.p.root, "changes/001-limit/brief.md", "# Brief\n\nSize: S\n")
         self.assertNotIn("G27", self.p.py(GATE, "--change", "changes/001-limit").stdout)
+
+    def test_the_upstream_of_the_current_branch_is_skipped(self) -> None:
+        run(self.p.root, "git", "checkout", "-q", "-b", "feat", check=True)
+        write(self.p.root, ORDERS, (self.p.root / ORDERS).read_text(encoding="utf-8") + NEW_ROW + "\n")
+        run(self.p.root, "git", "add", "-A", check=True)
+        run(self.p.root, "git", "commit", "-q", "-m", "feat", check=True)
+        run(self.p.root, "git", "push", "-q", "-u", "origin", "feat", check=True)
+        write(self.p.root, INTERVIEW, interview())
+        write(self.p.root, RULES, approved(NEW_ROW))
+        self.assertNotIn("G27", self.p.py(GATE, "--rules", RULES).stdout)
 
     def test_no_remote_is_silent(self) -> None:
         run(self.p.root, "git", "remote", "remove", "origin", check=True)

@@ -208,6 +208,19 @@ def seed_commit(out: Path) -> None:
     run(["git", "commit", "-q", "-m", "chore: seed"], out, env=GIT_ENV)
 
 
+def regenerate_html(out: Path) -> None:
+    builder = out / ".claude" / "skills" / "prd-flow" / "scripts" / "build_prd_html.py"
+    repo_md = out / ".claude" / "skills" / "prd-flow" / "repo.md"
+    if not builder.is_file() or not repo_md.is_file():
+        return
+    if not re.search(r"^\|\s*html_mode\s*\|\s*generated\s*\|", repo_md.read_text(encoding="utf-8"), re.M):
+        return
+    done = subprocess.run([sys.executable, str(builder), "--root", str(out)], cwd=out, capture_output=True,
+                          text=True, encoding="utf-8", check=False)
+    if done.returncode:
+        raise SystemExit("build_prd_html.py failed on the arm:\n" + done.stdout + done.stderr)
+
+
 def build(ref: str, out: Path, spec_kit: bool, fixture: Path = FIXTURE, fill: Path | None = None,
           overlay: Path | None = None) -> None:
     ref = resolve_ref(ref)
@@ -226,6 +239,7 @@ def build(ref: str, out: Path, spec_kit: bool, fixture: Path = FIXTURE, fill: Pa
     if leftovers:
         raise SystemExit("placeholders left:\n" + "\n".join(leftovers))
     write_manifest(out, ref, files)
+    regenerate_html(out)
     gate_path = next((f".claude/skills/{n}/scripts/gate.py" for n in SKILL_NAMES
                       if (out / ".claude" / "skills" / n / "scripts" / "gate.py").is_file()),
                      ".claude/skills/prd-flow/scripts/gate.py")

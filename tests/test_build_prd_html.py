@@ -274,5 +274,26 @@ class BuildPrdHtmlTest(unittest.TestCase):
         self.assertTrue(build_prd_html.is_current(self.root, dict(CFG)))
 
 
-if __name__ == "__main__":
-    unittest.main()
+class LinkSchemeTest(unittest.TestCase):
+    def test_only_safe_schemes_become_hrefs(self) -> None:
+        import prd_html_markdown
+
+        inline = prd_html_markdown.Inline(lambda url: (url, ""))
+        out = inline("[a](javascript:void) [b](data:text/html,x) [c](VBScript:x) [d](https://a.b) [e](mailto:a@b.c) [f](#x)")
+        for bad in ("javascript", "data:", "VBScript"):
+            self.assertNotIn(bad, out)
+        for good in ('href="https://a.b"', 'href="mailto:a@b.c"', 'href="#x"'):
+            self.assertIn(good, out)
+        for label in (">a<", ">b<"):
+            self.assertNotIn(label, out)
+        self.assertIn("a b c", re.sub(r"<[^>]*>", "", out))
+
+
+class IndexEntriesTest(unittest.TestCase):
+    def test_an_escaped_pipe_in_a_title_stays_in_its_cell(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            prd = Path(tmp)
+            index = "## PRD 1 · Shop\n| File | Section | IDs |\n|---|---|---|\n| [a.md](shop/a.md) | Orders \\| Carts | X-01 |\n"
+            (prd / "INDEX.md").write_text(index, encoding="utf-8", newline="\n")
+            entries = build_prd_html.index_entries(prd)
+        self.assertEqual(entries[0][3][0][1], "Orders | Carts")

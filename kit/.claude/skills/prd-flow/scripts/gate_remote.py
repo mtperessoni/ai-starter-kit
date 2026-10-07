@@ -11,19 +11,28 @@ REFS = ("for-each-ref", "--sort=-committerdate", "--count=30", "--format=%(refna
 
 def remote_refs(root: Path) -> list[str]:
     try:
-        return [r for r in git(root, *REFS).split() if not r.endswith("/HEAD")]
+        refs = [r for r in git(root, *REFS).split() if not r.endswith("/HEAD")]
+        upstream = git(root, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}").strip()
     except OSError:
         return []
+    own = "refs/remotes/" + upstream if upstream and not upstream.startswith("refs/") else upstream
+    return [r for r in refs if r != own]
 
 
 def warn_remote_ids(root: Path, prd_rel: str, new_ids: set[str]) -> None:
     refs = remote_refs(root) if new_ids else []
+    if not refs:
+        return
+    try:
+        out = git(root, "grep", "-o", "-w", "-E", ERE_ID, *refs, "--", prd_rel)
+    except OSError:
+        return
+    found: dict[str, set[str]] = {}
+    for line in out.splitlines():
+        ref, _, rest = line.partition(":")
+        found.setdefault(ref, set()).update(re.findall(ID, rest.rpartition(":")[2]))
     for ref in refs:
-        try:
-            files = git(root, "grep", "-h", "-o", "-w", "-E", ERE_ID, ref, "--", prd_rel)
-        except OSError:
-            continue
-        for rid in sorted(new_ids & set(re.findall(ID, files))):
+        for rid in sorted(new_ids & found.get(ref, set())):
             warn("G27", f"{rid} already exists in {prd_rel} on {ref.removeprefix('refs/remotes/')}")
 
 

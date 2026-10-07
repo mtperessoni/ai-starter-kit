@@ -1,4 +1,4 @@
-"""G29 (K-63): with html_mode generated, the HTML equals a fresh render of build_prd_html.py."""
+"""G29: with html_mode generated, the HTML equals a fresh render of build_prd_html.py."""
 
 import importlib
 from pathlib import Path

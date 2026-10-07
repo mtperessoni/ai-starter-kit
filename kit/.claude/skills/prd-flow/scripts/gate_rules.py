@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from gate_core import ROW, Rules, cells, err, literal_rows
+from gate_core import ROW, Rules, cells, ends_with_path, err, literal_rows
 
 
 def norm(cell: str) -> str:
@@ -19,7 +19,7 @@ def check_applied(path: Path, rules: Rules, cfg: dict[str, str]) -> None:
         owner = rules.get(rid)
         if not owner:
             err("Q4", f"{rid} is not in the PRD yet")
-        elif not owner[0].as_posix().endswith(rel.removeprefix(prd_prefix)):
+        elif not ends_with_path(owner[0], rel.removeprefix(prd_prefix)):
             err("Q4", f"{rid} is in {owner[0].name}, not in {rel}")
         elif [norm(c) for c in row] != [norm(c) for c in owner[1][: len(row)]]:
             err("Q4", f"{rid}: the PRD row is not identical to the approved row")

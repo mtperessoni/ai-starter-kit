@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 
 from gate_core import (
-    ID, PACK_SECTIONS, ROW, SEPARATOR, Rules, baseline, cells, drift, err, expand, git, is_table_line, joined,
+    ID, PACK_SECTIONS, ROW, SEPARATOR, Rules, baseline, cells, drift, ends_with_path, err, expand, git, is_table_line, joined,
     literal_rows, read_html_rules, section, tokens, warn,
 )
 
@@ -146,7 +146,7 @@ def check_rules(path: Path, rules: Rules, cfg: dict[str, str], vias: set[str]) -
         elif row[2].strip("` ").lower() not in vias:
             err("Q2", f"{rid}: Change via '{row[2]}' outside {sorted(vias)}")
         owner = rules.get(rid)
-        if owner and not owner[0].as_posix().endswith(rel.removeprefix(prd_prefix)):
+        if owner and not ends_with_path(owner[0], rel.removeprefix(prd_prefix)):
             err("Q2", f"{rid} already exists in {owner[0].name}; do not reuse the ID in {rel}")
 
 

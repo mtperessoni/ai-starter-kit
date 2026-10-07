@@ -1,16 +1,21 @@
-"""gate.py --sibling (K-71): shared PRD folders identical to the sibling repository's (G28)."""
+"""gate.py --sibling: shared PRD folders identical to the sibling repository's (G28)."""
 
 import re
 from pathlib import Path
 
-from gate_core import PIPE, SEPARATOR, err, section, warn
+from gate_core import PIPE, SEPARATOR, err, warn
+
+
+def shared_section(text: str) -> str:
+    m = re.search(r"^## Shared PRDs[^\n]*$(.*?)(?=^## |\Z)", text, re.S | re.M)
+    return m.group(1) if m else ""
 
 
 def shared_rows(repo_md: Path) -> list[tuple[str, str]]:
     if not repo_md.exists():
         return []
     rows = []
-    for line in section(repo_md.read_text(encoding="utf-8"), "Shared PRDs (K-71)").splitlines():
+    for line in shared_section(repo_md.read_text(encoding="utf-8")).splitlines():
         if not line.startswith("|") or SEPARATOR.match(line):
             continue
         cells = [c.strip().strip("`").strip() for c in PIPE.split(line.strip().strip("|"))]
@@ -30,7 +35,7 @@ def snapshot(folder: Path) -> dict[str, str]:
 
 def check_sibling(root: Path, repo_md: Path) -> None:
     for folder, sibling in shared_rows(repo_md):
-        mine, theirs = root / folder, Path(sibling)
+        mine, theirs = root / folder, root / sibling
         if not theirs.is_dir():
             warn("G28", f"sibling path {sibling} for {folder} does not exist locally; not compared")
             continue
