@@ -26,6 +26,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # /ai-kit install replaces this step with the stack's setup and locked install.
       - name: Set up the toolchain and install locked dependencies
@@ -43,6 +45,13 @@ jobs:
 
       - name: Docs gate (PRD, TRD, HTML parity)
         run: ./scripts/gates.sh docs --base origin/${{ github.base_ref || 'main' }}
+
+      - name: TRD paths exist (G23)
+        run: python .claude/skills/prd-flow/scripts/gate.py --trd
+
+      - name: Commit trailers (K-72, pull requests only)
+        if: github.event_name == 'pull_request'
+        run: ./scripts/gates.sh trailers origin/${{ github.base_ref }}..HEAD
 
       - name: Rules traced to tests (LT08)
         run: python .claude/skills/prd-flow/scripts/gate.py --trace

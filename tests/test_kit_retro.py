@@ -374,5 +374,41 @@ class PruneTests(unittest.TestCase):
         self.assertIn("pruned 0", r.stdout)
 
 
+class DocReadsTests(unittest.TestCase):
+    def reads(self, paths, cfg=None, files=None):
+        log = Log()
+        for path in paths:
+            log.call(tool="Read", cls="read", cmd=path)
+        root = project(log.ev, cfg=cfg)
+        for rel, size in (files or {}).items():
+            f = root / rel
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_bytes(b"x" * size)
+        return findings(root)
+
+    def test_a_doc_read_past_the_threshold_is_flagged_with_rereads_and_bytes(self):
+        f, _ = self.reads(["docs/prd/a.md"] * 4 + ["src/app.py"], files={"docs/prd/a.md": 100})
+        d = f["doc_reads"]
+        self.assertEqual(d["value"], 4)
+        self.assertEqual(d["threshold"], 3)
+        self.assertIn("docs/prd/a.md", d["evidence"]["cmd"])
+        self.assertIn("rereads 3", d["evidence"]["cmd"])
+        self.assertIn("400 bytes", d["evidence"]["cmd"])
+        self.assertNotIn("app.py", d["evidence"]["cmd"])
+
+    def test_reads_at_the_threshold_are_not_flagged(self):
+        f, _ = self.reads(["docs/prd/a.md"] * 3 + [".claude/skills/x/SKILL.md", "changes/001-x/plan.md"])
+        self.assertNotIn("doc_reads", f)
+
+    def test_the_threshold_comes_from_the_config(self):
+        f, _ = self.reads(["docs/prd/a.md"] * 2, cfg={"doc_reads": 1})
+        self.assertEqual(f["doc_reads"]["threshold"], 1)
+
+    def test_only_the_top_five_are_listed(self):
+        paths = [f"docs/f{i}.md" for i in range(7)] * 2 + ["docs/f0.md"] * 3
+        f, _ = self.reads(paths, cfg={"doc_reads": 1})
+        self.assertEqual(f["doc_reads"]["evidence"]["cmd"].count("docs/f"), 5)
+
+
 if __name__ == "__main__":
     unittest.main()

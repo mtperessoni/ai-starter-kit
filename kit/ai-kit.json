@@ -89,7 +89,8 @@
     "no_feature_map": [],
     "long_feature_maps": {},
     "crowded_dirs": {},
-    "generated_without_marker": []
+    "generated_without_marker": [],
+    "invariant_gaps": 0
   },
   "ratchet": {
     "skip": []
@@ -153,6 +154,7 @@
     "disk_drop_mb": 1024,
     "dead_mb": 500,
     "max_events_mb": 5,
-    "keep_days": 14
+    "keep_days": 14,
+    "doc_reads": 3
   }
 }

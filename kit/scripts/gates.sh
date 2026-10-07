@@ -34,6 +34,7 @@ usage: scripts/gates.sh <target> [args]
   imports          the import check (catches cycles)
   ratchet          structure ratchet (docs/code-structure.md)
   docs [args]      the prd-flow docs gate
+  trailers [range] commits touching the source folders carry Rules: or Case: none (default origin/<base>..HEAD)
   context <name>   name the run context (.ai-kit/runs/current) for the telemetry
   retro [args]     the run retrospective (scripts/retro.py): --context <name>, --prune
   setup            make a fresh clone or worktree ready to test (commands.setup)
@@ -198,6 +199,9 @@ setup)
     "" | "<"*) echo "commands.setup is not set in ai-kit.json" >&2; exit 2 ;;
     esac
     bash -c "$setup_cmd"
+    ;;
+trailers)
+    python scripts/commit_trailers.py "$@"
     ;;
 hotspots)
     python scripts/hotspots.py "$@"

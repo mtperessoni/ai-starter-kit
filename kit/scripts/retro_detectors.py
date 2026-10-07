@@ -8,7 +8,7 @@ DEFAULTS = {
     "long_call_s": 300, "long_test_s": 300, "long_subagent_min": 30, "subagent_tokens": 150000,
     "subagent_tools": 50, "context_peak_tokens": 200000, "big_output_kb": 20, "loop_repeats": 3,
     "edit_repeats": 8, "error_rate": 0.15, "memory_mb": 2048, "disk_drop_mb": 1024, "dead_mb": 500,
-    "max_events_mb": 5, "keep_days": 14,
+    "max_events_mb": 5, "keep_days": 14, "doc_reads": 3,
 }
 EDIT_TOOLS = {"edit", "write", "multiedit"}
 
@@ -225,6 +225,42 @@ def dead_files(run, th, temp: Path | None = None, worktrees=default_worktrees, b
                       note="partial, time budget reached" if partial else "")
 
 
+DOC_DIRS = ("docs/", ".claude/skills/", "changes/")
+DOC_TOP = 5
+
+
+def _doc_path(raw, root):
+    p = str(raw or "").replace("\\", "/")
+    try:
+        r = Path(p)
+        if r.is_absolute():
+            p = r.resolve().relative_to(Path(root).resolve()).as_posix()
+    except (OSError, ValueError):
+        pass
+    return p if p.startswith(DOC_DIRS) else None
+
+
+def doc_reads(run, th):
+    reads = {}
+    for e in run["events"]:
+        if e.get("ev") != "PostToolUse" or str(e.get("tool", "")).lower() != "read":
+            continue
+        p = _doc_path(e.get("cmd"), run["root"])
+        if p:
+            reads.setdefault(p, []).append(e["seq"])
+    ranked = sorted(reads.items(), key=lambda kv: (-len(kv[1]), kv[0]))[:DOC_TOP]
+    if not ranked or len(ranked[0][1]) <= th["doc_reads"]:
+        return
+    parts = []
+    for p, seqs in ranked:
+        try:
+            size = (Path(run["root"]) / p).stat().st_size
+        except OSError:
+            size = 0
+        parts.append(f"{p}: {len(seqs)} reads, rereads {len(seqs) - 1}, {size * len(seqs)} bytes")
+    yield finding("doc_reads", len(ranked[0][1]), th["doc_reads"], ranked[0][1], "main", "; ".join(parts), sev="medium")
+
+
 DETECTORS = [long_call, slow_test, full_suite_mid_task, long_subagent, heavy_subagent, context_peak, auto_compaction,
              big_output, loop, error_rate, memory, disk_drop, docker_outside_gates, unbounded_background, dead_files,
-             killed_call]
+             killed_call, doc_reads]

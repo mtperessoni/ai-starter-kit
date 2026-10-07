@@ -522,6 +522,91 @@ class GatesShTest(unittest.TestCase):
         self.assertIn("usage", r.stderr)
 
 
+class InvariantGapRatchetTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.p = Project()
+        self.inv = self.p.root / "docs/trd/invariants.md"
+        self.inv.write_text("| ID | Rule | Proof |\n|---|---|---|\n| I-01 | A | gate |\n| I-02 | B | gap |\n| I-03 | C | gap: no test |\n",
+                            encoding="utf-8", newline="\n")
+
+    def tearDown(self) -> None:
+        self.p.close()
+
+    def allow(self, n) -> None:
+        path = self.p.root / "ai-kit.json"
+        config = json.loads(path.read_text(encoding="utf-8"))
+        config["allowlist"].pop("invariant_gaps", None)
+        if n is not None:
+            config["allowlist"]["invariant_gaps"] = n
+        path.write_text(json.dumps(config), encoding="utf-8")
+
+    def test_gaps_above_the_entry_fail(self) -> None:
+        self.allow(1)
+        r = self.p.py("scripts/ratchet.py")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("invariant_gaps: 2 gap rows, above its allowlist entry 1", r.stdout)
+
+    def test_gaps_below_the_entry_ask_to_lower_it(self) -> None:
+        self.allow(3)
+        r = self.p.py("scripts/ratchet.py")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("lower the entry from 3", r.stdout)
+
+    def test_gaps_equal_to_the_entry_pass(self) -> None:
+        self.allow(2)
+        self.assertEqual(self.p.py("scripts/ratchet.py").returncode, 0)
+
+    def test_an_absent_key_or_file_is_no_error(self) -> None:
+        self.allow(None)
+        r = self.p.py("scripts/ratchet.py")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.inv.unlink()
+        self.assertEqual(self.p.py("scripts/ratchet.py").returncode, 0)
+
+
+class CommitTrailersTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.p = Project()
+        self.base = run(self.p.root, "git", "rev-parse", "HEAD", check=True).stdout.strip()
+
+    def tearDown(self) -> None:
+        self.p.close()
+
+    def commit(self, path: str, message: str) -> None:
+        write(self.p.root, path, f"x = {len(message)}\n")
+        run(self.p.root, "git", "add", "-A", check=True)
+        run(self.p.root, "git", "commit", "-q", "-m", message, check=True)
+
+    def check(self) -> subprocess.CompletedProcess:
+        return self.p.py("scripts/commit_trailers.py", f"{self.base}..HEAD")
+
+    def test_a_source_commit_without_a_trailer_fails(self) -> None:
+        self.commit("src/features/orders/more.py", "feat: more")
+        r = self.check()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("feat: more", r.stdout)
+
+    def test_rules_and_case_none_trailers_pass(self) -> None:
+        self.commit("src/features/orders/a.py", "feat: a\n\nRules: ORD-01, ORD-02")
+        self.commit("src/features/orders/b.py", "fix: b\n\nCase: none (typo in a log line)")
+        r = self.check()
+        self.assertEqual(r.returncode, 0, r.stdout)
+
+    def test_a_case_none_reason_over_eight_words_fails(self) -> None:
+        self.commit("src/features/orders/c.py", "fix: c\n\nCase: none (one two three four five six seven eight nine)")
+        self.assertEqual(self.check().returncode, 1)
+
+    def test_a_commit_outside_the_source_folders_needs_no_trailer(self) -> None:
+        self.commit("docs/notes.md", "docs: notes")
+        self.assertEqual(self.check().returncode, 0)
+
+    @unittest.skipUnless(BASH, "bash not available")
+    def test_gates_trailers_runs_the_check_on_a_range(self) -> None:
+        self.commit("src/features/orders/d.py", "feat: d")
+        r = run(self.p.root, BASH, "scripts/gates.sh", "trailers", f"{self.base}..HEAD")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+
+
 class MoveLinesTest(unittest.TestCase):
     def test_a_block_moves_without_retyping(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
