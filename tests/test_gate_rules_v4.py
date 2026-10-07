@@ -98,6 +98,14 @@ class InterviewTest(unittest.TestCase):
         self.put(scope + interview([], confirmed=True).replace("## Dimensions", "## Dimensions (2026-10-08)"))
         self.assertIn("ERROR Q3", self.gate().stdout)
 
+    def test_the_scope_line_counts_only_before_a_dated_first_block(self) -> None:
+        scope = "Scope: short C5 outside a C5\n\n"
+        self.put(scope + interview(["D05"], confirmed=True))
+        self.assertIn("ERROR Q3", self.gate().stdout)
+        dated = interview(["D05"], confirmed=True).replace("## Dimensions", "## Dimensions (2026-10-08)")
+        self.put(dated + "\n" + scope)
+        self.assertIn("ERROR Q3", self.gate().stdout)
+
     def test_a_dated_first_block_without_the_scope_line_needs_every_dimension(self) -> None:
         self.put(interview(["D05"], confirmed=True).replace("## Dimensions", "## Dimensions (2026-10-08)"))
         out = self.gate().stdout

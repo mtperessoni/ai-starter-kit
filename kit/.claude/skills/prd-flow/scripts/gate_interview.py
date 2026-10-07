@@ -51,8 +51,9 @@ def check_interview(rules_path: Path, prd: Path, rules: Rules) -> None:
         err("Q3", f"{path.name} not found beside {rules_path.name}")
         return
     text = path.read_text(encoding="utf-8")
-    short_scope = bool(SHORT_SCOPE.search(text))
     blocks = sections(text)
+    first = HEADING.search(text)
+    short_scope = bool(blocks and blocks[0][0] and first and SHORT_SCOPE.search(text[:first.start()]))
     if not blocks:
         err("Q3", "interview.md without a '## Dimensions' table")
         return
