@@ -75,7 +75,7 @@ button{font:inherit}
 .docnav button[aria-selected="true"] .ic{background:linear-gradient(140deg,#15C2B7,#2F66D9);color:#fff}
 .docnav .ic svg{width:16px;height:16px}
 .docnav .t{font:600 14px/1.25 var(--f-display);display:block}
-.docnav .s{font-size:12px;color:var(--side-muted);display:block;line-height:1.3;margin-top:2px}
+.docnav .s{font-size:12px;color:var(--side-muted);line-height:1.3;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .docnav .n{font:500 11px/1 var(--f-mono);color:var(--side-muted);background:#132337;padding:4px 7px;border-radius:999px}
 .search{position:relative}
 .search svg{position:absolute;left:12px;top:50%;width:16px;height:16px;transform:translateY(-50%);color:var(--side-muted)}
@@ -87,7 +87,7 @@ button{font:inherit}
 .vias button:hover{background:var(--side-2)}
 .vias button[aria-pressed="true"]{background:#E7EEF6;color:#0A1320;border-color:#E7EEF6}
 .vias button.all{grid-column:1 / -1}
-.dot{width:8px;height:8px;border-radius:50%;flex:none}
+.dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--side-muted)}
 .d-prompt{background:#A58BF0}.d-config{background:#2CC9BD}.d-env{background:#6E9BF2}.d-code{background:#A5B3C6}.d-data{background:#F2887E}.d-backend{background:#E9AE54}.d-frontend{background:#6ED49A}.d-all{background:conic-gradient(#A58BF0,#2CC9BD,#6E9BF2,#E9AE54,#6ED49A,#A58BF0)}
 .count{font:12px var(--f-mono);color:var(--side-muted);margin:8px 0 0 4px;min-height:1em}
 .side .meta{margin-top:auto;display:grid;gap:3px;font:11.5px/1.5 var(--f-mono);color:var(--side-muted);border-top:1px solid var(--side-line);padding-top:14px}
@@ -131,7 +131,7 @@ pre.mermaid svg{max-width:100%;height:auto}
 .callout>*,.explain>*{min-width:0}
 @media (max-width:700px){.verified{white-space:normal}}
 .doc h2{font-size:25px;font-weight:700;display:flex;gap:14px;align-items:center;letter-spacing:-.02em}
-.doc h2 .num{flex:none;font:600 12px/1 var(--f-mono);color:var(--accent-ink);background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);width:34px;height:34px;border-radius:10px;display:grid;place-items:center;letter-spacing:0}
+.doc h2 .num{flex:none;font:600 12px/1 var(--f-mono);color:var(--accent-ink);background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);min-width:34px;padding:0 8px;height:34px;border-radius:10px;display:grid;place-items:center;letter-spacing:0}
 .doc h3{font-size:17px;font-weight:600;margin-top:14px;display:flex;align-items:center;gap:10px}
 .doc h3::before{content:"";width:6px;height:6px;border-radius:2px;background:var(--accent)}
 .doc p,.doc li{max-width:76ch;color:var(--ink-2)}
@@ -183,6 +183,7 @@ table.mx td,table.mx th{white-space:normal}
 table.mx td:first-child{font-weight:600;color:var(--ink);min-width:150px}
 .via-tag{display:inline-flex;align-items:center;gap:6px;font:600 11px/1 var(--f-mono);padding:5px 9px 5px 8px;border-radius:999px;white-space:nowrap}
 .via-tag::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.via-tag{background:var(--slate-soft);color:var(--slate)}
 .v-prompt{background:var(--violet-soft);color:var(--violet)}
 .v-config{background:var(--accent-soft);color:var(--accent-strong)}
 .v-env{background:var(--blue-soft);color:var(--blue)}
@@ -194,7 +195,41 @@ table.mx td:first-child{font-weight:600;color:var(--ink);min-width:150px}
 .s-high{background:var(--red);color:#fff}
 .s-medium{background:var(--amber-soft);color:var(--amber);border:1px solid color-mix(in srgb,var(--amber) 35%,transparent)}
 .s-low{background:var(--slate-soft);color:var(--slate)}
+td.idc,td.qid{white-space:nowrap}
+td.idc .pid,td.qid .pid{display:inline-block;font:600 11.5px/1 var(--f-mono);color:var(--accent-ink);background:var(--accent-soft);padding:5px 8px;border-radius:7px}
+td.ex{min-width:min(220px,40vw);font-size:13.8px;color:var(--ink-2);background:color-mix(in srgb,var(--blue-soft) 45%,transparent)}
+th:last-child,td:last-child{padding-right:18px}
 .hidden-row{display:none}
+i.mk{font-style:normal;font:600 11px/1.5 var(--f-mono);padding:1px 7px;border-radius:6px;background:var(--slate-soft);color:var(--slate);-webkit-box-decoration-break:clone;box-decoration-break:clone}
+i.mk-pending{background:var(--amber-soft);color:var(--amber)}
+i.mk-old{background:var(--red-soft);color:var(--red)}
+i.mk-prop{background:var(--violet-soft);color:var(--violet)}
+i.mk-checked{background:var(--green-soft);color:var(--green)}
+pre.code{margin:0;overflow-x:auto;max-width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:14px 16px;font:12.5px/1.6 var(--f-mono);color:var(--ink-2)}
+pre.code code{background:none;padding:0;font-size:inherit;color:inherit;overflow-wrap:normal}
+.callout.note{background:var(--surface-2)}
+.callout .verified{margin-left:2px}
+.doc h4{font-size:15px;font-weight:600;margin-top:8px}
+.nw{white-space:nowrap}
+td.src{min-width:190px}
+.tw tr.hidden-row{display:none}
+@media (max-width:900px){html{scroll-padding-top:72px}.doc section{scroll-margin-top:72px}}
+@media (max-width:700px){
+  .tw{overflow-x:visible}
+  .tw table,.tw tbody,.tw tr,.tw td{display:block;width:auto}
+  .tw thead{display:none}
+  .tw tbody tr{padding:14px 16px;border-bottom:1px solid var(--line)}
+  .tw tbody tr:last-child{border-bottom:0}
+  .tw td{border:0!important;padding:2px 0!important;min-width:0!important;max-width:none!important;white-space:normal}
+  .tw td:empty{display:none}
+  .tw td[data-label]::before{content:attr(data-label);display:block;font:600 10px/1.4 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-top:8px}
+  .tw td.id{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px}
+  .tw td.id br{display:none}
+  .tw .sev{margin-bottom:0}
+  .tw td.ex{padding:2px 10px 8px!important;border-radius:9px;margin-top:8px}
+  table.mx td:first-child{min-width:0;font-size:15px}
+  tbody tr:hover td{background:none}
+}
 .empty-note{font:12.5px var(--f-mono);color:var(--muted);padding:14px 16px}
 
 .diag{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow-sm);padding:20px}
@@ -269,10 +304,7 @@ footer.foot{max-width:1280px;margin:0 auto;padding:22px 40px 40px;color:var(--mu
   <div>
     <h5>Documents</h5>
     <div class="docnav" role="tablist">
-      <button role="tab" data-tab="overview" aria-selected="true"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg></span><span><span class="t">Overview</span><span class="s">Journey, findings, how to change</span></span><span class="n" data-n="overview"></span></button>
-      <!-- PRD-TABS: one button per PRD, data-tab equal to the PRD folder name -->
-      <button role="tab" data-tab="{{prd-a}}" aria-selected="false"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5M4 19h16M8 15l4-4 3 3 5-6"/></svg></span><span><span class="t">PRD 1 · {{Name}}</span><span class="s">{{One line of scope}}</span></span><span class="n" data-n="{{prd-a}}"></span></button>
-      <button role="tab" data-tab="decisions" aria-selected="false"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg></span><span><span class="t">Open decisions</span><span class="s">Ranked by risk</span></span><span class="n" data-n="decisions"></span></button>
+      {{TABS}}
     </div>
   </div>
   <div>
@@ -283,104 +315,36 @@ footer.foot{max-width:1280px;margin:0 auto;padding:22px 40px 40px;color:var(--mu
   <div>
     <h5>Where it changes</h5>
     <div class="vias" id="viaChips">
-      <button class="all" data-via="" aria-pressed="true"><span class="dot d-all"></span>All</button>
-      <button data-via="code" aria-pressed="false"><span class="dot d-code"></span>Code</button>
-      <button data-via="config" aria-pressed="false"><span class="dot d-config"></span>Config</button>
-      <button data-via="env" aria-pressed="false"><span class="dot d-env"></span>Env</button>
-      <button data-via="prompt" aria-pressed="false"><span class="dot d-prompt"></span>Prompt</button>
-      <button data-via="data" aria-pressed="false"><span class="dot d-data"></span>Data</button>
-      <button data-via="backend" aria-pressed="false"><span class="dot d-backend"></span>Backend</button>
-      <button data-via="frontend" aria-pressed="false"><span class="dot d-frontend"></span>Frontend</button>
+      {{VIAS}}
     </div>
   </div>
   <div class="meta">
-    <div>repo <b>{{repo}}</b></div>
-    <div>branch <b>{{branch}}</b> @ <b>{{commit}}</b></div>
-    <div>read on <b>{{YYYY-MM-DD}}</b></div>
+    <div>repo <b>{{REPO}}</b></div>
+    <div>commit <b><span data-stamp>{{COMMIT}}</span></b></div>
+    <div>updated <b><span data-stamp>{{DATE}}</span></b></div>
   </div>
   <button class="themebtn" id="themeBtn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><span>Toggle theme</span></button>
 </aside>
 <main class="main">
 <div class="topbar"><button id="menuBtn" type="button" aria-label="Open navigation">☰</button><b>{{PROJECT}} PRDs</b></div>
 
-<div class="panel" id="panel-overview" data-panel="overview">
-<aside class="toc"><h4>Overview</h4><ol>
-<li><a href="#v-what">What {{PROJECT}} is</a></li>
-<li><a href="#v-read">How to read this document</a></li>
-<li><a href="#v-journey">The journey and the scopes</a></li>
-<li><a href="#v-weighs">What weighs most today</a></li>
-<li><a href="#v-change">How to change a rule</a></li>
-<li><a href="#v-principles">Principles that limit changes</a></li>
-<li><a href="#v-status">State per spec</a></li>
-<li><a href="#v-method">How this document was made</a></li>
-</ol></aside>
-<div class="doc">
-<header class="hero"><span class="eyebrow">Overview</span><h1>{{Headline}}</h1><p>{{One paragraph from README.md}}</p><div class="stats"><div class="stat acc"><b data-stat="all">·</b><span>documented rules</span></div><div class="stat hot"><b data-stat="highall">·</b><span>high-level risks</span></div><div class="stat "><b data-stat="dec">·</b><span>open decisions</span></div></div></header>
+{{PANELS}}
 
-<section id="v-what">
-<h2><span class="num">00</span>What {{PROJECT}} is</h2>
-<p class="lede">{{From README.md, section 00.}}</p>
-</section>
-<!-- OVERVIEW-SECTIONS: v-read, v-journey, v-weighs, v-change, v-principles, v-status, v-method, mirroring README.md -->
-</div></div>
-
-<!-- PRD-PANELS: one panel per PRD; copy this block -->
-<div class="panel off" id="panel-{{prd-a}}" data-panel="{{prd-a}}">
-<aside class="toc"><h4>PRD 1 · {{Name}}</h4><ol>
-<li><a href="#a-summary">1. Summary</a></li>
-<li><a href="#a-payment">7. Step 3 · Payment</a></li>
-</ol></aside>
-<div class="doc">
-<header class="hero"><span class="eyebrow">PRD 1 · {{scope}}</span><h1>{{Headline}}</h1><p>{{From 01-summary.md}}</p><div class="stats"><div class="stat acc"><b data-stat="rules">·</b><span>rules</span></div><div class="stat hot"><b data-stat="high">·</b><span>high</span></div><div class="stat "><b data-stat="medium">·</b><span>medium</span></div></div></header>
-
-<section id="a-summary">
-<h2><span class="num">01</span>Summary</h2>
-<div class="explain">
-<p class="lede">{{From 01-summary.md}}</p>
-</div>
-</section>
-
-<section id="a-payment">
-<h2><span class="num">07</span>Step 3 · Payment</h2>
-<div class="explain">
-<p class="lede">{{What this step is, from the markdown.}}</p>
-</div>
-<div class="callout risk"><b class="t">{{A verified defect}}</b><p>{{What happens, with the evidence.}} <span class="verified">checked in code</span></p></div>
-<div class="callout info"><b class="t">{{Something a reader must not miss}}</b><p>{{...}}</p></div>
-<div class="tw"><table class="rules"><thead><tr><th>ID</th><th>Rule</th><th>Source</th><th>Change via</th></tr></thead><tbody>
-<tr data-via="code"><td>PAY-01</td><td>{{Same words as the markdown row}}</td><td>src/features/payment/charge.py</td></tr>
-</tbody></table></div>
-</section>
-</div></div>
-
-<div class="panel off" id="panel-decisions" data-panel="decisions">
-<aside class="toc"><h4>Open decisions</h4><ol>
-<li><a href="#q-use">How to use this tab</a></li>
-<li><a href="#q-now">Decide now</a></li>
-<li><a href="#q-product">Product decisions</a></li>
-<li><a href="#q-hygiene">Documentation hygiene</a></li>
-</ol></aside>
-<div class="doc">
-<header class="hero"><span class="eyebrow">Open decisions</span><h1>What needs an owner now</h1><p>{{From README.md, Open decisions.}}</p></header>
-<!-- DECISION-SECTIONS: q-use, q-now, q-product, q-hygiene; question rows use the rules table with ids Q... -->
-</div></div>
-
-<footer class="foot">Built from {{mode}} of <code>{{repo}}</code> (branch {{branch}}, commit {{commit}}) on {{YYYY-MM-DD}}. The markdown in <code>docs/prd/</code> is the source; this page carries the same words.</footer>
+<footer class="foot">Generated by <code>build_prd_html.py</code> from the markdown in <code>{{PRD_DIR}}</code> (repo <code>{{REPO}}</code>, last change <span data-stamp>{{COMMIT}}</span> on <span data-stamp>{{DATE}}</span>). The markdown is the source: edit it and run the build, never this page.</footer>
 </main>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
 <script>
 (function(){
-  var VIA = {code:"code",config:"config",env:"env",prompt:"prompt",data:"data",backend:"backend",frontend:"frontend"};
-    var SEV = {high:"high",medium:"medium",low:"low"};
+  var SEV = {high:"high",medium:"medium",low:"low"};
   var root = document.documentElement;
 
   document.querySelectorAll("table.rules tbody tr").forEach(function(tr){
     var tds = tr.children;
     var id = tds[0] ? tds[0].textContent.trim() : "";
     if (tds[0]) {
-      tds[0].className = "id";
+      tds[0].className = (tds[0].className ? tds[0].className + " " : "") + "id";
       tds[0].textContent = "";
       var sev = tr.getAttribute("data-sev");
       if (sev) {
@@ -392,18 +356,13 @@ footer.foot{max-width:1280px;margin:0 auto;padding:22px 40px 40px;color:var(--mu
       tds[0].appendChild(p);
       tr.setAttribute("data-id", id);
     }
-    if (tds[1]) tds[1].className = "rule";
-    if (tds[2]) tds[2].className = "src";
-    var v = tr.getAttribute("data-via") || "";
-    var td = document.createElement("td"); td.className = "via";
-    if (v) { var s = document.createElement("span"); s.className = "via-tag v-" + v; s.textContent = VIA[v] || v; td.appendChild(s); }
-    tr.appendChild(td);
   });
 
   var panels = Array.prototype.slice.call(document.querySelectorAll(".panel[data-panel]"));
   var names = panels.map(function(p){ return p.getAttribute("data-panel"); });
   function panel(n){ return document.querySelector('.panel[data-panel="'+n+'"]'); }
   function rowsOf(n, sel){ var p = panel(n); return p ? p.querySelectorAll("table.rules tbody tr" + (sel || "")) : []; }
+  function uniq(rows){ var seen = {}; Array.prototype.forEach.call(rows, function(r){ seen[r.getAttribute("data-id")] = 1; }); return Object.keys(seen).length; }
 
   var total = 0; names.forEach(function(n){ if (n !== "decisions") total += rowsOf(n).length; });
   var highAll = 0; names.forEach(function(n){ if (n !== "overview" && n !== "decisions") highAll += rowsOf(n, '[data-sev="high"]').length; });
@@ -413,14 +372,14 @@ footer.foot{max-width:1280px;margin:0 auto;padding:22px 40px 40px;color:var(--mu
       var k = el.getAttribute("data-stat"), v = 0;
       if (k === "all") v = total;
       else if (k === "highall") v = highAll;
-      else if (k === "dec") v = rowsOf("decisions").length;
+      else if (k === "dec") v = uniq(rowsOf("decisions"));
       else if (k === "rules") v = rowsOf(n).length;
       else if (k === "q") v = Array.prototype.filter.call(rowsOf(n), function(r){ return /^Q/.test(r.getAttribute("data-id")); }).length;
       else v = rowsOf(n, '[data-sev="'+k+'"]').length;
       el.textContent = v;
     });
     var badge = document.querySelector('.docnav [data-n="'+n+'"]');
-    var c = rowsOf(n).length;
+    var c = uniq(rowsOf(n));
     if (badge) { if (c) badge.textContent = c; else badge.remove(); }
   });
 
@@ -464,7 +423,9 @@ footer.foot{max-width:1280px;margin:0 auto;padding:22px 40px 40px;color:var(--mu
   document.addEventListener("click", function(e){
     var a = e.target.closest && e.target.closest("a[data-go]");
     if (!a) return;
-    e.preventDefault(); var n = a.getAttribute("data-go"); history.replaceState(null, "", "#" + n); show(n);
+    e.preventDefault();
+    var n = a.getAttribute("data-go"), h = (a.getAttribute("href") || "").slice(1), el = h && h !== n ? document.getElementById(h) : null;
+    history.replaceState(null, "", "#" + (el ? h : n)); show(n, el);
   });
   window.addEventListener("hashchange", route);
 
