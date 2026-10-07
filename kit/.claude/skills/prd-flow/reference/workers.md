@@ -13,13 +13,13 @@ Gaps: <list, or "none">
 
 ## surveyor
 
-Context, freshness and impact, in sequence, for a rule change.
+Context, freshness and impact, in sequence, for a rule change. Model: `opus` for size L (the confrontation is the step whose miss costs the most), `sonnet` for M (K-14). Short mode (short C5): K01, K02, K11, K12 on the touched rules only, confrontation at most 15 lines.
 
-1. **Batch 1, one message:** `Read .claude/skills/prd-flow/repo.md`; `Grep` the request's terms in `docs/prd/INDEX.md`; `Read docs/trd/README.md`; `Grep` the terms in the PRD section files to find the rows; `git fetch -q && git rev-parse --short HEAD && git rev-list --count HEAD..origin/<base_branch>`.
+1. **Batch 1, one message:** `Read .claude/skills/prd-flow/repo.md` (including "Rule owners" and "Shared PRDs"); `Grep` the request's terms in `docs/prd/INDEX.md`; `Read docs/trd/README.md`; `Grep` the terms in the PRD section files to find the rows; `git fetch -q && git rev-parse --short HEAD && git rev-list --count HEAD..origin/<base_branch>`.
 2. **Batch 2:** the tables of the sections involved; the TRD feature file; `Grep "<IDs>" docs/prd changes <test folders>` (never `changes/archive/`, LT07); the lines of `docs/trd/invariants.md` for the kind of change; the constitution principle the change touches (title and excerpt).
 3. **Freshness:** check the Source of each rule that will change (file and symbol exist, behavior matches). A divergence goes into the pack; an out-of-scope divergence is only noted, with no new call.
-4. **Impact:** follow `reference/impact.md` (K01 to K10, trade-offs, protections). K08 to K10 are never skipped: discovered during execution, they become extra rounds with the user. Write `impact.md` already in the confrontation format from there: it is what the main thread shows the user.
-5. **Pre-interview:** for each dimension D01 to D15 of `reference/interview.md` plus the extra ones of `repo.md`, mark `answered: <source>`, `not applicable: <reason>` or `open: <question with scenario and recommended default>`.
+4. **Impact:** follow `reference/impact.md` (K01 to K13, trade-offs, protections). K08 to K12 are never skipped (K08 uses `scripts/gates.sh contracts` when snapshots are configured, K-74): discovered during execution, they become extra rounds with the user. The confrontation always carries `Checked:` and `Conflicts:`. Write `impact.md` already in the confrontation format from there: it is what the main thread shows the user.
+5. **Pre-interview:** for each dimension D01 to D15 of `reference/interview.md` plus the extra ones of `repo.md`, mark `doc: <source>`, `assumed: <proposed default and where it comes from>`, `open: <question with scenario and recommended default>` or `n/a: <reason>` (K-23). A dimension the change touches is never `doc`. Put the assumed ones in one block of at most 6 lines at the end of the confrontation.
 6. Write `pack.md` in the format below and run `python .claude/skills/prd-flow/scripts/gate.py --pack .claude/prd-flow/state/<slug>/pack.md`. ERROR: fix the pack and run again.
 
 Format of `pack.md` (the gate checks the sections and that every rule row is **literal**, copied from the PRD):
@@ -60,30 +60,43 @@ Request: <one line>
 ## Pre-interview
 | Dimension | State | Detail |
 |---|---|---|
-| D02 variants | answered | same config for web and mobile (payment_config.py::PaymentConfig) |
+| D02 variants | doc | same config for web and mobile (payment_config.py::PaymentConfig) |
+| D04 numbers | assumed | 20 s, from the PaymentConfig default |
 ```
 
-Return: the confrontation (at most 25 lines, taken from `impact.md`), the in-scope divergences and the open dimensions.
+Return: the confrontation (at most 25 lines, taken from `impact.md`, 15 in short mode), the in-scope divergences, the assumed block and the open dimensions.
 
-## writer
+## writer-prd
 
-Applies the approved rules to the PRD, the HTML if any, and the TRD. Input: `approved-rules.md`, `pack.md`, `state.md`.
+Applies the approved rules to the PRD. Step 5 of the C5 route, and E10 of the short C5. Input: `approved-rules.md`, `interview.md`, `pack.md`, `state.md`, `changes/NNN-<slug>/decisions.md`. You never touch the TRD.
 
-1. `python .claude/skills/prd-flow/scripts/gate.py --rules .claude/prd-flow/state/<slug>/approved-rules.md`. ERROR: stop and return it as a gap.
-2. Read `reference/prd-writing.md` and follow it: markdown of the owning section, markers, CHANGELOG, INDEX, README if affected. The HTML only by `Grep -n` of the ID and an exact `Edit` of the line.
-3. `python .claude/skills/prd-flow/scripts/gate.py`. ERROR: fix and run again until green. A WARNING about "earlier drift" is not yours.
-4. Commit `docs(prd): <sentence in the git log style>` with markdown and HTML together.
-5. Read `reference/trd-planned.md` and write the "Planned" section of each feature in the pack (or the file of a new feature). Gate again. Commit `docs(trd): <sentence>`.
-6. Write `writing.md`: files touched, IDs, commits, final gate output.
+1. `python .claude/skills/prd-flow/scripts/gate.py --rules .claude/prd-flow/state/<slug>/approved-rules.md` (it reads `interview.md` beside it; Q3, G27 and the other errors). ERROR: stop and return it as a gap.
+2. Read `reference/prd-writing.md` and follow it: markdown of the owning section, markers, `Example` column when the approved row carries it (K-50), CHANGELOG (with the `Decisions:` block from `decisions.md`, and `decided by <owner>, written by <approver>` when `state.md` records an owner), INDEX, README if affected. In the short C5, apply only the dated section of `approved-rules.md`.
+3. HTML: with `html_mode: generated` (`repo.md`) run `python .claude/skills/prd-flow/scripts/build_prd_html.py` and never edit the HTML (K-63); with `hand`, only `Grep -n` of the ID and an exact `Edit` of the line.
+4. `python .claude/skills/prd-flow/scripts/gate.py`. ERROR: fix and run again until green. A WARNING about "earlier drift" is not yours.
+5. `python .claude/skills/prd-flow/scripts/gate.py --rules .claude/prd-flow/state/<slug>/approved-rules.md --applied` (Q4): every approved row must exist in the PRD with identical cells. ERROR: fix the PRD, not the approved file, and run again.
+6. Commit `docs(prd): <sentence in the git log style>` with markdown, the generated or edited HTML and `decisions.md` together.
+7. Write `writing.md`: files touched, IDs, commit, final gate output and the `--applied` result.
 
-Return: commits, IDs touched, the last line of the gate, gaps.
+Return: commit, IDs touched, the last line of the gate, the `--applied` result, gaps.
+
+## writer-trd
+
+Writes the TRD "Planned" after the user confirmed the rule diff (step 7; the TRD is never written before step 6). Input: `approved-rules.md`, `pack.md`, `writing.md`.
+
+1. Read `reference/trd-planned.md` and write the "Planned" section of each feature in the pack (or the file of a new feature) in the table `| File | Changes or creates | Symbols | IDs |` (K-51): no parameters, intervals or values (they are rules or contracts), "Tests to write" lists test file and IDs only, never expected values, and contracts are linked to `design.md`, not copied.
+2. `python .claude/skills/prd-flow/scripts/gate.py --trd` (K-54: G23 to G26) and `python .claude/skills/prd-flow/scripts/gate.py`. ERROR: fix and run again. A file over the TRD budget splits per K-55.
+3. Commit `docs(trd): <sentence>`.
+4. Append to `writing.md` the TRD files, the commit and the gate output.
+
+Return: commit, TRD files touched, the last line of both gate runs, gaps.
 
 ## planner
 
-Builds the plan for agents. Input: `approved-rules.md`, `pack.md`, the "Planned" section of the TRD files touched.
+Builds the plan for agents (step 8; the short C5 appends tasks). Input: `approved-rules.md`, `pack.md`, `changes/NNN-<slug>/decisions.md`, the "Planned" section of the TRD files touched.
 
-1. Read `reference/agent-plan.md` and decide size and where the plan lives (LT04, "Where the plan lives"). For size M and L write `brief.md` (`docs/templates/change-brief.md`, LT02) and, for L, `design.md` (`docs/templates/change-design.md`, LT03) first; the brief cites rule IDs only and `gate.py --change <dir>` must pass (LT09).
-2. Write the tasks in the format there, with the final promotion task, and copy the "Plan execution rules" and the `## Constitution check` (LT05) into the plan header. Before writing, check with `git log` which tasks the plan depends on are already done. Run `python .claude/skills/prd-flow/scripts/gate.py --plan <plan>`: fix every ERROR. Commit `docs(changes): <sentence>`.
+1. Read `reference/agent-plan.md` and decide size and where the plan lives (LT04, "Where the plan lives"); reuse the change folder step 4 created. For size M and L write `brief.md` (`docs/templates/change-brief.md`, LT02) and, for L, `design.md` (`docs/templates/change-design.md`, LT03) first; the brief cites rule IDs only and `gate.py --change <dir>` must pass (LT09).
+2. Write the tasks in the format there, with the final promotion task, and copy the "Plan execution rules" and the `## Constitution check` (LT05) into the plan header. Before writing, check with `git log` which tasks the plan depends on are already done. Each task points to its TRD Planned row by file instead of describing it again (K-51). Run `python .claude/skills/prd-flow/scripts/gate.py --plan <plan>`: fix every ERROR. Commit `docs(changes): <sentence>`.
 3. Structure (SKILL.md R08, `docs/code-structure.md`): every task names the area and its files per `docs/code-structure.md` "This repository's layout", files named after their responsibility, and the tests where AR10 puts them; no task creates a file above the limits or with a generic name; a legacy file over the limit follows AR21 (extract first); an untested legacy path gets a characterization test first (TS42); a task that changes the pieces of an area updates its map and TRD.
 4. Cost (execution.md E12 to E17): rules cited by ID, never copied outside the owning task; each task section at most 25 lines, naming files, entry symbols and tests; the whole plan around 30 KB. Replace the old path with the new one instead of keeping both in parallel, unless a rollback switch requires it: a double path makes every test be touched twice. Model `sonnet`; `opus` only with a reason on the line (E13). Reviewer from `repo.md`.
 
@@ -97,11 +110,11 @@ Implements ONE task of the plan, or fixes the findings of one review round. Inpu
 2. **Test first:** write the task's test, run it and see it fail; implement the minimum; run it again.
 3. **Gate:** only the related tests (the mirror test of the module and the tests that import or use the touched module: `Grep` the module path in the test folders), the structure ratchet, plus lint and format of the touched files. Never the full suite (execution.md E18): it runs once, at the end of all tasks, in the main thread. Test output to a file; only failures and the summary come back (E16). In a refactor, move code by script, never retype (E19).
 4. **Structure (SKILL.md R08):** new code lives in the right feature, respects the limits of `docs/code-structure.md`, cites the PRD IDs in the module and test docstrings, and the feature's `CLAUDE.md` follows the change. The ratchet is always among the related tests and cannot regress.
-5. **Outside Owns:** a test of another file that broke as a direct and expected consequence of the change may have only its expectation adjusted, never a loosened safety assertion, and enters the file list of the return. A contract or rule divergence: stop and return it as a gap, without inventing a rule.
+5. **Outside Owns:** a test of another file that broke as a direct and expected consequence of the change may have only its expectation adjusted, never a loosened safety assertion, and enters the file list of the return. A contract or rule divergence, or any behavior the approved rules do not cover (R09): stop the task and return it as a gap, without inventing a rule; only a missing technical detail is a question.
 6. Append your block to `deliveries.md` (format below).
 7. No commit and no push (the main thread commits with the exact file list), no script to edit files, no em dash, no unnecessary comment.
 
-**Ceiling (review.md V08):** if you reach about 50 tool calls or 30 minutes without finishing, return what you did and what is left; the main thread decides. Never open a subagent (execution.md E12).
+**Ceiling (review.md V08):** if you reach the ceiling without finishing, return what you did and what is left; the main thread decides. Never open a subagent (execution.md E12).
 
 `deliveries.md` block (at most 8 lines; it is what the next task reads instead of your code):
 ```markdown
@@ -116,9 +129,11 @@ Return (at most 20 lines):
 Done: <ID>, <one line>
 Files: <exact list for the commit>
 Tests: <new test names> · Gate: <result against the baseline> · Lint: <ok|error>
-Commit: <Conventional Commits message in English, with the IDs>
+Commit: <Conventional Commits message in English, with the IDs, ending with the trailer line `Rules: <IDs>` or `Case: none (<reason in at most 8 words>)` (K-72)>
 Gaps: <list, or "none">
 ```
+
+The trailer is required when the commit touches the source folders (`ai-kit.json`); `scripts/gates.sh trailers` checks it.
 
 ## reviewer
 
@@ -127,4 +142,4 @@ Instructions the main thread puts in the prompt of the task's reviewer agent (fr
 - "Round N/5 of `.claude/skills/prd-flow/reference/review.md`." In round 1, the delivery diff; from round 2, only the fix diff and the list of previous findings (V03): say resolved or not for each and point out only new problems that diff created.
 - Each finding on one line: `[Critical|High|Medium|Low] CS-NNN · file:line · rule · concrete scenario in one sentence · fix in one sentence`. At most 8 findings, the most severe first.
 - Severity by consequence to the user or the delivery, not elegance. "Possible in theory" without a concrete scenario is Low.
-- Return at most 20 lines; ceiling of 40 to 60 tool calls. Findings only: never edit code or write files.
+- Return at most 20 lines; ceiling per review.md V08. A finding that is a behavior outside the approved rules is marked `R09`. Findings only: never edit code or write files.

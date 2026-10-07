@@ -10,13 +10,30 @@ IDs, texts and paths in the examples are illustrative: always read the real line
 | K03 | Variants | Where `repo.md` documents them. A rule that cites only one variant almost always has a pair in the other |
 | K04 | Tenants | Where `repo.md` documents them; per-tenant differences |
 | K05 | Invariants and tests | `docs/trd/invariants.md` for the kind of change; `Grep "<ID>\|FR-0NN"` in the test folders for tests citing the rule or the FR |
-| K06 | Active changes | `Grep "<ID>" changes --glob "!archive/**"`; a change folder in progress in the area |
+| K06 | Active changes, local and remote | `Grep "<ID>" changes --glob "!archive/**"`; a change folder in progress in the area. Remote (K-22): for each in-scope ID, the next free IDs and the next change number, take the most recent 30 of `git for-each-ref refs/remotes` and `git grep -l "<ID>" <ref> -- docs/prd changes`. A hit goes to the confrontation and is asked about. `gh pr list` only when `gh` is available |
 | K07 | Open questions, contract, governance | Linked `Q-`, `R-`, `S-` rows; what consumers persist; the Change via column; README "What weighs most today" |
 | K08 | Consumer contract in a sibling repository | If the change touches a field, value or key that goes to another repository, check its validation there before the interview (commands in `repo.md`). A value the consumer does not accept breaks the whole delivery |
 | K09 | Safety net removed or weakened | Does the change remove or loosen a list, guard, fallback, switch or wait? List what it covered and what becomes uncovered (failure, delay, end of session, disconnection). It becomes a trade-off in the confrontation and an interview question; never an extra task during execution (review.md V06) |
 | K10 | Verification prerequisites | What proving the rule requires: a real model (API key in the environment?), a database, a backend. Without the prerequisite, say in the confrontation that the proof stays pending and who runs it |
+| K11 | Semantic sweep (K-20) | Read the Section column of every PRD file in `docs/prd/INDEX.md`, not only grep hits. Pick up to 8 section files whose subject could interact (same entity, actor, state, number or journey step), read their rule tables, and list each rule the proposal would contradict, constrain or duplicate. A rule phrased with other words is found here, not by K01 |
+| K12 | History (K-21) | `Grep` each in-scope ID in `docs/prd/CHANGELOG.md`; per ID with history show `Decided <date>: <why>; rejected: <alternative> (<why>)` from the entry's Decisions block |
+| K13 | Rule owner and shared PRD (K-24, K-71) | `repo.md` "Rule owners": when the change touches an owned section, name the owner. `repo.md` "Shared PRDs": when the PRD folder is shared, say the sibling repository path that must receive the same change |
+
+K11 and K12 are never skipped, in the short C5 they run on the touched rules only (K-41).
 
 Sweep of large code: delegate to an Explore agent with the K01 to K07 questions and ask only for the answers.
+
+## Pre-interview states (K-23)
+Per dimension D01 to D15 and the extra ones of `repo.md`:
+
+| State | Meaning |
+|---|---|
+| `doc: <source>` | The PRD states it and the change does not touch it |
+| `assumed: <proposed default and where it comes from>` | Inferred from current code, or the change touches it |
+| `open: <question with scenario and recommended default>` | Nothing answers it |
+| `n/a: <reason>` | Does not apply |
+
+A dimension the change touches is never `doc`. The confrontation shows the assumed ones in one block of at most 6 lines; the user confirms or corrects them explicitly before the interview.
 
 ## Confrontation format
 ```
@@ -26,12 +43,20 @@ Proposal
   "<how it would read>"
 What changes
   Customer: ...   Operator: ...   Backend: ...
+Checked: product/04-checkout.md CHK-01..CHK-14, product/06-orders.md ORD-01..ORD-09
+Conflicts: ORD-03 (cancels at 30 min, contradicts a 20 s wait)   [or: none found in the checked files]
+History
+  CHK-02 Decided 2026-03-02: 30 s matches the provider SLA; rejected: 10 s (too many false failures)
 Impact
   Rules: CHK-05 (same timeout on retry), ORD-03
+  Remote branches: none   [or: feat/x touches CHK-02]
+  Owner: none   [or: <owner> owns product/04-*; the user must state they agreed]
   Variants: web and mobile; mobile retries in background
   Tenants: all (shared config)
   Tests: src/features/checkout/tests/test_payment_call.py cites CHK-02
   Change: 007-checkout · Open: Q-CHK-04
+Assumed (confirm or correct, at most 6 lines)
+  - D04 numbers: 20 s, from PaymentConfig default
 Trade-offs and risks
   - A shorter wait fails more slow-but-successful payments: possible double charge on retry
   - Requests in flight during the deploy: which timeout applies?
