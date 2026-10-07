@@ -10,6 +10,7 @@ BASE_DIMENSIONS = [f"D{n:02d}" for n in range(1, 16)]
 HEADING = re.compile(r"^## Dimensions\b.*$", re.M)
 DATED = re.compile(r"\d{4}-\d\d-\d\d")
 DIMENSION = re.compile(r"^(D\d+)\b")
+SHORT_SCOPE = re.compile(r"^Scope:\s*short C5 outside a C5\b", re.M)
 
 
 def extra_dimensions() -> list[str]:
@@ -49,12 +50,14 @@ def check_interview(rules_path: Path, prd: Path, rules: Rules) -> None:
     if not path.exists():
         err("Q3", f"{path.name} not found beside {rules_path.name}")
         return
-    blocks = sections(path.read_text(encoding="utf-8"))
+    text = path.read_text(encoding="utf-8")
+    short_scope = bool(SHORT_SCOPE.search(text))
+    blocks = sections(text)
     if not blocks:
         err("Q3", "interview.md without a '## Dimensions' table")
         return
     rules_text = rules_path.read_text(encoding="utf-8")
-    for n, (dated, block) in enumerate(blocks):
+    for n, (_, block) in enumerate(blocks):
         seen: set[str] = set()
         for line in block.splitlines():
             if not is_table_line(line.strip()):
@@ -73,7 +76,7 @@ def check_interview(rules_path: Path, prd: Path, rules: Rules) -> None:
                     err("Q3", f"{dim}: state question without a Q- ID in Answer")
                 elif not known_question(qid.group(0), rules_text, prd):
                     err("Q3", f"{dim}: {qid.group(0)} exists neither in approved-rules.md nor in the PRD")
-        if n == 0 and not dated:
+        if n == 0 and not short_scope:
             for dim in [*BASE_DIMENSIONS, *extra_dimensions()]:
                 if dim not in seen:
                     err("Q3", f"interview.md without the dimension {dim}")

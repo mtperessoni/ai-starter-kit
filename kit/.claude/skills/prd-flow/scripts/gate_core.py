@@ -149,6 +149,7 @@ def literal_rows(text: str) -> list[tuple[str, str]]:
     for line in text.splitlines():
         if re.match(r"^## \d{4}-\d\d-\d\d", line):
             dated += 1
+            current = ""
             continue
         m = re.match(r"^#{2,3} (\S+\.md)\s*$", line)
         if m:

@@ -90,12 +90,19 @@ class InterviewTest(unittest.TestCase):
         self.put(interview(confirmed=False) + f"\n## Notes\n{CONFIRMED}\n")
         self.assertIn("ERROR Q3", self.gate().stdout)
 
-    def test_a_dated_first_block_needs_only_its_listed_dimensions(self) -> None:
-        text = interview(["D05"], confirmed=True).replace("## Dimensions", "## Dimensions (2026-10-08)")
+    def test_a_short_c5_outside_a_c5_needs_only_its_listed_dimensions(self) -> None:
+        scope = "Scope: short C5 outside a C5\n\n"
+        text = scope + interview(["D05"], confirmed=True).replace("## Dimensions", "## Dimensions (2026-10-08)")
         self.put(text)
         self.assertNotIn("ERROR Q3", self.gate().stdout)
-        self.put(interview([], confirmed=True).replace("## Dimensions", "## Dimensions (2026-10-08)"))
+        self.put(scope + interview([], confirmed=True).replace("## Dimensions", "## Dimensions (2026-10-08)"))
         self.assertIn("ERROR Q3", self.gate().stdout)
+
+    def test_a_dated_first_block_without_the_scope_line_needs_every_dimension(self) -> None:
+        self.put(interview(["D05"], confirmed=True).replace("## Dimensions", "## Dimensions (2026-10-08)"))
+        out = self.gate().stdout
+        self.assertIn("ERROR Q3", out)
+        self.assertIn("D01", out)
 
     def test_an_extra_dimension_is_required_and_a_placeholder_is_not(self) -> None:
         self.put(interview())
@@ -148,6 +155,13 @@ class AppliedTest(unittest.TestCase):
         r = self.p.py(GATE, "--rules", RULES, "--applied")
         self.assertNotIn("Q4", r.stdout)
         self.assertNotIn("repeated", r.stdout)
+
+    def test_a_row_under_a_date_before_any_file_heading_binds_to_no_file(self) -> None:
+        stray = ORD1.replace("at least one item", "two items")
+        text = approved(ORD1) + f"\n## 2026-10-08\n| ID | Rule | Source | Change via |\n|---|---|---|---|\n{stray}\n"
+        write(self.p.root, RULES, text)
+        r = self.p.py(GATE, "--rules", RULES, "--applied")
+        self.assertNotIn("ERROR Q4", r.stdout)
 
     def test_without_the_flag_q4_does_not_run(self) -> None:
         write(self.p.root, RULES, approved(NEW_ROW))

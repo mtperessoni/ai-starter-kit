@@ -67,7 +67,7 @@ Worker: Agent `general-purpose`, `model: "sonnet"` (the executor on the task's m
 | R06 | Every agent has a ceiling and returns what is missing; none is re-dispatched in a loop (review.md V08) |
 | R07 | Questions to the user in product language, with a usage example; IDs only in the read-back |
 | R08 | Code and TRD follow `docs/code-structure.md` (AR01 to AR28): the right area per the repository's layout, the size limits, one responsibility per file, composition, the PRD ID in the first comment of each module and test, the area's map and TRD updated in the same commit. The ratchet (command in `repo.md`) never regresses |
-| R09 | Any behavior not covered by the approved rules, proposed by anyone (the user, an executor, a reviewer, this conversation), stops the tasks that touch it and enters the short C5 before code (`reference/execution.md` E08 to E10). A rule gap is never resolved by a task. Outside a C5 (during C2, C3 or C6) the short C5 first creates the state files and the change folder (E08); more than one rule, or a new dimension set, re-enters as a full C5 |
+| R09 | Any behavior not covered by the approved rules, proposed by anyone (the user, an executor, a reviewer, this conversation), stops the tasks that touch it and enters the short C5 before code (`reference/execution.md` E08 to E10). A rule gap is never resolved by a task. Outside a C5 (during C2, C3 or C6) the short C5 first creates the state files and the change folder (E08); more than one rule, or a dimension the original change never covered, re-enters as a full C5 |
 
 ## Files
 | File | Who reads it |

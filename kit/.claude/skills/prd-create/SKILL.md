@@ -15,7 +15,7 @@ The PRD says what the product does and why, rule by rule, in product language, w
 | P03 | **One context per file.** A section file holds one step of the journey or one cross-cutting concern, stays under about 300 lines, and is split by subsection (`NN-MM-<slug>.md`) when larger. The INDEX lists every file with its ID ranges |
 | P04 | **Explain before the table.** Each section opens with what it is, how it works and a concrete example, in product language, then the rule table. A reader who never saw the code understands it |
 | P05 | **Facts from code and documents, intent from the user.** Never ask what the code answers; never invent intent. Unknown intent becomes an open question with the adopted default |
-| P06 | **The HTML is generated from the markdown** : `build_prd_html.py` renders it, so every rule row carries the same words; the gate checks it (G29). Nobody edits the HTML; agents never read it |
+| P06 | **The HTML is generated from the markdown**: `build_prd_html.py` renders it, so every rule row carries the same words; the gate checks it (G29). Nobody edits the HTML; agents never read it |
 | P09 | **Document-only rules are proposed.** Rules that come only from documents (M3, M4), not proven by code, are written `*(proposed)*` with Source `planned`; they are not approved until `/prd-flow` confronts and interviews them. Greenfield M2 rules come from the interview and are approved |
 | P07 | **Outline first.** No section is written before the user approves the outline (PRDs, sections, prefixes, sources) |
 | P08 | Everything in English; no em dash (U+2014); questions to the user in product language with an example |

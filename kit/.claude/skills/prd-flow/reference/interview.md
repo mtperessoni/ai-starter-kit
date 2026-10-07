@@ -56,7 +56,7 @@ Confirmed: <name> · <YYYY-MM-DD> · "<the user's words>"
 | State | One of `user`, `doc`, `assumed-confirmed`, `n/a`, `question`. `open` and `assumed` are not allowed at closure |
 | `question` | The Answer carries a `Q-` ID that exists in `approved-rules.md` or the PRD |
 | `Confirmed:` | One line after each table: the person, the date and the user's own words |
-| Short C5 | Appends `## Dimensions (YYYY-MM-DD)` with only the reopened dimensions (at least one) and its own `Confirmed:` line |
+| Short C5 | Appends `## Dimensions (YYYY-MM-DD)` with only the reopened dimensions (at least one) and its own `Confirmed:` line. Outside a C5 the file is new and starts with the line `Scope: short C5 outside a C5` (execution.md E08); without it the first table needs every dimension |
 
 ## Record: `decisions.md`
 At the end of this step, this conversation allocates the change folder (next free `NNN`, already checked against remote branches in K06) and creates `changes/NNN-<slug>/decisions.md` from `docs/templates/change-decisions.md`. `writer-prd` commits it with `docs(prd)`; the planner reuses the folder.
