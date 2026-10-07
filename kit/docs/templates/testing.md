@@ -75,6 +75,14 @@ This repository: `<beside the code or mirrored tree, and the patterns in use>`.
 | Builders (TS41) | Test data from small builders or factories per subject beside the tests; no shared fixture file past the module limit |
 | Characterization (TS42) | Before changing legacy code without tests, a golden master or approval test records today's behavior, citing the area |
 
+## Contract snapshots
+
+| Snapshot | Source | Command | Consumer |
+|---|---|---|---|
+| `<file>` | `<schema or contract it freezes>` | `scripts/gates.sh contracts` | `<sibling repository that consumes it, from repo.md>` |
+
+Proposed when `repo.md` lists a sibling consumer and none is configured (K-74). Delete the table when the repository has no consumer.
+
 ## Patterns that avoid rework
 
 - Mocks and patches target the module of the caller, not the definer nor a re-export (AR11).

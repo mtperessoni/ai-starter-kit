@@ -45,7 +45,7 @@ Keep this order. Numbers are two digits; a section split by subsection uses `NN-
 | N+7 | `NN-risks.md` | Risks with severity, scenario and mitigation | `\| R<prd>-NN · high \| ... \|` |
 | N+8 | `NN-open-questions.md` | Every decision not yet made, with the adopted default | `\| Q<prd>-NN \| Question \| Default adopted \| Blocks \|` |
 
-Amendments approved later (by prd-flow) take the next number with subsections: `NN-00-overview.md`, `NN-01-<topic>.md`.
+Amendments approved later (by prd-flow) take the next number with subsections: `NN-00-overview.md`, `NN-01-<topic>.md`. At promotion they are folded (K-53): each amendment row moves to the step section that owns the behavior (ID unchanged, markers removed, Source filled); an amendment file whose rows all moved is deleted after its prose is merged into the step prose; the `[!IMPORTANT]` pointers go and INDEX follows.
 
 ## Anatomy of a step section
 ```markdown
@@ -66,9 +66,9 @@ Amendments approved later (by prd-flow) take the next number with subsections: `
 | How it ends | Variant | What the user experiences | Final state | Reaches <consumer>? |
 |---|---|---|---|---|
 
-| ID | Rule | Source | Change via |
-|---|---|---|---|
-| PAY-01 | <one behavior, in product language> | src/features/payment/charge.py::charge_cart | code |
+| ID | Rule | Source | Change via | Example |
+|---|---|---|---|---|
+| PAY-01 | <one behavior, in product language> | src/features/payment/charge.py::charge_cart | code | A 120.00 cart, card declined → cart kept, "payment declined" shown |
 ```
 
 The outcome table is optional; the rule table is mandatory for a step.
@@ -83,7 +83,8 @@ The outcome table is optional; the rule table is mandatory for a step.
 | Numbers | Say the value and where it is configured: "after 30 s (`PaymentConfig.timeout`)"; never cite a default as if it were the rule when it is configurable |
 | Source | `path/to/file.ext` or `path::symbol`; several files separated by `;`; `planned` without code |
 | Change via | One value from `repo.md` `change_via` |
-| Markers | `*(approved YYYY-MM-DD, pending code)*`, `*(superseded: <link>, valid until deploy)*`, `*(checked in code)*` in callouts |
+| Example (K-50) | Optional fifth column `Example`: one line `<given> → <expected outcome>` in product language. Required for a rule with a number, a branch or a failure path; four-column tables stay valid. The HTML renders it |
+| Markers | `*(proposed)*` (rule from documents only, Source `planned`, K-11), `*(approved YYYY-MM-DD, pending code)*`, `*(superseded: <link>, valid until deploy)*`, `*(checked in code)*` in callouts. `--final` fails on a proposed rule (G30) |
 | Risks, problems | `\| R1-04 · high \| <scenario> \| <mitigation> \|`; level is `high`, `medium` or `low` |
 
 ## README.md (overview for people)
@@ -113,6 +114,7 @@ The IDs column uses ranges (`PAY-01..12`) and lists, separated by commas. The TR
 
 Superseded PRD text, removed from the body so it describes only the rules in force; the newest change comes first, and every excerpt is copied exactly as it was.
 ```
+A prd-flow entry also carries a `Decisions:` block (rows copied from the change's `decisions.md`, K-31) and, after a fold, "folded into <files>".
 
 ## Quality bar before the read-back
 - Every journey step has a section and every section with behavior has a rule table.
@@ -120,4 +122,6 @@ Superseded PRD text, removed from the body so it describes only the rules in for
 - Every number is tied to where it is configured.
 - Every defect found is in a CAUTION callout and in open questions or risks.
 - The glossary covers every term used in a rule.
+- Every rule with a number, a branch or a failure path has an Example.
+- In M3 and M4, every rule not proven by code is `*(proposed)*` with Source `planned`.
 - The gate is green.

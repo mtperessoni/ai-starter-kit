@@ -25,7 +25,7 @@ Techniques that make a repository cheap for an agent to work in. Used by `trd-cr
 | IDs | Technique | Any layout | Checked by | Where |
 |---|---|---|---|---|
 | AR07 | Short `CLAUDE.md` per map folder | yes, with `map_dirs` | ratchet | map folders |
-| AR13, DS15 | One TRD per area | yes | review | `docs/trd/` |
+| AR13, DS15 | One TRD per area, split into parts past the budget, verifiable by `gate.py --trd` | yes | review, gate | `docs/trd/` |
 | DS31 | Pattern to copy per kind of change | yes | trd-create | `docs/trd/invariants.md` |
 | DS30 | Schema and contract snapshots | yes | `scripts/gates.sh contracts` | `contracts` |
 | AR19 | Layout config valid | yes | ratchet | `ai-kit.json` |
