@@ -14,12 +14,12 @@ Brings kit improvements into a project that already has the kit, without overwri
 | U6a | `repo.md` Gate config: add the keys the kit introduced since `old` (`language`, `planned_heading`) filled from the project's existing docs as in install, never from the defaults when the docs say otherwise |
 | U6b | Read `CHANGELOG.md` of the kit: for each entry between `old` and `new`, in order, execute its `On update:` line (create folders, add `ai-kit.json` keys, seed allowlists, propose new sections) and list each in the plan table of U7 |
 | U6c | Telemetry: copy `telemetry_hook.py`, `run_probe.py` and `retro.py` (kit-owned, U3 rules); merge the kit's hooks into `.claude/settings.json` keeping the project's own; add the `telemetry` section and the `.ai-kit/runs/` gitignore line; run the hook once on the sample payload of `install.md`. `.ai-kit/runs/` is never touched |
-| U6d | Migration from `prd-gate` (K-80), when `.claude/skills/prd-gate/` exists. List first, then ask; apply only after yes. See the table below |
+| U6d | Migration from `prd-gate`, when `.claude/skills/prd-gate/` exists. List first, then ask; apply only after yes. See the table below |
 | U7 | Plan table (K03): replace, merge, propose, skip; wait for yes |
 | U8 | Apply, run the Verify list of `install.md`, update the manifest (version, date, hashes) |
 | U9 | Commit `chore: update ai-starter-kit to <new>` with the kit log lines in the body; report |
 
-## Migration from prd-gate (K-80)
+## Migration from prd-gate
 Shows this list, asks, and never overwrites a project-owned file blindly: when the target exists, show a diff and ask.
 
 | Change | How |
@@ -28,9 +28,9 @@ Shows this list, asks, and never overwrites a project-owned file blindly: when t
 | `.claude/skills/prd-gate/` | Deleted after the move, once the user confirms nothing else in it was edited (hash versus manifest; an edited file is shown and kept aside) |
 | `.claude/prd-gate/state/` | Moved to `.claude/prd-flow/state/` (git-ignored; nothing to commit) |
 | References | `prd-gate` replaced by `prd-flow` in `CLAUDE.md`, `AGENTS.md`, the constitution, `.claude/settings.json`, `.gitignore`, `ai-kit.json`, `docs/prd/README.md`, `docs/trd/`, `docs/templates/`, each as a shown diff; a project sentence that merely mentions the old name is rewritten, never dropped |
-| `repo.md` keys | Added with the K-03 defaults: `proposed_marker` `proposed`, `html_mode` (`hand` for a project with a hand HTML until the next row is accepted), `html_template` `docs/templates/prd.html`, `trd_budget_lines` `250`; sections "Rule owners" and "Shared PRDs" added empty (ask for owners and siblings, K-24, K-71) |
-| HTML (K-63) | When `html_mode` is `hand`: render `build_prd_html.py` to a preview, show it, and if the user accepts set `html_mode` to `generated` and replace the hand HTML by the build output; otherwise keep `hand` |
-| `.github/CODEOWNERS` | Added from the template, filled from "Rule owners" or left commented (K-76); an existing file only gets the `docs/prd/**` line proposed |
+| `repo.md` keys | Added with their defaults: `proposed_marker` `proposed`, `html_mode` (`hand` for a project with a hand HTML until the next row is accepted), `html_template` `docs/templates/prd.html`, `trd_budget_lines` `250`; sections "Rule owners" and "Shared PRDs" added empty (ask for owners and siblings) |
+| HTML | When `html_mode` is `hand`: render `build_prd_html.py` to a preview, show it, and if the user accepts set `html_mode` to `generated` and replace the hand HTML by the build output; otherwise keep `hand` |
+| `.github/CODEOWNERS` | Added from the template, filled from "Rule owners" or left commented; an existing file only gets the `docs/prd/**` line proposed |
 | `settings.json` | Allow entries for `gate.py` and `build_prd_html.py` under the new path; the old `prd-gate` entries are removed |
-| Contracts | When "Consumers in sibling repositories" lists a consumer and `ai-kit.json` `contracts` is empty, propose snapshots (K-74) |
+| Contracts | When "Consumers in sibling repositories" lists a consumer and `ai-kit.json` `contracts` is empty, propose snapshots |
 | Manifest | Paths rewritten to the new folder, hashes recomputed |

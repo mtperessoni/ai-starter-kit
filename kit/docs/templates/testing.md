@@ -81,7 +81,7 @@ This repository: `<beside the code or mirrored tree, and the patterns in use>`.
 |---|---|---|---|
 | `<file>` | `<schema or contract it freezes>` | `scripts/gates.sh contracts` | `<sibling repository that consumes it, from repo.md>` |
 
-Proposed when `repo.md` lists a sibling consumer and none is configured (K-74). Delete the table when the repository has no consumer.
+Proposed when `repo.md` lists a sibling consumer and none is configured. Delete the table when the repository has no consumer.
 
 ## Patterns that avoid rework
 

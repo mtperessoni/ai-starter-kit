@@ -6,7 +6,7 @@ Every file the kit installs is either **kit-owned** (the project never edits it;
 |---|---|---|---|
 | `.claude/skills/prd-flow/` (except `repo.md`) | kit | Replace after showing the diff | Replace when unchanged since install; otherwise show a three-way diff and ask |
 | `.claude/skills/prd-flow/repo.md` | project | Merge: keep existing values, add missing sections | Propose new sections only |
-| `.claude/skills/prd-gate/` (legacy name) | kit, removed | Not installed | Removed by the K-80 migration of `update.md`, after the user confirms |
+| `.claude/skills/prd-gate/` (legacy name) | kit, removed | Not installed | Removed by the prd-gate migration of `update.md`, after the user confirms |
 | `.claude/skills/prd-flow/scripts/build_prd_html.py`, `docs/templates/prd.html` | kit | Replace | Replace when unchanged |
 | `scripts/commit_trailers.py` | kit | Replace | Replace when unchanged |
 | `.github/CODEOWNERS` | project | Fill from "Rule owners" of `repo.md`, or leave commented; an existing file only gets the `docs/prd/**` line added | Never touched; propose only |

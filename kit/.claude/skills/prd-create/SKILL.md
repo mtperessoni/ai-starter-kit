@@ -15,8 +15,8 @@ The PRD says what the product does and why, rule by rule, in product language, w
 | P03 | **One context per file.** A section file holds one step of the journey or one cross-cutting concern, stays under about 300 lines, and is split by subsection (`NN-MM-<slug>.md`) when larger. The INDEX lists every file with its ID ranges |
 | P04 | **Explain before the table.** Each section opens with what it is, how it works and a concrete example, in product language, then the rule table. A reader who never saw the code understands it |
 | P05 | **Facts from code and documents, intent from the user.** Never ask what the code answers; never invent intent. Unknown intent becomes an open question with the adopted default |
-| P06 | **The HTML is generated from the markdown** (K-60, K-63): `build_prd_html.py` renders it, so every rule row carries the same words; the gate checks it (G29). Nobody edits the HTML; agents never read it |
-| P09 | **Document-only rules are proposed** (K-11). Rules that come only from documents (M3, M4), not proven by code, are written `*(proposed)*` with Source `planned`; they are not approved until `/prd-flow` confronts and interviews them. Greenfield M2 rules come from the interview and are approved |
+| P06 | **The HTML is generated from the markdown** : `build_prd_html.py` renders it, so every rule row carries the same words; the gate checks it (G29). Nobody edits the HTML; agents never read it |
+| P09 | **Document-only rules are proposed.** Rules that come only from documents (M3, M4), not proven by code, are written `*(proposed)*` with Source `planned`; they are not approved until `/prd-flow` confronts and interviews them. Greenfield M2 rules come from the interview and are approved |
 | P07 | **Outline first.** No section is written before the user approves the outline (PRDs, sections, prefixes, sources) |
 | P08 | Everything in English; no em dash (U+2014); questions to the user in product language with an example |
 
@@ -30,7 +30,7 @@ The PRD says what the product does and why, rule by rule, in product language, w
 
 Modes combine: M3 plus M1 is common (documents for intent, code for facts; their differences go to the "spec versus code" section).
 
-Who runs which (K-10):
+Who runs which:
 | Situation | Entry |
 |---|---|
 | `docs/prd/INDEX.md` does not exist (C0) | `/prd-create` alone |
@@ -45,9 +45,9 @@ Who runs which (K-10):
 | 4 | `section-writer`, waves of disjoint files | Journey step sections and their rule tables | section files |
 | 5 | `crosscut-writer` | Summary, glossary, scope, end-to-end journey, states and failures, configuration, problems, spec versus code, risks, open questions | cross-cutting files |
 | 6 | `index-writer` | `INDEX.md`, `README.md` (overview and open decisions), `CHANGELOG.md`; gate | index files |
-| 7 | `html-writer` | Runs `python .claude/skills/prd-flow/scripts/build_prd_html.py` (K-60, K-63); never writes the HTML. Gate until green (G29 when `html_mode` is `generated`) | HTML |
+| 7 | `html-writer` | Runs `python .claude/skills/prd-flow/scripts/build_prd_html.py`; never writes the HTML. Gate until green (G29 when `html_mode` is `generated`) | HTML |
 | 8 | this conversation | Read-back in at most 25 lines: rules per section, the 5 heaviest problems, the open questions to decide now; in M3 and M4, the count of `*(proposed)*` rules, which go to `/prd-flow`. Commit `docs(prd): <scope> PRD from <source>` | commit |
-| 9 | this conversation | Next: `/trd-create` (the code map); `/prd-flow` for every change and to approve every proposed rule (K-11) | handoff |
+| 9 | this conversation | Next: `/trd-create` (the code map); `/prd-flow` for every change and to approve every proposed rule | handoff |
 
 Worker: Agent `general-purpose`, `model: "sonnet"`, prompt *"Read `.claude/skills/prd-create/reference/workers.md`, section `<name>`, and run it for slug `<slug>`. Assignment: <areas or files>."* Never paste briefings or documents into the prompt. Waves of at most 4 parallel workers on disjoint files. A gap in a return is resolved before the step that depends on it.
 

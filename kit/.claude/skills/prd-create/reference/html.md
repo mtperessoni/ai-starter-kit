@@ -1,6 +1,6 @@
 # HTML reading version (html-writer)
 
-People read `docs/prd/prd.html` (path in `repo.md` `html`); agents never do. The page is generated from the markdown by `.claude/skills/prd-flow/scripts/build_prd_html.py` (K-60): the html-writer runs the build, it never writes or edits the HTML. A wrong page is fixed in the markdown or in the build, never in the page.
+People read `docs/prd/prd.html` (path in `repo.md` `html`); agents never do. The page is generated from the markdown by `.claude/skills/prd-flow/scripts/build_prd_html.py`: the html-writer runs the build, it never writes or edits the HTML. A wrong page is fixed in the markdown or in the build, never in the page.
 
 ## Run and check
 | Step | Command |
@@ -21,7 +21,7 @@ Commit the page in the same `docs(prd)` commit as the markdown. The sidebar and 
 | H05 | Prose (paragraphs, lists, `###` headings) goes in `div.explain`; the first paragraph of a section is the `lede`; ordered lists are journey timelines (`ol.story`, numbering kept) |
 | H06 | Callouts: `> [!CAUTION]` is `callout risk`, `> [!WARNING]` `callout warn`, `> [!IMPORTANT]` `callout info`, `> [!NOTE]` and `> [!TIP]` `callout note`. A first paragraph that is entirely bold becomes the callout title; `*(checked in code)*` becomes the `checked in code` badge |
 | H07 | Rule tables: a table whose rows start with a rule ID (`PAY-01`, `R1-04 · high`) is `table.rules`; each row is `<tr data-via="…" data-sev="…"><td>ID</td><td class="rule">…</td>…` (one row per ID, the form the gate reads), the Change via column is a tag, the Source and Evidence columns break at `/` and `::`. Risks and problems carry `data-sev` from `ID · level` |
-| H08 | Example column (K-50): rendered as its own column (`td.ex`); four-column tables stay valid |
+| H08 | Example column: rendered as its own column (`td.ex`); four-column tables stay valid |
 | H09 | Every other table (glossary, outcomes, configuration, matrices, questions with `Q1` ids) is `table.mx`; an ID in the first column is shown as a pill but never as a rule row |
 | H10 | Text: HTML is escaped; backticks become `<code>`, bold `<b>`, italics `<em>`, markers `*(...)*` become `<i class="mk">` pills (pending, superseded, proposed, checked), IDs never break across lines |
 | H11 | Links: to another section file become `<a href="#<id>">`, across PRDs `<a href="#<id>" data-go="<tab>">`; to `README.md` go to the overview tab; to other files (TRD, CHANGELOG) a path relative to the page; external links open in a new tab |
@@ -38,4 +38,4 @@ The anatomy in `anatomy.md` as written: `## NN. Title` per file, `###` subsectio
 2. Run the build, then `--check` (or the gate, which runs G29 when `html_mode` is `generated`).
 3. Open the page once after a large change: every new section in the toc, callouts and tables readable on a phone width.
 
-A repository whose `repo.md` still says `html_mode: hand` (or has no `html_mode`) keeps the hand-written page and the gate's G5, G6 and G10 checks until `/ai-kit update` migrates it (K-63).
+A repository whose `repo.md` still says `html_mode: hand` (or has no `html_mode`) keeps the hand-written page and the gate's G5, G6 and G10 checks until `/ai-kit update` migrates it.

@@ -64,6 +64,6 @@ Name an existing file that is the reference implementation (DS31); trd-create fi
 
 ## Gaps
 
-A row whose proof column says `gap` has no test or lint rule yet. The ratchet counts those rows against `ai-kit.json` `allowlist.invariant_gaps`, which only shrinks (K-73). trd-create proposes, per gap, the lint rule or test that closes it, ranked by `scripts/gates.sh hotspots`.
+A row whose proof column says `gap` has no test or lint rule yet. The ratchet counts those rows against `ai-kit.json` `allowlist.invariant_gaps`, which only shrinks. trd-create proposes, per gap, the lint rule or test that closes it, ranked by `scripts/gates.sh hotspots`.
 
 <!-- trd-create adds the kinds this repository has: new table or column with personal data, new migration, new state, new endpoint or dependency, configuration per tenant, model output. -->

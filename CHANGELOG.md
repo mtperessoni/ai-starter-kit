@@ -8,7 +8,7 @@ The `prd-gate` skill is now `prd-flow`, and the rule-change flow checks conflict
 
 Migration: `/ai-kit update` moves `prd-gate` to `prd-flow` (shows the list first; moves your `repo.md` and the state folder; replaces the old name in the files the kit manages). Hand-made `prd.html` files keep working (`html_mode: hand`) until you accept the generated version after a preview.
 
-On update: move `.claude/skills/prd-gate/repo.md` to `.claude/skills/prd-flow/repo.md`, delete `.claude/skills/prd-gate/`, move `.claude/prd-gate/state/` to `.claude/prd-flow/state/`, replace `prd-gate` with `prd-flow` in CLAUDE.md, AGENTS.md, the constitution, `.claude/settings.json`, `.gitignore`, `ai-kit.json` and `docs/prd/README.md`, and add the new `repo.md` sections (Rule owners, Shared PRDs) and Gate config keys.
+On update: move `.claude/skills/prd-gate/repo.md` to `.claude/skills/prd-flow/repo.md`, delete `.claude/skills/prd-gate/`, move `.claude/prd-gate/state/` to `.claude/prd-flow/state/`, replace `prd-gate` with `prd-flow` in CLAUDE.md, AGENTS.md, the constitution, `.claude/settings.json`, `.gitignore`, `ai-kit.json`, `docs/prd/README.md`, `docs/trd/` and `docs/templates/` (each as a shown diff), rewrite the manifest paths, add the new `repo.md` sections (Rule owners, Shared PRDs) and Gate config keys, add `.github/CODEOWNERS`, and propose contract snapshots when a sibling consumer is listed.
 
 Workflow
 - C0 only when `docs/prd/INDEX.md` does not exist; a new product, module or incoming spec in a repository with PRDs is a C5 of size L, swept against every existing PRD.

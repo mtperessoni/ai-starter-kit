@@ -19,4 +19,4 @@ G01 to G03 come first: a wrong problem invalidates the rest. With G01 to G07 ans
 For each journey step, the dimensions D01 to D15 of `.claude/skills/prd-flow/reference/interview.md` plus the extra ones in `repo.md`. Ask only what is open; adopt defaults the user accepts. A dimension the user does not want to decide becomes an open question with its default.
 
 ## Writing
-Greenfield rules come from the interview, so they are approved, not `*(proposed)*` (K-11). The D15 answer lands in the Example column (K-50). Every rule gets Source `planned` and the marker `*(approved YYYY-MM-DD, pending code)*` is not used: in greenfield the whole PRD is planned, and `README.md` "How this document was made" says so. When code arrives, prd-flow C2 fills the Sources task by task.
+Greenfield rules come from the interview, so they are approved, not `*(proposed)*`. The D15 answer lands in the Example column. Every rule gets Source `planned` and the marker `*(approved YYYY-MM-DD, pending code)*` is not used: in greenfield the whole PRD is planned, and `README.md` "How this document was made" says so. When code arrives, prd-flow C2 fills the Sources task by task.

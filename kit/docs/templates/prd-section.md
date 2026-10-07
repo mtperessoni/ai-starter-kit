@@ -22,4 +22,4 @@ The Example column is optional (four columns stay valid) but required for a rule
 |---|---|---|---|---|
 | PFX-01 | <One behavior, in product language: trigger, limit, order, failure, who sees what.> | path/to/file.ext::symbol | code | <given> → <expected outcome> |
 | PFX-02 | <A configurable limit names where it is configured: "after the provider timeout (`PaymentConfig.timeout`)".> | path/to/config.ext | config | <A payment that takes longer than the timeout> → <the cart is kept and the user sees "try again"> |
-| PFX-03 *(proposed)* | <A rule taken from a document and not proven by code.> | planned | code | <given> → <outcome> |
+| PFX-03 | *(proposed)* <A rule taken from a document and not proven by code.> | planned | code | <given> → <outcome> |
