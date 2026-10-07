@@ -8,9 +8,9 @@ description: |
   alternatives with specific reasons they lost: an ADR with weak negatives is a sales pitch, not a
   record.
   TRIGGER on: "create an ADR", "write an ADR", "record this decision", "document this architecture
-  decision", "/adr", "supersede ADR NNNN", when prd-gate routes a change to a protected rule here,
+  decision", "/adr", "supersede ADR NNNN", when prd-flow routes a change to a protected rule here,
   and when a decision changes the constitution's Technology Constraints or reverses a recorded one.
-  DO NOT TRIGGER on: product rules (prd-gate), feature specifications, implementation plans,
+  DO NOT TRIGGER on: product rules (prd-flow), feature specifications, implementation plans,
   constitution amendments by themselves, or anything that is not a decision with real alternatives.
 ---
 

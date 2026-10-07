@@ -63,12 +63,14 @@ def suite_paths(cfg):
     return fixture, fill, HERE / cfg.get("scenarios_dir", "scenarios")
 
 
-def build_args(arm_cfg, out, fixture=None, fill=None):
+def build_args(arm_cfg, out, fixture=None, fill=None, overlay=None):
     cmd = [sys.executable, str(HERE / "build.py"), "--ref", arm_cfg["ref"], "--out", str(out)]
     if fixture:
         cmd += ["--fixture", str(fixture)]
     if fill:
         cmd += ["--fill", str(fill)]
+    if overlay and Path(overlay).is_dir():
+        cmd += ["--overlay", str(overlay)]
     return cmd + ["--spec-kit"] if arm_cfg["spec_kit"] else cmd
 
 
@@ -126,7 +128,7 @@ def run_pair(pair, cfg, args, projects, results, template):
         (results / f"{name}.metrics.json").write_text(json.dumps({"status": "skipped_rate_limit"}),
                                                       encoding="utf-8")
         return name, "skipped_rate_limit"
-    b = subprocess.run(build_args(arm_cfg, project, fixture, fill), capture_output=True, text=True,
+    b = subprocess.run(build_args(arm_cfg, project, fixture, fill, scenario / "files"), capture_output=True, text=True,
                        encoding="utf-8", errors="replace")
     (results / f"{name}.build.log").write_text(b.stdout + b.stderr, encoding="utf-8")
     started_at = time.time()
@@ -196,7 +198,8 @@ def main(argv=None):
     with ThreadPoolExecutor(max_workers=max(1, parallel)) as pool:
         for name, status in pool.map(lambda p: run_pair(p, cfg, args, projects, results, template), pairs):
             print(f"{name}: {status}", flush=True)
-    print(report.write_report(results, config=args.config or HERE / "arms.json"))
+    print(report.write_report(results, base=cfg.get("base", report.BASE), cand=cfg.get("candidate", report.CAND),
+                              config=args.config or HERE / "arms.json"))
 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ EXPECTED_REPS = {"S1": 2, "S2": 2, "S3": 1, "S4": 1}
 INFRA = {"rate_limited", "skipped_rate_limit", "build_failed"}
 NAME = re.compile(r"^(?P<arm>[^-]+)-(?P<sc>.+)-r(?P<n>\d+)$")
 LOWER, HIGHER = "lower", "higher"
+GROUP_LABELS = {"source_fidelity": "Source-of-truth fidelity"}
 GROUPS = {
     "tokens": {"tokens_total": LOWER, "context_peak": LOWER},
     "speed": {"wall_min": LOWER, "min_to_code": LOWER, "turns": LOWER},
@@ -17,7 +18,8 @@ GROUPS = {
     "rework": {"rework_commits": LOWER, "kit_self_fixes": LOWER},
     "plan_fidelity": {"plan_coverage": HIGHER, "plan_drift": LOWER},
     "source_fidelity": {"traceability": HIGHER, "docs_first": HIGHER, "promoted": HIGHER,
-                        "single_source": LOWER},
+                        "single_source": LOWER, "conflict_found": HIGHER,
+                        "contradiction_left": LOWER, "gap_recorded": HIGHER},
     "errors": {"tool_errors": LOWER, "error_rate": LOWER},
     "subagents": {"subagent_tokens_median": LOWER, "subagent_errors": LOWER,
                   "subagents_wasted": LOWER, "tasks_per_executor": HIGHER},
@@ -269,16 +271,17 @@ def build(data, base=BASE, cand=CAND, reps=None, sizes=None):
     for sc, row in res["scorecard"].items():
         lines += ["", f"## Scorecard {sc}", "", f"| Metric | Group | {cand} | {base} | Band | Verdict |",
                   "|---|---|---|---|---|---|"]
-        lines += [f"| {k} | {c['group']} | {fmt(c['lt'])} | {fmt(c['sk'])} | {fmt(c['band'])} | "
+        lines += [f"| {k} | {GROUP_LABELS.get(c['group'], c['group'])} | {fmt(c['lt'])} | {fmt(c['sk'])} | {fmt(c['band'])} | "
                   f"{c['verdict'] or 'n/a'} |" for k, c in row.items()]
     lines += ["", "## Tally", "", "| Group | Win | Tie | Loss |", "|---|---|---|---|"]
-    lines += [f"| {g} | {t['win']} | {t['tie']} | {t['loss']} |" for g, t in res["tally"].items()]
+    lines += [f"| {GROUP_LABELS.get(g, g)} | {t['win']} | {t['tie']} | {t['loss']} |"
+              for g, t in res["tally"].items()]
     lines += ["", "## Adoption", "",
               f"- {'PASS' if res['gates_ok'] else 'FAIL'}: hard gates",
               f"- {'PASS' if res['speed_ok'] else 'FAIL'}: E1, E2, E3 win or tie on S1 and S2 "
               f"({json.dumps(res['speed'])})",
               f"- {'PASS' if res['groups_ok'] else 'FAIL'}: losses do not exceed wins in each group",
-              "", f"Result: {'LT is adopted' if res['adopt'] else 'LT is not adopted'}.", ""]
+              "", f"Result: {cand} is {'adopted' if res['adopt'] else 'not adopted'}.", ""]
     if res["work_list"]:
         lines += ["## Work list", ""]
         lines += [f"- {w['scenario']} {w['metric']} ({w['group']}): {cand} {fmt(w['lt'])}, {base} {fmt(w['sk'])}"

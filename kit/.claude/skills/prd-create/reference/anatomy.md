@@ -45,7 +45,7 @@ Keep this order. Numbers are two digits; a section split by subsection uses `NN-
 | N+7 | `NN-risks.md` | Risks with severity, scenario and mitigation | `\| R<prd>-NN · high \| ... \|` |
 | N+8 | `NN-open-questions.md` | Every decision not yet made, with the adopted default | `\| Q<prd>-NN \| Question \| Default adopted \| Blocks \|` |
 
-Amendments approved later (by prd-gate) take the next number with subsections: `NN-00-overview.md`, `NN-01-<topic>.md`.
+Amendments approved later (by prd-flow) take the next number with subsections: `NN-00-overview.md`, `NN-01-<topic>.md`. At promotion they are folded into the step sections, as defined in prd-flow `reference/prd-writing.md` P3.
 
 ## Anatomy of a step section
 ```markdown
@@ -66,9 +66,9 @@ Amendments approved later (by prd-gate) take the next number with subsections: `
 | How it ends | Variant | What the user experiences | Final state | Reaches <consumer>? |
 |---|---|---|---|---|
 
-| ID | Rule | Source | Change via |
-|---|---|---|---|
-| PAY-01 | <one behavior, in product language> | src/features/payment/charge.py::charge_cart | code |
+| ID | Rule | Source | Change via | Example |
+|---|---|---|---|---|
+| PAY-01 | <one behavior, in product language> | src/features/payment/charge.py::charge_cart | code | A 120.00 cart, card declined → cart kept, "payment declined" shown |
 ```
 
 The outcome table is optional; the rule table is mandatory for a step.
@@ -83,13 +83,14 @@ The outcome table is optional; the rule table is mandatory for a step.
 | Numbers | Say the value and where it is configured: "after 30 s (`PaymentConfig.timeout`)"; never cite a default as if it were the rule when it is configurable |
 | Source | `path/to/file.ext` or `path::symbol`; several files separated by `;`; `planned` without code |
 | Change via | One value from `repo.md` `change_via` |
-| Markers | `*(approved YYYY-MM-DD, pending code)*`, `*(superseded: <link>, valid until deploy)*`, `*(checked in code)*` in callouts |
+| Example | Optional fifth column, defined in prd-flow `reference/prd-writing.md` "Example column" |
+| Markers | `*(proposed)*` (rule from documents only, Source `planned`), `*(approved YYYY-MM-DD, pending code)*`, `*(superseded: <link>, valid until deploy)*`, `*(checked in code)*` in callouts. `--final` fails on a proposed rule (G30) |
 | Risks, problems | `\| R1-04 · high \| <scenario> \| <mitigation> \|`; level is `high`, `medium` or `low` |
 
 ## README.md (overview for people)
 Two parts, in this order, mirrored as the first and last tabs of the HTML:
 
-**Overview:** 00 what the product is (stack in one line, who calls it, the PRDs and what each covers) · 01 how to read this document · 02 the journey and the scopes (one mermaid diagram across PRDs) · 03 what weighs most today (the 5 to 8 heaviest problems and risks, with IDs) · 04 how to change a rule (`/prd-gate`, PRD then TRD then plan then code) · 05 principles that limit changes (from the constitution) · 06 state per spec (which specs are done, in progress, pending) · 07 how this document was made (mode, base commit, date, what was checked).
+**Overview:** 00 what the product is (stack in one line, who calls it, the PRDs and what each covers) · 01 how to read this document · 02 the journey and the scopes (one mermaid diagram across PRDs) · 03 what weighs most today (the 5 to 8 heaviest problems and risks, with IDs) · 04 how to change a rule (`/prd-flow`, PRD then TRD then plan then code) · 05 principles that limit changes (from the constitution) · 06 state per spec (which specs are done, in progress, pending) · 07 how this document was made (mode, base commit, date, what was checked).
 
 **Open decisions:** how to use this tab · decide now (open questions that block work, ranked by risk) · product decisions · documentation hygiene (divergences between docs).
 
@@ -113,6 +114,7 @@ The IDs column uses ranges (`PAY-01..12`) and lists, separated by commas. The TR
 
 Superseded PRD text, removed from the body so it describes only the rules in force; the newest change comes first, and every excerpt is copied exactly as it was.
 ```
+A prd-flow entry also carries a `Decisions:` block (rows copied from the change's `decisions.md`) and, after a fold, "folded into <files>".
 
 ## Quality bar before the read-back
 - Every journey step has a section and every section with behavior has a rule table.
@@ -120,4 +122,6 @@ Superseded PRD text, removed from the body so it describes only the rules in for
 - Every number is tied to where it is configured.
 - Every defect found is in a CAUTION callout and in open questions or risks.
 - The glossary covers every term used in a rule.
+- Every rule with a number, a branch or a failure path has an Example.
+- In M3 and M4, every rule not proven by code is `*(proposed)*` with Source `planned`.
 - The gate is green.

@@ -33,7 +33,7 @@ No secret in source, prompt, config file or fixture. Configuration is typed and 
 <Stack, persistence ownership, boundaries with other systems.>
 
 ## Development Workflow
-1. **Gate first.** `/prd-gate` classifies every behavior change; a rule change goes PRD, TRD, plan, code.
+1. **Gate first.** `/prd-flow` classifies every behavior change; a rule change goes PRD, TRD, plan, code.
 2. **Change folder by size** before code: S none or `plan.md`; M `brief.md` and `plan.md`; L also `design.md`, all under `changes/NNN-<slug>/`. What is durable is promoted to the PRD, TRD or ADR and the folder is archived.
 3. **Implement** test first, one commit per task.
 4. **Gates.** Lint, type check, ratchet and the full offline suite pass before any merge. Coverage may not decrease.

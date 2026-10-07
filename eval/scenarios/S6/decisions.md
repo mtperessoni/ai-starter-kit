@@ -1,0 +1,6 @@
+- The document is approved and is the intended behavior: implement all four of its requirements.
+- It is the newer decision. If a rule already in the product document says something different about the same thing, the old rule is rewritten to match the document; do not leave the old rule standing next to the new one.
+- The error stays a ValueError, the same family of errors checkout raises today for an invalid line. No new public name is exported.
+- Money rounding, the receipt, shipping and discounts do not change.
+- Rollout: applies to every order from now on, no flag, no migration, no data to fix.
+- The incoming document itself stays where it is; do not move or delete it.

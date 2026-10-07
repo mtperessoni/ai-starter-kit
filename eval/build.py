@@ -25,19 +25,21 @@ SPEC_KIT_FROM = f"git+https://github.com/github/spec-kit.git@{SPEC_KIT_TAG}"
 SPEC_KIT_ARGS = ["--here", "--force", "--non-interactive", "--integration", "claude", "--script", "sh", "--ignore-agent-tools"]
 
 KEEP_IF_PRESENT = ("docs/flow.md", "docs/prd/", "docs/trd/", "docs/adr/README.md")
+SKILL_NAMES = ("prd-flow", "prd-gate")
 PROJECT_OWNED = (
-    ".claude/skills/prd-gate/repo.md", "docs/code-structure.md", "ai-kit.json", "CLAUDE.md", "AGENTS.md",
+    ".claude/skills/prd-flow/repo.md", ".claude/skills/prd-gate/repo.md", "docs/code-structure.md", "ai-kit.json", "CLAUDE.md", "AGENTS.md",
     ".specify/memory/constitution.md", ".github/workflows/", ".gitattributes", ".gitleaks.toml",
     "docs/adr/README.md", "docs/flow.md",
 )
 SCANNED = (
     "CLAUDE.md", "AGENTS.md", "ai-kit.json", ".gitleaks.toml", ".gitattributes", ".github/workflows/",
-    ".specify/memory/constitution.md", ".claude/skills/prd-gate/repo.md", "docs/code-structure.md",
+    ".specify/memory/constitution.md", ".claude/skills/prd-flow/repo.md", ".claude/skills/prd-gate/repo.md",
+    "docs/code-structure.md",
     "docs/flow.md", "docs/prd/", "docs/trd/",
 )
 SYNTAX_TOKENS = {
     "ID", "f", "feature", "file", "slug", "source", "start", "end", "destination", "path", "module",
-    "subject", "responsibility", "paths from its TRD file", "prd", "NNN-slug", "area", "area folder",
+    "owner", "approver", "subject", "responsibility", "paths from its TRD file", "prd", "NNN-slug", "area", "area folder",
 }
 PLACEHOLDER = re.compile(r"(?<!\$)\{\{[^}\n]*\}\}|<([^<>\n]{2,})>")
 GIT_ENV = {
@@ -160,8 +162,8 @@ def append_missing_lines(path: Path, text: str) -> None:
 def apply_fill(out: Path, fill_file: Path = FIXTURE / "fill.json") -> None:
     fill = json.loads(fill_file.read_text(encoding="utf-8"))
     for rel, pairs in fill.items():
-        path = out / rel
-        if not path.exists():
+        path = next((p for p in (out / rel, out / rel.replace("prd-gate", "prd-flow")) if p.exists()), None)
+        if path is None:
             continue
         text = path.read_bytes().decode("utf-8")
         for literal, value in pairs.items():
@@ -206,12 +208,28 @@ def seed_commit(out: Path) -> None:
     run(["git", "commit", "-q", "-m", "chore: seed"], out, env=GIT_ENV)
 
 
-def build(ref: str, out: Path, spec_kit: bool, fixture: Path = FIXTURE, fill: Path | None = None) -> None:
+def regenerate_html(out: Path) -> None:
+    builder = out / ".claude" / "skills" / "prd-flow" / "scripts" / "build_prd_html.py"
+    repo_md = out / ".claude" / "skills" / "prd-flow" / "repo.md"
+    if not builder.is_file() or not repo_md.is_file():
+        return
+    if not re.search(r"^\|\s*html_mode\s*\|\s*generated\s*\|", repo_md.read_text(encoding="utf-8"), re.M):
+        return
+    done = subprocess.run([sys.executable, str(builder), "--root", str(out)], cwd=out, capture_output=True,
+                          text=True, encoding="utf-8", check=False)
+    if done.returncode:
+        raise SystemExit("build_prd_html.py failed on the arm:\n" + done.stdout + done.stderr)
+
+
+def build(ref: str, out: Path, spec_kit: bool, fixture: Path = FIXTURE, fill: Path | None = None,
+          overlay: Path | None = None) -> None:
     ref = resolve_ref(ref)
     if out.exists() and any(out.iterdir()):
         raise SystemExit(f"{out} is not empty")
     out.mkdir(parents=True, exist_ok=True)
     copy_fixture(out, fixture)
+    if overlay is not None and overlay.is_dir():
+        shutil.copytree(overlay, out, dirs_exist_ok=True)
     if spec_kit:
         add_spec_kit(out, fixture)
     with tempfile.TemporaryDirectory() as tmp:
@@ -221,8 +239,12 @@ def build(ref: str, out: Path, spec_kit: bool, fixture: Path = FIXTURE, fill: Pa
     if leftovers:
         raise SystemExit("placeholders left:\n" + "\n".join(leftovers))
     write_manifest(out, ref, files)
+    regenerate_html(out)
+    gate_path = next((f".claude/skills/{n}/scripts/gate.py" for n in SKILL_NAMES
+                      if (out / ".claude" / "skills" / n / "scripts" / "gate.py").is_file()),
+                     ".claude/skills/prd-flow/scripts/gate.py")
     gate = subprocess.run(
-        [sys.executable, ".claude/skills/prd-gate/scripts/gate.py"], cwd=out, capture_output=True, text=True, encoding="utf-8",
+        [sys.executable, gate_path], cwd=out, capture_output=True, text=True, encoding="utf-8",
     )
     if gate.returncode:
         raise SystemExit("the arm's gate.py fails on the seed:\n" + gate.stdout + gate.stderr)
@@ -236,6 +258,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--spec-kit", action="store_true")
     parser.add_argument("--fixture", type=Path, default=FIXTURE, help="fixture folder (default eval/fixture)")
     parser.add_argument("--fill", type=Path, help="fill file (default <fixture>/fill.json)")
+    parser.add_argument("--overlay", type=Path, help="folder copied over the project before the seed commit")
     args = parser.parse_args(argv)
     args.fill = args.fill or args.fixture / "fill.json"
     return args
@@ -243,7 +266,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    build(args.ref, args.out.resolve(), args.spec_kit, args.fixture.resolve(), args.fill.resolve())
+    build(args.ref, args.out.resolve(), args.spec_kit, args.fixture.resolve(), args.fill.resolve(),
+          args.overlay.resolve() if args.overlay else None)
     print(f"built {args.out} from {args.ref}{' with spec-kit ' + SPEC_KIT_TAG if args.spec_kit else ''}")
     return 0
 

@@ -2,7 +2,57 @@
 
 User-visible changes to the kit, newest first. Projects receive them through `/ai-kit update`.
 
+## prd-flow v4
+
+The `prd-gate` skill is now `prd-flow`, and the rule-change flow checks conflicts, gaps and the interview itself instead of trusting the conversation. Rules: WF35 to WF52, DS32 to DS43, PC13, PC14, IN14 to IN16, TM13 ([rules/](rules/README.md)).
+
+Migration: `/ai-kit update` moves `prd-gate` to `prd-flow` (shows the list first; moves your `repo.md` and the state folder; replaces the old name in the files the kit manages). Hand-made `prd.html` files keep working (`html_mode: hand`) until you accept the generated version after a preview.
+
+On update: move `.claude/skills/prd-gate/repo.md` to `.claude/skills/prd-flow/repo.md`, delete `.claude/skills/prd-gate/`, move `.claude/prd-gate/state/` to `.claude/prd-flow/state/`, replace `prd-gate` with `prd-flow` in CLAUDE.md, AGENTS.md, the constitution, `.claude/settings.json`, `.gitignore`, `ai-kit.json`, `docs/prd/README.md`, `docs/trd/` and `docs/templates/` (each as a shown diff), rewrite the manifest paths, add the new `repo.md` sections (Rule owners, Shared PRDs) and Gate config keys, add `.github/CODEOWNERS`, and propose contract snapshots when a sibling consumer is listed.
+
+Workflow
+- C0 only when `docs/prd/INDEX.md` does not exist; a new product, module or incoming spec in a repository with PRDs is a C5 of size L, swept against every existing PRD.
+- Rules that come only from documents are `*(proposed)*` and go through confrontation and interview before they count; `--final` fails on a leftover one.
+- New sweeps: K11 (rules in other sections that interact, found by meaning, with `Checked:` and `Conflicts:`), K12 (history of the rule in the CHANGELOG), K13 (rule owner and shared PRD), and remote branches for ID and change-number collisions.
+- Assumed defaults are shown to the person in one block and confirmed; dimensions are `doc`, `assumed`, `open` or `n/a`.
+- The PRD is confirmed (rule diff plus a summary of the non-table changes) before the TRD is written.
+- R09: any behavior not covered by the approved rules, from anyone, goes through the short C5 before code. Ceilings of agents have one home (V08).
+- `decisions.md` per change records the trade-offs decided and the alternatives rejected; rule owners are named when a change touches their section; commits carry `Rules:` or `Case: none (...)`.
+- C1 answers say whether each rule is verified in code.
+
+Gate
+- `--rules` fails Q3 when the interview record is not closed; `--rules --applied` fails Q4 when the PRD differs from the approved rows.
+- `--trd` (G23 to G26: cited paths and symbols exist, IDs match, size budget), `--status` (state per rule), `--sibling` (G28, shared PRDs identical), G27 (remote collisions), G30 (proposed rule left at `--final`).
+- `gate.py` is split into modules named after their responsibility; `repo.md` Gate config gains `proposed_marker`, `html_mode`, `html_template`, `trd_budget_lines`, each with a default.
+
+PRD and TRD formats
+- Optional `Example` column in rule tables (`<given> → <expected outcome>`).
+- TRD "Planned" is a slim table (file, changes or creates, symbols, IDs) with no values; the TRD has no History section; large TRD files split into parts; amendments are folded into their sections on promotion.
+
+HTML
+- `prd.html` is generated from the markdown by `build_prd_html.py` (tabs, toc, callouts, Example column, diagrams, decisions tab, light and dark, phone width); G29 fails when it is out of date.
+
+Scripts
+- `scripts/commit_trailers.py` and `gates.sh trailers`, run in CI on pull requests; the ratchet counts invariant gaps (`allowlist.invariant_gaps`, shrink-only); the retro reports the most-read docs (`doc_reads`); a CODEOWNERS template owns `docs/prd/**` by the rule owners.
+
+Installer
+- Update migrates `prd-gate` to `prd-flow` and, after a preview, a hand-made HTML to the generated one; install fills CODEOWNERS and proposes contract snapshots when a sibling consumer is listed.
+
+Eval
+- Scenarios S5 to S7 (conflict in another section, incoming spec, unanswered dimension) and `eval/arms-flow.json` compare the old and the new skill on the same runs, with the metrics `conflict_found`, `contradiction_left` and `gap_recorded`.
+
 ## Unreleased
+
+Adoption in an existing repository: the kit installs without losing the project's docs language, TRD heading, gates script or structural test.
+
+- prd-gate repo.md Gate config: `language` (default English) for the PRD, TRD, interview and gate output, read by R03 and `reference/workers.md`; `planned_heading` (default `Planned`) read by G8 and G20.
+- `scripts/gates.sh` delegates to `scripts/gates.project.sh` when it exists: targets the kit does not define, and targets in `ai-kit.json` `commands.project_targets` (default `[]`), run there with their arguments.
+- `scripts/ratchet.py`: `ai-kit.json` `ratchet.skip` (default `[]`) names checks to skip (`long_modules`, `long_tests`, `banned_names` or its alias `generic_names`, and the others `--init` prints); install.md says to skip the checks a project's own structural test already covers.
+- prd-gate `reference/impact.md`: rows K01, K05 and K06 restored (K06 pointed at K01's text).
+- prd-gate G3: the Source and Change via checks apply only to tables whose last header column is "Change via", so open-question tables no longer warn once per row.
+- prd-gate G6: text inside markdown code spans (for example `<fileKey>`) is no longer stripped as an HTML tag, so it matches the escaped placeholder in the HTML.
+- `docs/templates/prd.html`: explicit grid tracks (`minmax(0,1fr)`), so wide tables, mermaid diagrams and long tokens wrap or scroll inside their box and the page never exceeds 100% width.
+- On update: add `language` and `planned_heading` to the `repo.md` Gate config table, filled from the project's existing docs (language of the prose, the TRD heading in use) and not from the defaults when they differ; add `commands.project_targets: []` and `ratchet: {"skip": []}` to `ai-kit.json`; copy `scripts/gates.sh` and `scripts/ratchet.py`; when the project has its own gates script or structural test, rename it to `scripts/gates.project.sh` and list its targets in `project_targets`, or list the overlapping checks in `ratchet.skip`; copy `docs/templates/prd.html` into the project's `prd.html` only by proposing the CSS diff.
 
 Run telemetry: every run leaves summarized artifacts and a retrospective names what was slow, expensive, looping or wasteful.
 

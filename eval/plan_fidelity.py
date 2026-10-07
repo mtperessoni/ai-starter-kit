@@ -1,4 +1,4 @@
-"""Plan fidelity (F2, F3): parse spec-kit tasks.md and prd-gate plan.md into tasks with their files."""
+"""Plan fidelity (F2, F3): parse spec-kit tasks.md and prd-gate or prd-flow plan.md into tasks with their files."""
 import re
 import subprocess
 from pathlib import Path
@@ -55,7 +55,7 @@ def parse_tasks_md(text):
 
 
 def parse_plan_md(text):
-    """prd-gate: `### T03 · title` blocks, files on the `Owns:` line."""
+    """prd-gate and prd-flow: `### T03 · title` blocks, files on the `Owns:` line."""
     tasks, cur = [], None
     for line in text.splitlines():
         m = HEAD_RE.match(line)

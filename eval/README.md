@@ -140,3 +140,21 @@ The questions the final analysis answers, each with its metrics. All come from t
 
 ## Round 1 (2026-10-04), for the record
 Arms: `main` plus spec-kit without a protocol versus `feat/living-truth`; one rep, 8 runs, US$27.87. Both arms passed every hidden test. The SK arm never invoked spec-kit, so the round compared the kit without spec-kit against living truth: LT was 5% to 14% cheaper on S1, S3 and S4, and 11% more expensive and 61% slower on S2, where it hit the US$7.50 cap after archiving. Three runs patched two real gate.py bugs (G5 path comparison, HTML header row), which this round fixes in both arms.
+
+## prd-flow round
+Compares the old skill (`prd-gate`, ref `fix/existing-repo-adoption`, arm GATE, protocol `arms/living-gate.md`) with the renamed and extended one (`prd-flow`, ref `HEAD`, arm FLOW, protocol `arms/living.md`) on three scenarios that test source-of-truth fidelity, one rep each, six runs, small fixture (config `eval/arms-flow.json`, K-90 to K-92).
+
+| Scenario | What it tests | Expected |
+|---|---|---|
+| S5 | A VIP-delivery request, phrased as a perk, conflicts with the flat shipping rule of another PRD section (`conflict_ids` SHP-01) | the conflict is named before the first PRD commit or the rule is rewritten; no rule left contradicting |
+| S6 | An incoming requirements document (`docs/incoming/catalog-price-spec.md`, placed in the seed by `S6/files/`) conflicts with the item rule CHK-04 in other words | same as S5 |
+| S7 | A minimum order whose basis (before or after discounts) `decisions.md` leaves open (`gap_topic`) | the PRD diff holds a `Q-` row or a rule covering the topic |
+
+Files a scenario needs in the seed go in `<scenario>/files/` (copied over the project before the seed commit by `build.py --overlay`). New metrics: `conflict_found` (an ID of `conflict_ids` is named in assistant text, `changes/` or the state folder before the first `docs/prd` commit, or the PRD diff edits it), `contradiction_left` (judge, lower is better), `gap_recorded` (judge); the report groups them with the fidelity metrics as "Source-of-truth fidelity". Grading, `build.py` and R4 accept either skill name and either state folder (`.claude/prd-flow/state/` or `.claude/prd-gate/state/`).
+
+```bash
+python eval/run.py --config eval/arms-flow.json --dry-run --out "$TEMP/evaldry"   # builds every pair, grades the seeds, no spend
+python eval/run.py --config eval/arms-flow.json                                  # the real round (costs money)
+```
+
+What decides: the hard gates (accept, suite, gate, completed, F1, R4) must hold for FLOW, then the Source-of-truth fidelity tally (`conflict_found` and `gap_recorded` higher, `contradiction_left` lower) and cost and time on the same runs; `report.md` names FLOW as the candidate and GATE as the base. Three scenarios with one rep are a smoke signal, not a statistic: a tie is read as "no regression".

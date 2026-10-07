@@ -42,5 +42,18 @@ Fakes: `FakePaymentClient` (`tests/fakes/payment_client.py`).
 ## Known pitfalls
 - Patch `charge_service.PaymentClient`, not `infra.providers.payment_client.PaymentClient`: the patch targets the caller module.
 
-## History
-- YYYY-MM-DD: created by trd-create from commit <short>.
+## Planned
+Written by prd-flow `writer-trd` for an approved change, removed at promotion. Names only: no parameters, intervals or values (they are rules or contracts). Contracts live in `changes/NNN-<slug>/design.md`; link it here.
+
+| File | Changes or creates | Symbols | IDs |
+|---|---|---|---|
+| `charge_service.py` | changes | `ChargeService.charge` | PAY-06 |
+| `domain/retry_budget.py` | creates | `RetryBudget` | PAY-06 |
+
+Tests to write (file and IDs only; the expected values are the PRD Example):
+
+| Test file | IDs |
+|---|---|
+| `tests/test_retry_budget.py` | PAY-06 |
+
+<!-- Delete this section when nothing is planned. No History section: git log is the history. When this file passes `trd_budget_lines`, split it into docs/trd/<area>/<part>.md plus docs/trd/<area>/README.md. -->

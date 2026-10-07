@@ -291,5 +291,29 @@ class FileTest(unittest.TestCase):
         self.assertIn("LT is not adopted", text)
 
 
+class SourceOfTruthTest(unittest.TestCase):
+    def test_k91_metrics_are_in_the_source_fidelity_group(self):
+        g = report.GROUPS["source_fidelity"]
+        self.assertEqual((g["conflict_found"], g["gap_recorded"], g["contradiction_left"]),
+                         (report.HIGHER, report.HIGHER, report.LOWER))
+
+    def test_scorecard_scores_the_new_metrics(self):
+        d = data(lt=run(conflict_found=True, gap_recorded=True, contradiction_left=0),
+                 sk=run(conflict_found=False, gap_recorded=False, contradiction_left=2))
+        row = report.evaluate(d)["scorecard"]["S1"]
+        self.assertEqual(row["conflict_found"]["verdict"], "win")
+        self.assertEqual(row["gap_recorded"]["verdict"], "win")
+        self.assertEqual(row["contradiction_left"]["verdict"], "win")
+
+    def test_report_names_the_category_and_the_arms(self):
+        with tempfile.TemporaryDirectory() as d:
+            for arm in ("GATE", "FLOW"):
+                (Path(d) / f"{arm}-S5-r1.metrics.json").write_text(
+                    json.dumps(run(conflict_found=arm == "FLOW")), encoding="utf-8")
+            text = report.write_report(d, "GATE", "FLOW").read_text(encoding="utf-8")
+        self.assertIn("Source-of-truth fidelity", text)
+        self.assertRegex(text, r"Result: FLOW is (not )?adopted")
+
+
 if __name__ == "__main__":
     unittest.main()

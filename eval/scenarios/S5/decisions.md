@@ -1,0 +1,9 @@
+- Scope: delivery is free for every VIP order, with or without a coupon, whatever the amount after discounts. This is a new exception to the flat delivery fee.
+- Regular (non-VIP) customers are not affected at all: they still pay the flat fee below the free-delivery threshold and get free delivery at 200.00 or more.
+- If an older rule in the product document still says delivery always costs the flat fee for every order, that rule is wrong once this ships: rewrite it so the VIP exception is stated there, do not leave two rules that disagree.
+- The VIP discount (15%), the coupon percentage, the 30% cap and the way they add up do not change.
+- The receipt keeps showing a Shipping line, with 0.00 for a VIP order. Nothing else on the receipt changes.
+- Rounding: no change.
+- Naming: public API and field names stay exactly as they are.
+- Rollout: applies to every order from now on, no flag, no migration, no data to fix.
+- Nobody is notified.

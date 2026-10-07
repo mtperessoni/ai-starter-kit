@@ -1,11 +1,11 @@
 ---
 name: trd-create
-description: Creates the TRD of this repository, the technical map that tells an agent where each product feature lives in the code, how it enters the flow, which tests cover it and what must not break, so it loads only the files a task needs. Writes docs/trd/README.md, one file per area (1:1, wherever its files live), the cross-cutting infra map, invariants.md (repository rules by kind of change, each with its proof), testing.md (how to test here), docs/flow.md (the one end-to-end diagram), one CLAUDE.md of at most 20 lines per map folder, and links each PRD section to its TRD in docs/prd/INDEX.md. Works in any layout (feature folders recommended, never required). When the code is not organized by feature, it proposes the AI readiness plan in the current layout and offers the optional move to feature folders. Use after /prd-create, after a large refactor, when someone says "create the TRD", "map the code", "document where things live", "add CLAUDE.md files", "make the repo AI-readable", or when prd-gate finds no TRD. Not for product rules (prd-create, prd-gate).
+description: Creates the TRD of this repository, the technical map that tells an agent where each product feature lives in the code, how it enters the flow, which tests cover it and what must not break, so it loads only the files a task needs. Writes docs/trd/README.md, one file per area (1:1, wherever its files live), the cross-cutting infra map, invariants.md (repository rules by kind of change, each with its proof), testing.md (how to test here), docs/flow.md (the one end-to-end diagram), one CLAUDE.md of at most 20 lines per map folder, and links each PRD section to its TRD in docs/prd/INDEX.md. Works in any layout (feature folders recommended, never required). When the code is not organized by feature, it proposes the AI readiness plan in the current layout and offers the optional move to feature folders. Use after /prd-create, after a large refactor, when someone says "create the TRD", "map the code", "document where things live", "add CLAUDE.md files", "make the repo AI-readable", or when prd-flow finds no TRD. Not for product rules (prd-create, prd-flow).
 ---
 
 # trd-create
 
-The TRD says **where** behavior lives; the PRD says **what** it is. The TRD never repeats a rule: it cites PRD IDs. It names files and symbols, never line numbers or default values, so it stays true while the code changes. Everything is in English. Values specific to this repository are in `.claude/skills/prd-gate/repo.md`.
+The TRD says **where** behavior lives; the PRD says **what** it is. The TRD never repeats a rule: it cites PRD IDs. It names files and symbols, never line numbers or default values, so it stays true while the code changes. Everything is in English. Values specific to this repository are in `.claude/skills/prd-flow/repo.md`.
 
 ## Principles
 | ID | Principle |
@@ -17,32 +17,35 @@ The TRD says **where** behavior lives; the PRD says **what** it is. The TRD neve
 | T05 | **Small maps in the folders.** Each map folder (AR07) gets a `CLAUDE.md` of at most 20 lines: a feature folder the feature map, a folder holding several areas the folder map (`docs/templates/folder-CLAUDE.md`), each pointing to the TRDs. Claude Code loads a subfolder's `CLAUDE.md` only when a file of that folder is read, written or edited, so these maps cost nothing until the agent works there |
 | T06 | **Invariants carry proof.** Every line of `invariants.md` names the test or the principle that proves it |
 | T07 | Everything in English; no em dash; tables over prose |
+| T08 | **Budget and parts.** An area whose file passes `trd_budget_lines` (`repo.md`, default 250) splits into `docs/trd/<area>/<part>.md`, parts mirroring the PRD section groups, plus `docs/trd/<area>/README.md` listing them; `docs/trd/README.md` points to the folder. There is no History section |
+| T09 | **Checkable by `gate.py --trd`.** Paths are real tracked files (G23); symbols in `Main symbols` exist in the row's files (G24); IDs in the `IDs` column are cited by the row's files (G25); no file over budget (G26). Paths of files a change will create go in "Planned", never in "Where it lives" |
+| T10 | **Planned holds names only.** `\| File \| Changes or creates \| Symbols \| IDs \|`; no parameters, intervals or values (rules or contracts). Tests to write: file and IDs, never expected values (the PRD Example). Contracts live in `design.md`, linked |
 
 ## Modes
 | Mode | When |
 |---|---|
 | N1 full | No `docs/trd/` yet; works in any layout (areas = feature folders plus `ai-kit.json` `areas`) |
 | N2 one area | A new area appeared, or one map is stale |
-| N3 refresh | After a refactor moved files: re-verify every map, fix names, keep History |
-| N4 readiness | The code is not organized by area (logic for one product area spread over many folders, files over the size limits, generic names). Map what exists by area, then write the incremental readiness plan in the current layout (`reference/readiness.md`, PC11) for prd-gate |
-| N5 restructure | Optional, offered after N4 with its cost (PC09): move to feature folders (`reference/restructure.md`, prd-gate C6). Never required |
+| N3 refresh | After a refactor moved files: re-verify every map and fix names; no History section is written or appended (git log is the history) |
+| N4 readiness | The code is not organized by area (logic for one product area spread over many folders, files over the size limits, generic names). Map what exists by area, then write the incremental readiness plan in the current layout (`reference/readiness.md`, PC11) for prd-flow |
+| N5 restructure | Optional, offered after N4 with its cost (PC09): move to feature folders (`reference/restructure.md`, prd-flow C6). Never required |
 
 ## Route
 | Step | Who | Does | Leaves |
 |---|---|---|---|
 | 1 | this conversation | Slug `trd-create`, mode, base commit in `state.md`. Batch: `Read repo.md`; `Read docs/prd/INDEX.md`; `Glob` of the source tree two levels deep; `Read docs/code-structure.md` | state |
 | 2 | this conversation | Area list from the layout (`docs/code-structure.md` "This repository's layout", `ai-kit.json` `feature_root`, `areas`, `map_dirs`): one row per area with its files or globs and the PRD sections it implements; show it as a table; approve with at most 4 questions | `features.md` |
-| 3 | `feature-mapper`, waves of at most 4 | One area each: files, roles, symbols, IDs, entry into the flow, tests, must-not-break, pitfalls | `docs/trd/<area>.md`, `CLAUDE.md` of its own folder if it has one |
+| 3 | `feature-mapper`, waves of at most 4 | One area each: files, roles, symbols, IDs, entry into the flow, tests, must-not-break, pitfalls; passes `trd_budget_lines` so it can split into parts (T08) and runs `gate.py --trd` on its files | `docs/trd/<area>.md` or `docs/trd/<area>/`, `CLAUDE.md` of its own folder if it has one |
 | 4 | `infra-mapper` | Shared code, configuration, persistence, providers, observability | `docs/trd/infra.md` |
-| 5 | `rules-writer` | `invariants.md` from the constitution, `AGENTS.md` and the structural tests, with the patterns to copy (DS31); `testing.md` from `repo.md`, the test configuration, fakes and guards, schema and contract snapshots (DS30) | two files |
-| 6 | `index-writer` | `docs/trd/README.md`, `docs/flow.md`, the TRD column of `docs/prd/INDEX.md`, the folder maps of `map_dirs`; gate | index files |
+| 5 | `rules-writer` | `invariants.md` from the constitution, `AGENTS.md` and the structural tests, with the patterns to copy (DS31); `testing.md` from `repo.md`, the test configuration, fakes and guards, schema and contract snapshots (DS30). Counts the invariant gaps, proposes a lint rule or test per gap ranked by hotspots and records `allowlist.invariant_gaps`; proposes contract snapshots when `repo.md` lists a sibling consumer | two files |
+| 6 | `index-writer` | `docs/trd/README.md`, `docs/flow.md`, the TRD column of `docs/prd/INDEX.md`, the folder maps of `map_dirs`; `gate.py` and `gate.py --trd` | index files |
 | 7 | this conversation | N4: the readiness plan (`reference/readiness.md`); then offer N5 with its cost (`reference/restructure.md`). Present as a table for approval | plan |
-| 8 | this conversation | Read-back in at most 20 lines: areas mapped, unwired entry points, hotspots over the limits, the ratchet allowlist size. Commits `docs(trd): map <scope>` and, separately, `docs: add CLAUDE.md maps` | commits |
+| 8 | this conversation | Read-back in at most 20 lines: areas mapped, unwired entry points, hotspots over the limits, the ratchet allowlist size, the invariant gaps and the contract snapshots proposed. Commits `docs(trd): map <scope>` and, separately, `docs: add CLAUDE.md maps` | commits |
 
 Worker: Agent `general-purpose`, `model: "sonnet"`, prompt *"Read `.claude/skills/trd-create/reference/workers.md`, section `<name>`, and run it for slug `trd-create`. Assignment: <areas>."* Never paste briefings into the prompt. Each worker writes only its own files.
 
 ## Context economy
-Same as prd-gate: independent reads in one message; code only by symbol; big files only by symbol; returns at most 30 lines; ceiling about 50 tool calls per worker.
+Same as prd-flow: independent reads in one message; code only by symbol; big files only by symbol; returns at most 30 lines; ceiling about 50 tool calls per worker.
 
 ## Files
 | File | Who reads it |
@@ -53,7 +56,7 @@ Same as prd-gate: independent reads in one message; code only by symbol; big fil
 | `docs/ai-readiness.md` | this conversation in N4 (the checklist) |
 | `docs/templates/trd-feature.md`, `docs/templates/feature-CLAUDE.md` | the feature-mapper |
 | `docs/templates/folder-CLAUDE.md` | the index-writer |
-| `.claude/skills/prd-gate/scripts/gate.py` | run only |
+| `.claude/skills/prd-flow/scripts/gate.py` (`--trd`) | run only |
 
 ## Final
-Features mapped, files written, unwired code found, commits, and the next step (`/prd-gate` for changes; the readiness plan in N4, with the restructure offered as N5).
+Features mapped, files written, unwired code found, commits, and the next step (`/prd-flow` for changes; the readiness plan in N4, with the restructure offered as N5).

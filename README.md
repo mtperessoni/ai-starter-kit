@@ -26,7 +26,7 @@ What the rules in this kit changed, measured in the source repository:
 flowchart LR
     I["/ai-kit install<br/>adapts the kit to the stack"] --> P["/prd-create<br/>PRD from code, docs or interview"]
     P --> T["/trd-create<br/>code map, CLAUDE.md per feature"]
-    T --> G{"/prd-gate<br/>every change"}
+    T --> G{"/prd-flow<br/>every change"}
     G -->|question| A[Answer with rule IDs and sources]
     G -->|bug or approved rule| X[Plan, then agents implement test-first]
     G -->|rule change| R[Confront, interview, PRD, TRD, plan, then code]
@@ -51,14 +51,14 @@ Every fact has one living home, and everything else cites it by ID. A change get
 | Data model, API contract | The real artifact, linked from the TRD |
 | Principles | `.specify/memory/constitution.md` |
 
-Order of authority: constitution, PRD, TRD, code. An active plan governs only the order of work. `gate.py --trace`, `--change` and `--final` check that every rule has a test, every brief cites real rules, and nothing half-promoted reaches the base branch.
+Order of authority: constitution, PRD, TRD, code. An active plan governs only the order of work. `gate.py --trace`, `--change` and `--final` check that every rule has a test, every brief cites real rules, and nothing half-promoted reaches the base branch. Newer flags: `--rules --applied` (approved rows are in the PRD word for word), `--trd` (paths and symbols the TRD cites exist, TRD size budget), `--status` (state of every rule), `--sibling` (a PRD shared with another repository is identical). The interview record is checked by the gate, and `scripts/gates.sh trailers` checks that commits cite the rules they implement.
 
 | Skill | What it does |
 |---|---|
 | `/ai-kit` | Global. `install` detects the stack, copies and adapts the kit, configures the linter with a day-one baseline, verifies every command by running it. `update` brings kit improvements without overwriting the project's edits. `doctor` reports drift |
 | `/prd-create` | Writes the PRDs: one folder per independent flow, one small file per section, rule rows with source and change via, glossary with code names, journey, configuration, risks, open questions, and the HTML reading version |
 | `/trd-create` | Writes the technical map in any layout: one file per product area, invariants with their proof, the testing guide, the end-to-end flow, and a `CLAUDE.md` of at most 20 lines in every feature folder or declared map folder. In an existing codebase it writes the incremental readiness plan, and offers the move to feature folders as an option |
-| `/prd-gate` | The gate for every change. Classifies the request, loads only the rule and the map it needs, checks the doc against the code, and for a rule change runs confront, interview, PRD, TRD, plan, then subagents implement |
+| `/prd-flow` | The gate for every change (formerly prd-gate). Classifies the request, loads only the rule and the map it needs, checks the doc against the code, and for a rule change runs survey, confront, interview, PRD (confirmed by the person), TRD, plan, then subagents implement. A behavior found missing during execution goes back through a short rule change before code |
 | `/adr` | Records architecture decisions with at least two honest negatives and two real alternatives |
 
 ## Quick start
@@ -79,7 +79,7 @@ cd ai-starter-kit
 /trd-create             # the code map and the feature CLAUDE.md files
 
 # 3. From then on
-/prd-gate <any change or question about behavior>
+/prd-flow <any change or question about behavior>
 ```
 
 To bring kit improvements into a project later: `git pull` in the kit, `./install.sh` again, then `/ai-kit update` in the project.
@@ -92,9 +92,10 @@ AGENTS.md                       commands, critical constraints, finding things, 
 ai-kit.json                     stack commands, structure limits, ratchet allowlist
 .ai-kit/manifest.json           kit version and the files it owns
 .specify/memory/constitution.md binding principles: the project's own plus the kit's process principles
-.claude/skills/                 prd-create, trd-create, prd-gate (with repo.md, the project adapter), adr
+.claude/skills/                 prd-create, trd-create, prd-flow (with repo.md, the project adapter), adr
 .claude/agents/                 one findings-only reviewer per risk class of the domain
-docs/prd/                       INDEX.md, README.md, CHANGELOG.md, prd.html, one folder per PRD
+docs/prd/                       INDEX.md, README.md, CHANGELOG.md, prd.html (generated), one folder per PRD
+.github/CODEOWNERS              PRD files owned by the rule owners listed in repo.md
 docs/trd/                       README.md, one file per feature, infra.md, invariants.md, testing.md
 docs/code-structure.md          AR01 to AR28: where and how code lives, and this repository's layout
 docs/ai-readiness.md            the readiness checklist by category, used by trd-create and doctor
@@ -151,7 +152,7 @@ The kit itself is stack-free. `/ai-kit install` reads the matching [recipe](stac
 Yes, lazily. Root and parent `CLAUDE.md` files load at session start; a subfolder's `CLAUDE.md` loads only when Claude reads, writes or edits a file in that folder, and reloads after `/compact`. The kit puts one short map (at most 20 lines) in each feature folder, not in every folder, and never `@`-imports them from the root, which would load them eagerly.
 
 **Why keep both markdown and HTML for the PRD?**
-People read the HTML (tabs per PRD, filters by where a rule changes, diagrams). Agents read only the markdown, one section at a time. The gate checks that both carry the same words.
+People read the HTML (tabs per PRD, filters by where a rule changes, diagrams). Agents read only the markdown, one section at a time. The HTML is generated from the markdown by `build_prd_html.py` (nobody edits it), and the gate fails when it is out of date. A project that keeps a hand-made HTML stays on the old checks until `/ai-kit update` migrates it, after showing a rendered preview.
 
 **Can a project have several PRDs and TRDs?**
 Yes. One PRD folder per independent flow, one TRD file per feature folder, nested by package in a monorepo.

@@ -1,0 +1,5 @@
+# Owners of the product rules. The installer fills this from the "Rule owners"
+# table of .claude/skills/prd-flow/repo.md, or leaves it commented when nobody owns a section.
+# One line per owned PRD file glob, for example:
+# docs/prd/<section>/*.md @<owner-handle>
+# docs/prd/** @<owner-handle>

@@ -27,4 +27,4 @@ AI readiness of an existing repository, in its current layout (PC11). Nothing mo
 | 6 | Full suite once, against the baseline | `scripts/gates.sh compare <slug>` |
 
 ## Plan format
-Write `changes/NNN-ai-readiness/plan.md` in the prd-gate task format (`.claude/skills/prd-gate/reference/agent-plan.md`): one task per area per wave, each naming the area, its files and its tests, tasks ordered by hotspot rank. Present as a table (ID, result, owns, depends on, model, reviewer) for approval; execution follows prd-gate `reference/execution.md` in a new session. Close by offering N5 with its cost.
+Write `changes/NNN-ai-readiness/plan.md` in the prd-flow task format (`.claude/skills/prd-flow/reference/agent-plan.md`): one task per area per wave, each naming the area, its files and its tests, tasks ordered by hotspot rank. Present as a table (ID, result, owns, depends on, model, reviewer) for approval; execution follows prd-flow `reference/execution.md` in a new session. Close by offering N5 with its cost.

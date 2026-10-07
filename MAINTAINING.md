@@ -17,7 +17,7 @@ The kit is the source of the rules; projects receive them through `/ai-kit updat
 2. Add or change the rule in the matching `rules/` file, with the next free ID.
 3. Change the skill, template or script that enforces it in `kit/` (or `installer/`, `stacks/`).
 4. If it changes a script, add or update a test in `tests/` and run `python -m unittest discover -s tests`.
-5. Commit with Conventional Commits (`feat(prd-gate): ...`, `fix(scripts): ...`, `docs(rules): ...`) and add a line to `CHANGELOG.md`.
+5. Commit with Conventional Commits (`feat(prd-flow): ...`, `fix(scripts): ...`, `docs(rules): ...`) and add a line to `CHANGELOG.md`.
 6. In each project: `git pull` here, `./install.sh`, then `/ai-kit update`.
 
 ## Adding a stack recipe
@@ -30,6 +30,8 @@ The skills are interactive, so the evaluation is a set of headless runs, one per
 3. Grade each answer against written expectations (the right case, the right IDs, no edit before confirmation, the gate green).
 4. Keep the candidate only when it is at least as good on quality and not worse on cost. In the source repository this is how the worker route was measured (-48% time, -53% cost) for about US$18 of runs.
 
+The scenarios live in `eval/scenarios/`: S1 to S4 cover the basic cases; S5 (a conflict phrased in other words in another section), S6 (an incoming spec document that conflicts with a live rule) and S7 (a dimension the decisions record does not answer) cover the confrontation and gap handling. `eval/arms-flow.json` runs S5 to S7 on the small fixture with the previous skill (arm GATE) and the current one (arm FLOW), one repetition each, so cost and time are compared on the same runs; the metrics `conflict_found`, `contradiction_left` and `gap_recorded` grade them. Generated HTML is no longer a candidate: it is adopted, with its build and a quality check against a real PRD.
+
 ## Releasing
 The kit has no version numbers beyond commits: `/ai-kit` records the short commit in each project's manifest. Note user-visible changes in `CHANGELOG.md`, newest first.
 
@@ -39,4 +41,3 @@ The kit has no version numbers beyond commits: `/ai-kit` records the short commi
 | Path-scoped rules | `.claude/rules/*.md` with `paths:` frontmatter load only when matching files are touched; testing rules could load only when a test file is edited, PRD writing rules only under `docs/prd/` | Measure session context and rule compliance with and without, on the same tasks; more useful now that layer folders can scope rules by path |
 | Format hook | A PostToolUse hook formats the edited file, non-blocking (`commands.fix_file {file}`) | Lint-fix rounds and tokens per task with and without, in `eval/` |
 | Code intelligence | A language server for go-to-definition and references in large legacy code, where the Claude Code version supports it | Tokens and tool calls to locate callers versus Grep, in `eval/` |
-| Generated HTML | Build `prd.html` from the markdown by script instead of by hand | Writer time per rule change versus hand edits, with the same reader experience |

@@ -105,7 +105,9 @@ class Project:
 class GateTest(unittest.TestCase):
     def setUp(self) -> None:
         self.p = Project()
-        self.gate = ".claude/skills/prd-gate/scripts/gate.py"
+        self.gate = ".claude/skills/prd-flow/scripts/gate.py"
+        repo = self.p.root / ".claude/skills/prd-flow/repo.md"
+        repo.write_text(repo.read_text(encoding="utf-8").replace("| html_mode | generated |", "| html_mode | hand |"), encoding="utf-8")
 
     def tearDown(self) -> None:
         self.p.close()
@@ -132,6 +134,40 @@ class GateTest(unittest.TestCase):
         section.write_text(section.read_text(encoding="utf-8").replace("ORD-02 | An unpaid", "ORD-02 | Then an unpaid"), encoding="utf-8")
         r = self.p.py(self.gate)
         self.assertIn("G6", r.stdout)
+
+    def test_a_consistent_rewording_does_not_report_the_html_untouched(self) -> None:
+        section = self.p.root / "docs/prd/shop/05-orders.md"
+        section.write_text(section.read_text(encoding="utf-8").replace("at least one item", "one or more items"), encoding="utf-8")
+        page = self.p.root / "docs/prd/prd.html"
+        page.write_text(page.read_text(encoding="utf-8").replace("at least one item", "one or more items"), encoding="utf-8")
+        (self.p.root / "docs/prd/CHANGELOG.md").write_text("# CHANGELOG\n\nORD-01 reworded.\n", encoding="utf-8")
+        r = self.p.py(self.gate)
+        self.assertNotIn("was not touched", r.stdout)
+        self.assertEqual(r.returncode, 0, r.stdout)
+
+    def test_open_questions_table_gets_no_change_via_warning(self) -> None:
+        section = self.p.root / "docs/prd/shop/05-orders.md"
+        section.write_text(
+            section.read_text(encoding="utf-8")
+            + "\n| ID | Question | Default adopted | Blocks |\n|---|---|---|---|\n"
+            + "| Q1-01 | Refund window? | 30 days | ORD-02 |\n"
+            + "\n| ID | Rule | Source | Change via |\n|---|---|---|---|\n"
+            + "| ORD-03 | Bad via row. | src/x.py | magic |\n",
+            encoding="utf-8",
+        )
+        r = self.p.py(self.gate, "--base", "HEAD")
+        self.assertNotIn("Q1-01: Change via", r.stdout)
+        self.assertIn("ORD-03: Change via", r.stdout)
+
+    def test_backtick_placeholder_matches_its_escaped_html(self) -> None:
+        section = self.p.root / "docs/prd/shop/05-orders.md"
+        section.write_text(section.read_text(encoding="utf-8").replace("at least one item.", "at least one item, stored as `<fileKey>`."), encoding="utf-8")
+        page = self.p.root / "docs/prd/prd.html"
+        page.write_text(page.read_text(encoding="utf-8").replace("at least one item.", "at least one item, stored as <code>&lt;fileKey&gt;</code>."), encoding="utf-8")
+        (self.p.root / "docs/prd/CHANGELOG.md").write_text("# CHANGELOG\n\nORD-01 reworded.\n", encoding="utf-8")
+        r = self.p.py(self.gate)
+        self.assertNotIn("G6", r.stdout)
+        self.assertEqual(r.returncode, 0, r.stdout)
 
     def test_em_dash_is_rejected(self) -> None:
         section = self.p.root / "docs/prd/shop/05-orders.md"
@@ -190,6 +226,35 @@ class RatchetTest(unittest.TestCase):
         r = self.p.py("scripts/ratchet.py")
         self.assertEqual(r.returncode, 1)
         self.assertIn("lower the entry", r.stdout)
+
+    def skip_checks(self, names: list[str]) -> None:
+        config_path = self.p.root / "ai-kit.json"
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        config["ratchet"] = {"skip": names}
+        config_path.write_text(json.dumps(config), encoding="utf-8")
+
+    def test_a_skipped_check_reports_nothing_and_needs_no_allowlist(self) -> None:
+        write(self.p.root, "src/features/orders/order_report.py", '"""ORD-01."""\n' + "x = 1\n" * 520)
+        write(self.p.root, "src/features/orders/utils.py", '"""ORD-01."""\n')
+        self.skip_checks(["long_modules", "generic_names"])
+        r = self.p.py("scripts/ratchet.py")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        init = json.loads(self.p.py("scripts/ratchet.py", "--init").stdout)
+        self.assertNotIn("long_modules", init)
+        self.assertNotIn("banned_names", init)
+
+    def test_a_check_that_is_not_skipped_still_fails(self) -> None:
+        write(self.p.root, "src/features/orders/order_report.py", '"""ORD-01."""\n' + "x = 1\n" * 520)
+        self.skip_checks(["long_tests"])
+        r = self.p.py("scripts/ratchet.py")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("order_report.py", r.stdout)
+
+    def test_an_unknown_skip_name_is_reported(self) -> None:
+        self.skip_checks(["nope"])
+        r = self.p.py("scripts/ratchet.py")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("ratchet.skip: unknown check nope", r.stdout)
 
     def test_generic_names_and_missing_ids_and_maps_fail(self) -> None:
         write(self.p.root, "src/features/orders/utils.py", '"""ORD-01."""\n')
@@ -358,7 +423,7 @@ class RelatedTestsTest(unittest.TestCase):
         lines = r.stdout.splitlines()
         self.assertIn("FAILED fake::test_a", lines)
         self.assertIn("1 failed", lines)
-        self.assertTrue((self.p.root / ".claude/prd-gate/state/_tests/related.log").exists())
+        self.assertTrue((self.p.root / ".claude/prd-flow/state/_tests/related.log").exists())
 
 
 class NewFailuresTest(unittest.TestCase):
@@ -424,10 +489,142 @@ class GatesShTest(unittest.TestCase):
         self.assertEqual(r.returncode, 2)
         self.assertIn("commands.setup is not set", r.stderr)
 
+    def project_override(self, targets: list[str] | None = None) -> None:
+        write(self.p.root, "scripts/gates.project.sh", 'echo "project:$*"\n')
+        if targets is not None:
+            config_path = self.p.root / "ai-kit.json"
+            config = json.loads(config_path.read_text(encoding="utf-8"))
+            config["commands"]["project_targets"] = targets
+            config_path.write_text(json.dumps(config), encoding="utf-8")
+
+    def test_a_target_the_kit_lacks_goes_to_the_project_script(self) -> None:
+        self.project_override()
+        r = run(self.p.root, BASH, "scripts/gates.sh", "divergence", "--strict")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("project:divergence --strict", r.stdout)
+
+    def test_a_listed_target_goes_to_the_project_script_even_when_the_kit_has_it(self) -> None:
+        self.project_override(["setup"])
+        r = run(self.p.root, BASH, "scripts/gates.sh", "setup", "x")
+        self.assertIn("project:setup x", r.stdout)
+
+    def test_an_unlisted_kit_target_still_runs_the_kit(self) -> None:
+        self.project_override(["offline"])
+        config_path = self.p.root / "ai-kit.json"
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        config["commands"]["setup"] = "echo setup-ran"
+        config_path.write_text(json.dumps(config), encoding="utf-8")
+        r = run(self.p.root, BASH, "scripts/gates.sh", "setup")
+        self.assertIn("setup-ran", r.stdout)
+        self.assertNotIn("project:", r.stdout)
+
     def test_an_unknown_target_prints_usage(self) -> None:
         r = run(self.p.root, BASH, "scripts/gates.sh", "nope")
         self.assertEqual(r.returncode, 2)
         self.assertIn("usage", r.stderr)
+
+
+class InvariantGapRatchetTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.p = Project()
+        self.inv = self.p.root / "docs/trd/invariants.md"
+        self.inv.write_text("| ID | Rule | Proof |\n|---|---|---|\n| I-01 | A | gate |\n| I-02 | B | gap |\n| I-03 | C | gap: no test |\n",
+                            encoding="utf-8", newline="\n")
+
+    def tearDown(self) -> None:
+        self.p.close()
+
+    def allow(self, n) -> None:
+        path = self.p.root / "ai-kit.json"
+        config = json.loads(path.read_text(encoding="utf-8"))
+        config["allowlist"].pop("invariant_gaps", None)
+        if n is not None:
+            config["allowlist"]["invariant_gaps"] = n
+        path.write_text(json.dumps(config), encoding="utf-8")
+
+    def test_gaps_above_the_entry_fail(self) -> None:
+        self.allow(1)
+        r = self.p.py("scripts/ratchet.py")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("invariant_gaps: 2 gap rows, above its allowlist entry 1", r.stdout)
+
+    def test_gaps_below_the_entry_ask_to_lower_it(self) -> None:
+        self.allow(3)
+        r = self.p.py("scripts/ratchet.py")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("lower the entry from 3", r.stdout)
+
+    def test_gaps_equal_to_the_entry_pass(self) -> None:
+        self.allow(2)
+        self.assertEqual(self.p.py("scripts/ratchet.py").returncode, 0)
+
+    def test_escaped_pipes_and_the_word_gap_in_other_forms_do_not_count(self) -> None:
+        rows = ["| I-01 | a \\| gap | gate |", "| I-02 | B | no gap here |", "| I-03 | C | gaps closed |", "| I-04 | D | gap |"]
+        self.inv.write_text("| ID | Rule | Proof |\n|---|---|---|\n" + "\n".join(rows) + "\n", encoding="utf-8", newline="\n")
+        self.allow(1)
+        r = self.p.py("scripts/ratchet.py")
+        self.assertEqual(r.returncode, 0, r.stdout)
+
+    def test_an_absent_key_or_file_is_no_error(self) -> None:
+        self.allow(None)
+        r = self.p.py("scripts/ratchet.py")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.inv.unlink()
+        self.assertEqual(self.p.py("scripts/ratchet.py").returncode, 0)
+
+
+class CommitTrailersTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.p = Project()
+        self.base = run(self.p.root, "git", "rev-parse", "HEAD", check=True).stdout.strip()
+
+    def tearDown(self) -> None:
+        self.p.close()
+
+    def commit(self, path: str, message: str) -> None:
+        write(self.p.root, path, f"x = {len(message)}\n")
+        run(self.p.root, "git", "add", "-A", check=True)
+        run(self.p.root, "git", "commit", "-q", "-m", message, check=True)
+
+    def check(self) -> subprocess.CompletedProcess:
+        return self.p.py("scripts/commit_trailers.py", f"{self.base}..HEAD")
+
+    def test_a_source_commit_without_a_trailer_fails(self) -> None:
+        self.commit("src/features/orders/more.py", "feat: more")
+        r = self.check()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("feat: more", r.stdout)
+
+    def test_rules_and_case_none_trailers_pass(self) -> None:
+        self.commit("src/features/orders/a.py", "feat: a\n\nRules: ORD-01, ORD-02")
+        self.commit("src/features/orders/b.py", "fix: b\n\nCase: none (typo in a log line)")
+        r = self.check()
+        self.assertEqual(r.returncode, 0, r.stdout)
+
+    def test_a_case_none_reason_over_eight_words_fails(self) -> None:
+        self.commit("src/features/orders/c.py", "fix: c\n\nCase: none (one two three four five six seven eight nine)")
+        self.assertEqual(self.check().returncode, 1)
+
+    def test_a_commit_outside_the_source_folders_needs_no_trailer(self) -> None:
+        self.commit("docs/notes.md", "docs: notes")
+        self.assertEqual(self.check().returncode, 0)
+
+    def test_a_bad_range_prints_the_git_error_and_exits_2(self) -> None:
+        r = self.p.py("scripts/commit_trailers.py", "nope..HEAD")
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("nope", r.stderr)
+
+    def test_a_path_with_a_space_and_non_ascii_letters_is_seen(self) -> None:
+        self.commit("src/features/orders/my café.py", "feat: spaced")
+        r = self.check()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("feat: spaced", r.stdout)
+
+    @unittest.skipUnless(BASH, "bash not available")
+    def test_gates_trailers_runs_the_check_on_a_range(self) -> None:
+        self.commit("src/features/orders/d.py", "feat: d")
+        r = run(self.p.root, BASH, "scripts/gates.sh", "trailers", f"{self.base}..HEAD")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
 
 
 class MoveLinesTest(unittest.TestCase):
@@ -440,6 +637,21 @@ class MoveLinesTest(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
             self.assertEqual((root / "a.py").read_text(encoding="utf-8"), "one\nfour\n")
             self.assertEqual((root / "b.py").read_text(encoding="utf-8"), "head\ntwo\nthree\n")
+
+
+class KitIdsTest(unittest.TestCase):
+    def test_no_contract_id_ships_in_the_kit_or_the_installer(self) -> None:
+        import re
+
+        root = KIT.parent
+        pattern = re.compile(r"\bK-\d\d\b")
+        hits = []
+        for folder in (root / "kit", root / "installer"):
+            for f in folder.rglob("*") if folder.is_dir() else []:
+                if f.is_file() and ".git" not in f.parts and "__pycache__" not in f.parts:
+                    text = f.read_bytes().decode("utf-8", errors="ignore")
+                    hits += [f"{f.relative_to(root).as_posix()}: {m.group(0)}" for m in pattern.finditer(text)]
+        self.assertEqual(hits, [])
 
 
 if __name__ == "__main__":

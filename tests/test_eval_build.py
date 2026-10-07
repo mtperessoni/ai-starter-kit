@@ -69,7 +69,9 @@ class BuildChecks:
         self.assertEqual(load_build().find_leftovers(self.out), [])
 
     def test_gate_passes(self):
-        result = run([PY, ".claude/skills/prd-gate/scripts/gate.py"], self.out)
+        gate = next(g for g in (".claude/skills/prd-flow/scripts/gate.py", ".claude/skills/prd-gate/scripts/gate.py")
+                    if (self.out / g).is_file())
+        result = run([PY, gate], self.out)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_visible_suite_passes(self):
@@ -109,6 +111,24 @@ class CurrentFlowWithSpecKit(BuildChecks, unittest.TestCase):
     def test_constitution_is_the_kits(self):
         text = (self.out / ".specify" / "memory" / "constitution.md").read_text(encoding="utf-8")
         self.assertIn("# Orders Constitution", text)
+
+
+class OverlayOption(unittest.TestCase):
+    def test_overlay_files_are_in_the_seed_commit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            overlay = Path(tmp) / "files"
+            (overlay / "docs" / "incoming").mkdir(parents=True)
+            (overlay / "docs" / "incoming" / "spec.md").write_text("incoming\n", encoding="utf-8")
+            out = Path(tmp) / "project"
+            done = run([PY, str(BUILD), "--ref", "HEAD", "--out", str(out), "--overlay", str(overlay)], ROOT)
+            self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+            tracked = run(["git", "ls-files", "docs/incoming"], out).stdout.split()
+            self.assertEqual(tracked, ["docs/incoming/spec.md"])
+            self.assertEqual(run(["git", "status", "--porcelain"], out).stdout.strip(), "")
+
+    def test_overlay_option_is_optional(self):
+        args = load_build().parse_args(["--ref", "r", "--out", "o"])
+        self.assertIsNone(args.overlay)
 
 
 class CustomFixtureOption(unittest.TestCase):

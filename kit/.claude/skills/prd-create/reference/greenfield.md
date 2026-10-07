@@ -16,7 +16,7 @@ There is no code, so the user is the only source. The interview runs in this con
 G01 to G03 come first: a wrong problem invalidates the rest. With G01 to G07 answered, write the outline (sections per step of G05) and approve it.
 
 ## Step level (per section)
-For each journey step, the dimensions D01 to D15 of `.claude/skills/prd-gate/reference/interview.md` plus the extra ones in `repo.md`. Ask only what is open; adopt defaults the user accepts. A dimension the user does not want to decide becomes an open question with its default.
+For each journey step, the dimensions D01 to D15 of `.claude/skills/prd-flow/reference/interview.md` plus the extra ones in `repo.md`. Ask only what is open; adopt defaults the user accepts. A dimension the user does not want to decide becomes an open question with its default.
 
 ## Writing
-Every rule gets Source `planned` and the marker `*(approved YYYY-MM-DD, pending code)*` is not used: in greenfield the whole PRD is planned, and `README.md` "How this document was made" says so. When code arrives, prd-gate C2 fills the Sources task by task.
+Greenfield rules come from the interview, so they are approved, not `*(proposed)*`. The D15 answer lands in the Example column. Every rule gets Source `planned` and the marker `*(approved YYYY-MM-DD, pending code)*` is not used: in greenfield the whole PRD is planned, and `README.md` "How this document was made" says so. When code arrives, prd-flow C2 fills the Sources task by task.

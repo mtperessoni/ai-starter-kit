@@ -35,6 +35,9 @@ GENERATED_MARKER = (
 MARKER_LINES = 5
 
 
+CHECK_ALIASES = {"generic_names": "banned_names"}
+
+
 def measure(root, cfg) -> dict:
     limits = cfg["limits"]
     id_re = re.compile(cfg["id_pattern"])
@@ -107,6 +110,37 @@ def layout_problems(root, cfg) -> list[str]:
     return problems
 
 
+def invariant_gaps(root, cfg) -> int | None:
+    """Rows of the invariants table whose proof column says gap; None when the project has no such file."""
+    path = root / cfg.get("invariants_file", "docs/trd/invariants.md")
+    if not path.is_file():
+        return None
+    proof, gaps = None, 0
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        if not line.lstrip().startswith("|"):
+            continue
+        cells = [c.strip() for c in re.split(r"(?<!\\)\|", line.strip().strip("|"))]
+        if all(re.fullmatch(r":?-{2,}:?", c) for c in cells if c):
+            continue
+        if proof is None and any(c.lower() == "proof" for c in cells):
+            proof = [c.lower() for c in cells].index("proof")
+            continue
+        cell = cells[proof] if proof is not None and proof < len(cells) else cells[-1]
+        if re.search(r"\bgap\b", cell, re.I) and not re.search(r"\bno gap\b", cell, re.I):
+            gaps += 1
+    return gaps
+
+
+def gap_problems(gaps: int | None, allowed) -> list[str]:
+    if gaps is None or allowed is None:
+        return []
+    if gaps > allowed:
+        return [f"invariant_gaps: {gaps} gap rows, above its allowlist entry {allowed}"]
+    if gaps < allowed:
+        return [f"invariant_gaps: dropped to {gaps}, lower the entry from {allowed}"]
+    return []
+
+
 def ratchet_counts(what: str, current: dict, allowed: dict) -> list[str]:
     problems = []
     for key, value in sorted(current.items()):
@@ -136,16 +170,24 @@ def main() -> int:
     root = repo_root()
     cfg = load(root)
     current = measure(root, cfg)
+    skipped = {CHECK_ALIASES.get(n, n) for n in cfg.get("ratchet", {}).get("skip", [])}
+    unknown = sorted(skipped - set(current))
+    current = {k: v for k, v in current.items() if k not in skipped}
+    gaps = invariant_gaps(root, cfg)
     if args.init:
-        print(json.dumps({k: (sorted(v) if isinstance(v, set) else v) for k, v in current.items()}, indent=2))
+        shown = {k: (sorted(v) if isinstance(v, set) else v) for k, v in current.items()}
+        if gaps is not None:
+            shown["invariant_gaps"] = gaps
+        print(json.dumps(shown, indent=2))
         return 0
     allowed = cfg["allowlist"]
-    problems = layout_problems(root, cfg)
+    problems = layout_problems(root, cfg) + [f"ratchet.skip: unknown check {n}" for n in unknown]
     for key, value in current.items():
         if isinstance(value, dict):
             problems += ratchet_counts(key, value, allowed.get(key, {}))
         else:
             problems += ratchet_set(key, value, set(allowed.get(key, [])))
+    problems += gap_problems(gaps, allowed.get("invariant_gaps"))
     for line in problems:
         print(line)
     print(f"ratchet: {len(problems)} problem(s)")

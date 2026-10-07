@@ -1,0 +1,32 @@
+{
+  "timeout_min": 60,
+  "parallel": 3,
+  "base": "GATE",
+  "candidate": "FLOW",
+  "arms": {
+    "GATE": {
+      "ref": "fix/existing-repo-adoption",
+      "spec_kit": false,
+      "protocol": "arms/living-gate.md"
+    },
+    "FLOW": {
+      "ref": "HEAD",
+      "spec_kit": false,
+      "protocol": "arms/living.md"
+    }
+  },
+  "scenarios": {
+    "S5": {
+      "reps": 1,
+      "budget_usd": 10
+    },
+    "S6": {
+      "reps": 1,
+      "budget_usd": 10
+    },
+    "S7": {
+      "reps": 1,
+      "budget_usd": 10
+    }
+  }
+}

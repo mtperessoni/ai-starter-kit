@@ -6,7 +6,7 @@ What a code change must not break, by kind of change. Sources: `AGENTS.md` "Crit
 
 | ID | Rule (1 line) | Proof (test or principle) |
 |---|---|---|
-| I-01 | No em dash (U+2014) in code, docs, prompts or commits | AGENTS.md; prd-gate gate G4 |
+| I-01 | No em dash (U+2014) in code, docs, prompts or commits | AGENTS.md; prd-flow gate G4 |
 | I-02 | Zero comments, except the non-obvious and critical why; no comment cites a ticket | AGENTS.md |
 | I-03 | Failing test before the implementation | Constitution, test-first principle |
 | I-04 | `scripts/gates.sh lint` green | CI |
@@ -61,5 +61,9 @@ Name an existing file that is the reference implementation (DS31); trd-create fi
 | New external call | `<existing file>` |
 | New test | `<existing test file>` |
 | New area | `<existing area folder or files>` |
+
+## Gaps
+
+A row whose proof column says `gap` has no test or lint rule yet. The ratchet counts those rows against `ai-kit.json` `allowlist.invariant_gaps`, which only shrinks. trd-create proposes, per gap, the lint rule or test that closes it, ranked by `scripts/gates.sh hotspots`.
 
 <!-- trd-create adds the kinds this repository has: new table or column with personal data, new migration, new state, new endpoint or dependency, configuration per tenant, model output. -->

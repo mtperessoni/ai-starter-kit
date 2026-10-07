@@ -184,3 +184,22 @@ class EfficiencyTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AssistantTextTest(unittest.TestCase):
+    def test_main_thread_text_blocks_keep_their_time(self):
+        a = json.loads(asst("m1", [{"type": "text", "text": "PRC-03 conflicts with the new cap"}]))
+        a["timestamp"] = "2026-10-04T10:00:00Z"
+        sub = asst("s1", [{"type": "text", "text": "subagent chatter"}], parent="a1")
+        d, p = tmp_file([json.dumps(a), sub, asst("m2", [{"type": "text", "text": "no time"}])])
+        with d:
+            s = transcript.summarize(p)
+        texts = s["assistant_texts"]
+        self.assertEqual([x["text"] for x in texts], ["PRC-03 conflicts with the new cap", "no time"])
+        self.assertIsInstance(texts[0]["t"], float)
+        self.assertIsNone(texts[1]["t"])
+
+    def test_empty_transcript_has_no_texts(self):
+        d, p = tmp_file([""])
+        with d:
+            self.assertEqual(transcript.summarize(p)["assistant_texts"], [])

@@ -4,10 +4,16 @@ Every file the kit installs is either **kit-owned** (the project never edits it;
 
 | Path in the project | Owner | On install, if the file already exists | On update |
 |---|---|---|---|
-| `.claude/skills/prd-gate/` (except `repo.md`) | kit | Replace after showing the diff | Replace when unchanged since install; otherwise show a three-way diff and ask |
-| `.claude/skills/prd-gate/repo.md` | project | Merge: keep existing values, add missing sections | Propose new sections only |
-| `.claude/skills/prd-create/`, `trd-create/`, `adr/` | kit | Replace after showing the diff | Same as prd-gate |
-| `scripts/gates.sh`, `ratchet.py`, `related_tests.py`, `new_failures.py`, `move_lines.py`, `kit_config.py`, `hotspots.py`, `contract_drift.py`, `docker_hygiene.py`, `clean_task_outputs.py`, `telemetry_hook.py`, `run_probe.py`, `retro.py` | kit | Ask (an existing `scripts/gates.sh` is renamed to `scripts/gates.project.sh` and called from `commands`) | Replace when unchanged |
+| `.claude/skills/prd-flow/` (except `repo.md`) | kit | Replace after showing the diff | Replace when unchanged since install; otherwise show a three-way diff and ask |
+| `.claude/skills/prd-flow/repo.md` | project | Merge: keep existing values, add missing sections | Propose new sections only |
+| `.claude/skills/prd-gate/` (legacy name) | kit, removed | Not installed | Removed by the prd-gate migration of `update.md`, after the user confirms |
+| `.claude/skills/prd-flow/scripts/build_prd_html.py`, `docs/templates/prd.html` | kit | Replace | Replace when unchanged |
+| `scripts/commit_trailers.py` | kit | Replace | Replace when unchanged |
+| `.github/CODEOWNERS` | project | Fill from "Rule owners" of `repo.md`, or leave commented; an existing file only gets the `docs/prd/**` line added | Never touched; propose only |
+| `docs/prd/prd.html` (when `html_mode` is `generated`) | kit output | Built by `build_prd_html.py`, never by hand | Rebuilt |
+| `.claude/skills/prd-create/`, `trd-create/`, `adr/` | kit | Replace after showing the diff | Same as prd-flow |
+| `scripts/gates.sh`, `ratchet.py`, `related_tests.py`, `new_failures.py`, `move_lines.py`, `kit_config.py`, `hotspots.py`, `contract_drift.py`, `docker_hygiene.py`, `clean_task_outputs.py`, `telemetry_hook.py`, `run_probe.py`, `retro.py` | kit | Ask (an existing `scripts/gates.sh` is renamed to `scripts/gates.project.sh`; the kit's `gates.sh` delegates to it, see the next row) | Replace when unchanged |
+| `scripts/gates.project.sh` | project | The project's former `gates.sh`, renamed. Wired: the kit's `gates.sh` sends it every target the kit does not define and every target in `ai-kit.json` `commands.project_targets`, with the arguments. List there the targets the project keeps (for example `full`, `offline`, `divergence`) | Never touched |
 | `docs/templates/` (includes `folder-CLAUDE.md`) | kit | Replace | Replace when unchanged |
 | `docs/ai-readiness.md` | kit | Replace | Replace when unchanged |
 | `.ignore` | project | Append the lines that are missing | Propose missing lines |

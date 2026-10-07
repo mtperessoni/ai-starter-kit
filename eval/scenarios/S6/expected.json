@@ -1,0 +1,17 @@
+{
+  "case": "C5",
+  "size": "M",
+  "conflict_ids": ["CHK-04"],
+  "prd_facts": [
+    {"id": "f1", "fact": "A cart line with a unit price of 0.00 is refused, and the whole order is refused with a ValueError, with no partial receipt."},
+    {"id": "f2", "fact": "A unit price above zero (down to 0.01) is accepted as before."},
+    {"id": "f3", "fact": "The item rule no longer allows a price of zero: a price must be above zero (it was zero or more)."},
+    {"id": "f4", "fact": "A negative price, a quantity below 1 and an empty cart are still refused as before, with a ValueError."},
+    {"id": "f5", "fact": "Shipping, discounts, rounding and the receipt layout do not change."},
+    {"id": "f6", "fact": "Applies to every order from now on, with no flag and no migration."}
+  ],
+  "dup_phrases": [
+    "(?i)(0\\.00|zero|nothing).{0,60}(price|priced).{0,80}(refus|reject)",
+    "(?i)(refus|reject).{0,80}(0\\.00|zero|unpriced).{0,40}(price|line)"
+  ]
+}

@@ -89,7 +89,11 @@
     "no_feature_map": [],
     "long_feature_maps": {},
     "crowded_dirs": {},
-    "generated_without_marker": []
+    "generated_without_marker": [],
+    "invariant_gaps": 0
+  },
+  "ratchet": {
+    "skip": []
   },
   "contracts": [],
   "commands": {
@@ -104,13 +108,14 @@
     "offline_unset": [
       "DATABASE_URL"
     ],
-    "offline_flag": "OFFLINE_ONLY"
+    "offline_flag": "OFFLINE_ONLY",
+    "project_targets": []
   },
   "tests": {
     "runner": "<runs the given test files offline without coverage, for example: uv run pytest {files} --no-cov -q>",
     "native_related": "",
     "failure_regex": "^(?:FAILED|ERROR)\\s+(\\S+)",
-    "log_dir": ".claude/prd-gate/state/_tests",
+    "log_dir": ".claude/prd-flow/state/_tests",
     "mirror_patterns": [
       "test_{name}",
       "{name}_test",
@@ -149,6 +154,7 @@
     "disk_drop_mb": 1024,
     "dead_mb": 500,
     "max_events_mb": 5,
-    "keep_days": 14
+    "keep_days": 14,
+    "doc_reads": 3
   }
 }

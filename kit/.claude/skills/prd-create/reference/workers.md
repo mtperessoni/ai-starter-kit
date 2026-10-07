@@ -1,6 +1,6 @@
 # prd-create workers
 
-Read only the section with your name. You do not talk to the user: anything missing becomes a **gap** in the return, never an assumption. Parallel batches when reads are independent; code only by symbol (`Grep -n`, then `Read` with offset and limit); big files listed in `.claude/skills/prd-gate/repo.md` never whole; the HTML never read except by the `html-writer`, and then only by `Grep` of the line it edits. Write docs with Write and Edit only, never through a script; the only script you run is the gate. Everything you write is in English, product language, no em dash (U+2014). State: `.claude/prd-gate/state/<slug>/`. Format rules: `reference/anatomy.md`.
+Read only the section with your name. You do not talk to the user: anything missing becomes a **gap** in the return, never an assumption. Parallel batches when reads are independent; code only by symbol (`Grep -n`, then `Read` with offset and limit); big files listed in `.claude/skills/prd-flow/repo.md` never whole; the HTML never read. Write docs with Write and Edit only, never through a script; the only scripts you run are the gate and, for the `html-writer`, the HTML builder. Everything you write is in English, product language, no em dash (U+2014). State: `.claude/prd-flow/state/<slug>/`. Format rules: `reference/anatomy.md`.
 
 Return, at most 30 lines:
 ```
@@ -44,7 +44,7 @@ Return: candidate rules count, claims to verify, gaps.
 Writes the step sections assigned to you. Input: `outline.md`, the `areas/*.md` of your sections, `repo.md`.
 
 1. For each assigned section, write `docs/prd/<prd>/NN-<slug>.md` following "Anatomy of a step section" in `reference/anatomy.md`, starting from `docs/templates/prd-section.md`.
-2. Turn candidate rules into rule rows: one behavior per row, product language, IDs from `-01` with the prefix in the outline, Source and Change via from the area file. Merge duplicates; split compound ones.
+2. Turn candidate rules into rule rows: one behavior per row, product language, IDs from `-01` with the prefix in the outline, Source and Change via from the area file. Merge duplicates; split compound ones. Add the Example column (prd-flow `reference/prd-writing.md`) for every rule with a number, a branch or a failure path. A rule that comes only from a document (`areas/doc-*.md`) and is not proven by code is written `*(proposed)*` at the start of the Rule cell with Source `planned`; a rule from the interview (M2) or proven by code is not.
 3. Every surprise in your areas becomes a `> [!CAUTION]` callout in the section where it hurts, and a line in `writing.md` under `## For open questions` (the crosscut-writer turns them into Q- and R- rows).
 4. Verify each Source with one `Grep` of the symbol; a symbol with no caller outside tests is stated in the rule ("not wired yet") and listed as a surprise.
 5. Append to `writing.md`: files written, ID ranges, surprises.
@@ -65,12 +65,12 @@ Return: files, ID ranges, the 5 heaviest problems in one line each, gaps.
 
 ## index-writer
 
-Writes `docs/prd/INDEX.md`, `docs/prd/README.md` and `docs/prd/CHANGELOG.md` (header only when new), following `reference/anatomy.md`. In M4, adds the new PRD to the existing files without touching the other PRDs' rows. Runs `python .claude/skills/prd-gate/scripts/gate.py` until it has no error other than the missing HTML.
+Writes `docs/prd/INDEX.md`, `docs/prd/README.md` and `docs/prd/CHANGELOG.md` (header only when new), following `reference/anatomy.md`. In M4, adds the new PRD to the existing files without touching the other PRDs' rows. Runs `python .claude/skills/prd-flow/scripts/gate.py` until it has no error other than the missing HTML.
 
 Return: files, the gate's last line, gaps.
 
 ## html-writer
 
-Writes or extends the HTML reading version. Read `reference/html.md` and follow it.
+Produces the HTML reading version. Never writes or edits it: run `python .claude/skills/prd-flow/scripts/build_prd_html.py` (it renders `docs/prd/` into the `html_template` and writes the `html` path of `repo.md`), then the gate. If the build or the gate reports a markdown problem, fix the markdown, not the HTML, and rebuild. What the builder renders and the template classes it uses: `reference/html.md`. When `repo.md` has `html_mode: hand`, follow the `hand` row of prd-flow `reference/prd-writing.md` "HTML".
 
-Return: file, tabs and sections added, the gate's last line, gaps.
+Return: file, tabs and sections rendered, the gate's last line, gaps.

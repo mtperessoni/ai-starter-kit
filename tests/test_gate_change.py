@@ -6,7 +6,7 @@ from pathlib import Path
 
 from tests.test_kit_scripts import Project, write
 
-GATE = ".claude/skills/prd-gate/scripts/gate.py"
+GATE = ".claude/skills/prd-flow/scripts/gate.py"
 ORDERS = "docs/prd/shop/05-orders.md"
 
 BRIEF = """\
@@ -197,6 +197,29 @@ class FinalTest(unittest.TestCase):
         r = self.p.py(GATE, "--final")
         self.assertEqual(r.returncode, 1, r.stdout)
         self.assertIn("ERROR G20", r.stdout)
+
+    def set_planned_heading(self, heading: str) -> None:
+        repo = self.p.root / ".claude/skills/prd-flow/repo.md"
+        text = repo.read_text(encoding="utf-8")
+        repo.write_text(text.replace("| pack_budget_lines |", f"| planned_heading | {heading} |\n| pack_budget_lines |", 1), encoding="utf-8")
+
+    def test_a_configured_planned_heading_is_an_error_in_final(self) -> None:
+        self.set_planned_heading("Planejado")
+        write(self.p.root, "docs/trd/orders.md", "# Pedidos\n\n## Planejado\nORD-02 muda.\n")
+        r = self.p.py(GATE, "--final")
+        self.assertIn("ERROR G20", r.stdout)
+
+    def test_the_default_heading_is_ignored_when_another_is_configured(self) -> None:
+        self.set_planned_heading("Planejado")
+        write(self.p.root, "docs/trd/orders.md", "# Pedidos\n\n## Planned\nORD-02 stays.\n")
+        r = self.p.py(GATE, "--final")
+        self.assertNotIn("ERROR G20", r.stdout)
+
+    def test_a_configured_planned_heading_is_checked_for_unknown_ids(self) -> None:
+        self.set_planned_heading("Planejado")
+        write(self.p.root, "docs/trd/orders.md", "# Pedidos\n\n## Planejado\nXYZ-99 muda.\n")
+        r = self.p.py(GATE)
+        self.assertIn("ERROR G8", r.stdout)
 
     def test_an_open_change_folder_is_an_error(self) -> None:
         write(self.p.root, "changes/002-open/plan.md", "# open\n")

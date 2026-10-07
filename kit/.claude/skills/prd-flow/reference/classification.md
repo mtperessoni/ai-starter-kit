@@ -5,12 +5,12 @@ IDs, texts and paths in the examples are illustrative: always read the real line
 ## Cases
 | Case | When | Signals in the request | Route |
 |---|---|---|---|
-| C0 no PRD | No `docs/prd/INDEX.md`, or a new product or module needs its own PRD | "create the PRD", "document the product", first use in the repository | Hand over to `/prd-create`, then `/trd-create` |
-| C1 query | Wants to know how something works or why | "how", "why", "what happens if", "what is the rule for" | F1, then answer with IDs and Source. No edits |
+| C0 no PRD | No `docs/prd/INDEX.md`. Only that | "create the PRD", "document the product", first use in the repository | Hand over to `/prd-create`, then `/trd-create` |
+| C1 query | Wants to know how something works or why | "how", "why", "what happens if", "what is the rule for" | F1, then answer with IDs and Source, saying per rule cited "verified in code" (one Grep found the Source symbol with a caller outside tests) or "not verified". For the state of rules (`proposed`, `approved`, `superseded`, `implemented`) run `gate.py --status`. No edits |
 | C2 implement within the rule | The rule exists, is approved, and the code does not meet it yet | "implement the amendment", a row marked `pending code`, "the spec still lacks X" | F1, F2, F6 if the area changes, F7 |
 | C3 bug | The code does something different from the PRD and the user confirms the PRD is right | "it is broken", "it should do what the PRD says" | F1, F2, fix; the PRD changes only if the Source moves |
 | C4 stale PRD | The code is right and the PRD says something else, confirmed by the user | drift found in F2, removed env var, cited file that no longer exists | F1, F2, F5 without interview; old text literally to the CHANGELOG |
-| C5 rule change | Changed rule, new rule, gap in the PRD, or a fix to a defect the PRD documents as current behavior | "change", "it should", "from now on", "add", "fix" something the PRD describes as today's behavior | Full flow F1 to F7 |
+| C5 rule change | Changed rule, new rule, gap in the PRD, or a fix to a defect the PRD documents as current behavior | "change", "it should", "from now on", "add", "fix" something the PRD describes as today's behavior | Full flow F1 to F7. Includes a new product, module or incoming spec document in a repository with PRDs: size L, new PRD variant (below) |
 | C6 refactor | Structure changes and behavior does not | "rename", "extract", "move", "split", "clean up" | Area TRD + invariants; F6 if files, entry points or tests move |
 
 ## Size (LT04)
@@ -20,7 +20,9 @@ Stated in the case line: `C5 · size L · <one line>`. It decides which files th
 |---|---|---|
 | S | C1, C2, C3, C4, C6 | None, or only `plan.md` |
 | M | C5 with an evident design: no new data model, contract, external dependency or open technical unknown | `brief.md`, `plan.md` |
-| L | C5 with a new data model, contract, external integration, technical unknown, or a new feature area | `brief.md`, `design.md`, `plan.md` |
+| L | C5 with a new data model, contract, external integration, technical unknown, a new feature area, or a new PRD variant | `brief.md`, `design.md`, `plan.md` |
+
+New PRD variant: when the repository already has PRDs and the request is a new product, module or an incoming spec document, it is C5 size L. The surveyor sweeps the document against every existing PRD (impact.md K11). Inside prd-flow the variant writes only approved rows, after the interview; `writer-prd` lays out the new PRD folder, INDEX row and README overview per `.claude/skills/prd-create/reference/anatomy.md` (M4). Only `/prd-create` (C0) writes `*(proposed)*` rules (Source `planned`); prd-flow confronts and interviews them per section and replaces the marker with `*(approved YYYY-MM-DD, pending code)*`. A proposed rule is C5 input, never C2.
 
 ## Classification traps
 | Situation | Right case | Why |
@@ -34,6 +36,8 @@ Stated in the case line: `C5 · size L · <one line>`. It decides which files th
 | A request with several items | One case per item | Each item follows its route; a C5 gets its own slug; a C3 of the same request can be fixed first, after confirmation, if it does not touch the C5 rules |
 | "Diagnose", "understand why", "plan" | C1 until the user asks for a change | A diagnosis is only a diagnosis: show the cause and the options and wait (R01) |
 | A `pending code` rule whose code is already committed | C2 | Code without a caller outside the tests is not wired; the rule is still pending |
+| A `*(proposed)*` rule | C5, never C2 | It came from a document and nobody confronted it; it enters the confrontation and the interview first |
+| A new product, module or spec document in a repository with PRDs | C5 size L | Not C0: C0 is only for a repository without `docs/prd/INDEX.md` |
 
 ## Behavior of a real session
 To explain what the system did in a real session or request, ask for its id and, with authorization to read the evidence, consult what was recorded before concluding (sources in `repo.md`, "Evidence of real sessions"). Without the id, say which code paths explain the behavior and which evidence would tell them apart, instead of asserting one.

@@ -1,0 +1,15 @@
+{
+  "case": "C5",
+  "size": "M",
+  "gap_topic": "whether the 30.00 minimum is compared against the cart value before discounts or the amount after discounts",
+  "prd_facts": [
+    {"id": "f1", "fact": "There is a minimum order of 30.00 for every customer, VIP or not, with or without a coupon."},
+    {"id": "f2", "fact": "An order of exactly 30.00 is accepted and an order below 30.00 is refused with a ValueError."},
+    {"id": "f3", "fact": "Shipping, the discount rules, rounding and the receipt layout do not change."},
+    {"id": "f4", "fact": "Applies to every order from now on, with no flag and no migration."}
+  ],
+  "dup_phrases": [
+    "(?i)minimum.{0,60}30\\.00",
+    "(?i)30\\.00.{0,60}minimum"
+  ]
+}
