@@ -26,7 +26,7 @@ Parsed by `scripts/gate.py`. Keep the two-column table format and the key names.
 | html_template | docs/templates/prd.html |
 | trd_budget_lines | 250 |
 
-`proposed_marker`: the word inside `*(proposed)*`, the marker of a rule that comes only from documents (K-11). G30 fails `--final` while one is left.
+`proposed_marker`: the word inside `*(proposed)*`, the marker of a rule that comes only from documents. G30 fails `--final` while one is left.
 
 `html_mode`: `generated` (the HTML is built by `scripts/build_prd_html.py`, G29 checks it is current) or `hand` (maintained by hand, G5, G6 and G10 check it). Absent key means `hand`.
 
@@ -104,7 +104,7 @@ What a request cannot change by itself. Used by `reference/impact.md`.
 | Variants (platforms, channels, engines) | `<docs/prd/... section>` or `none` | `<for example: web and mobile>` |
 | Tenants or customers | `<docs/prd/... section>` or `none` | `<per-tenant behavior is configuration, never a branch on the name>` |
 
-## Rule owners (K-24)
+## Rule owners
 
 Who decides on a section. When a change touches an owned section and the approver is not the owner, the confrontation names the owner, step 4 does not close until the user states the owner agreed, and the CHANGELOG records `decided by <owner>, written by <approver>`. Delete the rows when nobody owns a section.
 
@@ -112,7 +112,7 @@ Who decides on a section. When a change touches an owned section and the approve
 |---|---|---|
 | `<docs/prd/product/04-*.md>` | `<name or role>` | `<in the interview, a PR review, a message>` |
 
-## Shared PRDs (K-71)
+## Shared PRDs
 
 PRD folders kept identical in a sibling repository. `gate.py --sibling` fails G28 when they differ (line endings normalized) and warns when the sibling path is absent locally. Delete the rows when none is shared.
 
@@ -134,7 +134,7 @@ Domain dimensions added after D15 of `reference/interview.md`.
 |---|---|---|
 | `<backend>` | `<C:/Projects/backend>` | `git -C <path> grep -n "<field>" origin/<branch> -- src` (DTO validation, enums) |
 
-K08 uses `scripts/gates.sh contracts` when snapshots are configured (K-74). A row here with no snapshot configured is a prompt for trd-create and `/ai-kit install` to propose configuring them.
+K08 uses `scripts/gates.sh contracts` when snapshots are configured. A row here with no snapshot configured is a prompt for trd-create and `/ai-kit install` to propose configuring them.
 
 ## Change routing (planner)
 

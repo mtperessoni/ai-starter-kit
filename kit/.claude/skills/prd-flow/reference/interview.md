@@ -28,14 +28,14 @@ AskUserQuestion, at most 4 per round, each with:
 | D12 | Governance | If it is editable configuration: approval, immutable versions, audit of the publish |
 | D13 | Transition | Sessions or requests in flight during the deploy: old rule or new? |
 | D14 | Observability | Which log or metric shows the rule working? |
-| D15 | Acceptance | Which test, with which input and which output, proves the rule? The answer lands in the rule's `Example` column (K-50), one line `<given> → <expected outcome>` in product language |
+| D15 | Acceptance | Which test, with which input and which output, proves the rule? The answer lands in the rule's `Example` column (prd-writing.md "Example column") |
 
 Extra domain dimensions (D16 and up) are in `repo.md`.
 
 ## Closing each round
 Show the rows as they would look and ask for corrections. Each interview answer that chose between real options also gets a `DEC-NN` row in `decisions.md` (below).
 
-## Record: `interview.md` (K-30)
+## Record: `interview.md`
 This conversation writes it; `gate.py --rules` reads the `interview.md` beside the approved-rules file (Q3 when it fails).
 
 ```markdown
@@ -58,18 +58,18 @@ Confirmed: <name> · <YYYY-MM-DD> · "<the user's words>"
 | `Confirmed:` | One line after each table: the person, the date and the user's own words |
 | Short C5 | Appends `## Dimensions (YYYY-MM-DD)` with only the reopened dimensions (at least one) and its own `Confirmed:` line |
 
-## Record: `decisions.md` (K-31)
+## Record: `decisions.md`
 At the end of this step, this conversation allocates the change folder (next free `NNN`, already checked against remote branches in K06) and creates `changes/NNN-<slug>/decisions.md` from `docs/templates/change-decisions.md`. `writer-prd` commits it with `docs(prd)`; the planner reuses the folder.
 
 `| ID | Question | Decision | Rejected alternative | Why | Rules |` with IDs `DEC-NN`: one row per trade-off decided and per interview answer that chose between real options. The Promote task copies the rows into the CHANGELOG entry under `Decisions:`.
 
-## Rule owner (K-24)
-When the confrontation named an owner (`repo.md` "Rule owners") and the approver is not the owner, this step does not close until the user states the owner agreed. Record it in `decisions.md`; the CHANGELOG entry then says `decided by <owner>, written by <approver>`.
+## Rule owner
+When the confrontation named an owner (`repo.md` "Rule owners") and the approver is not the owner, this step does not close until the user states the owner agreed. The owner is recorded in `decisions.md` (`state.md` only points to it); the CHANGELOG entry then says `decided by <owner>, written by <approver>`.
 
 ## Exit criteria
 1. Every dimension answered (`user`, `doc`, `assumed-confirmed`, `question`), or `n/a` with a reason; `interview.md` passes Q3.
 2. Every row with ID (or section and number, for a table without IDs), text, Source (`planned`) and Change via.
-3. Every rule with a number, a branch or a failure path carries an `Example` (D15, K-50).
+3. Every rule with a number, a branch or a failure path carries an `Example` (D15).
 4. No contradiction with a live rule; the superseded ones listed.
 5. Every trade-off of the confrontation with a decision (a `DEC-` row).
 6. A final read-back and an explicit "it is clear" from the user, copied into `Confirmed:`.
@@ -85,6 +85,8 @@ Then write `approved-rules.md`. The `Example` column is optional (four-column ta
 - CHK-02 (30 s)
 ```
 
-A rule that came only from a document is written with `*(proposed)*` and is not approved until confronted and interviewed (K-11); never put a `*(proposed)*` row in `approved-rules.md`. In the short C5 the file gets a dated section.
+A rule that came only from a document is written with `*(proposed)*` and is not approved until confronted and interviewed; never put a `*(proposed)*` row in `approved-rules.md`.
+
+Short C5: the file gets a dated section. Format: `## YYYY-MM-DD`, then `### <prd file>.md` with its rows (same cells). A re-approved ID replaces its earlier row; the gate takes the latest.
 
 If the user wants to stop earlier: save the state and say what is missing. A rule with an open dimension does not go to the PRD; it becomes a `Q-` row in "Open questions" with the adopted default, if the user prefers to continue.

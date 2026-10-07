@@ -7,8 +7,8 @@ IDs, texts and paths in the examples are illustrative: always read the real line
 |---|---|
 | 1 | Writes the PRD files from `approved-rules.md` (rows literal, with the Example cell when present) |
 | 2 | Builds the HTML (section "HTML" below), updates CHANGELOG and INDEX |
-| 3 | Writes the `Decisions:` block of the CHANGELOG entry from `changes/NNN-<slug>/decisions.md` (K-31) |
-| 4 | Runs `gate.py` and `gate.py --rules <approved-rules.md> --applied`: Q4 fails when a row of the file is not in the PRD with identical cells (K-32). Step 6 shows this result |
+| 3 | Writes the `Decisions:` block of the CHANGELOG entry from `changes/NNN-<slug>/decisions.md` |
+| 4 | Runs `gate.py` and `gate.py --rules <approved-rules.md> --applied`: Q4 fails when a row of the file is not in the PRD with identical cells. Step 6 shows this result |
 | 5 | Commits `docs(prd)` with `decisions.md` and the PRD together |
 
 ## Where to write
@@ -19,13 +19,13 @@ IDs, texts and paths in the examples are illustrative: always read the real line
 | C4 (stale PRD) | In-place edit, old text literally to the CHANGELOG |
 
 ## Rule rows
-Table format: `| ID | Rule | Source | Change via |` with an optional fifth column `Example` (K-50). Risks and problems use `| R-NN · high | ... |`.
+Table format: `| ID | Rule | Source | Change via |` with an optional fifth column `Example`. Risks and problems use `| R-NN · high | ... |`.
 
 | Situation | How it looks |
 |---|---|
 | New ID | Next free number of the prefix. Never renumber or reuse |
 | Example column | One line `<given> → <expected outcome>` in product language, for example `Provider silent for 20 s → "try again" shown, cart kept` (illustrative). Required for a rule with a number, a branch or a failure path; the D15 answer lands here. Four-column tables stay valid. The HTML renders it |
-| Proposed (comes only from documents, not proven by code) | `*(proposed)*` (the `proposed_marker` of `repo.md`) at the start of the text; Source `planned`. Input of C5, never C2 (K-11). Greenfield M2 rules come from the interview and are approved, not proposed |
+| Proposed (comes only from documents, not proven by code) | `*(proposed)*` (the `proposed_marker` of `repo.md`) at the start of the text; Source `planned`. Input of C5, never C2. Greenfield M2 rules come from the interview and are approved, not proposed |
 | Approved, no code yet | `*(approved YYYY-MM-DD, pending code)*` at the start of the text; Source `planned`. Approving a proposed rule replaces its `*(proposed)*` marker with this one |
 | Rule the new one supersedes | Keeps its text and gets `*(superseded: <link to the new rule>, valid until deploy)*` at the start |
 | `Q-`, `R-`, `S-` answered | Append `*Decided on YYYY-MM-DD: <decision>, see <ID>.*` at the end; nothing is deleted |
@@ -43,7 +43,7 @@ New entry at the top:
 ## <Name of the change> (YYYY-MM-DD, <approver>, <change folder or branch>)
 
 Reason: <one sentence>. IDs: CHK-02, CHK-13.
-Owner: decided by <owner>, written by <approver>   (only when "Rule owners" of repo.md applies, K-24)
+Owner: decided by <owner>, written by <approver>   (only when "Rule owners" of repo.md applies)
 
 Decisions:
 | ID | Question | Decision | Rejected alternative | Why | Rules |
@@ -68,7 +68,7 @@ In C5 the entry is created in F5 with the reason, the IDs and the Decisions bloc
 |---|---|
 | P1 | Old text literally to the CHANGELOG; superseded rows leave; markers leave; Source gets the real file |
 | P2 | The `decisions.md` rows are in the CHANGELOG entry under `Decisions:` (copied, not summarized) |
-| P3 | Fold amendments (K-53): each amendment row moves to the step section that owns the behavior (ID unchanged, markers removed, Source filled); an amendment file whose rows all moved is deleted after its prose is merged into the step prose; the `[!IMPORTANT]` pointers go; INDEX follows; the CHANGELOG entry says "folded into <files>" |
+| P3 | Fold amendments (the single home of this rule): each amendment row moves to the step section that owns the behavior (ID unchanged, markers removed, Source filled); an amendment file whose rows all moved is deleted after its prose is merged into the step prose; the `[!IMPORTANT]` pointers go; INDEX follows; the CHANGELOG entry says "folded into <files>" |
 | P4 | Rebuild the HTML (section "HTML") |
 
 ## HTML (only when `repo.md` sets `html` to a path)

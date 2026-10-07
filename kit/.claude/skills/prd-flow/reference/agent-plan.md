@@ -5,7 +5,7 @@ IDs, texts and paths in the examples are illustrative: always read the real line
 The plan comes only from the PRD and the TRD already committed (C5 step 8, after step 7): the rule IDs are the contract. An agent that receives the rule row and the map does not need to rediscover the domain.
 
 ## Where the plan lives
-Folder `changes/NNN-<slug>/` with the next free number (LT01); size from the case line (LT04). Step 4 of C5 already allocated the folder and committed `decisions.md` in it (K-31); the planner reuses it. Nothing in `changes/archive/` or a legacy `specs/` is read for current behavior (LT07).
+Folder `changes/NNN-<slug>/` with the next free number (LT01); size from the case line (LT04). Step 4 of C5 already created the folder with `decisions.md`, which `writer-prd` commits at step 5; the planner reuses it. Nothing in `changes/archive/` or a legacy `specs/` is read for current behavior (LT07).
 
 | Size | Files in the folder |
 |---|---|
@@ -38,7 +38,7 @@ The table is in `repo.md`, "Change routing". `code` always becomes agent tasks i
 ```markdown
 ### T03 · <verb + result>
 Contract (literal):
-| CHK-02 | ... | planned | config |
+| CHK-02 | ... | planned | config | Provider silent for 20 s → "try again" shown, cart kept |
 TRD: docs/trd/checkout.md, Planned row `src/features/checkout/payment_call.py` (point to the row, do not describe it again)
 Owns: src/features/checkout/payment_call.py, src/features/checkout/tests/test_payment_call.py
 Does not touch: <files of other parallel tasks>
@@ -53,7 +53,7 @@ Commit: <type>(<scope>): <sentence>
         Rules: CHK-02            (or: Case: none (<reason in at most 8 words>))
 ```
 
-Commit (K-72): a commit that touches the source folders (`ai-kit.json`) carries `Rules: <IDs>` or `Case: none (<reason>)`; `scripts/gates.sh trailers [range]` checks it. The executor's proposed message includes the trailer.
+Commit trailer: a commit that touches the source folders (`ai-kit.json`) carries `Rules: <IDs>` or `Case: none (<reason>)`; `scripts/gates.sh trailers [range]` checks it. The executor's proposed message includes the trailer.
 
 The literal rule goes only in the task that owns it; the others cite the ID. "Creates / consumes" tells the executor which blocks of `deliveries.md` to read. `gate.py --plan` checks: every task has Owns (error), Reviewer and Model (warning), no ID missing from the PRD (error), and the file size (warning above the `plan_budget_kb` of `repo.md`).
 
@@ -65,14 +65,14 @@ The plan header copies these lines under `## Plan execution rules`, so whoever e
 - Every agent prompt carries the ceiling of review.md V08 (the single home of the numbers): stop at the ceiling and report.
 - Inside a task, only the related tests; the full suite runs once, at the end of all tasks.
 - Any behavior outside the approved rules, safety included, stops and goes to the short C5 (R09).
-- Each commit carries the `Rules:` or `Case: none (...)` trailer (K-72).
+- Each commit carries the `Rules:` or `Case: none (...)` trailer.
 - Execution follows `.claude/skills/prd-flow/reference/execution.md`: baseline once, each task through the `executor` with a one-line prompt on the task's model, a block in `deliveries.md`, a commit per task by the main thread, and a plan with more than 6 tasks or a big file executed in a new session.
 
 ## Mandatory final task
 ```markdown
 ### TNN · Promote
 - PRD: old text literally to the CHANGELOG, remove superseded rows and markers, fill the Source, copy the `decisions.md` rows under `Decisions:` (prd-writing.md, "Promotion")
-- Fold amendments: move each amendment row to the step section that owns it, delete emptied amendment files, drop the `[!IMPORTANT]` pointers, update INDEX; the CHANGELOG says "folded into <files>" (K-53)
+- Fold amendments (prd-writing.md P3)
 - HTML, if any: rebuild it (`build_prd_html.py`, or the same hand edit with `html_mode` hand)
 - TRD: merge "Planned" into the body (trd-planned.md, "Promotion")
 - `design.md` (L): decisions to `docs/adr/` (`/adr`), data model to the real schema or migration plus the TRD, contracts to the real artifact plus a TRD link (LT03)

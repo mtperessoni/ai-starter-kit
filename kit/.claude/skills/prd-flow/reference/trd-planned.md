@@ -19,7 +19,13 @@ Rules: CHK-02, CHK-13 → [04](../prd/product/04-checkout.md)
 | `src/features/checkout/payment_call.py` | changes | `call_provider` | CHK-02, CHK-13 |
 
 Entry into the flow: <path by symbols, as in "How it enters the flow">.
-Tests to write: `src/features/checkout/tests/test_payment_call.py` (CHK-02, CHK-13); ...
+
+Tests to write:
+
+| Test file | IDs |
+|---|---|
+| `src/features/checkout/tests/test_payment_call.py` | CHK-02, CHK-13 |
+
 Invariants: I-31 (new, <one line>) · affected: I-12.
 Must not break: <what of the "Must not break" section the change touches>.
 ```

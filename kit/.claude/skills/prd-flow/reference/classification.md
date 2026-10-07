@@ -5,8 +5,8 @@ IDs, texts and paths in the examples are illustrative: always read the real line
 ## Cases
 | Case | When | Signals in the request | Route |
 |---|---|---|---|
-| C0 no PRD | No `docs/prd/INDEX.md` (K-10). Only that | "create the PRD", "document the product", first use in the repository | Hand over to `/prd-create`, then `/trd-create` |
-| C1 query | Wants to know how something works or why | "how", "why", "what happens if", "what is the rule for" | F1, then answer with IDs and Source, saying per rule cited "verified in code" (one Grep found the Source symbol with a caller outside tests) or "not verified" (K-13). For the state of rules (`proposed`, `approved`, `superseded`, `implemented`) run `gate.py --status` (K-52). No edits |
+| C0 no PRD | No `docs/prd/INDEX.md`. Only that | "create the PRD", "document the product", first use in the repository | Hand over to `/prd-create`, then `/trd-create` |
+| C1 query | Wants to know how something works or why | "how", "why", "what happens if", "what is the rule for" | F1, then answer with IDs and Source, saying per rule cited "verified in code" (one Grep found the Source symbol with a caller outside tests) or "not verified". For the state of rules (`proposed`, `approved`, `superseded`, `implemented`) run `gate.py --status`. No edits |
 | C2 implement within the rule | The rule exists, is approved, and the code does not meet it yet | "implement the amendment", a row marked `pending code`, "the spec still lacks X" | F1, F2, F6 if the area changes, F7 |
 | C3 bug | The code does something different from the PRD and the user confirms the PRD is right | "it is broken", "it should do what the PRD says" | F1, F2, fix; the PRD changes only if the Source moves |
 | C4 stale PRD | The code is right and the PRD says something else, confirmed by the user | drift found in F2, removed env var, cited file that no longer exists | F1, F2, F5 without interview; old text literally to the CHANGELOG |
@@ -22,7 +22,7 @@ Stated in the case line: `C5 · size L · <one line>`. It decides which files th
 | M | C5 with an evident design: no new data model, contract, external dependency or open technical unknown | `brief.md`, `plan.md` |
 | L | C5 with a new data model, contract, external integration, technical unknown, a new feature area, or a new PRD variant | `brief.md`, `design.md`, `plan.md` |
 
-New PRD variant (K-10, K-11): when the repository already has PRDs and the request is a new product, module or an incoming spec document, it is C5 size L. The surveyor sweeps the document against every existing PRD (impact.md K11); the writer may follow `prd-create` M4 to lay out the new folder, but every rule passes confrontation and interview first. Rules that come only from documents are written as `*(proposed)*` with Source `planned`; prd-flow confronts and interviews them per section and replaces the marker with `*(approved YYYY-MM-DD, pending code)*`. A proposed rule is C5 input, never C2.
+New PRD variant: when the repository already has PRDs and the request is a new product, module or an incoming spec document, it is C5 size L. The surveyor sweeps the document against every existing PRD (impact.md K11). Inside prd-flow the variant writes only approved rows, after the interview; `writer-prd` lays out the new PRD folder, INDEX row and README overview per `.claude/skills/prd-create/reference/anatomy.md` (M4). Only `/prd-create` (C0) writes `*(proposed)*` rules (Source `planned`); prd-flow confronts and interviews them per section and replaces the marker with `*(approved YYYY-MM-DD, pending code)*`. A proposed rule is C5 input, never C2.
 
 ## Classification traps
 | Situation | Right case | Why |

@@ -20,11 +20,11 @@ Everything that enters here is reread every round.
 ## Cases
 | Case | When | Route |
 |---|---|---|
-| C0 no PRD | `docs/prd/INDEX.md` does not exist (K-10) | Stop and run `/prd-create`, then `/trd-create`; come back for the original request |
+| C0 no PRD | `docs/prd/INDEX.md` does not exist | Stop and run `/prd-create`, then `/trd-create`; come back for the original request |
 | C1 query | How something works or why; also "diagnose", "plan" until the user asks for a change | Light route, answer with IDs and Source; per rule cited say "verified in code" (one Grep found the Source symbol with a caller outside tests) or "not verified". Status of rules: `gate.py --status` |
 | C2 implement | Approved rule the code does not meet, including committed code that is not wired | Light route + F2, plan (F7), execution |
 | C3 bug | Code diverges and the user confirms the PRD is right | Light route + F2, fix |
-| C4 stale PRD | Code right, PRD wrong, confirmed | Light route + F2, `writer-prd`, then `writer-trd`, without interview |
+| C4 stale PRD | Code right, PRD wrong, confirmed | Light route + F2; the confirmed divergence goes to `state.md`; `writer-prd` in C4 mode (default gate only, no `--rules`/`--applied`, no interview); `writer-trd` in C4 mode only when files moved |
 | C5 rule change | Changed or new rule, gap, a defect the PRD documents as current behavior, or a new product, module or incoming spec document in a repository with PRDs (size L, new PRD variant) | C5 route |
 | C6 refactor | Structure changes, behavior does not | Light route with TRD and invariants |
 
@@ -41,9 +41,9 @@ Phases cited in the references: F1 context, F2 PRD versus code check, F5 PRD (st
 | Step | Who | Does | Leaves |
 |---|---|---|---|
 | 1 | this conversation | Slug, case and approver (`git config user.name`) in `state.md`; `scripts/gates.sh context <slug>` names the run for telemetry | state |
-| 2 | `surveyor` | Context, freshness, impact (K01..K12), pre-interview (`doc`, `assumed`, `open`, `n/a`) | `pack.md`, `impact.md`, confrontation |
+| 2 | `surveyor` | Context, freshness, impact (K01..K13), pre-interview (`doc`, `assumed`, `open`, `n/a`) | `pack.md`, `impact.md`, confrontation |
 | 3 | this conversation | Confrontation (`Checked:`, `Conflicts:`, history, remote branches, owner, at most 6 lines of assumed dimensions) and question: **This is the change I want** (assumed lines confirmed or corrected) · **Do not touch this rule** (C2/C3) · **Adjust the request** (back to 2) | decision |
-| 4 | this conversation | Interview (`reference/interview.md`) of what is still open; writes `interview.md`, `approved-rules.md`; creates `changes/NNN-<slug>/decisions.md` (K-31). With a rule owner (`repo.md` "Rule owners") who is not the approver, it does not close until the user states the owner agreed (K-24) | the three files |
+| 4 | this conversation | Interview (`reference/interview.md`) of what is still open; writes `interview.md`, `approved-rules.md`; creates `changes/NNN-<slug>/decisions.md`. With a rule owner (`repo.md` "Rule owners") who is not the approver, it does not close until the user states the owner agreed | the three files |
 | 5 | `writer-prd` | PRD, HTML build, CHANGELOG, INDEX, `decisions.md`, gate, `--rules --applied`, `docs(prd)` | `writing.md` |
 | 6 | this conversation | Only `git diff -U0` of the rule lines, the `--applied` result and a summary of the non-table changes; the user confirms | confirmation |
 | 7 | `writer-trd` | TRD "Planned", `gate.py --trd`, `docs(trd)`. Never before step 6 | `writing.md` |
@@ -51,7 +51,7 @@ Phases cited in the references: F1 context, F2 PRD versus code check, F5 PRD (st
 | 9 | this conversation | Plan approval. More than 6 tasks or a big file: execute in a new session | end of the docs phase |
 | 10 | `executor`, `reviewer` | `reference/execution.md`: baseline, waves, commit per task, review with ceiling, short C5 if a rule changes | delivery, `deliveries.md` |
 
-Worker: Agent `general-purpose`, `model: "sonnet"` (the executor on the task's model; the surveyor on `opus` for size L, because a missed conflict costs the most, K-14), prompt *"Read `.claude/skills/prd-flow/reference/workers.md`, section `<name>`, and run it for slug `<slug>`. Request: <one line>."* The reviewer is the agent `repo.md` names for the task, with the `reviewer` section. Never copy briefings into the prompt. A gap in a return is resolved before the next step. Without the Agent tool, run the section here with the same briefing and budget.
+Worker: Agent `general-purpose`, `model: "sonnet"` (the executor on the task's model; the surveyor on `opus` for size L, because a missed conflict costs the most), prompt *"Read `.claude/skills/prd-flow/reference/workers.md`, section `<name>`, and run it for slug `<slug>`. Request: <one line>."* The reviewer is the agent `repo.md` names for the task, with the `reviewer` section. Never copy briefings into the prompt. A gap in a return is resolved before the next step. Without the Agent tool, run the section here with the same briefing and budget.
 
 ## State
 `.claude/prd-flow/state/<slug>/` (outside git): `state.md` (case, phase, base, decisions, `review: N/5` counter, cost per wave), `pack.md`, `impact.md`, `interview.md`, `approved-rules.md`, `writing.md`, `baseline-failures.txt`, `deliveries.md`. Intent, plan, tasks and `decisions.md` live in `changes/NNN-<slug>/` (LT01), never truth: at the end the Promote task moves what is durable to its home and archives the folder (LT06). Authority: constitution, PRD, TRD, code; `changes/archive/` and a legacy `specs/` are never read for current behavior (LT07). Resume (`/prd-flow resume <slug>`): only `state.md` and the current phase file; with `git diff --quiet <base> origin/<base_branch> -- <pack paths>`, the pack is still valid.
@@ -67,7 +67,7 @@ Worker: Agent `general-purpose`, `model: "sonnet"` (the executor on the task's m
 | R06 | Every agent has a ceiling and returns what is missing; none is re-dispatched in a loop (review.md V08) |
 | R07 | Questions to the user in product language, with a usage example; IDs only in the read-back |
 | R08 | Code and TRD follow `docs/code-structure.md` (AR01 to AR28): the right area per the repository's layout, the size limits, one responsibility per file, composition, the PRD ID in the first comment of each module and test, the area's map and TRD updated in the same commit. The ratchet (command in `repo.md`) never regresses |
-| R09 | Any behavior not covered by the approved rules, proposed by anyone (the user, an executor, a reviewer, this conversation), stops the tasks that touch it and enters the short C5 before code (`reference/execution.md` E08 to E10). A rule gap is never resolved by a task |
+| R09 | Any behavior not covered by the approved rules, proposed by anyone (the user, an executor, a reviewer, this conversation), stops the tasks that touch it and enters the short C5 before code (`reference/execution.md` E08 to E10). A rule gap is never resolved by a task. Outside a C5 (during C2, C3 or C6) the short C5 first creates the state files and the change folder (E08); more than one rule, or a new dimension set, re-enters as a full C5 |
 
 ## Files
 | File | Who reads it |
