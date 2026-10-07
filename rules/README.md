@@ -11,8 +11,8 @@ Read only the file of the domain you need. IDs are stable: a new rule takes the 
 | [03-review.md](03-review.md) | RV | Code review with a ceiling of rounds |
 | [04-testing.md](04-testing.md) | TS | Test-first, related tests only, full suite once, baseline, offline gates, containers and disk |
 | [05-code-structure.md](05-code-structure.md) | AR, CX | AI-readable code layout, size limits, the ratchet, code constraints |
-| [06-docs-system.md](06-docs-system.md) | DS | PRD by section, rule rows, CHANGELOG, TRD by feature, invariants, gate |
-| [07-workflow.md](07-workflow.md) | WF | Cases C0 to C6, PRD then TRD then plan then code, interview, commits |
+| [06-docs-system.md](06-docs-system.md) | DS | PRD by section, rule rows and Example column, CHANGELOG, TRD by feature, budget and checks, invariants, generated HTML, gate |
+| [07-workflow.md](07-workflow.md) | WF | Cases C0 to C6, survey and sweeps, interview record, PRD then TRD then plan then code, R09, commits and trailers |
 | [08-writing-style.md](08-writing-style.md) | WS | Language, punctuation, comments, commits, tables |
 | [09-lessons.md](09-lessons.md) | LS | What was measured and why each rule exists |
 | [10-creation-and-install.md](10-creation-and-install.md) | PC, IN | Creating the PRD and TRD; installing and updating the kit per project |
@@ -34,12 +34,15 @@ Read only the file of the domain you need. IDs are stable: a new rule takes the 
 | `scripts/hotspots.py`, `scripts/contract_drift.py` | PC12; DS30 |
 | `docs/prd/`, `docs/trd/`, `docs/flow.md`, `docs/adr/` | DS rules applied |
 | `.claude/skills/prd-create/`, `trd-create/` | PC rules: how the PRD and TRD are first written |
-| `.claude/skills/prd-flow/` | WF, SA, RV, TS rules as operating procedure, plus `repo.md` |
+| `.claude/skills/prd-flow/` | WF, SA, RV, TS rules as operating procedure, plus `repo.md` (formerly `prd-gate`; WF35, IN14) |
 | `.claude/skills/adr/` | DS23, DS27, DS28 |
 | `.claude/agents/<risk>-reviewer.md` | RV12 to RV16 |
 | `scripts/` and `ai-kit.json` | AR rules marked "ratchet", TS02 to TS08, TS22, TS28 to TS31, TS35 (`docker_hygiene.py`, `clean_task_outputs.py`, the `docker` section) |
 | `.claude/settings.json`, `.ai-kit/runs/` | TM03, TM12: the telemetry hooks (project-owned, merged) and the git-ignored run artifacts |
-| `scripts/telemetry_hook.py`, `run_probe.py`, `retro.py` and the `telemetry` section of `ai-kit.json` | TM01 to TM11 |
-| `.claude/skills/prd-flow/scripts/gate.py` | WF31 to WF33 (`--trace`, `--change`, `--final`) |
+| `scripts/telemetry_hook.py`, `run_probe.py`, `retro.py` and the `telemetry` section of `ai-kit.json` | TM01 to TM11, TM13 |
+| `.claude/skills/prd-flow/scripts/gate.py` and its `gate_*.py` modules | WF31 to WF33 (`--trace`, `--change`, `--final`); WF43, WF44 (`--rules`, `--applied`); DS34, DS37, DS39 (`--status`, `--trd`, `--sibling`) |
+| `.claude/skills/prd-flow/scripts/build_prd_html.py` | DS42: the generated `prd.html` and its G29 check |
+| `.github/CODEOWNERS` | WF48, DS43 |
+| `scripts/commit_trailers.py` | WF49 (`gates.sh trailers`) |
 | `.github/workflows/` | TS20, TS23 to TS26, RV17, CX10 |
 | `.ai-kit/manifest.json` and the `/ai-kit` skill | IN rules |
