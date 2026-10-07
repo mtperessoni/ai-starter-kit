@@ -20,6 +20,8 @@ EXTRA_ROW = "<tr><td>n/a</td><td>Orders are listed.</td><td>src</td></tr>\n"
 class GateHtmlTest(unittest.TestCase):
     def setUp(self) -> None:
         self.p = Project()
+        repo = self.p.root / ".claude/skills/prd-flow/repo.md"
+        repo.write_text(repo.read_text(encoding="utf-8").replace("| html_mode | generated |", "| html_mode | hand |"), encoding="utf-8")
 
     def tearDown(self) -> None:
         self.p.close()

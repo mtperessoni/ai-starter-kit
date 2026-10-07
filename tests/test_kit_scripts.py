@@ -106,6 +106,8 @@ class GateTest(unittest.TestCase):
     def setUp(self) -> None:
         self.p = Project()
         self.gate = ".claude/skills/prd-flow/scripts/gate.py"
+        repo = self.p.root / ".claude/skills/prd-flow/repo.md"
+        repo.write_text(repo.read_text(encoding="utf-8").replace("| html_mode | generated |", "| html_mode | hand |"), encoding="utf-8")
 
     def tearDown(self) -> None:
         self.p.close()

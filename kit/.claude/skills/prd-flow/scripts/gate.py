@@ -3,7 +3,7 @@
 Configuration comes from the "Gate config" table of ../repo.md.
 
 Modules beside it: gate_core (state, parsing), gate_prd, gate_plan, gate_rules (Q4), gate_interview (Q3),
-gate_status, gate_remote (G27).
+gate_status, gate_remote (G27), gate_trd (G23 to G26), gate_sibling (G28), gate_html_build (G29).
 
 Usage: python .claude/skills/prd-flow/scripts/gate.py [--base REF]
        python .claude/skills/prd-flow/scripts/gate.py --pack <pack.md>
@@ -14,6 +14,8 @@ Usage: python .claude/skills/prd-flow/scripts/gate.py [--base REF]
        python .claude/skills/prd-flow/scripts/gate.py --trace
        python .claude/skills/prd-flow/scripts/gate.py --change <changes/NNN-slug>
        python .claude/skills/prd-flow/scripts/gate.py --final
+       python .claude/skills/prd-flow/scripts/gate.py --trd
+       python .claude/skills/prd-flow/scripts/gate.py --sibling
 --rules: rows against the PRD (Q2), the interview.md beside the file (Q3), and G27 for IDs used on remote branches.
 --applied: with --rules, every approved row exists in the PRD file named by its heading, identical (Q4).
 --status: ID, state, file, Source and Change via of each rule; states proposed, approved, superseded, implemented.
@@ -21,6 +23,9 @@ Usage: python .claude/skills/prd-flow/scripts/gate.py [--base REF]
          untested rules are held to allowlist.untested_rules, which only shrinks.
 --change: brief.md of a change folder against the PRD and its plan.md.
 --final: nothing planned, pending, proposed (G30) or open is left (CI, on pushes to the base branch).
+--trd: backticked paths exist (G23), symbols (G24) and IDs (G25) are in the row's files, files within trd_budget_lines (G26).
+--sibling: PRD folders listed under "Shared PRDs" of repo.md equal the sibling repository's (G28).
+With html_mode generated the default run checks the HTML against build_prd_html.py (G29) instead of G5, G6 and G10.
 Exits with 1 when there is an ERROR. A WARNING does not fail.
 """
 
@@ -35,9 +40,12 @@ from gate_core import (
 from gate_interview import check_interview
 from gate_plan import check_change, check_final, check_plan, check_trace
 from gate_prd import changed_rows, check_html, check_index, check_pack, check_rules
+from gate_html_build import check_generated
 from gate_remote import warn_remote_change, warn_remote_ids
 from gate_rules import check_applied
+from gate_sibling import check_sibling
 from gate_status import STATES, status_lines
+from gate_trd import check_trd
 
 
 def approved_ids(path: Path) -> set[str]:
@@ -59,6 +67,8 @@ def main() -> int:
     parser.add_argument("--change", type=Path, help="check a change folder (brief.md, design.md, plan.md)")
     parser.add_argument("--final", action="store_true", help="nothing planned, pending or open is left")
     parser.add_argument("--applied", action="store_true", help="with --rules: the rows were written to the PRD literally")
+    parser.add_argument("--trd", action="store_true", help="check the TRD paths, symbols, IDs and size against the tracked files")
+    parser.add_argument("--sibling", action="store_true", help="check the shared PRD folders against the sibling repositories")
     parser.add_argument("--status", action="store_true", help="print the state of every rule")
     parser.add_argument("--prd", help="with --status: only this PRD folder")
     parser.add_argument("--state", choices=STATES, help="with --status: only this state")
@@ -72,6 +82,13 @@ def main() -> int:
 
     if args.status:
         print(chr(10).join(status_lines(rules, vias, cfg, prd, args.prd, args.state)))
+        return report()
+
+    if args.trd or args.sibling:
+        if args.trd:
+            check_trd(root, cfg, trd_rel)
+        if args.sibling:
+            check_sibling(root, Path(__file__).resolve().parents[1] / "repo.md")
         return report()
 
     if args.trace or args.change or args.final:
@@ -104,6 +121,7 @@ def main() -> int:
     check_index(prd, rules, set(new) - set(old))
     changelog = f"{prd_rel}/CHANGELOG.md"
     html_on = cfg["html"].lower() not in {"", "none", "no", "off"}
+    generated = html_on and cfg["html_mode"].lower() == "generated"
 
     if cfg["forbid_em_dash"].lower() in {"yes", "true", "on"}:
         scanned = [*prd.rglob("*.md"), *trd.rglob("*.md")]
@@ -134,7 +152,9 @@ def main() -> int:
         warn("G2", "new IDs and INDEX.md was not touched")
 
     page_ids: set[str] = set()
-    if html_on:
+    if generated:
+        check_generated(root, cfg)
+    elif html_on:
         page_path = root / cfg["html"]
         if page_path.exists():
             check_html(page_path, rules, old, new, touched, plain, vias)
