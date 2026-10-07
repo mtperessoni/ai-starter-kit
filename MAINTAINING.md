@@ -17,7 +17,7 @@ The kit is the source of the rules; projects receive them through `/ai-kit updat
 2. Add or change the rule in the matching `rules/` file, with the next free ID.
 3. Change the skill, template or script that enforces it in `kit/` (or `installer/`, `stacks/`).
 4. If it changes a script, add or update a test in `tests/` and run `python -m unittest discover -s tests`.
-5. Commit with Conventional Commits (`feat(prd-gate): ...`, `fix(scripts): ...`, `docs(rules): ...`) and add a line to `CHANGELOG.md`.
+5. Commit with Conventional Commits (`feat(prd-flow): ...`, `fix(scripts): ...`, `docs(rules): ...`) and add a line to `CHANGELOG.md`.
 6. In each project: `git pull` here, `./install.sh`, then `/ai-kit update`.
 
 ## Adding a stack recipe

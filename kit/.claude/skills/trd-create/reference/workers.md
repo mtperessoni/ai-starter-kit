@@ -1,6 +1,6 @@
 # trd-create workers
 
-Read only the section with your name. You do not talk to the user: anything missing becomes a **gap** in the return. Parallel batches when reads are independent; code only by symbol (`Grep -n`, then `Read` with offset and limit); big files from `.claude/skills/prd-gate/repo.md` never whole. Write with Write and Edit only. Names only, never line numbers or default values. Everything in English, no em dash (U+2014). State: `.claude/prd-gate/state/trd-create/`.
+Read only the section with your name. You do not talk to the user: anything missing becomes a **gap** in the return. Parallel batches when reads are independent; code only by symbol (`Grep -n`, then `Read` with offset and limit); big files from `.claude/skills/prd-flow/repo.md` never whole. Write with Write and Edit only. Names only, never line numbers or default values. Everything in English, no em dash (U+2014). State: `.claude/prd-flow/state/trd-create/`.
 
 Return, at most 30 lines:
 ```
@@ -42,6 +42,6 @@ Return: invariant count by kind, patterns to copy found, contract snapshots foun
 1b. For each folder of `map_dirs`, write its `CLAUDE.md` from `docs/templates/folder-CLAUDE.md` (at most 20 lines, one row per area with its files there, PRD IDs and TRD link).
 2. `docs/flow.md`: the one end-to-end mermaid diagram of the system (triggers, features, external systems, failure exits), with a short legend. It is the single overview; other docs link to it.
 3. `docs/prd/INDEX.md`: fill the TRD column of every section with the feature maps that implement it.
-4. Run `python .claude/skills/prd-gate/scripts/gate.py` and fix every error in the files you wrote.
+4. Run `python .claude/skills/prd-flow/scripts/gate.py` and fix every error in the files you wrote.
 
 Return: files, the gate's last line, gaps.

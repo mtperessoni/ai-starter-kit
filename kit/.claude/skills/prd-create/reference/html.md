@@ -22,4 +22,4 @@ People read `docs/prd/prd.html` (path in `repo.md` `html`); agents never do. It 
 1. First time: copy the template with Write, fill the sidebar (one tab button per PRD) and the overview panel from `README.md`.
 2. For each PRD: one panel, its `toc`, one section per markdown file, in INDEX order. Work one PRD at a time; for a large PRD, one Edit per section.
 3. The decisions panel from README "Open decisions" and the open questions files.
-4. Run `python .claude/skills/prd-gate/scripts/gate.py`: every `G5`, `G6` or `G10` error is a row whose words differ; fix the HTML row, never the markdown.
+4. Run `python .claude/skills/prd-flow/scripts/gate.py`: every `G5`, `G6` or `G10` error is a row whose words differ; fix the HTML row, never the markdown.

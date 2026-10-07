@@ -12,9 +12,9 @@ Binding, and it wins over everything else in this repository. Full text: `.speci
 - **IV. Documents Are the Source of Truth.** Behavior lives in `docs/prd/`, code maps in `docs/trd/`; a rule change updates them before the code.
 - **V. <Principle name>.** <One line.>
 
-## Product rules gate
+## Product rules flow
 
-Every change in this repository and every question about product behavior starts with `/prd-gate` (`.claude/skills/prd-gate/`). Two exceptions skip the gate: small changes (a typo, a log line, a rename, a one-line fix that changes no rule) and fixes to tests. A rule change never goes straight to code: PRD, then TRD, then plan, then code, and only after the person asking has seen the current rule, what would change, and confirmed it.
+Every change in this repository and every question about product behavior starts with `/prd-flow` (`.claude/skills/prd-flow/`). Two exceptions skip the gate: small changes (a typo, a log line, a rename, a one-line fix that changes no rule) and fixes to tests. A rule change never goes straight to code: PRD, then TRD, then plan, then code, and only after the person asking has seen the current rule, what would change, and confirmed it.
 
 ## Code structure
 

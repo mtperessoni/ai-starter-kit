@@ -5,7 +5,7 @@ Read only by whoever executes. The main thread dispatches, commits and decides; 
 ## Where to execute
 | ID | Rule |
 |---|---|
-| E01 | A plan with more than 6 tasks, or touching a big file from `repo.md`: execute in a new session, with `/prd-gate resume <slug>`, starting from `state.md` and the plan. The C5 session already carries the confrontation, the interview and the writing, and every agent report adds to that |
+| E01 | A plan with more than 6 tasks, or touching a big file from `repo.md`: execute in a new session, with `/prd-flow resume <slug>`, starting from `state.md` and the plan. The C5 session already carries the confrontation, the interview and the writing, and every agent report adds to that |
 | E02 | A smaller plan may continue in the same session |
 
 ## Order

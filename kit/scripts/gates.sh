@@ -9,7 +9,7 @@
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
-LOG_DIR=".claude/prd-gate/state/_tests"
+LOG_DIR=".claude/prd-flow/state/_tests"
 
 usage() {
     cat >&2 <<'USAGE'
@@ -33,7 +33,7 @@ usage: scripts/gates.sh <target> [args]
   fix              repair lint and format; then run lint
   imports          the import check (catches cycles)
   ratchet          structure ratchet (docs/code-structure.md)
-  docs [args]      the prd-gate docs gate
+  docs [args]      the prd-flow docs gate
   context <name>   name the run context (.ai-kit/runs/current) for the telemetry
   retro [args]     the run retrospective (scripts/retro.py): --context <name>, --prune
   setup            make a fresh clone or worktree ready to test (commands.setup)
@@ -154,7 +154,7 @@ clean-outputs)
     ;;
 baseline)
     slug="${1:?usage: gates.sh baseline <slug>}"
-    dir=".claude/prd-gate/state/$slug"
+    dir=".claude/prd-flow/state/$slug"
     mkdir -p "$dir"
     offline offline "$(cmd test) $(cmd offline_args)" > "$dir/baseline.log" 2>&1 || true
     python scripts/new_failures.py --extract "$dir/baseline.log" > "$dir/baseline-failures.txt"
@@ -162,7 +162,7 @@ baseline)
     ;;
 compare)
     slug="${1:?usage: gates.sh compare <slug>}"
-    dir=".claude/prd-gate/state/$slug"
+    dir=".claude/prd-flow/state/$slug"
     mkdir -p "$dir"
     offline offline "$(cmd test) $(cmd offline_args)" > "$dir/final.log" 2>&1 || true
     tail -n 1 "$dir/final.log"
@@ -190,7 +190,7 @@ retro)
     python scripts/retro.py "$@"
     ;;
 docs)
-    python .claude/skills/prd-gate/scripts/gate.py "$@"
+    python .claude/skills/prd-flow/scripts/gate.py "$@"
     ;;
 setup)
     setup_cmd="$(python -c 'import json; print(json.load(open("ai-kit.json", encoding="utf-8"))["commands"].get("setup", ""))')"

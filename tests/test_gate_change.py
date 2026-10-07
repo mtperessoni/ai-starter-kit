@@ -6,7 +6,7 @@ from pathlib import Path
 
 from tests.test_kit_scripts import Project, write
 
-GATE = ".claude/skills/prd-gate/scripts/gate.py"
+GATE = ".claude/skills/prd-flow/scripts/gate.py"
 ORDERS = "docs/prd/shop/05-orders.md"
 
 BRIEF = """\
@@ -199,7 +199,7 @@ class FinalTest(unittest.TestCase):
         self.assertIn("ERROR G20", r.stdout)
 
     def set_planned_heading(self, heading: str) -> None:
-        repo = self.p.root / ".claude/skills/prd-gate/repo.md"
+        repo = self.p.root / ".claude/skills/prd-flow/repo.md"
         text = repo.read_text(encoding="utf-8")
         repo.write_text(text.replace("| pack_budget_lines |", f"| planned_heading | {heading} |\n| pack_budget_lines |", 1), encoding="utf-8")
 

@@ -34,12 +34,12 @@ Read only the file of the domain you need. IDs are stable: a new rule takes the 
 | `scripts/hotspots.py`, `scripts/contract_drift.py` | PC12; DS30 |
 | `docs/prd/`, `docs/trd/`, `docs/flow.md`, `docs/adr/` | DS rules applied |
 | `.claude/skills/prd-create/`, `trd-create/` | PC rules: how the PRD and TRD are first written |
-| `.claude/skills/prd-gate/` | WF, SA, RV, TS rules as operating procedure, plus `repo.md` |
+| `.claude/skills/prd-flow/` | WF, SA, RV, TS rules as operating procedure, plus `repo.md` |
 | `.claude/skills/adr/` | DS23, DS27, DS28 |
 | `.claude/agents/<risk>-reviewer.md` | RV12 to RV16 |
 | `scripts/` and `ai-kit.json` | AR rules marked "ratchet", TS02 to TS08, TS22, TS28 to TS31, TS35 (`docker_hygiene.py`, `clean_task_outputs.py`, the `docker` section) |
 | `.claude/settings.json`, `.ai-kit/runs/` | TM03, TM12: the telemetry hooks (project-owned, merged) and the git-ignored run artifacts |
 | `scripts/telemetry_hook.py`, `run_probe.py`, `retro.py` and the `telemetry` section of `ai-kit.json` | TM01 to TM11 |
-| `.claude/skills/prd-gate/scripts/gate.py` | WF31 to WF33 (`--trace`, `--change`, `--final`) |
+| `.claude/skills/prd-flow/scripts/gate.py` | WF31 to WF33 (`--trace`, `--change`, `--final`) |
 | `.github/workflows/` | TS20, TS23 to TS26, RV17, CX10 |
 | `.ai-kit/manifest.json` and the `/ai-kit` skill | IN rules |

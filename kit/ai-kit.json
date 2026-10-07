@@ -114,7 +114,7 @@
     "runner": "<runs the given test files offline without coverage, for example: uv run pytest {files} --no-cov -q>",
     "native_related": "",
     "failure_regex": "^(?:FAILED|ERROR)\\s+(\\S+)",
-    "log_dir": ".claude/prd-gate/state/_tests",
+    "log_dir": ".claude/prd-flow/state/_tests",
     "mirror_patterns": [
       "test_{name}",
       "{name}_test",

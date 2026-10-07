@@ -9,7 +9,7 @@ How to test in this repository. Rules the tests protect: [invariants.md](invaria
 | `related [files]` | The ratchet, then the mirror test and the importers of the changed files (`scripts/related_tests.py --run`); prints its wall time and warns above `tests.related_budget_seconds` (TS37), warns when snapshots changed | While working, after every change |
 | `one <file>` | One test file, offline, no coverage threshold | Writing a test |
 | `offline` | The whole unit tier with no network and no database; the script sets that environment itself | Once, at the end of a delivery |
-| `baseline <slug>` | `offline`, then records its failures in `.claude/prd-gate/state/<slug>/baseline-failures.txt` | Before the first code task of a delivery |
+| `baseline <slug>` | `offline`, then records its failures in `.claude/prd-flow/state/<slug>/baseline-failures.txt` | Before the first code task of a delivery |
 | `compare <slug>` | `offline`, then prints only failures not in the baseline | At the end of a delivery |
 | `integration` | The integration tier (needs a database): guards first, cleanup on every exit | When there is a database |
 | `full` | Everything, with the same guards and cleanup | Before merge, on a machine with a database |

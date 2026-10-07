@@ -45,7 +45,7 @@ Keep this order. Numbers are two digits; a section split by subsection uses `NN-
 | N+7 | `NN-risks.md` | Risks with severity, scenario and mitigation | `\| R<prd>-NN · high \| ... \|` |
 | N+8 | `NN-open-questions.md` | Every decision not yet made, with the adopted default | `\| Q<prd>-NN \| Question \| Default adopted \| Blocks \|` |
 
-Amendments approved later (by prd-gate) take the next number with subsections: `NN-00-overview.md`, `NN-01-<topic>.md`.
+Amendments approved later (by prd-flow) take the next number with subsections: `NN-00-overview.md`, `NN-01-<topic>.md`.
 
 ## Anatomy of a step section
 ```markdown
@@ -89,7 +89,7 @@ The outcome table is optional; the rule table is mandatory for a step.
 ## README.md (overview for people)
 Two parts, in this order, mirrored as the first and last tabs of the HTML:
 
-**Overview:** 00 what the product is (stack in one line, who calls it, the PRDs and what each covers) · 01 how to read this document · 02 the journey and the scopes (one mermaid diagram across PRDs) · 03 what weighs most today (the 5 to 8 heaviest problems and risks, with IDs) · 04 how to change a rule (`/prd-gate`, PRD then TRD then plan then code) · 05 principles that limit changes (from the constitution) · 06 state per spec (which specs are done, in progress, pending) · 07 how this document was made (mode, base commit, date, what was checked).
+**Overview:** 00 what the product is (stack in one line, who calls it, the PRDs and what each covers) · 01 how to read this document · 02 the journey and the scopes (one mermaid diagram across PRDs) · 03 what weighs most today (the 5 to 8 heaviest problems and risks, with IDs) · 04 how to change a rule (`/prd-flow`, PRD then TRD then plan then code) · 05 principles that limit changes (from the constitution) · 06 state per spec (which specs are done, in progress, pending) · 07 how this document was made (mode, base commit, date, what was checked).
 
 **Open decisions:** how to use this tab · decide now (open questions that block work, ranked by risk) · product decisions · documentation hygiene (divergences between docs).
 

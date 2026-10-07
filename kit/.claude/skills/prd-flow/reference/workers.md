@@ -1,6 +1,6 @@
-# prd-gate workers
+# prd-flow workers
 
-Read only the section with your name. You do not talk to the user: anything missing becomes a **gap** in the return, never an assumption. Parallel batches whenever reads are independent; read by ID (`Grep -n`, then `Read` with offset and limit); a human-reading HTML is never read whole; big files listed in `repo.md` only by symbol. Write and edit docs with Write and Edit only, never through a Python or shell script; the only script you run is `gate.py`. Prose you write is in the `repo.md` `language` (default English); IDs, code, commit messages and file names are always English. No em dash (U+2014). State: `.claude/prd-gate/state/<slug>/`.
+Read only the section with your name. You do not talk to the user: anything missing becomes a **gap** in the return, never an assumption. Parallel batches whenever reads are independent; read by ID (`Grep -n`, then `Read` with offset and limit); a human-reading HTML is never read whole; big files listed in `repo.md` only by symbol. Write and edit docs with Write and Edit only, never through a Python or shell script; the only script you run is `gate.py`. Prose you write is in the `repo.md` `language` (default English); IDs, code, commit messages and file names are always English. No em dash (U+2014). State: `.claude/prd-flow/state/<slug>/`.
 
 Return to the main thread, always in this format and at most 30 lines:
 
@@ -15,12 +15,12 @@ Gaps: <list, or "none">
 
 Context, freshness and impact, in sequence, for a rule change.
 
-1. **Batch 1, one message:** `Read .claude/skills/prd-gate/repo.md`; `Grep` the request's terms in `docs/prd/INDEX.md`; `Read docs/trd/README.md`; `Grep` the terms in the PRD section files to find the rows; `git fetch -q && git rev-parse --short HEAD && git rev-list --count HEAD..origin/<base_branch>`.
+1. **Batch 1, one message:** `Read .claude/skills/prd-flow/repo.md`; `Grep` the request's terms in `docs/prd/INDEX.md`; `Read docs/trd/README.md`; `Grep` the terms in the PRD section files to find the rows; `git fetch -q && git rev-parse --short HEAD && git rev-list --count HEAD..origin/<base_branch>`.
 2. **Batch 2:** the tables of the sections involved; the TRD feature file; `Grep "<IDs>" docs/prd changes <test folders>` (never `changes/archive/`, LT07); the lines of `docs/trd/invariants.md` for the kind of change; the constitution principle the change touches (title and excerpt).
 3. **Freshness:** check the Source of each rule that will change (file and symbol exist, behavior matches). A divergence goes into the pack; an out-of-scope divergence is only noted, with no new call.
 4. **Impact:** follow `reference/impact.md` (K01 to K10, trade-offs, protections). K08 to K10 are never skipped: discovered during execution, they become extra rounds with the user. Write `impact.md` already in the confrontation format from there: it is what the main thread shows the user.
 5. **Pre-interview:** for each dimension D01 to D15 of `reference/interview.md` plus the extra ones of `repo.md`, mark `answered: <source>`, `not applicable: <reason>` or `open: <question with scenario and recommended default>`.
-6. Write `pack.md` in the format below and run `python .claude/skills/prd-gate/scripts/gate.py --pack .claude/prd-gate/state/<slug>/pack.md`. ERROR: fix the pack and run again.
+6. Write `pack.md` in the format below and run `python .claude/skills/prd-flow/scripts/gate.py --pack .claude/prd-flow/state/<slug>/pack.md`. ERROR: fix the pack and run again.
 
 Format of `pack.md` (the gate checks the sections and that every rule row is **literal**, copied from the PRD):
 
@@ -69,9 +69,9 @@ Return: the confrontation (at most 25 lines, taken from `impact.md`), the in-sco
 
 Applies the approved rules to the PRD, the HTML if any, and the TRD. Input: `approved-rules.md`, `pack.md`, `state.md`.
 
-1. `python .claude/skills/prd-gate/scripts/gate.py --rules .claude/prd-gate/state/<slug>/approved-rules.md`. ERROR: stop and return it as a gap.
+1. `python .claude/skills/prd-flow/scripts/gate.py --rules .claude/prd-flow/state/<slug>/approved-rules.md`. ERROR: stop and return it as a gap.
 2. Read `reference/prd-writing.md` and follow it: markdown of the owning section, markers, CHANGELOG, INDEX, README if affected. The HTML only by `Grep -n` of the ID and an exact `Edit` of the line.
-3. `python .claude/skills/prd-gate/scripts/gate.py`. ERROR: fix and run again until green. A WARNING about "earlier drift" is not yours.
+3. `python .claude/skills/prd-flow/scripts/gate.py`. ERROR: fix and run again until green. A WARNING about "earlier drift" is not yours.
 4. Commit `docs(prd): <sentence in the git log style>` with markdown and HTML together.
 5. Read `reference/trd-planned.md` and write the "Planned" section of each feature in the pack (or the file of a new feature). Gate again. Commit `docs(trd): <sentence>`.
 6. Write `writing.md`: files touched, IDs, commits, final gate output.
@@ -83,7 +83,7 @@ Return: commits, IDs touched, the last line of the gate, gaps.
 Builds the plan for agents. Input: `approved-rules.md`, `pack.md`, the "Planned" section of the TRD files touched.
 
 1. Read `reference/agent-plan.md` and decide size and where the plan lives (LT04, "Where the plan lives"). For size M and L write `brief.md` (`docs/templates/change-brief.md`, LT02) and, for L, `design.md` (`docs/templates/change-design.md`, LT03) first; the brief cites rule IDs only and `gate.py --change <dir>` must pass (LT09).
-2. Write the tasks in the format there, with the final promotion task, and copy the "Plan execution rules" and the `## Constitution check` (LT05) into the plan header. Before writing, check with `git log` which tasks the plan depends on are already done. Run `python .claude/skills/prd-gate/scripts/gate.py --plan <plan>`: fix every ERROR. Commit `docs(changes): <sentence>`.
+2. Write the tasks in the format there, with the final promotion task, and copy the "Plan execution rules" and the `## Constitution check` (LT05) into the plan header. Before writing, check with `git log` which tasks the plan depends on are already done. Run `python .claude/skills/prd-flow/scripts/gate.py --plan <plan>`: fix every ERROR. Commit `docs(changes): <sentence>`.
 3. Structure (SKILL.md R08, `docs/code-structure.md`): every task names the area and its files per `docs/code-structure.md` "This repository's layout", files named after their responsibility, and the tests where AR10 puts them; no task creates a file above the limits or with a generic name; a legacy file over the limit follows AR21 (extract first); an untested legacy path gets a characterization test first (TS42); a task that changes the pieces of an area updates its map and TRD.
 4. Cost (execution.md E12 to E17): rules cited by ID, never copied outside the owning task; each task section at most 25 lines, naming files, entry symbols and tests; the whole plan around 30 KB. Replace the old path with the new one instead of keeping both in parallel, unless a rollback switch requires it: a double path makes every test be touched twice. Model `sonnet`; `opus` only with a reason on the line (E13). Reviewer from `repo.md`.
 
@@ -124,7 +124,7 @@ Gaps: <list, or "none">
 
 Instructions the main thread puts in the prompt of the task's reviewer agent (from `repo.md`), besides the diff:
 
-- "Round N/5 of `.claude/skills/prd-gate/reference/review.md`." In round 1, the delivery diff; from round 2, only the fix diff and the list of previous findings (V03): say resolved or not for each and point out only new problems that diff created.
+- "Round N/5 of `.claude/skills/prd-flow/reference/review.md`." In round 1, the delivery diff; from round 2, only the fix diff and the list of previous findings (V03): say resolved or not for each and point out only new problems that diff created.
 - Each finding on one line: `[Critical|High|Medium|Low] CS-NNN · file:line · rule · concrete scenario in one sentence · fix in one sentence`. At most 8 findings, the most severe first.
 - Severity by consequence to the user or the delivery, not elegance. "Possible in theory" without a concrete scenario is Low.
 - Return at most 20 lines; ceiling of 40 to 60 tool calls. Findings only: never edit code or write files.

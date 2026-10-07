@@ -4,7 +4,7 @@ import unittest
 
 from tests.test_kit_scripts import Project, write
 
-GATE = ".claude/skills/prd-gate/scripts/gate.py"
+GATE = ".claude/skills/prd-flow/scripts/gate.py"
 ORDERS = "docs/prd/shop/05-orders.md"
 PAGE = "docs/prd/prd.html"
 

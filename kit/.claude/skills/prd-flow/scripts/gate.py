@@ -1,14 +1,14 @@
-"""Structural gate of prd-gate: PRD markdown, optional HTML, INDEX, CHANGELOG, TRD and state files.
+"""Structural gate of prd-flow: PRD markdown, optional HTML, INDEX, CHANGELOG, TRD and state files.
 
 Configuration comes from the "Gate config" table of ../repo.md.
 
-Usage: python .claude/skills/prd-gate/scripts/gate.py [--base REF]
-       python .claude/skills/prd-gate/scripts/gate.py --pack <pack.md>
-       python .claude/skills/prd-gate/scripts/gate.py --rules <approved-rules.md>
-       python .claude/skills/prd-gate/scripts/gate.py --plan <plan.md>
-       python .claude/skills/prd-gate/scripts/gate.py --trace
-       python .claude/skills/prd-gate/scripts/gate.py --change <changes/NNN-slug>
-       python .claude/skills/prd-gate/scripts/gate.py --final
+Usage: python .claude/skills/prd-flow/scripts/gate.py [--base REF]
+       python .claude/skills/prd-flow/scripts/gate.py --pack <pack.md>
+       python .claude/skills/prd-flow/scripts/gate.py --rules <approved-rules.md>
+       python .claude/skills/prd-flow/scripts/gate.py --plan <plan.md>
+       python .claude/skills/prd-flow/scripts/gate.py --trace
+       python .claude/skills/prd-flow/scripts/gate.py --change <changes/NNN-slug>
+       python .claude/skills/prd-flow/scripts/gate.py --final
 --trace: every PRD rule not planned is cited by a test file (test_patterns of ai-kit.json);
          untested rules are held to allowlist.untested_rules, which only shrinks.
 --change: brief.md of a change folder against the PRD and its plan.md.

@@ -6,7 +6,7 @@ What a code change must not break, by kind of change. Sources: `AGENTS.md` "Crit
 
 | ID | Rule (1 line) | Proof (test or principle) |
 |---|---|---|
-| I-01 | No em dash (U+2014) in code, docs, prompts or commits | AGENTS.md; prd-gate gate G4 |
+| I-01 | No em dash (U+2014) in code, docs, prompts or commits | AGENTS.md; prd-flow gate G4 |
 | I-02 | Zero comments, except the non-obvious and critical why; no comment cites a ticket | AGENTS.md |
 | I-03 | Failing test before the implementation | Constitution, test-first principle |
 | I-04 | `scripts/gates.sh lint` green | CI |

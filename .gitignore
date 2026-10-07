@@ -1,6 +1,6 @@
 __pycache__/
 *.pyc
-.claude/prd-gate/
+.claude/prd-flow/
 .ai-kit-test/
 eval/results/**
 !eval/results/*/

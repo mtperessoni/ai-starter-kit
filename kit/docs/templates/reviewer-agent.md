@@ -53,7 +53,7 @@ You review one thing: whether the changed code honors **constitution principle <
 
 Default range is `git diff <base>...HEAD` unless the caller gives one. In scope: the changed code, plus every path the changed code creates or modifies toward <the guarded destinations>. Reading unchanged code to decide whether a changed path is guarded is expected. Out of scope: style, typing, performance, general architecture, and any property already true before the diff and untouched by it.
 
-When the prompt says "Round N/5" from round 2 on (prd-gate `reference/review.md` V03), review only the fix diff: say resolved or not for each previous finding and report only new problems that diff created.
+When the prompt says "Round N/5" from round 2 on (prd-flow `reference/review.md` V03), review only the fix diff: say resolved or not for each previous finding and report only new problems that diff created.
 
 ## The checks
 

@@ -105,7 +105,7 @@ class Project:
 class GateTest(unittest.TestCase):
     def setUp(self) -> None:
         self.p = Project()
-        self.gate = ".claude/skills/prd-gate/scripts/gate.py"
+        self.gate = ".claude/skills/prd-flow/scripts/gate.py"
 
     def tearDown(self) -> None:
         self.p.close()
@@ -421,7 +421,7 @@ class RelatedTestsTest(unittest.TestCase):
         lines = r.stdout.splitlines()
         self.assertIn("FAILED fake::test_a", lines)
         self.assertIn("1 failed", lines)
-        self.assertTrue((self.p.root / ".claude/prd-gate/state/_tests/related.log").exists())
+        self.assertTrue((self.p.root / ".claude/prd-flow/state/_tests/related.log").exists())
 
 
 class NewFailuresTest(unittest.TestCase):

@@ -1,6 +1,6 @@
 # prd-create workers
 
-Read only the section with your name. You do not talk to the user: anything missing becomes a **gap** in the return, never an assumption. Parallel batches when reads are independent; code only by symbol (`Grep -n`, then `Read` with offset and limit); big files listed in `.claude/skills/prd-gate/repo.md` never whole; the HTML never read except by the `html-writer`, and then only by `Grep` of the line it edits. Write docs with Write and Edit only, never through a script; the only script you run is the gate. Everything you write is in English, product language, no em dash (U+2014). State: `.claude/prd-gate/state/<slug>/`. Format rules: `reference/anatomy.md`.
+Read only the section with your name. You do not talk to the user: anything missing becomes a **gap** in the return, never an assumption. Parallel batches when reads are independent; code only by symbol (`Grep -n`, then `Read` with offset and limit); big files listed in `.claude/skills/prd-flow/repo.md` never whole; the HTML never read except by the `html-writer`, and then only by `Grep` of the line it edits. Write docs with Write and Edit only, never through a script; the only script you run is the gate. Everything you write is in English, product language, no em dash (U+2014). State: `.claude/prd-flow/state/<slug>/`. Format rules: `reference/anatomy.md`.
 
 Return, at most 30 lines:
 ```
@@ -65,7 +65,7 @@ Return: files, ID ranges, the 5 heaviest problems in one line each, gaps.
 
 ## index-writer
 
-Writes `docs/prd/INDEX.md`, `docs/prd/README.md` and `docs/prd/CHANGELOG.md` (header only when new), following `reference/anatomy.md`. In M4, adds the new PRD to the existing files without touching the other PRDs' rows. Runs `python .claude/skills/prd-gate/scripts/gate.py` until it has no error other than the missing HTML.
+Writes `docs/prd/INDEX.md`, `docs/prd/README.md` and `docs/prd/CHANGELOG.md` (header only when new), following `reference/anatomy.md`. In M4, adds the new PRD to the existing files without touching the other PRDs' rows. Runs `python .claude/skills/prd-flow/scripts/gate.py` until it has no error other than the missing HTML.
 
 Return: files, the gate's last line, gaps.
 

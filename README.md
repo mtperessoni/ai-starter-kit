@@ -26,7 +26,7 @@ What the rules in this kit changed, measured in the source repository:
 flowchart LR
     I["/ai-kit install<br/>adapts the kit to the stack"] --> P["/prd-create<br/>PRD from code, docs or interview"]
     P --> T["/trd-create<br/>code map, CLAUDE.md per feature"]
-    T --> G{"/prd-gate<br/>every change"}
+    T --> G{"/prd-flow<br/>every change"}
     G -->|question| A[Answer with rule IDs and sources]
     G -->|bug or approved rule| X[Plan, then agents implement test-first]
     G -->|rule change| R[Confront, interview, PRD, TRD, plan, then code]
@@ -58,7 +58,7 @@ Order of authority: constitution, PRD, TRD, code. An active plan governs only th
 | `/ai-kit` | Global. `install` detects the stack, copies and adapts the kit, configures the linter with a day-one baseline, verifies every command by running it. `update` brings kit improvements without overwriting the project's edits. `doctor` reports drift |
 | `/prd-create` | Writes the PRDs: one folder per independent flow, one small file per section, rule rows with source and change via, glossary with code names, journey, configuration, risks, open questions, and the HTML reading version |
 | `/trd-create` | Writes the technical map in any layout: one file per product area, invariants with their proof, the testing guide, the end-to-end flow, and a `CLAUDE.md` of at most 20 lines in every feature folder or declared map folder. In an existing codebase it writes the incremental readiness plan, and offers the move to feature folders as an option |
-| `/prd-gate` | The gate for every change. Classifies the request, loads only the rule and the map it needs, checks the doc against the code, and for a rule change runs confront, interview, PRD, TRD, plan, then subagents implement |
+| `/prd-flow` | The gate for every change. Classifies the request, loads only the rule and the map it needs, checks the doc against the code, and for a rule change runs confront, interview, PRD, TRD, plan, then subagents implement |
 | `/adr` | Records architecture decisions with at least two honest negatives and two real alternatives |
 
 ## Quick start
@@ -79,7 +79,7 @@ cd ai-starter-kit
 /trd-create             # the code map and the feature CLAUDE.md files
 
 # 3. From then on
-/prd-gate <any change or question about behavior>
+/prd-flow <any change or question about behavior>
 ```
 
 To bring kit improvements into a project later: `git pull` in the kit, `./install.sh` again, then `/ai-kit update` in the project.
@@ -92,7 +92,7 @@ AGENTS.md                       commands, critical constraints, finding things, 
 ai-kit.json                     stack commands, structure limits, ratchet allowlist
 .ai-kit/manifest.json           kit version and the files it owns
 .specify/memory/constitution.md binding principles: the project's own plus the kit's process principles
-.claude/skills/                 prd-create, trd-create, prd-gate (with repo.md, the project adapter), adr
+.claude/skills/                 prd-create, trd-create, prd-flow (with repo.md, the project adapter), adr
 .claude/agents/                 one findings-only reviewer per risk class of the domain
 docs/prd/                       INDEX.md, README.md, CHANGELOG.md, prd.html, one folder per PRD
 docs/trd/                       README.md, one file per feature, infra.md, invariants.md, testing.md

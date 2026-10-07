@@ -1,4 +1,4 @@
-# prd-gate · repository adapter
+# prd-flow · repository adapter
 
 The only repository-specific file of the skill. Every other file of the skill is generic and reads its values from here. Filled by `/ai-kit install`; fill any remaining `<...>`; delete rows that do not apply rather than leaving them empty.
 
@@ -34,7 +34,7 @@ Always through `scripts/gates.sh`; the stack commands behind each target are in 
 
 | Purpose | Command |
 |---|---|
-| Related tests of a change (while working) | `scripts/gates.sh related [files]` (ratchet, then mirror tests and importers; only failures and the summary are printed, the log goes to `.claude/prd-gate/state/_tests/`) |
+| Related tests of a change (while working) | `scripts/gates.sh related [files]` (ratchet, then mirror tests and importers; only failures and the summary are printed, the log goes to `.claude/prd-flow/state/_tests/`) |
 | One test file, no coverage | `scripts/gates.sh one <file>` |
 | Baseline before the first code task | `scripts/gates.sh baseline <slug>` |
 | Full suite, once at the end, against the baseline | `scripts/gates.sh compare <slug>` |

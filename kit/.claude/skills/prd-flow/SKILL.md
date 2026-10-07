@@ -1,9 +1,9 @@
 ---
-name: prd-gate
-description: Mandatory gate for every task that touches product behavior in this repository. Loads the PRD rule (docs/prd) and the TRD map (docs/trd) before acting, checks that the document still matches the code and, when the request changes a rule, shows the current rule, what would change and the trade-offs, asks for confirmation, interviews until the new rule is clear, and only then updates PRD and TRD and plans the work for agents. When the repository has no PRD yet it hands over to /prd-create and /trd-create. Use whenever someone is about to implement, fix, change or ask about a product behavior, picks up a ticket, bug or feature, even without mentioning the PRD. Typical phrases: "change the rule", "it should", "fix this", "why does it do X", "implement the amendment", "adjust the limit", "/prd-gate". Refactors go through here too (TRD only). Not for CI, dependency bumps or formatting.
+name: prd-flow
+description: Mandatory gate for every task that touches product behavior in this repository. Loads the PRD rule (docs/prd) and the TRD map (docs/trd) before acting, checks that the document still matches the code and, when the request changes a rule, shows the current rule, what would change and the trade-offs, asks for confirmation, interviews until the new rule is clear, and only then updates PRD and TRD and plans the work for agents. When the repository has no PRD yet it hands over to /prd-create and /trd-create. Use whenever someone is about to implement, fix, change or ask about a product behavior, picks up a ticket, bug or feature, even without mentioning the PRD. Typical phrases: "change the rule", "it should", "fix this", "why does it do X", "implement the amendment", "adjust the limit", "/prd-flow". Refactors go through here too (TRD only). Not for CI, dependency bumps or formatting.
 ---
 
-# prd-gate
+# prd-flow
 
 The PRD is the source of truth for behavior. A rule change goes **PRD, then TRD, then plan, then code**: starting from the code reproduces the defect and loses the decision. Documents age: when document, code and request disagree, ask citing both sides.
 
@@ -13,7 +13,7 @@ Everything specific to this repository (base branch, commands, big files, review
 Everything that enters here is reread every round.
 - Independent reads in one message. Read by ID (`Grep -n`, then `Read` with offset and limit). The human-reading HTML is never read; big files from `repo.md` only by symbol; a sweep of large code goes to an Explore agent with questions.
 - Depth by case; a query does not hunt divergences. An out-of-scope divergence is noted, never investigated.
-- Heavy work goes to the workers, which write to `.claude/prd-gate/state/<slug>/`. This conversation classifies, confronts, interviews, approves, dispatches and commits; it does not reopen their files.
+- Heavy work goes to the workers, which write to `.claude/prd-flow/state/<slug>/`. This conversation classifies, confronts, interviews, approves, dispatches and commits; it does not reopen their files.
 - Count and list with the Grep tool (shell proxies can swallow output); patches with `git --no-pager diff`.
 - Budgets: context to the user at most 6 lines; confrontation at most 40; round message at most 25; at most 4 questions per round in one AskUserQuestion; worker return at most 30 lines (executor and reviewer at most 20).
 
@@ -50,10 +50,10 @@ Phases cited in the references: F1 context, F2 PRD versus code check, F5 PRD and
 | 8 | this conversation | Plan approval. More than 6 tasks or a big file: execute in a new session | end of the docs phase |
 | 9 | `executor`, `reviewer` | `reference/execution.md`: baseline, waves, commit per task, review with ceiling, short C5 if a rule changes | delivery, `deliveries.md` |
 
-Worker: Agent `general-purpose`, `model: "sonnet"` (the executor on the task's model), prompt *"Read `.claude/skills/prd-gate/reference/workers.md`, section `<name>`, and run it for slug `<slug>`. Request: <one line>."* The reviewer is the agent `repo.md` names for the task, with the `reviewer` section. Never copy briefings into the prompt. A gap in a return is resolved before the next step. Without the Agent tool, run the section here with the same briefing and budget.
+Worker: Agent `general-purpose`, `model: "sonnet"` (the executor on the task's model), prompt *"Read `.claude/skills/prd-flow/reference/workers.md`, section `<name>`, and run it for slug `<slug>`. Request: <one line>."* The reviewer is the agent `repo.md` names for the task, with the `reviewer` section. Never copy briefings into the prompt. A gap in a return is resolved before the next step. Without the Agent tool, run the section here with the same briefing and budget.
 
 ## State
-`.claude/prd-gate/state/<slug>/` (outside git): `state.md` (case, phase, base, decisions, `review: N/5` counter, cost per wave), `pack.md`, `impact.md`, `interview.md`, `approved-rules.md`, `writing.md`, `baseline-failures.txt`, `deliveries.md`. Intent, plan and tasks live in `changes/NNN-<slug>/` (LT01), never truth: at the end the Promote task moves what is durable to its home and archives the folder (LT06). Authority: constitution, PRD, TRD, code; `changes/archive/` and a legacy `specs/` are never read for current behavior (LT07). Resume (`/prd-gate resume <slug>`): only `state.md` and the current phase file; with `git diff --quiet <base> origin/<base_branch> -- <pack paths>`, the pack is still valid.
+`.claude/prd-flow/state/<slug>/` (outside git): `state.md` (case, phase, base, decisions, `review: N/5` counter, cost per wave), `pack.md`, `impact.md`, `interview.md`, `approved-rules.md`, `writing.md`, `baseline-failures.txt`, `deliveries.md`. Intent, plan and tasks live in `changes/NNN-<slug>/` (LT01), never truth: at the end the Promote task moves what is durable to its home and archives the folder (LT06). Authority: constitution, PRD, TRD, code; `changes/archive/` and a legacy `specs/` are never read for current behavior (LT07). Resume (`/prd-flow resume <slug>`): only `state.md` and the current phase file; with `git diff --quiet <base> origin/<base_branch> -- <pack paths>`, the pack is still valid.
 
 ## Rules
 | ID | Rule |
@@ -76,7 +76,7 @@ Worker: Agent `general-purpose`, `model: "sonnet"` (the executor on the task's m
 | `reference/execution.md`, `reference/review.md` | whoever executes and reviews (step 9 and light route with code); the planner for the plan execution rules |
 | `reference/workers.md` | each worker, only its own section |
 | `reference/impact.md`, `prd-writing.md`, `trd-planned.md`, `agent-plan.md` | workers only |
-| `scripts/gate.py` | run only: `python .claude/skills/prd-gate/scripts/gate.py [--base REF] [--pack F] [--rules F] [--plan F] [--change DIR] [--trace] [--final]` |
+| `scripts/gate.py` | run only: `python .claude/skills/prd-flow/scripts/gate.py [--base REF] [--pack F] [--rules F] [--plan F] [--change DIR] [--trace] [--final]` |
 
 ## Final
 Case, IDs touched, commits, plan path and out-of-scope divergences. With code: the findings of `scripts/gates.sh retro`, or one line saying the run stayed within every threshold (E20).

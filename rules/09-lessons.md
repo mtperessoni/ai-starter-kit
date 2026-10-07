@@ -7,7 +7,7 @@ What was measured or broke in the source repository, and which rules came out of
 | LS01 | Moving the rule-change route from "main thread does everything" to "main thread conducts, workers write files": end-to-end time -48%, cost -53%, main-thread context peak from 196k to 76k tokens, same quality | SA01 to SA07, CE19 |
 | LS02 | Every real session started at about 76k tokens of context and every subagent at about 41k, before doing anything | CE18: keep always-loaded files lean |
 | LS03 | Workers were not worth it for tiny tasks (a small stale-PRD fix) or for a session that stops at the confrontation: the light route matched no-skill speed | Light route for C1 to C4 and C6; workers only in C5 and multi-task execution |
-| LS04 | With a strong `AGENTS.md`, the baseline without the skill already scored 92% vs 96% with it. Most of the value is in the repo docs, the skill adds routing and discipline | `/ai-kit install`, then `/prd-create` and `/trd-create` before the first `/prd-gate` |
+| LS04 | With a strong `AGENTS.md`, the baseline without the skill already scored 92% vs 96% with it. Most of the value is in the repo docs, the skill adds routing and discipline | `/ai-kit install`, then `/prd-create` and `/trd-create` before the first `/prd-flow` |
 | LS05 | A proposed custom context-extraction CLI cost about the same tokens as native Grep (420 vs 440) and added fixed prompt cost and maintenance; it was rejected | CE11 |
 | LS06 | A review loop without a ceiling consumed about 3.6 of 8.8 agent hours in one delivery ("eternal loop"); the review itself was valuable | RV01 to RV10, ceiling chosen by the user: 5 rounds |
 | LS07 | One executor reached about 300k tokens and 150 tool calls, costing more than the rest of the route | SA15, SA16, SA19 |

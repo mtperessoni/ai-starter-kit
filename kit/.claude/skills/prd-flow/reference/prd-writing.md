@@ -52,4 +52,4 @@ It is maintained by hand and is what people read, so every markdown edit goes in
 - Never rewrite the whole file, nor touch scripts, styles, tabs or filters.
 
 ## Gate and commit
-`python .claude/skills/prd-gate/scripts/gate.py`: ERROR blocks the commit; a WARNING about "earlier drift" belongs to the base, not to this change, and goes to the final list of divergences. Commit `docs(prd): <sentence in the git log style>`, markdown and HTML together, no push.
+`python .claude/skills/prd-flow/scripts/gate.py`: ERROR blocks the commit; a WARNING about "earlier drift" belongs to the base, not to this change, and goes to the final list of divergences. Commit `docs(prd): <sentence in the git log style>`, markdown and HTML together, no push.

@@ -57,11 +57,11 @@ Parallel tasks have disjoint "Owns". Order by dependency and mark what runs toge
 
 ## Plan execution rules
 The plan header copies these lines under `## Plan execution rules`, so whoever executes does not depend on the skill:
-- Review with a ceiling (`.claude/skills/prd-gate/reference/review.md`): at most 5 rounds per delivery; from round 2 only the previous findings; Critical is fixed, High is fixed if it fits the rule, Medium and Low become pending; an open Critical at round 5, or a round that finds more than the previous one, stops and talks to the user.
+- Review with a ceiling (`.claude/skills/prd-flow/reference/review.md`): at most 5 rounds per delivery; from round 2 only the previous findings; Critical is fixed, High is fixed if it fits the rule, Medium and Low become pending; an open Critical at round 5, or a round that finds more than the previous one, stops and talks to the user.
 - Every agent prompt carries the ceiling: stop at about 80 tool calls or 45 minutes and report.
 - Inside a task, only the related tests; the full suite runs once, at the end of all tasks.
 - A new decision that changes the safety posture goes back to C5 before code.
-- Execution follows `.claude/skills/prd-gate/reference/execution.md`: baseline once, each task through the `executor` with a one-line prompt on the task's model, a block in `deliveries.md`, a commit per task by the main thread, and a plan with more than 6 tasks or a big file executed in a new session.
+- Execution follows `.claude/skills/prd-flow/reference/execution.md`: baseline once, each task through the `executor` with a one-line prompt on the task's model, a block in `deliveries.md`, a commit per task by the main thread, and a plan with more than 6 tasks or a big file executed in a new session.
 
 ## Mandatory final task
 ```markdown
@@ -71,7 +71,7 @@ The plan header copies these lines under `## Plan execution rules`, so whoever e
 - TRD: merge "Planned" into the body (trd-planned.md, "Promotion")
 - `design.md` (L): decisions to `docs/adr/` (`/adr`), data model to the real schema or migration plus the TRD, contracts to the real artifact plus a TRD link (LT03)
 - Archive: `git mv changes/NNN-<slug> changes/archive/NNN-<slug>` (LT06)
-- prd-gate gate green (`gate.py --final` clean when it is the last open change, LT10), full suite and lint green
+- prd-flow gate green (`gate.py --final` clean when it is the last open change, LT10), full suite and lint green
 ```
 
 ## Presentation

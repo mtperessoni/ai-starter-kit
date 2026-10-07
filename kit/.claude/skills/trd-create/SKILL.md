@@ -1,11 +1,11 @@
 ---
 name: trd-create
-description: Creates the TRD of this repository, the technical map that tells an agent where each product feature lives in the code, how it enters the flow, which tests cover it and what must not break, so it loads only the files a task needs. Writes docs/trd/README.md, one file per area (1:1, wherever its files live), the cross-cutting infra map, invariants.md (repository rules by kind of change, each with its proof), testing.md (how to test here), docs/flow.md (the one end-to-end diagram), one CLAUDE.md of at most 20 lines per map folder, and links each PRD section to its TRD in docs/prd/INDEX.md. Works in any layout (feature folders recommended, never required). When the code is not organized by feature, it proposes the AI readiness plan in the current layout and offers the optional move to feature folders. Use after /prd-create, after a large refactor, when someone says "create the TRD", "map the code", "document where things live", "add CLAUDE.md files", "make the repo AI-readable", or when prd-gate finds no TRD. Not for product rules (prd-create, prd-gate).
+description: Creates the TRD of this repository, the technical map that tells an agent where each product feature lives in the code, how it enters the flow, which tests cover it and what must not break, so it loads only the files a task needs. Writes docs/trd/README.md, one file per area (1:1, wherever its files live), the cross-cutting infra map, invariants.md (repository rules by kind of change, each with its proof), testing.md (how to test here), docs/flow.md (the one end-to-end diagram), one CLAUDE.md of at most 20 lines per map folder, and links each PRD section to its TRD in docs/prd/INDEX.md. Works in any layout (feature folders recommended, never required). When the code is not organized by feature, it proposes the AI readiness plan in the current layout and offers the optional move to feature folders. Use after /prd-create, after a large refactor, when someone says "create the TRD", "map the code", "document where things live", "add CLAUDE.md files", "make the repo AI-readable", or when prd-flow finds no TRD. Not for product rules (prd-create, prd-flow).
 ---
 
 # trd-create
 
-The TRD says **where** behavior lives; the PRD says **what** it is. The TRD never repeats a rule: it cites PRD IDs. It names files and symbols, never line numbers or default values, so it stays true while the code changes. Everything is in English. Values specific to this repository are in `.claude/skills/prd-gate/repo.md`.
+The TRD says **where** behavior lives; the PRD says **what** it is. The TRD never repeats a rule: it cites PRD IDs. It names files and symbols, never line numbers or default values, so it stays true while the code changes. Everything is in English. Values specific to this repository are in `.claude/skills/prd-flow/repo.md`.
 
 ## Principles
 | ID | Principle |
@@ -24,8 +24,8 @@ The TRD says **where** behavior lives; the PRD says **what** it is. The TRD neve
 | N1 full | No `docs/trd/` yet; works in any layout (areas = feature folders plus `ai-kit.json` `areas`) |
 | N2 one area | A new area appeared, or one map is stale |
 | N3 refresh | After a refactor moved files: re-verify every map, fix names, keep History |
-| N4 readiness | The code is not organized by area (logic for one product area spread over many folders, files over the size limits, generic names). Map what exists by area, then write the incremental readiness plan in the current layout (`reference/readiness.md`, PC11) for prd-gate |
-| N5 restructure | Optional, offered after N4 with its cost (PC09): move to feature folders (`reference/restructure.md`, prd-gate C6). Never required |
+| N4 readiness | The code is not organized by area (logic for one product area spread over many folders, files over the size limits, generic names). Map what exists by area, then write the incremental readiness plan in the current layout (`reference/readiness.md`, PC11) for prd-flow |
+| N5 restructure | Optional, offered after N4 with its cost (PC09): move to feature folders (`reference/restructure.md`, prd-flow C6). Never required |
 
 ## Route
 | Step | Who | Does | Leaves |
@@ -42,7 +42,7 @@ The TRD says **where** behavior lives; the PRD says **what** it is. The TRD neve
 Worker: Agent `general-purpose`, `model: "sonnet"`, prompt *"Read `.claude/skills/trd-create/reference/workers.md`, section `<name>`, and run it for slug `trd-create`. Assignment: <areas>."* Never paste briefings into the prompt. Each worker writes only its own files.
 
 ## Context economy
-Same as prd-gate: independent reads in one message; code only by symbol; big files only by symbol; returns at most 30 lines; ceiling about 50 tool calls per worker.
+Same as prd-flow: independent reads in one message; code only by symbol; big files only by symbol; returns at most 30 lines; ceiling about 50 tool calls per worker.
 
 ## Files
 | File | Who reads it |
@@ -53,7 +53,7 @@ Same as prd-gate: independent reads in one message; code only by symbol; big fil
 | `docs/ai-readiness.md` | this conversation in N4 (the checklist) |
 | `docs/templates/trd-feature.md`, `docs/templates/feature-CLAUDE.md` | the feature-mapper |
 | `docs/templates/folder-CLAUDE.md` | the index-writer |
-| `.claude/skills/prd-gate/scripts/gate.py` | run only |
+| `.claude/skills/prd-flow/scripts/gate.py` | run only |
 
 ## Final
-Features mapped, files written, unwired code found, commits, and the next step (`/prd-gate` for changes; the readiness plan in N4, with the restructure offered as N5).
+Features mapped, files written, unwired code found, commits, and the next step (`/prd-flow` for changes; the readiness plan in N4, with the restructure offered as N5).
