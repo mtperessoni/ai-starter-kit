@@ -1,0 +1,1 @@
+Our VIP customers should never pay for delivery. Whatever the basket is worth and whether or not they use a coupon, a VIP order is delivered at no charge. Everyone else keeps paying for delivery as today.

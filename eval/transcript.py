@@ -88,6 +88,7 @@ def summarize(path):
     tool_calls, test_ids, test_runs, failed_tests, rounds = 0, set(), 0, 0, 0
     details, awaiting_ts = {}, []  # Agent tool_use id -> detail
     sub_msgs_by = {}  # parent id -> {message id: usage}
+    texts = []  # main-thread assistant text blocks with their event time
     for n, e in enumerate(_events(path)):
         kind = e.get("type")
         if e.get("timestamp"):
@@ -109,6 +110,8 @@ def summarize(path):
                 sub_msgs_by.setdefault(parent, {})[mid] = usage
             for b in _blocks(e):
                 if b.get("type") == "text" and parent is None:
+                    texts.append({"t": _epoch(e["timestamp"]) if e.get("timestamp") else None,
+                                  "text": str(b.get("text"))})
                     for r in REVIEW_ROUND_RE.findall(str(b.get("text"))):
                         rounds = max(rounds, int(r))
                 if b.get("type") != "tool_use":
@@ -193,6 +196,7 @@ def summarize(path):
         "subagent_tokens_median": _median([d["tokens"] for d in detail]),
         "subagent_tool_calls_median": _median([d["tool_calls"] for d in detail]),
         "subagent_errors": sum(d["tool_errors"] for d in detail),
+        "assistant_texts": texts,
     }
 
 

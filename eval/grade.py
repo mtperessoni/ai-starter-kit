@@ -13,7 +13,9 @@ from pathlib import Path
 import plan_fidelity
 from plan_fidelity import is_code_path, is_test_path
 
-GATE = Path(".claude/skills/prd-gate/scripts/gate.py")
+SKILL_NAMES = ("prd-flow", "prd-gate")
+GATES = [Path(f".claude/skills/{n}/scripts/gate.py") for n in SKILL_NAMES]
+STATE_PREFIXES = tuple(f".claude/{n}/state/" for n in SKILL_NAMES)
 MAX_TEXT = 1_000_000
 
 
@@ -84,8 +86,8 @@ def pytest_metrics(project, scenario):
 
 
 def gate_ok(project):
-    gate = Path(project) / GATE
-    if not gate.is_file():
+    gate = next((Path(project) / g for g in GATES if (Path(project) / g).is_file()), None)
+    if gate is None:
         return False
     try:
         r = subprocess.run([sys.executable, str(gate)], cwd=project, capture_output=True,
@@ -192,7 +194,7 @@ def dup_count(project, files, phrases, seed=None):
     total = 0
     for f in files:
         code_file = f.startswith("src/") and not f.endswith(".md")
-        if f.startswith(("docs/prd/", ".claude/prd-gate/state/")) or code_file or is_test_path(f):
+        if f.startswith(("docs/prd/", *STATE_PREFIXES)) or code_file or is_test_path(f):
             continue
         text = read_text(Path(project) / f)
         if text:
@@ -232,7 +234,37 @@ def doc_bytes(project, files, seed):
 
 KIT_PREFIXES = (".claude/skills/", "scripts/", ".specify/scripts/")
 PROMOTION = re.compile(r"promot|archiv", re.I)
-REQUIRED = {"speckit": ["prd-gate", "speckit-specify", "speckit-plan", "speckit-tasks"]}
+GATE_SKILL = ("prd-flow", "prd-gate")
+REQUIRED = {"speckit": [GATE_SKILL, "speckit-specify", "speckit-plan", "speckit-tasks"]}
+
+
+def conflict_found(project, seed, commits, ids, texts):
+    """K-91: a conflict rule ID is named before the first docs/prd commit (assistant text, the state
+    folder or changes/), or the PRD diff edits or supersedes that rule. None when the scenario names none."""
+    if not ids:
+        return None
+    pat = re.compile(r"(?<![A-Z0-9-])(?:" + "|".join(re.escape(i) for i in ids) + r")(?!\d)")
+    cut = next((i for i, c in enumerate(commits) if any(n.startswith("docs/prd/") for n in c["files"])), None)
+    cut_time = commits[cut]["time"] if cut is not None else None
+    for line in git(project, "diff", f"{seed}..HEAD", "--", "docs/prd").splitlines():
+        if line[:1] in "+-" and not line.startswith(("+++", "---")) and pat.search(line):
+            return True
+    for item in texts or []:
+        t = item.get("t")
+        if pat.search(str(item.get("text"))) and (t is None or cut_time is None or t <= cut_time):
+            return True
+    for prefix in STATE_PREFIXES:
+        for path in sorted((Path(project) / prefix).rglob("*")):
+            if path.is_file() and (cut_time is None or path.stat().st_mtime <= cut_time):
+                if pat.search(read_text(path) or ""):
+                    return True
+    for c in commits[:cut]:
+        for f in c["files"]:
+            if f.startswith(STATE_PREFIXES + ("changes/",)):
+                r = subprocess.run(["git", "show", f"{c['sha']}:{f}"], cwd=project, capture_output=True)
+                if r.returncode == 0 and pat.search(r.stdout.decode("utf-8", "replace")):
+                    return True
+    return False
 
 
 def kit_self_fixes(commits):
@@ -265,9 +297,9 @@ def protocol_adherence(arm, case, skills):
     if skills is None:
         return None
     sk = str(arm).lower().startswith("sk") or str(arm).lower() in ("speckit", "a")
-    need = REQUIRED["speckit"] if (sk and case == "C5") else ["prd-gate"]
+    need = REQUIRED["speckit"] if (sk and case == "C5") else [GATE_SKILL]
     have = {norm_skill(s) for s in skills}
-    return sum(1 for s in need if s in have) / len(need)
+    return sum(1 for s in need if have & set((s,) if isinstance(s, str) else s)) / len(need)
 
 
 def efficiency(transcript):
@@ -276,7 +308,7 @@ def efficiency(transcript):
             "tool_errors", "subagent_token_share", "skills", "is_error", "started_at",
             "tokens_main", "tokens_subagents", "tool_calls", "error_rate", "test_runs",
             "failed_test_runs", "review_rounds", "subagent_detail", "subagent_tokens_median",
-            "subagent_tool_calls_median", "subagent_errors")
+            "subagent_tool_calls_median", "subagent_errors", "assistant_texts")
     empty = {k: None for k in keys}
     if transcript is None:
         return empty
@@ -363,6 +395,10 @@ def grade(project, scenario_dir, arm, transcript=None, started_at=None, judge_re
         "planned_left": left, "promoted": left == 0,
         "dup_count": dup, "fr_lines": frl, "restating_files": len(restating),
         "single_source": dup + frl + len(restating),
+        "conflict_found": conflict_found(project, seed, commits, exp.get("conflict_ids") or [],
+                                         eff["assistant_texts"]) if seed else None,
+        "contradiction_left": jr.get("contradiction_left"),
+        "gap_recorded": jr.get("gap_recorded"),
         "tokens_total": eff["tokens_total"], "cost_usd": eff["cost_usd"],
         "wall_min": eff["wall_min"], "turns": eff["turns"], "context_peak": eff["context_peak"],
         "subagents": eff["subagents"], "subagent_token_share": eff["subagent_token_share"],

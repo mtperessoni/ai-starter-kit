@@ -12,7 +12,8 @@ from plan_fidelity import is_test_path
 MAX_DIFF = 60_000
 HEAD_LINES = 60
 DOC_EXT = (".md", ".html", ".txt")
-NO_JUDGE = {"prd_fidelity": None, "facts": None, "restating_files": None, "judge_cost_usd": None}
+NO_JUDGE = {"prd_fidelity": None, "facts": None, "restating_files": None, "judge_cost_usd": None,
+            "contradiction_left": None, "gap_recorded": None}
 
 RUBRIC = """You grade whether the PRD, after a change, states the product facts of that change, strictly.
 Read the diff for what changed and the full text of the touched PRD files for what the PRD says now.
@@ -24,6 +25,8 @@ For a fact that says a rule stays unchanged (no change, still documented), the v
 Second task: from the other doc files listed, return those that restate a behavior rule (a number, boundary or condition of product behavior) instead of citing the rule ID in docs/prd. Plans, briefs and TRD files that only cite IDs are not restating.
 Answer with one JSON object and nothing else:
 {"facts": [{"id": "f1", "verdict": "stated|missing|contradicted"}], "restating_files": ["path"]}
+When a "Conflict check" section is present, add "contradictions_left": the listed rule IDs whose text, as it stands in the PRD after the change, still contradicts a rule the change introduced (a rule that was edited to agree, removed or marked superseded does not count).
+When an "Open dimension" section is present, add "gap_recorded": true only when the PRD diff holds an open-question row (an ID starting with Q-) or a rule that covers that topic, false otherwise.
 """
 
 
@@ -46,6 +49,26 @@ def added_doc_files(project, seed):
     return files
 
 
+def live_rows(project, ids):
+    rows = []
+    for p in sorted((Path(project) / "docs" / "prd").rglob("*.md")):
+        for line in (grade.read_text(p) or "").splitlines():
+            if any(re.search(rf"(?<![A-Z0-9-]){re.escape(i)}(?!\d)", line) for i in ids):
+                rows.append(line)
+    return "\n".join(rows) or "(none of them is in the PRD any more)"
+
+
+def extra_sections(project, exp):
+    out = ""
+    if exp.get("conflict_ids"):
+        ids = ", ".join(exp["conflict_ids"])
+        out += (f"\n## Conflict check\nRule IDs the request conflicts with: {ids}\n"
+                f"Their rows in the PRD now:\n{live_rows(project, exp['conflict_ids'])}\n")
+    if exp.get("gap_topic"):
+        out += f"\n## Open dimension\nThe decisions do not answer: {exp['gap_topic']}\n"
+    return out
+
+
 def build_prompt(project, scenario_dir, seed):
     project, scenario_dir = Path(project), Path(scenario_dir)
     decisions = (scenario_dir / "decisions.md").read_text(encoding="utf-8")
@@ -64,7 +87,8 @@ def build_prompt(project, scenario_dir, seed):
     after = after[:MAX_DIFF] or "(no PRD file touched)"
     return (f"{RUBRIC}\n## Decisions of the change\n{decisions}\n\n## Facts to check\n{facts}\n\n"
             f"## PRD diff\n{diff}\n\n## PRD after the change (touched files, full text)\n{after}\n\n"
-            f"## Other doc files added (first {HEAD_LINES} lines)\n{others}\n")
+            f"## Other doc files added (first {HEAD_LINES} lines)\n{others}\n"
+            f"{extra_sections(project, exp)}")
 
 
 def parse_verdicts(text):
@@ -104,5 +128,10 @@ def judge(project, scenario_dir, seed, runner=None, model="sonnet"):
     bad = sum(1 for v in detail.values() if v == "contradicted")
     fidelity = max(0.0, (stated - bad) / len(expected)) if expected else None
     restating = [f for f in verdicts.get("restating_files", []) if isinstance(f, str)]
+    conflicts = exp.get("conflict_ids")
+    left = verdicts.get("contradictions_left")
     return {"prd_fidelity": fidelity, "facts": detail, "restating_files": restating,
-            "judge_cost_usd": cost}
+            "judge_cost_usd": cost,
+            "contradiction_left": (len([i for i in left if i in conflicts]) if isinstance(left, list) else 0)
+            if conflicts else None,
+            "gap_recorded": (verdicts.get("gap_recorded") is True) if exp.get("gap_topic") else None}

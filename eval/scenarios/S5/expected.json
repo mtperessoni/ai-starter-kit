@@ -1,0 +1,17 @@
+{
+  "case": "C5",
+  "size": "M",
+  "conflict_ids": ["SHP-01"],
+  "prd_facts": [
+    {"id": "f1", "fact": "Delivery (shipping) is free for every VIP order, with or without a coupon and whatever the amount after discounts."},
+    {"id": "f2", "fact": "Regular (non-VIP) customers are unaffected: they pay the flat shipping fee of 15.00 below the free-shipping threshold of 200.00 and ship free at 200.00 or more."},
+    {"id": "f3", "fact": "The flat shipping fee rule is rewritten so it states the VIP exception; the PRD does not keep a rule saying shipping always costs the flat fee for every order."},
+    {"id": "f4", "fact": "The VIP discount of 15%, the coupon percentage, the 30% cap and how they add up do not change."},
+    {"id": "f5", "fact": "The receipt still lists a Shipping line, which shows 0.00 for a VIP order."},
+    {"id": "f6", "fact": "Applies to every order from now on, with no flag and no migration."}
+  ],
+  "dup_phrases": [
+    "(?i)VIP.{0,80}(free|no charge|zero).{0,40}(shipping|delivery)",
+    "(?i)(free|no charge).{0,40}(shipping|delivery).{0,80}VIP"
+  ]
+}

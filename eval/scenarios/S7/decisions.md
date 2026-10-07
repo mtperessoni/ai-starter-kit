@@ -1,0 +1,7 @@
+- The minimum is 30.00, a fixed amount for everybody, VIP or not, with or without a coupon.
+- An order of exactly 30.00 is accepted; anything below 30.00 is refused.
+- A refused order raises a ValueError, the same family of errors checkout raises today for an invalid cart. No new public name is exported.
+- Shipping, the discount rules, rounding and the receipt layout do not change.
+- Rollout: applies to every order from now on, no flag, no migration, no data to fix.
+- Nobody is notified.
+- Not decided yet and nobody can answer it now: which amount the 30.00 is compared against when a customer has a discount, the cart value before discounts or the amount left after discounts. Do not guess it into a rule that looks settled; leave it visibly open for the product owner.

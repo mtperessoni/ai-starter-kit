@@ -33,6 +33,8 @@
     "<YYYY-MM-DD>": "2026-01-05"
   },
   ".claude/skills/prd-gate/repo.md": {
+    "| `<docs/prd/product/04-*.md>` | `<name or role>` | `<in the interview, a PR review, a message>` |\n": "",
+    "| `<docs/prd/triage-documents>` | `<C:/Projects/backend/docs/prd/triage-documents>` | `<this repository or the sibling>` |\n": "",
     "`<free text from ai-kit.json layout>`": "`by feature: one folder per product area under src/market/features/`",
     "`<feature folders, or see ai-kit.json areas>`": "`catalog, pricing, promotions, inventory, cart, checkout, payments, shipping, tax, loyalty, returns, notifications`",
     "`<feature folders plus ai-kit.json map_dirs>`": "`the feature folders`",

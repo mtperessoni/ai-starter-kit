@@ -55,6 +55,35 @@ class ConfigTest(unittest.TestCase):
         self.assertIn("{protocol}", (EVAL / "prompt.md").read_text(encoding="utf-8"))
 
 
+class FlowConfigTest(unittest.TestCase):
+    def setUp(self):
+        self.cfg = json.loads((EVAL / "arms-flow.json").read_text(encoding="utf-8"))
+
+    def test_arms_scenarios_and_names(self):
+        self.assertEqual((self.cfg["base"], self.cfg["candidate"]), ("GATE", "FLOW"))
+        self.assertEqual(self.cfg["arms"]["GATE"]["ref"], "fix/existing-repo-adoption")
+        self.assertEqual(self.cfg["arms"]["FLOW"]["ref"], "HEAD")
+        self.assertIn("/prd-gate", (EVAL / self.cfg["arms"]["GATE"]["protocol"]).read_text(encoding="utf-8"))
+        self.assertIn("/prd-flow", (EVAL / self.cfg["arms"]["FLOW"]["protocol"]).read_text(encoding="utf-8"))
+        self.assertEqual(sorted(self.cfg["scenarios"]), ["S5", "S6", "S7"])
+        self.assertEqual(len(run.plan_pairs(self.cfg)), 6)
+
+    def test_new_scenarios_are_complete(self):
+        for sc in self.cfg["scenarios"]:
+            folder = EVAL / "scenarios" / sc
+            exp = json.loads((folder / "expected.json").read_text(encoding="utf-8"))
+            self.assertTrue(exp.get("conflict_ids") or exp.get("gap_topic"), sc)
+            self.assertTrue(exp["prd_facts"] and exp["dup_phrases"], sc)
+            for name in ("request.md", "decisions.md"):
+                self.assertNotIn(chr(0x2014), (folder / name).read_text(encoding="utf-8"))
+            self.assertTrue(list((folder / "hidden").glob("test_*.py")), sc)
+
+    def test_build_args_pass_an_existing_overlay_only(self):
+        arm = {"ref": "HEAD", "spec_kit": False}
+        self.assertIn("--overlay", run.build_args(arm, "o", overlay=EVAL / "scenarios" / "S6" / "files"))
+        self.assertNotIn("--overlay", run.build_args(arm, "o", overlay=EVAL / "scenarios" / "S5" / "files"))
+
+
 class PairsTest(unittest.TestCase):
     def test_pairs_interleaved_per_arm(self):
         pairs = run.plan_pairs(CFG)

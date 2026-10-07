@@ -1,6 +1,7 @@
 """Tests of eval/grade.py on a tiny fake project."""
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -310,6 +311,123 @@ class EfficiencyMetricsTest(unittest.TestCase):
         self.assertEqual((m["blind_high"], m["blind_bugs"], m["blind_approve"]), (2, 1, False))
         self.assertIsNone(grade.blind_metrics(None)["blind_bugs"])
         self.assertIsNone(grade.blind_metrics({})["blind_high"])
+
+
+def make_conflict_project(root, early_note=None, prd_edit="| PRC-03 | cap 30% | src/mod.py | code |"):
+    git(root, "init", "-q")
+    write(root, "docs/prd/01.md", PRD_SEED + "| PRC-03 | cap 30% | src/mod.py | code |\n")
+    write(root, "src/mod.py", "def f():\n    return 1\n")
+    git(root, "add", "-A")
+    git(root, "commit", "-q", "-m", "chore: seed")
+    if early_note:
+        write(root, early_note[0], early_note[1])
+        git(root, "add", "-A")
+        git(root, "commit", "-q", "-m", "docs: plan")
+    if prd_edit:
+        write(root, "docs/prd/01.md", PRD_SEED + prd_edit + "\n| PRC-09 | new cap | src/mod.py | code |\n")
+        git(root, "commit", "-q", "-am", "docs: prd")
+
+
+class ConflictFoundTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def found(self, texts=None, ids=("PRC-03",)):
+        seed = grade.seed_commit(self.root)
+        return grade.conflict_found(self.root, seed, grade.commit_log(self.root, seed), list(ids), texts)
+
+    def test_prd_diff_editing_the_rule_counts(self):
+        make_conflict_project(self.root, prd_edit="| PRC-03 | cap 20% | src/mod.py | code |")
+        self.assertTrue(self.found())
+
+    def test_untouched_rule_and_no_text_is_not_found(self):
+        make_conflict_project(self.root)
+        self.assertFalse(self.found([]))
+
+    def test_assistant_text_naming_the_id_counts(self):
+        make_conflict_project(self.root)
+        self.assertTrue(self.found([{"t": None, "text": "This clashes with PRC-03 in pricing"}]))
+
+    def test_assistant_text_after_the_first_prd_commit_does_not_count(self):
+        make_conflict_project(self.root)
+        late = grade.commit_log(self.root, grade.seed_commit(self.root))[0]["time"] + 100
+        self.assertFalse(self.found([{"t": float(late), "text": "PRC-03"}]))
+
+    def test_state_folder_note_before_the_prd_commit_counts_for_both_names(self):
+        for state in (".claude/prd-flow/state/x.md", ".claude/prd-gate/state/x.md"):
+            with self.subTest(state=state):
+                tmp = tempfile.TemporaryDirectory()
+                root = Path(tmp.name)
+                make_conflict_project(root, early_note=(state, "conflict with PRC-03\n"))
+                seed = grade.seed_commit(root)
+                self.assertTrue(grade.conflict_found(root, seed, grade.commit_log(root, seed), ["PRC-03"], []))
+                tmp.cleanup()
+
+    def test_untracked_state_note_older_than_the_prd_commit_counts(self):
+        make_conflict_project(self.root)
+        note = write(self.root, ".claude/prd-flow/state/s/impact.md", "clashes with PRC-03\n")
+        cut = grade.commit_log(self.root, grade.seed_commit(self.root))[0]["time"]
+        os.utime(note, (cut - 60, cut - 60))
+        self.assertTrue(self.found([]))
+        os.utime(note, (cut + 60, cut + 60))
+        self.assertFalse(self.found([]))
+
+    def test_changes_note_after_the_prd_commit_does_not_count(self):
+        make_conflict_project(self.root)
+        write(self.root, "changes/001-x/brief.md", "mentions PRC-03\n")
+        git(self.root, "add", "-A")
+        git(self.root, "commit", "-q", "-m", "docs: brief")
+        self.assertFalse(self.found([]))
+
+    def test_no_ids_expected_is_none(self):
+        make_conflict_project(self.root)
+        seed = grade.seed_commit(self.root)
+        self.assertIsNone(grade.conflict_found(self.root, seed, [], [], []))
+
+
+class SkillNameTest(unittest.TestCase):
+    def test_protocol_adherence_accepts_either_skill_name(self):
+        for name in ("prd-flow", "prd-gate", "ai-kit:prd-flow", "/prd-gate"):
+            self.assertEqual(grade.protocol_adherence("LT", "C5", [name]), 1.0, name)
+        self.assertEqual(grade.protocol_adherence("LT", "C5", ["prd-create"]), 0.0)
+
+    def test_speckit_arm_with_flow_skill(self):
+        sk = ["prd-flow", "speckit-specify", "speckit-plan", "speckit-tasks"]
+        self.assertEqual(grade.protocol_adherence("SK", "C5", sk), 1.0)
+
+    def test_gate_ok_resolves_the_flow_path(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.assertFalse(grade.gate_ok(d))
+            write(d, ".claude/skills/prd-flow/scripts/gate.py", "import sys\nsys.exit(0)\n")
+            self.assertTrue(grade.gate_ok(d))
+
+    def test_state_folders_are_not_counted_as_duplicates(self):
+        with tempfile.TemporaryDirectory() as d:
+            git(d, "init", "-q")
+            write(d, "README.md", "x\n")
+            git(d, "add", "-A")
+            git(d, "commit", "-q", "-m", "seed")
+            write(d, ".claude/prd-flow/state/n.md", "cap of 20%\n")
+            self.assertEqual(grade.dup_count(d, grade.project_files(d), [r"cap of 20%"], None), 0)
+
+
+class JudgeKeysTest(unittest.TestCase):
+    def test_judge_result_feeds_the_k91_metrics(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            project, scenario = Path(tmp) / "p", Path(tmp) / "s"
+            project.mkdir()
+            make_project(project)
+            make_scenario(scenario)
+            jr = {"contradiction_left": 1, "gap_recorded": True}
+            m = grade.grade(project, scenario, "LT", judge_result=jr)
+            self.assertEqual((m["contradiction_left"], m["gap_recorded"]), (1, True))
+            self.assertIsNone(m["conflict_found"])
+            write(scenario, "expected.json", json.dumps({"case": "C5", "conflict_ids": ["PRC-01"]}))
+            self.assertIn(grade.grade(project, scenario, "LT")["conflict_found"], (True, False))
 
 
 if __name__ == "__main__":
