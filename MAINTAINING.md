@@ -31,7 +31,7 @@ The skills are interactive, so the evaluation is a set of headless runs, one per
 4. Keep the candidate only when it is at least as good on quality and not worse on cost. In the source repository this is how the worker route was measured (-48% time, -53% cost) for about US$18 of runs.
 
 ### Efficiency is the goal (M07)
-A change to a skill, template or script is better only when it does at least one of these without worsening the others: fewer tokens, less wall time, better outputs, fewer errors. Every round is graded on the metrics below, computed by `eval/run.py` per run and compared across rounds with `python eval/rounds.py <folder>:<arm> ...` (never with ad hoc scripts).
+A change to a skill, template or script is better only when it does at least one of these without worsening the others: fewer tokens, less wall time, better outputs, fewer errors. Every round is graded on the scorecard of `eval/METRICS.md` (headline KPIs, hard gates, supporting metrics, how a round runs, adoption), computed by `eval/run.py` per run and compared across rounds with `python eval/rounds.py <folder>:<arm> ...` (never with ad hoc scripts). The summary below is kept for reference; `eval/METRICS.md` wins when they differ.
 
 | ID | Metric | Fields | Better |
 |---|---|---|---|
