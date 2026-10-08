@@ -119,5 +119,50 @@ class TaskWavesTest(unittest.TestCase):
         self.assertEqual((a["waves"], a["wave_widths"]), (1, [1]))
 
 
+class FinalEvalFixesTest(unittest.TestCase):
+    PLAN = "## Plan\nWAVE 1: T01\nWAVE 2: T02\nReview: per wave\n"
+
+    def test_plan_written_through_bash_counts(self):
+        for cmd in (f"cat > changes/001-x/state.md <<'EOF'\n{self.PLAN}EOF",
+                    f"printf '%s' '{self.PLAN}' >> .claude/prd-flow/state/x/state.md"):
+            a = protocol.analyze([asst([use("B", "Bash", command=cmd)])], {})
+            self.assertEqual(a["review_coverage"], 0.0, cmd)
+
+    def test_no_plan_is_still_none(self):
+        a = protocol.analyze([asst([use("B", "Bash", command="ls")])], {})
+        self.assertIsNone(a["review_coverage"])
+
+    def test_closed_by_gates_close_or_executor_close(self):
+        a = protocol.analyze([asst([use("B", "Bash", command="scripts/gates.sh close x")])], {})
+        self.assertTrue(a["closed"])
+        a = protocol.analyze([asst([use("A", "Agent", subagent_type="prd-flow-executor",
+                                        description="Close the change", prompt="close")])], {})
+        self.assertTrue(a["closed"])
+
+    def test_never_closed_is_false_and_carries_across_phases(self):
+        carry = {}
+        a = protocol.analyze([asst([use("B", "Bash", command="ls")])], carry)
+        self.assertFalse(a["closed"])
+        protocol.analyze([asst([use("B", "Bash", command="scripts/gates.sh close x")])], carry)
+        a = protocol.analyze([asst([use("B", "Bash", command="ls")])], carry)
+        self.assertTrue(a["closed"])
+
+    def test_closed_false_fails_hard_gate_in_rounds(self):
+        gates = adoption.hard_gates({"S8": [{"closed": False}, {"closed": True}]})
+        g = [x for x in gates if x[0].startswith("Protocol: closed")][0]
+        self.assertFalse(g[1])
+        self.assertIn("closed", [f for _, fs in six.METRICS.values() for f in fs])
+
+    def test_phase2_budget_gives_at_least_five_dollars(self):
+        import json as _j
+        for name in ("arms-min.json", "arms-short.json"):
+            cfg = _j.loads((ROOT / "eval" / name).read_text(encoding="utf-8"))
+            import run
+            share = cfg.get("phase2_share", 0.3)
+            b2 = run.split_budget(cfg["scenarios"]["S8"]["budget_usd"], share)[1]
+            self.assertGreaterEqual(b2, 5, name)
+        self.assertEqual(run.split_budget(10), (7.0, 3.0))
+
+
 if __name__ == "__main__":
     unittest.main()

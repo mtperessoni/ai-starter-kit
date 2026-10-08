@@ -73,7 +73,8 @@ def hard_gates(cand_runs):
                                ("Protocol: review_coverage 1.0", "review_coverage", lambda x: x == 1.0),
                                ("Protocol: main_violations 0", "main_violations", lambda x: x == 0),
                                ("Protocol: chief_violations 0", "chief_violations", lambda x: x == 0),
-                               ("Protocol: return_compliance 1.0", "return_compliance", lambda x: x == 1.0)):
+                               ("Protocol: return_compliance 1.0", "return_compliance", lambda x: x == 1.0),
+                               ("Protocol: closed true", "closed", lambda x: x == 1.0)):
         ok, detail = _all(cand_runs, field, test)
         gates.append((f"{label} (hard gate)", ok, detail))
     first = [r["surveyor_first"] for r in runs if isinstance(r.get("surveyor_first"), bool)]

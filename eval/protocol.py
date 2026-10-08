@@ -30,6 +30,8 @@ CHIEF_FREE = {"AskUserQuestion", "Skill"}
 WAVE_LINE_RE = re.compile(r"^WAVE\s+\d+", re.M)
 REVIEW_LINE_RE = re.compile(r"^Review:\s*(.+)$", re.M)
 STATE_FILE_RE = re.compile(r"(^|[\\/])state\.md$")
+STATE_FILE_MENTION_RE = re.compile(r"(^|[\s'\"/\\])state\.md\b")
+CLOSE_DISPATCH_RE = re.compile(r"\bclos(?:e|ing)\b", re.I)
 REPO_FILE_RE = re.compile(r"(^|[\\/])repo\.md$")
 RETURN_FIELDS = ("Status:", "Files:", "Commit:", "Route:", "Next:")
 STATE_RE = re.compile(r"\.claude[\\/]prd-flow[\\/]state[\\/]|(^|[\\/])changes[\\/]")
@@ -231,6 +233,7 @@ def analyze(events, carry=None):
     doc_calls = code_calls = 0
     post_exec_tokens = 0
     cwd = None
+    closed = carry.get("closed", False)
     chief_bad, first_role, spawn_ids, returns = 0, carry.get("first_role"), set(), {}
 
     def finish(tid, when):
@@ -274,6 +277,10 @@ def analyze(events, carry=None):
                 rel = _rel(tgt, cwd) if tgt else ""
                 if name in EDIT and STATE_FILE_RE.search(rel):
                     plan_reviews(str(inp.get("new_string") or inp.get("content") or ""), plan)
+                if name == "Bash" and STATE_FILE_MENTION_RE.search(str(inp.get("command", ""))):
+                    plan_reviews(str(inp.get("command", "")).replace("\\n", "\n"), plan)
+                if name == "Bash" and CLOSE_CMD.search(str(inp.get("command", ""))):
+                    closed = True
                 if name in SPAWN and parent is None:
                     role = role_of(inp)
                     first_role = first_role or role
@@ -284,6 +291,8 @@ def analyze(events, carry=None):
                     gate_state["exec_seen"] = exec_seen or role == "executor"
                     if inp.get("run_in_background") is True:
                         bg_ids.add(b.get("id"))
+                    if role == "executor" and CLOSE_DISPATCH_RE.search(str(inp.get("description", ""))):
+                        closed = True
                     if role == "executor":
                         exec_seen = True
                         exec_ids.add(b.get("id"))
@@ -371,7 +380,7 @@ def analyze(events, carry=None):
     for tid in [t for t in exec_ids if t in launched]:
         exec_spans[tid] = _span(spans.get(tid), exec_start.get(tid), None)
     carry["reviews"] = carry.get("reviews", 0) + roles["reviewer"]
-    carry.update(first_role=first_role, surveyor=surveyor_seen, executor=exec_seen, docs=gate_state["docs_seen"])
+    carry.update(closed=closed, first_role=first_role, surveyor=surveyor_seen, executor=exec_seen, docs=gate_state["docs_seen"])
     violations = (edits + reads_before + worker_reads + extra + diff_reads + source_reads + kit_reads
                   + agent_edits + retro_reads) if (surveyor_seen or exec_seen) else None
     returns_ok = sum(return_complete(t) for t in returns.values())
@@ -385,6 +394,7 @@ def analyze(events, carry=None):
     return {
         "agents_by_role": roles,
         "review_coverage": min(1.0, carry["reviews"] / need) if need else None,
+        "closed": closed,
         "dispatch_map": sum(required) / len(required),
         "main_calls": len(main_calls),
         "main_tokens_post_exec": post_exec_tokens,

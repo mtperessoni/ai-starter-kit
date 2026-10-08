@@ -85,7 +85,7 @@ Hard gates hold; on S5 the median of 3 reps is within +10% of the base on `cost_
 Auto-memory is off in every run: `--settings {"autoMemoryEnabled": false}` on the command, `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1` in the environment, and `"auto_memory": false` in each `<run>.run.json`. `traceability` ignores `DEC-nn` and `Q-nn` rows: only rule IDs count.
 
 ## Two-phase budget
-A two-phase arm splits `budget_usd` between the sessions: 70% to phase 1 and 30% to phase 2 (`run.split_budget`). A phase 2 with no state folder holding `approved-rules.md` and no `changes/` folder is skipped with a `<run>.p2.skipped.txt` reason, not a crash.
+A two-phase arm splits `budget_usd` between the sessions: 70% to phase 1 and 30% to phase 2 (`run.split_budget`), unless the config sets `phase2_share` (the quick and short configs use 0.5, so S8 phase 2 gets US$5 and can close). A phase 2 with no state folder holding `approved-rules.md` and no `changes/` folder is skipped with a `<run>.p2.skipped.txt` reason, not a crash.
 
 ## Hard gates from the transcript
 `main_violations`, `chief_violations`, `return_compliance` and `surveyor_first` are written to `metrics.json` by `grade.py` and recomputed from the transcripts by `rounds.py`; all four are hard gates (0, 0, 1.0, true). `waves` and `wave_widths` count only executor task dispatches (fix, close, promote, baseline and compare-gate dispatches are not waves).

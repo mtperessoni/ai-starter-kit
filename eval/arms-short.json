@@ -4,6 +4,7 @@
   "candidate": "FLOW-FAST",
   "model": "opus",
   "effort": "high",
+  "phase2_share": 0.5,
   "arms": {
     "FLOW-FAST": {
       "ref": "HEAD",

@@ -182,9 +182,9 @@ def state_slug(project):
     return re.sub(r"^\d+-", "", names[-1]) if names else None
 
 
-def split_budget(budget_usd):
-    """(phase 1, phase 2) share of the budget of a two-phase run: 70% and 30%."""
-    return round(budget_usd * 0.7, 4), round(budget_usd * 0.3, 4)
+def split_budget(budget_usd, phase2_share=0.3):
+    """(phase 1, phase 2) share of the budget of a two-phase run: 70% and 30% unless `phase2_share` is configured."""
+    return round(budget_usd * (1 - phase2_share), 4), round(budget_usd * phase2_share, 4)
 
 
 def render_phase2(template, slug, decisions):
@@ -199,7 +199,7 @@ def run_sessions(arm_cfg, cfg, project, prompt, scenario, pair, args, results, n
     two = arm_cfg.get("two_phase")
     if two:
         prompt += "\n\n" + (HERE / "prompt-phase1.md").read_text(encoding="utf-8")
-    budget1, budget2 = split_budget(pair["budget_usd"]) if two else (pair["budget_usd"], 0)
+    budget1, budget2 = split_budget(pair["budget_usd"], arm_cfg.get("phase2_share", cfg.get("phase2_share", 0.3))) if two else (pair["budget_usd"], 0)
     status = run_claude(project, prompt, budget1, timeout, transcript,
                         results / f"{name}.stderr.log", model, effort, env)
     if not two or status != "ok":

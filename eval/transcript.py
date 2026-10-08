@@ -336,6 +336,7 @@ def summarize_phases(paths):
     out["agents_by_role"] = {r: sum(p["agents_by_role"][r] for p in parts) for r in protocol.ROLES}
     out["dispatch_map"] = sum(out["agents_by_role"][r] > 0 for r in protocol.REQUIRED_ROLES) / len(protocol.REQUIRED_ROLES)
     out["review_coverage"] = parts[-1].get("review_coverage")
+    out["closed"] = any(p.get("closed") for p in parts)
     out["context_peak"] = max(p["context_peak"] for p in parts)
     out["main_cache_write"] = max(p["main_cache_write"] for p in parts)
     out["started_at"] = min((p["started_at"] for p in parts if p["started_at"] is not None), default=None)
