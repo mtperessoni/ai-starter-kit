@@ -1,6 +1,6 @@
 # Plan: agents and context for prd-flow
 
-Status: validated by the maintainer on 2026-10-08 (decisions D1 to D4); D5 and D6 pending; execution starts at R0. Sources: `proposals/efficiency-audit.md`, `eval/AUDIT-prd-flow.md` (findings A1 to A12, B1 to B9, C1 to C3, EV1 to EV4), four eval rounds. Scorecard and adoption rule: `eval/METRICS.md`.
+Status: validated by the maintainer on 2026-10-08 (decisions D1 to D6); execution starts at R0, budget R0 to R2b. Sources: `proposals/efficiency-audit.md`, `eval/AUDIT-prd-flow.md` (findings A1 to A12, B1 to B9, C1 to C3, EV1 to EV4), four eval rounds. Scorecard and adoption rule: `eval/METRICS.md`.
 
 ## 1. Goal
 The fewest tokens, the shortest wall time, the best output, the fewest errors, for every request the flow runs, from a one-rule change to a multi-wave feature. Nothing is adopted on belief: every item below names the metric it must move and is measured alone (section 9).
@@ -107,5 +107,5 @@ Artifacts make sense when they replace rereading, not when they add reading. Eac
 | D2 | Strong model for surveyor and planner | **Every C5**, high effort where the platform allows it |
 | D3 | Eval budget | **R0 to R2 first** (about US$85) |
 | D4 | TRD merge at the end | **The last executor task**, TRD file in its Owns; `promote.py` does the rest |
-| D5 | Execution session on the fast model after plan approval (CX6) | pending |
-| D6 | Add R2b (parallelism, about US$30) to the approved budget | pending |
+| D5 | Execution session on the fast model after plan approval (CX6) | **Yes, as a measured arm in R2b**; adopted only if quality holds |
+| D6 | Add R2b to the approved budget | **Yes: R0 to R2b**, about US$115 |
