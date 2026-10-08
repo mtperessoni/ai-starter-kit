@@ -42,7 +42,7 @@ One `Source: <ID>: <path::symbol>` line per approved rule of the Contract whose 
 Fix only what the handoff names, inside its Owns, under the rules of `task` (test first for a behavior finding). Commit `fix(<scope>): <sentence>` with the trailer. A missing `Source:` line: `Grep` the rule ID in the source folders, append the line to the implementing task's `deliveries/<ID>.md`, no commit.
 
 ## close
-1. C5 only (C2, C3, C4, C6 have no promote): `<python> .claude/skills/prd-flow/scripts/promote.py <slug>`. On error, route it (table below). On success commit the paths it changed (`git status --porcelain -- docs changes`) as `docs(prd): promote <slug>`. A WARN line on success (an amendment fold promote could not decide) is `Route: docs fold: <the WARN lines>` before step 3.
+1. C5 only (C2, C3, C4, C6 have no promote): `<python> .claude/skills/prd-flow/scripts/promote.py <slug>`. On error, route it (table below). On success commit the paths it changed (`git status --porcelain -- docs changes`) as `docs(prd): promote <slug>`. A WARN line on success is routed before step 3: an amendment file is `Route: docs fold: <the WARN lines>`; a TRD still holding Planned is `Route: executor fix: <the WARN lines, Owns: that TRD file>` (merge per `trd-planned.md`).
 2. Write `## Close` of `state.md` (the promote result only) now: a passing close deletes the state folder, so nothing is written after it.
 3. `scripts/gates.sh close <slug>`, output to a file; read its summary block. The close summary and the top retro findings go in the return only.
 
@@ -53,6 +53,8 @@ Fix only what the handoff names, inside its Owns, under the rules of `task` (tes
 | A missing technical detail | `Status: gap` · `Route: user: <question with options>` |
 | promote: rule without `Source:` | `Route: executor fix: <error lines, rule IDs>`; `Next:` executor close |
 | promote: fold or superseded mismatch | `Route: docs fold: <error or warning lines>`; `Next:` executor close |
+| promote: PRD file not found | `Route: docs rules: <error line>`; `Next:` executor close |
+| promote: no `approved-rules.md` | `Status: blocked` · `Route: user: the run lost its scaffold / Restart the C5 (surveyor full) / Stop`; restarting is the user's call |
 | promote: HTML build, archive, final gate | `Route: executor fix: <printed lines, Owns: the files named>`; `Next:` executor close |
 | close: tests, lint, trailers, G19, G21 | `Route: executor fix: <printed lines, Owns and Read: the files named>`; `Next:` executor close |
 | close: missing baseline; a trailer that needs a history rewrite; drift that predates the change | `Status: blocked` · `Route: user: <what failed, options with trade-offs>`; this row overrides any `owner:` the script printed (a baseline taken at close hides the change's own failures) |

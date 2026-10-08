@@ -29,13 +29,13 @@ A `Lens:` naming a reviewer of `repo.md` "Reviewers": read its definition in `.c
 ## Failure routes
 | Situation | Return |
 |---|---|
-| Critical or High within the approved rules | `Status: done` · `Route: executor fix: <those finding lines, their Owns, Read: the files and symbols, the rule IDs>`; when that exceeds 10 lines, write the finding lines (with Owns) to `<state>/findings-r<N>.md` and route `executor fix: findings in <that path>; Read: <files>; rules <IDs>`; `Next:` "after the fix, prd-flow-recheck" |
+| Critical or High within the approved rules | `Status: done` · `Route: executor fix: <those finding lines, their Owns, Read: the files and symbols, the rule IDs>`; when that exceeds 10 lines, write the finding lines (with Owns) to `<state>/findings-r<N>.md` and route `executor fix: Findings: <that path>; Read: <files>; rules <IDs>`; `Next:` "after the fix, prd-flow-recheck with Findings: <the finding lines, or that path>" |
 | A High that may change a rule | `Status: gap` · `Route: user: <the scenario in product language> / Fix to the current rule (Recommended) / Change the rule (short rule change) / Accept with a recorded note`; `Next:` per option, the fix handoff is the finding lines above |
 | Commits missing or the diff unreadable | `Status: blocked` · `Route: user: <what is missing>` |
 | Ceiling | `Status: gap` · `Route: reviewer review: <files reviewed, left>` |
 
 ## Return
-At most 15 lines, then the five fields and nothing after: `Round N/5, <range>`, the finding lines (Medium and Low included, for the chief's pending list), `Counts: Critical <n> · High <n> · Medium <n> · Low <n>`. No Critical or High: `Route: none`, `Next:` "log Medium and Low as pending; next wave, or executor close after the last".
+At most 15 lines, then the five fields and nothing after: `Round N/5, <range>`, the finding lines (Medium and Low included, for the chief's pending list), `Counts: Critical <n> · High <n> · Medium <n> · Low <n>`, `Wave time: <minutes>` (first to last commit timestamp of the wave, from `git log --format=%ct`). No Critical or High: `Route: none`, `Next:` "log Medium and Low as pending; next wave, or executor close after the last".
 ```
 Status: done | gap | blocked
 Files: none

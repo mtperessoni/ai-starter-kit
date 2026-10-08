@@ -306,8 +306,8 @@ def promote(root: Path, slug: str, dry: bool) -> tuple[list[str], int]:
     state = root / ".claude" / "prd-flow" / "state" / slug
     approved = state / "approved-rules.md"
     if not approved.is_file():
-        raise PromoteError(f"no {approved.relative_to(root).as_posix()}: nothing to promote for {slug}", "surveyor full",
-                           "surveyor full (it scaffolds approved-rules.md), then docs rules, then executor close")
+        raise PromoteError(f"no {approved.relative_to(root).as_posix()}: nothing to promote for {slug}", "user",
+                           "user decides whether to restart the C5 (surveyor full) or stop; the run lost its scaffold")
     files, old, approver = parse_approved(approved.read_text(encoding="utf-8"))
     sources = sources_from_trd(root, cfg)
     delivery_files = sorted((state / "deliveries").glob("*.md")) if (state / "deliveries").is_dir() else []

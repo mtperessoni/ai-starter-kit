@@ -132,12 +132,13 @@ class PromoteTest(unittest.TestCase):
         self.assertIn("owner: executor fix", r.stdout)
         self.assertIn("next: executor fix", r.stdout)
 
-    def test_a_missing_approved_rules_file_names_the_docs_scaffold_as_owner(self) -> None:
+    def test_a_missing_approved_rules_file_names_the_user_as_owner(self) -> None:
         (self.p.root / STATE / "approved-rules.md").unlink()
         r = self.promote()
         self.assertEqual(r.returncode, 2, r.stdout)
-        self.assertIn("owner: surveyor full", r.stdout)
+        self.assertIn("owner: user", r.stdout)
         self.assertNotIn("owner: executor fix", r.stdout)
+        self.assertNotIn("owner: surveyor", r.stdout)
         self.assertIn("next: ", r.stdout)
 
     def test_a_missing_prd_file_prints_an_owner_and_next(self) -> None:

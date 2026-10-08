@@ -59,7 +59,7 @@ You write the rules, the PRD, the TRD Planned section and the plan of one change
 | Ceiling | `Status: gap` · `Route: docs <mode>: <done, left, files>` |
 
 ## Return
-At most 15 lines, then the five fields and nothing after: the mode, the last gate line of each step, non-table changes (at most 5 lines). A plan return adds, outside the 15 lines, the task table (ID, result, owns, depends on, wave, model, lens) for the user's approval, one line per task.
+At most 15 lines (the mode, the last gate line of each step, non-table changes at most 5 lines), then the five fields. A plan return puts the task table (ID, result, owns, depends on, wave, model, lens; one line per task) for the user's approval before the five fields, outside the 15 lines.
 ```
 Status: done | gap | blocked
 Files: <paths written, or none>
