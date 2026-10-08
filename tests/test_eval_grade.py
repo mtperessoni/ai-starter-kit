@@ -179,6 +179,18 @@ class GradeTest(unittest.TestCase):
         self.assertEqual(m["protocol_adherence"], 1.0)
         self.assertTrue(m["completed"])
 
+    def test_grade_carries_six_metric_fields(self):
+        sys.modules["transcript"] = FakeTranscript(
+            tokens_total=1000, wall_min=3.0, is_error=False, skills=[], main_min=2.0,
+            agent_min=1.0, cold_starts=1, error_kinds={"other": 1}, gate_runs_main=2,
+            gate_runs_sub=3)
+        m = grade.grade(self.project, self.scenario, "LT", transcript="t.jsonl")
+        self.assertEqual((m["main_min"], m["agent_min"], m["cold_starts"]), (2.0, 1.0, 1))
+        self.assertEqual((m["gate_runs_main"], m["gate_runs_sub"]), (2, 3))
+        self.assertEqual(m["error_kinds"], {"other": 1})
+        self.assertIn("tasks_planned", m)
+        self.assertIn("tokens_per_task", m)
+
     def test_completed_false_when_run_errored(self):
         sys.modules["transcript"] = FakeTranscript(is_error=True, skills=[])
         m = grade.grade(self.project, self.scenario, "LT", transcript="t.jsonl")
@@ -302,6 +314,16 @@ class EfficiencyMetricsTest(unittest.TestCase):
         m = grade.subagent_metrics([], None, None, 10.0)
         self.assertEqual((m["subagents_wasted"], m["tasks_per_executor"], m["min_per_task"]),
                          (0, None, None))
+
+    def test_task_counts(self):
+        m = grade.task_counts([{"id": "T1"}, {"id": "T2"}, {"id": "T3"}, {"id": "T4"}], 0.5, 1000)
+        self.assertEqual((m["tasks_planned"], m["tasks_done"], m["tokens_per_task"]), (4, 2, 500.0))
+
+    def test_task_counts_without_plan_or_done(self):
+        m = grade.task_counts(None, None, 1000)
+        self.assertEqual((m["tasks_planned"], m["tasks_done"], m["tokens_per_task"]), (0, 0, None))
+        self.assertIsNone(grade.task_counts([{"id": "T1"}], 0.0, 5)["tokens_per_task"])
+        self.assertIsNone(grade.task_counts([{"id": "T1"}], 1.0, None)["tokens_per_task"])
 
     def test_blind_metrics_merge(self):
         rr = {"blind_findings": {"critical": 0, "high": 2, "medium": 1, "low": 0},

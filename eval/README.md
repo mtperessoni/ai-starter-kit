@@ -124,6 +124,24 @@ A second fixture closer to a real service, so the flows face what makes context 
 | LG06 | Scenarios `eval/scenarios-large/L1..L8`, same layout as the small suite: L1 cross-feature rule change (M), L2 and L3 new features with data model and contract (L), L4 bug across features (S), L5 bug inside the big file (S), L6 refactor of the big file (C6, M), L7 rule gap (C5, M), L8 implement the approved `planned` rule (C2, S) |
 | LG07 | `eval/arms-large.json` points to the large fixture and scenarios; reps 2 on M and L, 1 on S; arms LT and SKU (the team's flow), plus SKF on L2 and L3 as a sensitivity check |
 
+## Six metrics
+Every round reports the same six metrics per run, computed from the transcript (T), git (G) and the metrics above, so rounds compare without ad hoc scripts. `report.py` opens its report with a "Six metrics" section (totals and medians per arm, then one row per run); `rounds.py` compares rounds.
+
+| ID | Metric | Fields per run |
+|---|---|---|
+| M1 | Token consumption | `tokens_total`, `tokens_main`, `tokens_subagents`, `context_peak`, `cost_usd`, `tokens_per_task` (`tokens_total` over `tasks_done`, null when 0) |
+| M2 | Tasks completed successfully | `tasks_planned`, `tasks_done` (plan tasks whose named files a code commit changed), `hidden_passed`, `hidden_total`, `completed` |
+| M3 | Total time | per arm: sum of `wall_min` over its runs |
+| M4 | Time per run | `wall_min`, `main_min` (wall minus subagent time), `agent_min` (sum of each subagent's span, first to last timestamped event), `cold_starts` (subagents spawned), `min_to_code`, `min_per_task` |
+| M5 | Error rate | `tool_calls`, `tool_errors`, `error_rate`, `error_kinds` (`gate_check`, `environment`, `missing_file`, `test_failure`, `other`), `gate_runs_main`, `gate_runs_sub` (tool calls mentioning `gate.py`, by thread) |
+| M6 | Implementation versus plan | `plan_coverage`, `plan_drift`, `tasks_per_executor`, `review_rounds`, `blind_findings_total`, `accept` |
+
+### Comparing rounds
+```bash
+python eval/rounds.py results/2026-10-07-flow:GATE results/2026-10-07-flow:FLOW results/2026-10-07-flow-v2:FLOW --out compare.md
+```
+Each argument is a results folder, optionally `:ARM` (all arms when omitted). It reads the `*.metrics.json` and `*.jsonl` of each folder, calls no model and no judge, and prints one markdown table per metric with a column per folder and arm, a row per field and scenario, and a total (additive fields) or median row. Runs from older rounds get the new fields derived from their transcript; `tasks_planned` and `tasks_done` come from `min_per_task` and `plan_coverage` when git is not available.
+
 ## Efficiency analysis
 The questions the final analysis answers, each with its metrics. All come from the transcript (T), git (G), hidden tests (H) or the blind review (B).
 

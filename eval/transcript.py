@@ -14,6 +14,12 @@ EDIT_TOOLS = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 TEST_CMD_RE = re.compile(r"\b(pytest|unittest)\b|gates\.sh")
 REVIEW_ROUND_RE = re.compile(r"review:\s*(\d+)\s*/\s*5", re.I)
 FAIL_COUNT_RE = re.compile(r"(\d+)\s+(?:failed|failures?|errors?)\b", re.I)
+GATE_ERR_RE = re.compile(r"ERROR (?:Q\d|G\d+|P\d)")
+ENV_ERR_RE = re.compile(r"python: not found|python3?: command not found|No such file or directory: ?'python|"
+                        r"can't open file|command not found|EISDIR|unexpected EOF", re.I)
+MISSING_RE = re.compile(r"File does not exist")
+TEST_ERR_RE = re.compile(r"FAILED|AssertionError|Traceback")
+ERROR_KINDS = ("gate_check", "environment", "missing_file", "test_failure", "other")
 UNITTEST_FAIL_RE = re.compile(r"\bFAILED \((?:failures|errors)=", re.I)
 
 
@@ -70,6 +76,18 @@ def _test_failed(b):
             or any(int(n) > 0 for n in FAIL_COUNT_RE.findall(text)))
 
 
+def _error_kind(text, is_error):
+    if GATE_ERR_RE.search(text):
+        return "gate_check"
+    if not is_error:
+        return None
+    for kind, rx in (("environment", ENV_ERR_RE), ("missing_file", MISSING_RE),
+                     ("test_failure", TEST_ERR_RE)):
+        if rx.search(text):
+            return kind
+    return "other"
+
+
 def _median(vals):
     vals = sorted(vals)
     if not vals:
@@ -88,6 +106,8 @@ def summarize(path):
     tool_calls, test_ids, test_runs, failed_tests, rounds = 0, set(), 0, 0, 0
     details, awaiting_ts = {}, []  # Agent tool_use id -> detail
     sub_msgs_by = {}  # parent id -> {message id: usage}
+    spans = {}  # parent id -> [first, last] event time
+    kinds, gate_main, gate_sub = dict.fromkeys(ERROR_KINDS, 0), 0, 0
     texts = []  # main-thread assistant text blocks with their event time
     for n, e in enumerate(_events(path)):
         kind = e.get("type")
@@ -95,6 +115,9 @@ def summarize(path):
             ts = _epoch(e["timestamp"])
             if started is None:
                 started = ts
+            if e.get("parent_tool_use_id") and ts is not None:
+                sp = spans.setdefault(e["parent_tool_use_id"], [ts, ts])
+                sp[0], sp[1] = min(sp[0], ts), max(sp[1], ts)
             for d in awaiting_ts:
                 d["started_at"] = ts
             awaiting_ts = []
@@ -118,6 +141,11 @@ def summarize(path):
                     continue
                 tool_calls += 1
                 inp = b.get("input") if isinstance(b.get("input"), dict) else {}
+                if "gate.py" in json.dumps(inp):
+                    if parent is None:
+                        gate_main += 1
+                    else:
+                        gate_sub += 1
                 if parent is not None and parent in details:
                     details[parent]["tool_calls"] += 1
                     if b.get("name") in EDIT_TOOLS:
@@ -141,6 +169,9 @@ def summarize(path):
             for b in _blocks(e):
                 if b.get("type") == "tool_result":
                     tid = b.get("tool_use_id")
+                    kind_err = _error_kind(_result_text(b), b.get("is_error") is True)
+                    if kind_err:
+                        kinds[kind_err] += 1
                     if b.get("is_error") is True:
                         tool_errors += 1
                         if parent in details:
@@ -167,13 +198,21 @@ def summarize(path):
     dur = r.get("duration_ms")
     for did, d in details.items():
         d["tokens"] = sum(_total(u) for u in sub_msgs_by.get(did, {}).values())
+    agent_min = sum((sp[1] - sp[0]) / 60 for did, sp in spans.items() if did in details)
+    wall_min = dur / 60000 if isinstance(dur, (int, float)) else None
     detail = list(details.values())
     review_agents = sum(1 for d in detail if d["review"])
     for d in detail:
         d.pop("id")
     return {
         "cost_usd": r.get("total_cost_usd"),
-        "wall_min": dur / 60000 if isinstance(dur, (int, float)) else None,
+        "wall_min": wall_min,
+        "agent_min": agent_min,
+        "main_min": max(0.0, wall_min - agent_min) if wall_min is not None else None,
+        "cold_starts": subagents,
+        "error_kinds": kinds,
+        "gate_runs_main": gate_main,
+        "gate_runs_sub": gate_sub,
         "turns": r.get("num_turns"),
         "is_error": r.get("is_error"),
         "subtype": r.get("subtype"),

@@ -203,3 +203,67 @@ class AssistantTextTest(unittest.TestCase):
         d, p = tmp_file([""])
         with d:
             self.assertEqual(transcript.summarize(p)["assistant_texts"], [])
+
+
+def ev(kind, ts=None, parent=None, mid=None, blocks=(), usage=None):
+    e = {"type": kind, "message": {"content": list(blocks)}}
+    if ts:
+        e["timestamp"] = f"2026-10-07T10:{ts}Z"
+    if parent:
+        e["parent_tool_use_id"] = parent
+    if mid:
+        e["message"]["id"] = mid
+        e["message"]["usage"] = usage or {"input_tokens": 1}
+    return json.dumps(e)
+
+
+def tool_use(tid, name="Bash", **inp):
+    return {"type": "tool_use", "id": tid, "name": name, "input": inp}
+
+
+def tool_result(tid, text, is_error=True):
+    return {"type": "tool_result", "tool_use_id": tid, "is_error": is_error, "content": text}
+
+
+class SixMetricsTest(unittest.TestCase):
+    def summary(self):
+        lines = [
+            ev("assistant", "00:00", mid="m1", blocks=[tool_use("A1", "Agent", description="build")]),
+            ev("assistant", "01:00", "A1", "s1", [tool_use("b1", command="python gate.py")]),
+            ev("user", "03:00", "A1", blocks=[tool_result("b1", "ERROR Q1 missing")]),
+            ev("assistant", "05:00", "A1", "s2", [tool_use("b2", command="ls")]),
+            ev("assistant", "06:00", mid="m2", blocks=[tool_use("b3", command="python .claude/skills/x/scripts/gate.py")]),
+            ev("user", "06:30", blocks=[tool_result("b3", "python: not found")]),
+            ev("assistant", "07:00", mid="m3", blocks=[tool_use("b4", "Read", file_path="x")]),
+            ev("user", "07:10", blocks=[tool_result("b4", "File does not exist")]),
+            ev("assistant", "07:20", mid="m4", blocks=[tool_use("b5", command="pytest")]),
+            ev("user", "07:30", blocks=[tool_result("b5", "Traceback (most recent call last)")]),
+            ev("user", "07:40", blocks=[tool_result("b4", "weird failure")]),
+            ev("user", "07:50", blocks=[tool_result("b4", "Traceback in a fine read", is_error=False)]),
+            json.dumps({"type": "result", "duration_ms": 600000, "is_error": False}),
+        ]
+        d, p = tmp_file(lines)
+        with d:
+            return transcript.summarize(p)
+
+    def test_time_split(self):
+        s = self.summary()
+        self.assertAlmostEqual(s["agent_min"], 4.0)
+        self.assertAlmostEqual(s["main_min"], 6.0)
+        self.assertEqual(s["cold_starts"], 1)
+
+    def test_error_kinds(self):
+        k = self.summary()["error_kinds"]
+        self.assertEqual(k, {"gate_check": 1, "environment": 1, "missing_file": 1,
+                             "test_failure": 1, "other": 1})
+
+    def test_gate_runs_split_by_parent(self):
+        s = self.summary()
+        self.assertEqual((s["gate_runs_main"], s["gate_runs_sub"]), (1, 1))
+
+    def test_no_wall_gives_none_main_min(self):
+        d, p = tmp_file([ev("assistant", "00:00", mid="m1")])
+        with d:
+            s = transcript.summarize(p)
+        self.assertIsNone(s["main_min"])
+        self.assertEqual(s["error_kinds"]["other"], 0)

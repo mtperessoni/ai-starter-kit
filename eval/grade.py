@@ -308,7 +308,9 @@ def efficiency(transcript):
             "tool_errors", "subagent_token_share", "skills", "is_error", "started_at",
             "tokens_main", "tokens_subagents", "tool_calls", "error_rate", "test_runs",
             "failed_test_runs", "review_rounds", "subagent_detail", "subagent_tokens_median",
-            "subagent_tool_calls_median", "subagent_errors", "assistant_texts")
+            "subagent_tool_calls_median", "subagent_errors", "assistant_texts",
+            "main_min", "agent_min", "cold_starts", "error_kinds", "gate_runs_main",
+            "gate_runs_sub")
     empty = {k: None for k in keys}
     if transcript is None:
         return empty
@@ -347,6 +349,14 @@ def subagent_metrics(detail, tasks, cov, wall_min):
         "tasks_per_executor": done / len(executors) if executors and done is not None else None,
         "min_per_task": wall_min / n if n and isinstance(wall_min, (int, float)) else None,
     }
+
+
+def task_counts(tasks, cov, tokens_total):
+    """M1 and M2: plan tasks, tasks whose named files a code commit changed, tokens per done task."""
+    n = len(tasks) if tasks else 0
+    done = round(cov * n) if cov is not None else 0
+    per = tokens_total / done if done and isinstance(tokens_total, (int, float)) else None
+    return {"tasks_planned": n, "tasks_done": done, "tokens_per_task": per}
 
 
 def blind_metrics(rr):
@@ -418,6 +428,9 @@ def grade(project, scenario_dir, arm, transcript=None, started_at=None, judge_re
         "subagent_errors": eff["subagent_errors"],
         "review_fix_commits": review_fix_commits(commits, eff["subagent_detail"], bool(transcript)),
         **subagent_metrics(eff["subagent_detail"], tasks, cov, eff["wall_min"]),
+        **task_counts(tasks, cov, eff["tokens_total"]),
+        **{k: eff[k] for k in ("main_min", "agent_min", "cold_starts", "error_kinds",
+                               "gate_runs_main", "gate_runs_sub")},
         **blind_metrics(review_result),
     })
     if not transcript:

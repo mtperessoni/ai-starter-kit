@@ -317,3 +317,28 @@ class SourceOfTruthTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SixMetricsSectionTest(unittest.TestCase):
+    def sample(self):
+        a = run(tokens_total=1000, wall_min=10.0, main_min=6.0, agent_min=4.0, cold_starts=2,
+                tasks_planned=4, tasks_done=2, tokens_per_task=500.0, tool_calls=10,
+                tool_errors=1, hidden_passed=3, hidden_total=4,
+                error_kinds={"other": 1})
+        b = run(tokens_total=3000, wall_min=30.0, tasks_planned=4, tasks_done=3)
+        return {"LT": {"S1": [a, b]}, "SK": {"S1": [run()]}}
+
+    def test_section_comes_first_and_has_totals_and_medians(self):
+        text, _ = report.build(self.sample())
+        self.assertLess(text.index("## Six metrics"), text.index("## Runs"))
+        self.assertIn("## Efficiency analysis", text)
+        sec = text[text.index("## Six metrics"):text.index("## Runs")]
+        for mid in ("M1", "M2", "M3", "M4", "M5", "M6"):
+            self.assertIn(mid, sec)
+        self.assertIn("| tokens_total | 4000 | 2000 |", sec)
+        self.assertIn("| wall_min | 40 | 20 |", sec)
+        self.assertIn("LT S1 r1", sec)
+
+    def test_totals_are_blank_for_ratios(self):
+        sec = "\n".join(report.six_lines(self.sample()))
+        self.assertIn("| error_rate | n/a |", sec)
