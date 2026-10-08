@@ -5,58 +5,67 @@ description: Mandatory gate for every task that touches product behavior. Loads 
 
 # prd-flow
 
-A rule change goes PRD, then TRD, then plan, then code. When document, code and request disagree, ask citing both sides: code and PRD answer facts, the user intent. Values: `repo.md`; prose in its `language`, IDs and code in English. `ref/` is `.claude/skills/prd-flow/reference/`.
+You are the chief: coordinate, never execute a task. Your context is the most expensive of the run and grows with everything you touch, so agents read, write, run and verify. A rule change goes PRD, then TRD, then plan, then code. Prose in the `language` of `repo.md`; IDs in English.
 
-## Main card
-- Read `repo.md` once, `ref/interview.md`; executing, `ref/execution.md` E01 to E10, E20, `ref/review.md` V07. Others: agents only.
-- Your files: `state.md` (phase, `review: N/5`, pending Medium and Low, a cost line per wave), `interview.md`, `approved-rules.md`, `decisions.md`: read them in one message, write them in one message. Allowed: `scripts/gates.sh context|baseline|close <slug>`, `git config user.name`, `git rev-parse HEAD`, per return one Bash `git diff --stat -- <files> && git add <files> && git commit -F -` (due `state.md` lines in it), `promote.py <slug>`, `gate.py --rules`, `gate.py --step plan` once in a fresh session, `Grep "^### T"` in the plan and each card by range.
-- Never: PRD, TRD or source before the surveyor (one INDEX Grep only); `impact.md` (the confrontation is in the surveyor's return); over about 8k tokens or 3 files you do not need; edits under `docs/` (ADR included) or source; `git status`, `git log`, diff content (the reviewer reads it); agents' files; compare, lint, ratchet, docs, trailers, retro (inside `gates.sh close`); debugging a gate or script; `changes/archive/`, legacy `specs/`.
-- Owners: a failing close, or promote missing a `Source:`, goes to an executor with the error lines; other promote warnings to docs `fold`.
-- Dispatch `subagent_type` `prd-flow-<role>`, prompt `Slug: <slug>. State: <absolute state folder>. Python: <interpreter>. <step or task card>`, task line last. Without it: `general-purpose` told to follow `.claude/agents/prd-flow-<role>.md`. Never paste a briefing.
-- At most 2 reruns per step; the third failure is a gap, resolved first. No ToolSearch, no TodoWrite, no agent resume: a new one. To the user: context at most 6 lines, a round at most 25.
+## Chief card
+- Do: classify from the surveyor's return, ask the user, dispatch, route by return fields, keep `## Chief` of `state.md`, report.
+- Tools, a closed list: Agent dispatch; AskUserQuestion; Read, Write, Edit of `state.md`; Read of `repo.md` once (interpreter, language).
+- Forbidden, everything else: Bash (scripts, gates, tests, git); reading PRD, TRD, source, diffs, plan, pack, impact, deliveries or any reference beyond this card; writing anything but `## Chief`; fixing, verifying or redoing an agent's work; reading to prepare a question (the surveyor prepares them); ToolSearch, TodoWrite, resuming an agent.
+- Dispatch `subagent_type` `prd-flow-<role>` (without it: `general-purpose` told to follow `.claude/agents/prd-flow-<role>.md`). Prompt: `Slug: <slug>. State: <absolute folder>. Python: <interpreter>. Mode: <mode>. <task line or handoff>`, task line last. Never paste a briefing.
+- To the user: context at most 6 lines, a round at most 25.
 
 ## Cases
-| Case | When | Agents |
+Every case starts with the surveyor: `query` for C1 (its return is the answer), `light` for C2, C3, C4, C6, `full` for C5, `short` mid-execution. Case unclear: `light` with `Case: unclear`; the surveyor decides. New behavior in C2, C3 or C6 re-enters as C5.
+
+| Case | When | Route after the surveyor |
 |---|---|---|
-| C0 no PRD | No `docs/prd/INDEX.md` | `/prd-create`, `/trd-create`, then the request |
-| C1 query | How, why, "diagnose", "plan" | None: IDs and Source |
-| C2 implement | Approved rule not met, unwired code included | docs `plan` if over one task, executor, reviewer |
-| C3 bug | Code diverges, PRD confirmed | executor, reviewer |
-| C4 stale PRD | Code right, PRD wrong, confirmed | docs `C4` |
-| C5 rule change | New or changed rule, gap, defect the PRD documents, new product context | C5 route |
-| C6 refactor | Structure only | executor, reviewer |
-
-State case and size in one line per item; unclear: the surveyor decides. New behavior in C2, C3 or C6 re-enters as C5.
-
-## Light route
-Grep the term in `docs/prd/INDEX.md`, then the rows by ID, area map, TRD and invariants. C2 to C4: the Source exists, matches the rule and has a caller outside tests; show a divergence and ask. Confirmed (R01): C2, C3, C6 write a minimal `state.md`, then baseline, executor, reviewer, commit, close without promote.
+| C0 no PRD | surveyor reports no PRD | `/prd-create`, `/trd-create`, then the request |
+| C1 query | how, why, diagnose, plan | report its return |
+| C2 implement | approved rule not met | executor `task`, reviewer, executor `close` |
+| C3 bug | code diverges, PRD confirmed | as C2 |
+| C4 stale PRD | code right, PRD wrong, confirmed | docs `c4`, executor `close` |
+| C5 rule change | new or changed rule, gap, defect the PRD documents, new product context | C5 route |
+| C6 refactor | structure only | as C2 |
 
 ## C5 route
-| Step | Who | Does |
-|---|---|---|
-| 1 | main | Slug, `gates.sh context`, surveyor with case, size (or `unclear`), approver, request; it creates the state folder |
-| 2 | surveyor | Pack, impact, conflicts, protected rules, contexts, scaffolds of step 4 |
-| 3 | main | Show the confrontation; ask: change (assumed lines confirmed) · keep (C2, C3) · adjust (back to 2) |
-| 4 | main | Interview the open dimensions, at most 4 questions a round; edit your files; `gate.py --rules`, last line into `state.md`; a distinct owner must agree |
-| 5 | docs `C5` | PRD (and the ADR `state.md` names), `docs(prd)`; on to 7 and 8 per the step-6 skip. `fan-out: yes`: docs `C5 context` per context in parallel, then docs `plan` |
-| 6 | main | Only if docs stopped: show its gate line and non-table changes; on confirmation, docs `C5 trd+plan` |
-| 7, 8 | docs | TRD Planned, plan; wave table, steps, plan path to `state.md` |
-| 9 | main | Approve from the returned table |
-| 10 | executor, reviewer, recheck | Below |
+1. Surveyor `full` with the request and your case and size (or `unclear`); it creates the state folder and records the approver.
+2. Show its confrontation; ask: change · keep (C2, C3) · adjust (surveyor `full` again with `Adjust: <the user's words>`).
+3. Ask its prepared questions, at most 4 a round; pass the answers verbatim to docs `rules`; show its read-back. Repeat until the user says it is clear and a named rule owner agreed.
+4. Docs `prd`. When its return proves the gate green and no change outside the tables, go on; else ask its question first.
+5. Docs `trd-plan`; ask approval of the returned wave table; an adjustment is docs `trd-plan` with the user's words.
+6. Per wave of the returned table: every executor `task` in one message; then reviewer with the wave's commit hashes; recheck after a fix.
+7. Executor `close`; report.
 
-Step 10 is the execution line of "State". Per `WAVE` line (E04): `git rev-parse HEAD`, cards in one background message; a card's `Lens:` only adds a reviewer. Critical is fixed; High too when it fits the approved rules, else asked; Medium and Low to pending. Close deletes the state folder: promote first.
+## Returns
+Every agent ends with `Status: done|gap|blocked`, `Files:`, `Commit:`, `Route: none|user: <question>|<role> <mode>: <handoff>`, `Next:`. Act on the fields only:
+- `done` with `Route: none`: run `Next`.
+- `Route: user`: one AskUserQuestion with that text, then `Next` with the answer.
+- `Route: <role> <mode>`: dispatch it, the handoff as the task line.
+- `gap` without a Route, or a field missing: the same role once with "return the Route field"; again: ask the user.
+
+| Failure | Dispatch |
+|---|---|
+| gate red after 2 reruns | the agent's Route: same role fresh with the error lines, or user |
+| promote: missing Source | executor `fix`, then executor `close` |
+| promote: fold needed | docs `fold`, then executor `close` |
+| promote: HTML, archive, final gate | executor `fix` with the printed lines |
+| close: any failing step | executor `fix`, then executor `close` |
+| agent ceiling | same role, new agent, the return's handoff |
+| finding Critical or High | executor `fix`, then recheck; Medium, Low to pending |
+| High that may change a rule | the reviewer's `Route: user`; a change is the short C5 |
+| invalid return | re-dispatch once, then ask |
+
+Review: at most 5 rounds per delivery; a round counts when Critical or High go to a fix. Say `review: N/5` every round. At round 5 with an open Critical, or a round with more Critical plus High than the previous: stop and ask (an extra round, accept with a mitigation, change the rule). Brake: two ceilings, or a wave twice as slow as the previous: stop and report what is left.
 
 ## State
-`.claude/prd-flow/state/<slug>/` (outside git); plan and `decisions.md` in `changes/NNN-<slug>/`, never truth. Scripts: `<python> .claude/skills/prd-flow/scripts/<name>`.
-
-`/prd-flow resume <slug>` reads `state.md`, then its phase file: confrontation `impact.md`; interview `interview.md`, `approved-rules.md`; docs `writing.md`; execution the wave table and `deliveries.md`, then: `gates.sh baseline`; per wave: dispatch executors, commit, `prd-flow-reviewer` always, recheck after a Critical or High fix; `promote.py`; commit; `gates.sh close`. Before step 5, a failing `git diff --quiet <pack Base> -- <pack paths>` means a new surveyor.
+`.claude/prd-flow/state/<slug>/state.md`, one writer per section: `## Chief` (you: case, size, slug, phase, the user's decisions one line each, `review: N/5`, pending Medium and Low, `Next:`), `## Survey` (surveyor), `## Plan` (docs), `## Close` (executor `close`). Update `## Chief` after each return in one Edit. `/prd-flow resume <slug>`: read only `state.md`, then run its `Next:`.
 
 ## Rules
 | ID | Rule |
 |---|---|
-| R01 | Nothing in `docs/`, source or tests before its time: C5 from step 5, others after confirmation |
+| R01 | Nothing in `docs/`, source or tests before its time: C5 from step 4, others after confirmation |
 | R03 | No em dash (U+2014). Push and PR only on explicit request |
 | R07 | Questions in product language with an example; IDs only in the read-back |
-| R09 | Behavior no approved rule covers stops its tasks and enters the short C5 (E08); more than one rule or a new dimension: full C5 |
+| R09 | Behavior no approved rule covers: the agent routes it to surveyor `short`; more than one rule or a new dimension: full C5 |
 
-Final: case, IDs, commits, plan path, out-of-scope divergences, pending Medium and Low (from `state.md` before close), the retro findings close printed or "every threshold held".
+Final: case, IDs, commits, plan path, out-of-scope divergences, pending Medium and Low, the retro findings from the `close` return or "every threshold held".

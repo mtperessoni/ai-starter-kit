@@ -1,35 +1,45 @@
 # Code review (execution of C2, C3, C5 and C6)
 
-Review is what catches the serious defect before the user does, and it must run. What this page prevents is the cycle review, fix and review again becoming a loop: each open round finds a new edge case, and fixing one finding opens the surface for the next.
+Review is what catches the serious defect before the user does, and it must run. What this page prevents is the cycle review, fix and review again becoming a loop: each open round finds a new edge case, and fixing one finding opens the surface for the next. Read by the reviewer, the recheck, the executor in `fix` mode and the maintainer; the chief acts on their return fields through its card in `SKILL.md` and never reads this page, a diff or a finding's code.
 
 ## Review table
 | Moment | Who | Over what |
 |---|---|---|
-| Every wave of a C5 (a one-task wave included), and the standalone task of C2, C3, C6, whatever the cards' `Lens:` says (a lens only adds a rubric) | `prd-flow-reviewer`, one round | the combined wave diff, the rule IDs, the `Decisions:` rows and the `Leave:` items of the wave |
+| Every wave of a C5 (a one-task wave included), and the standalone task of C2, C3, C6, whatever the cards' `Lens:` says (a lens only adds a rubric) | `prd-flow-reviewer`, one round | the combined wave diff from the commit hashes the chief passes, the rule IDs, the `Decisions:` rows and the `Leave:` items of the wave's cards |
 | After a fix of a Critical or High | `prd-flow-recheck`, a second round | only the fix diff and the previous finding IDs |
-| Medium and Low | none | pending items in `state.md`, no re-review |
+| Medium and Low | none | pending items in `## Chief` of `state.md`, no re-review |
 | The fix of round 5 | `prd-flow-recheck` | a scoped check of that fix; it is not a round 6 |
+
+## Routing by return
+The reviewer and the recheck decide, the chief only follows the fields:
+
+| Return | Chief dispatches |
+|---|---|
+| reviewer, no Critical or High | `Route: none`; Medium and Low listed in the return go to the pending list of `## Chief`; `Next` is the next wave or executor `close` |
+| reviewer, Critical or High within the approved rules | `Route: executor fix: <finding lines, Owns, Read, rule IDs>`; then the recheck with the finding IDs and the fix commit |
+| reviewer, a High that may change a rule | `Route: user: <the question in product language, options>`; a change is the short C5 (V06) |
+| recheck, all resolved | `Route: none`; the wave is closed |
+| recheck, a finding still open | `Route: executor fix` again, counted as a new round (V01) |
 
 ## Rules
 | ID | Rule |
 |---|---|
 | V01 | A **round** is counted only when blocking findings (Critical or High) are sent back for a fix. Every wave (and the standalone task of C2, C3, C6) gets a review, but a wave review with no Critical or High finding costs no round. The stop of V07 applies to the delivery |
-| V02 | **At most 5 rounds per delivery.** The counter lives in `state.md` (one `review: N/5` for the delivery, with each round's wave and findings by severity) and is told to the user every round |
+| V02 | **At most 5 rounds per delivery.** The chief keeps one `review: N/5` in `## Chief` (each round's wave and findings by severity, one line) and tells the user every round |
 | V03 | The first review of a wave covers the combined wave diff. A second round happens only after a Critical or High fix, and it is **scoped**: it only checks the previous findings against the fix diff, and only points out new problems that diff created. Never "list any new problem" outside it |
-| V04 | Severity policy: step 10 of `.claude/skills/prd-flow/SKILL.md` (Critical fixed; High fixed when it fits the approved rules, else asked; Medium and Low to pending in `state.md`, never re-reviewed; recheck only after a Critical or High fix) |
-| V05 | **Cascade:** if a round finds more Critical plus High than the previous one, stop before the next round and talk to the user (V07). A fix that raises the risk is a sign of a design cause, not of one more patch |
-| V06 | **Any behavior change during execution** (a case no rule covers, a new rule, and always the safety posture: removing a guard, a net, a list, a switch) is not one more task: it follows the short C5 of `.claude/skills/prd-flow/reference/execution.md` (R09, E08 to E10), with what the net covered on the table before code. The counter does not reset by itself; only with explicit approval |
-| V07 | **At round 5 (of the delivery) with an open Critical, or in a cascade (V05): stop and talk.** Show each Critical in plain language (what happens to the user) with the options: an authorized extra round for that finding; accept the risk with a recorded mitigation; change the rule (back to C5). Never fire round 6 without an explicit yes |
-| V08 | **Ceiling per agent (the single home of these numbers; every other file cites V08):** executor, fixer, surveyor and docs agent stop at about 50 tool calls or 30 minutes, reviewer at 40 calls, the scoped re-check (`prd-flow-recheck`) at about 15, and report what they did and what is left. An agent that stopped at the ceiling is replaced by a new agent with a short handoff (execution.md E14). A scoped re-check goes with the closed list of files and the fix diff |
+| V04 | Severity policy, decided by the reviewer in its Route: Critical is fixed; High is fixed when it fits the approved rules, else it goes to the user; Medium and Low go to pending, never re-reviewed; recheck only after a Critical or High fix |
+| V05 | **Cascade:** if a round finds more Critical plus High than the previous one, the chief stops before the next round and talks to the user (V07). A fix that raises the risk is a sign of a design cause, not of one more patch |
+| V06 | **Any behavior change during execution** (a case no rule covers, a new rule, and always the safety posture: removing a guard, a net, a list, a switch) is not one more task: the agent returns `Route: surveyor short` and the short C5 of `execution.md` (E08 to E10) follows, with what the net covered on the table before code. The counter does not reset by itself; only with explicit approval |
+| V07 | **At round 5 (of the delivery) with an open Critical, or in a cascade (V05): the chief stops and asks.** Each Critical in plain language (what happens to the user), from the reviewer's return, with the options: an authorized extra round for that finding; accept the risk with a recorded mitigation; change the rule (back to C5). Never fire round 6 without an explicit yes |
+| V08 | **Ceiling per agent (the single home of these numbers; every other file cites V08):** executor, fixer, surveyor and docs agent stop at about 50 tool calls or 30 minutes, reviewer at 40 calls, the scoped re-check (`prd-flow-recheck`) at about 15, and return what they did and what is left as a handoff. The chief replaces it with a new agent of the same role (execution.md E14). A scoped re-check goes with the closed list of files and the fix commit |
 | V09 | The full suite runs a single time, at the end of all tasks (execution.md E18); a wave review reads the diff, it does not run the suite; inside a task, only the tests related to the module written (the mirror and those that import or use it) |
-| V10 | Fixing the findings runs through a `prd-flow-executor`, with the finding IDs in place of the task ID; the reviewer returns one line per finding, at most 8 |
+| V10 | Fixing runs through executor `fix`: the finding lines are its card, with the files it may change (Owns), what to read and the rule IDs. The reviewer returns one line per finding, at most 8 |
 
-## Record format in `state.md`
+## Record in `## Chief`
 ```markdown
-## Review (V02)
-| Wave | Round | Diff | Critical | High | Medium | Low | Decision |
-|---|---|---|---|---|---|---|---|
-| 1 | 1/5 | abc123..def456 | 0 | 3 | 0 | 0 | fix the 3 High |
-| 1 | 2/5 | def456..0a1b2c | 0 | 0 | 1 | 0 | Medium goes to pending; wave closed |
-| 2 | none | 0a1b2c..9f8e7d | 0 | 0 | 0 | 0 | no blocking finding, no round; wave closed |
+review: 2/5
+- wave 1 · round 1 · 0 Critical, 3 High · fix
+- wave 1 · round 2 · 0 Critical, 0 High, 1 Medium · closed
+- wave 2 · no round · 0 blocking · closed
+Pending: CS-004 Medium (wave 1)
 ```
