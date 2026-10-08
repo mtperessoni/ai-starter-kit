@@ -36,6 +36,9 @@ Shows this list, asks, and never overwrites a project-owned file blindly: when t
 | Contracts | When "Consumers in sibling repositories" lists a consumer and `ai-kit.json` `contracts` is empty, propose snapshots |
 | Manifest | Paths rewritten to the new folder, hashes recomputed |
 
+## Migration to the chief contract
+No new installed file. The five agents and the `prd-create` and `trd-create` skills (their `SKILL.md` and `reference/workers.md`) gain new modes and a five-field return (`Status`, `Files`, `Commit`, `Route`, `Next`); replace them when unchanged, otherwise three-way diff and ask. The executor gains `close` and `fix` modes and the docs agent `rules` and `fold`; nothing to configure. Per-task deliveries are written by the agents to `.claude/prd-flow/state/<slug>/deliveries/<task>.md` in the git-ignored state folder; a change in flight with a single `deliveries.md` finishes as it is. `CLAUDE.md` and `AGENTS.md` keep their project text; only the sentence about the prd-flow main thread is proposed as a diff.
+
 ## Migration from prd-flow workers to agents
 List first, then ask; apply only after yes. A kit-owned file edited since install (hash versus manifest) is shown and kept aside, not deleted.
 

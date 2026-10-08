@@ -4,13 +4,24 @@ Read only the section with your name. You do not talk to the user: anything miss
 
 Stay inside the folders, documents and read budget of your assignment; do not explore beyond it, and do not call ToolSearch.
 
-Return, at most 20 lines:
+Return: at most 15 lines of content, then these five fields as the last lines, nothing after:
 ```
-Done: <one line>
-Files: <paths written>
 <the content the section asks for>
-Gaps: <list, or "none">
+Status: done | gap | blocked
+Files: <paths written, or none>
+Commit: <short hash, or none>
+Route: none | user: <one question with options> | <worker>: <handoff of at most 10 lines>
+Next: <the step the chief runs next>
 ```
+A failing gate is rerun twice; then `blocked` with `Route` to a fresh worker of your role (the error lines as handoff), or `user` when the rule is unclear. A `gap` always carries a `Route`. Where a section says "gaps", put them in `Status: gap` and `Route`.
+
+## scoper
+
+Runs steps 1 and 2. Reads `repo.md`, the source folders and entry points, `changes/`, legacy `specs/`, `docs/`, any `docs/prd/INDEX.md` and `reference/anatomy.md`; writes `state.md` (slug, mode, approver from `git config user.name`, base commit) and `outline.md` (PRDs, sections, ID prefixes, areas). Return: the outline as a table and the questions for the user, each with options and a recommendation, in `Route: user`.
+
+## interviewer
+
+M2 only. Reads `reference/greenfield.md`; prepares rounds of at most 4 questions with a product-language example each, in `Route: user`; when the chief passes the answers in the handoff, writes `interview.md`. Return: the next round or `Status: done`.
 
 ## mapper
 
@@ -75,4 +86,6 @@ Return: files, the gate's last line, gaps.
 
 Produces the HTML reading version. Never writes or edits it: run `python .claude/skills/prd-flow/scripts/build_prd_html.py` (it renders `docs/prd/` into the `html_template` and writes the `html` path of `repo.md`), then the gate. If the build or the gate reports a markdown problem, fix the markdown, not the HTML, and rebuild. What the builder renders and the template classes it uses: `reference/html.md`. When `repo.md` has `html_mode: hand`, follow the `hand` row of prd-flow `reference/prd-writing.md` "HTML".
 
-Return: file, tabs and sections rendered, the gate's last line, gaps.
+Then commit all the PRD files with `docs(prd): <scope> PRD from <source>` (the chief gives scope and source in the handoff) and return the hash in `Commit`.
+
+Return: file, tabs and sections rendered, the gate's last line.

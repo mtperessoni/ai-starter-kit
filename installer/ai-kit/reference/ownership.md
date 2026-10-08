@@ -10,6 +10,7 @@ Every file the kit installs is either **kit-owned** (the project never edits it;
 | `.claude/skills/prd-flow/scripts/build_prd_html.py`, `promote.py`, `docs/templates/prd.html` | kit | Replace | Replace when unchanged |
 | `.claude/skills/prd-flow/repo.md` key `prd_section_budget_lines` | project | Written with its default (200) | Added with its default; never changes a value |
 | `.claude/agents/prd-flow-surveyor.md`, `prd-flow-docs.md`, `prd-flow-executor.md`, `prd-flow-reviewer.md`, `prd-flow-recheck.md` | kit | Copied to `.claude/agents/`; a project agent with the same name is shown as a diff and never overwritten silently | Replace when unchanged; otherwise three-way diff and ask |
+| `.claude/prd-flow/state/<slug>/deliveries/<task>.md` | agent output | Never installed; written by the executors, one file per task, in the git-ignored state folder | Never touched |
 | `.claude/skills/prd-flow/reference/workers/` | kit, removed | Not installed | Removed by the workers migration of `update.md`, after the user confirms |
 | `scripts/commit_trailers.py` | kit | Replace | Replace when unchanged |
 | `.github/CODEOWNERS` | project | Fill from "Rule owners" of `repo.md`, or leave commented; an existing file only gets the `docs/prd/**` line added | Never touched; propose only |

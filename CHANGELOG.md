@@ -2,6 +2,17 @@
 
 User-visible changes to the kit, newest first. Projects receive them through `/ai-kit update`.
 
+## prd-flow v6: the main thread is a chief
+
+The main thread of prd-flow, prd-create and trd-create coordinates and executes no task. Rules: SA43 to SA47, WF64, LS29 ([rules/](rules/README.md)).
+
+- Chief: asks the user, dispatches agents and routes their returns; reads only `state.md` and `repo.md`, runs no script, gate, test or git command, and never fixes or verifies an agent's work. Every case starts with the surveyor.
+- Return contract: every agent ends with `Status`, `Files`, `Commit`, `Route`, `Next`; each failure has an owner role and mode (gate red, promote or close error, review finding, ceiling).
+- prd-create and trd-create: a `scoper` worker (plus an `interviewer` for greenfield PRDs) takes the reads and the outline from the main thread; the last writer commits.
+- Agents commit their own work; the executor `close` mode runs `promote.py` and `scripts/gates.sh close`. No script was added.
+- State: `state.md` has one writer per section and deliveries are one file per task (`deliveries/<task>.md`).
+- `CLAUDE.md` and `AGENTS.md` of the kit say the main thread coordinates and no longer tell it to run `promote.py` or the closing gate.
+
 ## prd-flow v5
 
 The rule-change flow is cheaper to run and harder to skip: the roles are defined subagents, the main thread keeps a thin contract, waves and promotion are computed by scripts, and a new rule that contradicts a live one must be resolved in the same change. Rules: SA27 to SA42, CE23 to CE28, DS44, WF58 to WF63, LS28 ([rules/](rules/README.md)).

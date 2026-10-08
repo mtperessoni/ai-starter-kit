@@ -165,3 +165,7 @@ The kit's model is one PRD per product context or feature that runs on its own (
 | | PX5 isolation | `reference/execution.md` E22 | done |
 | | Cleanup of `_gate`, `_tests`, `_close` | `reference/execution.md` E20: `gates.sh close` clears them with the slug's state after a passing close | done in the docs; the script side belongs to `close_gate.py` |
 | | MP4 executor affinity by area | stated in `reference/agent-plan.md` | done |
+
+## Chief contract (2026-10-08)
+
+The maintainer decided that the main thread of every orchestrating skill is a chief: it asks the user, dispatches agents and routes their returns, and executes no task. The roles, the five-field return, failure routing, `state.md` sections, artifact completeness, the scripts table and the measurement are in `proposals/plan-contract-v6-chief.md` (C6-01 to C6-07). The scripts table (C6-06) keeps every script and adds none: `gate.py`, `build_prd_html.py`, `promote.py`, `close_gate.py` through `gates.sh close`, and the kit tooling are tools of agents (the executor `close` mode owns `promote.py` and the closing gate). This supersedes the main-thread allowances of sections 4 to 6b where they let the main run a gate or a close step. Rules: SA43 to SA47, WF64, LS29.

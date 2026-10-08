@@ -14,7 +14,7 @@ The TRD says **where** behavior lives; the PRD says **what** it is. The TRD neve
 | T02 | **Names, never lines or defaults.** Files, symbols, event and log names; nothing that changes without the map being touched |
 | T03 | **Cite, do not copy.** Every row of "Where it lives" lists the PRD IDs it implements; rule text stays in the PRD |
 | T04 | **Verified, not assumed.** Every file and symbol named exists (one `Grep` each); every entry point has a caller outside the tests or is marked "not wired" |
-| T05 | **Small maps in the folders.** Each map folder (AR07) gets a `CLAUDE.md` of at most 20 lines: a feature folder the feature map, a folder holding several areas the folder map (`docs/templates/folder-CLAUDE.md`), each pointing to the TRDs. Claude Code loads a subfolder's `CLAUDE.md` only when a file of that folder is read, written or edited, so these maps cost nothing until the agent works there |
+| T05 | **Small maps in the folders.** Each map folder (AR07) gets a `CLAUDE.md` of at most 20 lines: a feature folder the feature map, a folder holding several areas the folder map (`docs/templates/folder-CLAUDE.md`), each pointing to the TRDs; loaded only when working there |
 | T06 | **Invariants carry proof.** Every line of `invariants.md` names the test or the principle that proves it |
 | T07 | Everything in English; no em dash; tables over prose |
 | T08 | **Budget and parts.** An area whose file passes `trd_budget_lines` (`repo.md`, default 250) splits into `docs/trd/<area>/<part>.md`, parts mirroring the PRD section groups, plus `docs/trd/<area>/README.md` listing them; `docs/trd/README.md` points to the folder. There is no History section |
@@ -26,46 +26,40 @@ The TRD says **where** behavior lives; the PRD says **what** it is. The TRD neve
 |---|---|
 | N1 full | No `docs/trd/` yet; works in any layout (areas = feature folders plus `ai-kit.json` `areas`) |
 | N2 one area | A new area appeared, or one map is stale |
-| N3 refresh | After a refactor moved files: re-verify every map and fix names; no History section is written or appended (git log is the history) |
+| N3 refresh | After a refactor moved files: re-verify every map and fix names; no History section (git log is the history) |
 | N4 readiness | The code is not organized by area (logic for one product area spread over many folders, files over the size limits, generic names). Map what exists by area, then write the incremental readiness plan in the current layout (`reference/readiness.md`, PC11) for prd-flow |
 | N5 restructure | Optional, offered after N4 with its cost (PC09): move to feature folders (`reference/restructure.md`, prd-flow C6). Never required |
 
 ## Route
 | Step | Who | Does | Leaves |
 |---|---|---|---|
-| 1 | this conversation | Slug `trd-create`, mode, base commit in `state.md`. Batch: `Read repo.md`; `Read docs/prd/INDEX.md`; `Glob` of the source tree two levels deep; `Read docs/code-structure.md` | state |
-| 2 | this conversation | Area list from the layout (`docs/code-structure.md` "This repository's layout", `ai-kit.json` `feature_root`, `areas`, `map_dirs`): one row per area with its files or globs and the PRD sections it implements; show it as a table; approve with at most 4 questions | `features.md` |
+| 1 | chief | Asks the mode; a `scoper` reads `repo.md`, `docs/prd/INDEX.md`, the source tree two levels deep and `docs/code-structure.md`, writes `state.md` (slug `trd-create`, base commit) and returns the facts | state |
+| 2 | `scoper` (strongest model), chief asks | Area list from the layout (`docs/code-structure.md` "This repository's layout", `ai-kit.json` `feature_root`, `areas`, `map_dirs`): one row per area with files or globs and PRD sections; writes `features.md`, returns it as a table; the chief asks, at most 4 questions | `features.md` |
 | 3 | `feature-mapper`, waves of at most 4 | One area each: files, roles, symbols, IDs, entry into the flow, tests, must-not-break, pitfalls; passes `trd_budget_lines` so it can split into parts (T08) and runs `gate.py --trd` on its files | `docs/trd/<area>.md` or `docs/trd/<area>/`, `CLAUDE.md` of its own folder if it has one |
 | 4 | `infra-mapper` | Shared code, configuration, persistence, providers, observability | `docs/trd/infra.md` |
 | 5 | `rules-writer` | `invariants.md` from the constitution, `AGENTS.md` and the structural tests, with the patterns to copy (DS31); `testing.md` from `repo.md`, the test configuration, fakes and guards, schema and contract snapshots (DS30). Counts the invariant gaps, proposes a lint rule or test per gap ranked by hotspots and records `allowlist.invariant_gaps`; proposes contract snapshots when `repo.md` lists a sibling consumer | two files |
 | 6 | `index-writer` | `docs/trd/README.md`, `docs/flow.md`, the TRD column of `docs/prd/INDEX.md`, the folder maps of `map_dirs`; `gate.py` and `gate.py --trd` | index files |
-| 7 | this conversation | N4: the readiness plan (`reference/readiness.md`); then offer N5 with its cost (`reference/restructure.md`). Present as a table for approval | plan |
-| 8 | this conversation | Read-back in at most 20 lines: areas mapped, unwired entry points, hotspots over the limits, the ratchet allowlist size, the invariant gaps and the contract snapshots proposed. Commits `docs(trd): map <scope>` and, separately, `docs: add CLAUDE.md maps` | commits |
+| 7 | `scoper` in N4, chief asks | N4: the readiness plan (`reference/readiness.md`), then the N5 offer with its cost (`reference/restructure.md`), returned as a table for approval | plan |
+| 8 | `index-writer` commits; chief reports | Commits `docs(trd): map <scope>` and, separately, `docs: add CLAUDE.md maps`. Read-back from the returns, at most 20 lines: areas, unwired entry points, hotspots, allowlist size, invariant gaps, snapshots proposed; next `/prd-flow` | commits |
 
-Worker: Agent `general-purpose`, prompt *"Read `.claude/skills/trd-create/reference/workers.md`, section `<name>`, and run it for slug `trd-create`. Assignment: <areas>."* Never paste briefings into the prompt. Each worker writes only its own files.
+The main thread is a chief: it asks the user, dispatches workers and routes returns by `Status`, `Files`, `Commit`, `Route`, `Next`; it never maps, writes docs or runs scripts; reads only `state.md`. Worker: Agent `general-purpose`, prompt *"Read `.claude/skills/trd-create/reference/workers.md`, section `<name>`, and run it for slug `trd-create`. Assignment: <areas>."* Never paste briefings into the prompt. Each worker writes only its own files.
 
 | Rule | Value |
 |---|---|
 | Input | Bounded: the exact area folders or globs and its PRD sections, plus a read budget (about 30k tokens); Grep first, then Read by range |
-| Output | Its own files; the return is at most 20 lines (Done, Files, Gaps) and this conversation never reopens them |
-| Reruns | At most 2 per step; the third failure comes back as a gap |
-| Model | By role: the area list (step 2) and cross-area consistency on the strongest model (this conversation); `feature-mapper`, `infra-mapper` and the writers on `sonnet` |
+| Output | Its own files; the return ends with `Status` (done, gap, blocked), `Files`, `Commit`, `Route` (none, `user: <question>`, or `<worker>: <handoff>`) and `Next`; the chief never reopens them |
+| Reruns | A worker reruns a failing gate twice, then returns `blocked` with `Route` to a fresh worker of its role (error lines) or to the user; no `Route`: sent back once, then the user |
+| Model | By role: the `scoper` (area list, cross-area consistency) on the strongest model; `feature-mapper`, `infra-mapper` and the writers on `sonnet` |
 | Waves | At most 4 mappers, disjoint files; areas that read the same large files go to one mapper |
-| Tools | No ToolSearch mid-run; load what is needed before step 1 |
-
-## Context economy
-Same as prd-flow: independent reads in one message; code only by symbol; big files only by symbol; ceiling about 50 tool calls per worker.
+| Budgets | Independent reads in one message; code only by symbol; no ToolSearch mid-run; about 50 tool calls per worker |
 
 ## Files
 | File | Who reads it |
 |---|---|
 | `reference/workers.md` | each worker, only its section |
-| `reference/readiness.md` | this conversation in N4 |
-| `reference/restructure.md` | this conversation in N5 |
-| `docs/ai-readiness.md` | this conversation in N4 (the checklist) |
+| `reference/readiness.md` | the `scoper` in N4 |
+| `reference/restructure.md` | the `scoper` in N5 |
+| `docs/ai-readiness.md` | the `scoper` in N4 |
 | `docs/templates/trd-feature.md`, `docs/templates/feature-CLAUDE.md` | the feature-mapper |
 | `docs/templates/folder-CLAUDE.md` | the index-writer |
 | `.claude/skills/prd-flow/scripts/gate.py` (`--trd`) | run only |
-
-## Final
-Features mapped, files written, unwired code found, commits, and the next step (`/prd-flow` for changes; the readiness plan in N4, with the restructure offered as N5).
