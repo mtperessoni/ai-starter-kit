@@ -90,7 +90,7 @@ class PromoteTest(unittest.TestCase):
         before = status()
         r = self.promote("--dry-run")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertLessEqual(len(r.stdout.strip().splitlines()), 10)
+        self.assertLessEqual(len(r.stdout.strip().splitlines()), 14)
         self.assertIn("dry-run", r.stdout)
         self.assertEqual(status(), before)
         self.assertTrue((self.p.root / "changes/001-disc").is_dir())
@@ -98,12 +98,46 @@ class PromoteTest(unittest.TestCase):
     def test_markers_leave_and_sources_come_from_deliveries_then_the_trd(self) -> None:
         r = self.promote()
         out = r.stdout + r.stderr
-        self.assertLessEqual(len(r.stdout.strip().splitlines()), 10, out)
+        self.assertLessEqual(len(r.stdout.strip().splitlines()), 14, out)
         prd = self.text(PRD)
         self.assertNotIn("pending code", prd)
         self.assertIn("| ORD-02 | An unpaid order is cancelled after 20 s. | src/features/orders/order_service.py::cancel_unpaid | config |", prd)
         self.assertIn("| src/features/orders/ship.py | code |", prd)
         self.assertIn("| src/features/orders/refund.py | code |", prd)
+
+    def test_sources_come_from_the_per_task_delivery_files(self) -> None:
+        (self.p.root / STATE / "deliveries.md").unlink()
+        write(self.p.root, f"{STATE}/deliveries/T01.md", "Source: ORD-02 src/a.py::cancel" + chr(10))
+        write(self.p.root, f"{STATE}/deliveries/T02.md", "Source: ORD-03 src/b.py" + chr(10))
+        self.promote()
+        prd = self.text(PRD)
+        self.assertIn("| ORD-02 | An unpaid order is cancelled after 20 s. | src/a.py::cancel | config |", prd)
+        self.assertIn("| src/b.py | code |", prd)
+
+    def test_success_prints_the_files_changed_and_a_ready_commit_message(self) -> None:
+        (self.p.root / "docs/trd/orders.md").unlink()
+        (self.p.root / STATE / "deliveries.md").write_text("Source: ORD-02, ORD-03, ORD-04: src/a.py" + chr(10), encoding="utf-8")
+        r = self.promote()
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("files:", r.stdout)
+        self.assertIn(PRD, r.stdout)
+        self.assertIn("docs/prd/CHANGELOG.md", r.stdout)
+        self.assertIn("commit: docs(prd): promote disc", r.stdout)
+        self.assertRegex(r.stdout, r"Rules: .*ORD-02")
+
+    def test_a_missing_source_names_the_executor_fix_as_owner(self) -> None:
+        (self.p.root / "docs/trd/orders.md").unlink()
+        (self.p.root / STATE / "deliveries.md").write_text("", encoding="utf-8")
+        r = self.promote()
+        self.assertIn("owner: executor fix", r.stdout)
+        self.assertIn("next: executor fix", r.stdout)
+
+    def test_a_superseded_mismatch_names_docs_fold_as_owner(self) -> None:
+        path = self.p.root / STATE / "approved-rules.md"
+        path.write_text(APPROVED + "- ORD-77: Ghost." + chr(10), encoding="utf-8")
+        r = self.promote()
+        self.assertIn("owner: docs fold", r.stdout)
+        self.assertIn("next: docs fold", r.stdout)
 
     def test_a_superseded_row_leaves_the_prd(self) -> None:
         self.promote()

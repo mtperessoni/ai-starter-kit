@@ -90,7 +90,7 @@ def plan(*tasks: str) -> str:
 
 
 def task(tid: str, owns: str, depends: str = "none", extra: str = "", title: str = "do it") -> str:
-    return f"### {tid} · {title}\nContract: ORD-01\nOwns: {owns}\nReviewer: x\nModel: sonnet\nDepends on: {depends}\n{extra}"
+    return f"### {tid} · {title}\nContract: ORD-01\nOwns: {owns}\nRead: {owns}\nReviewer: x\nModel: sonnet\nDepends on: {depends}\n{extra}"
 
 
 class WaveTest(unittest.TestCase):

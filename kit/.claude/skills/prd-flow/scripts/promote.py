@@ -1,8 +1,8 @@
 """The mechanical part of Promote: markers, Source, CHANGELOG, HTML, archive, state, final gate.
 
 Usage: python .claude/skills/prd-flow/scripts/promote.py <slug> [--dry-run] [--root <repo>]
-Reads .claude/prd-flow/state/<slug>/approved-rules.md, deliveries.md and changes/NNN-<slug>/decisions.md.
-Prints at most 10 lines. What it cannot decide (the TRD Planned merge, amendment folds) is a listed warning.
+Reads .claude/prd-flow/state/<slug>/approved-rules.md, deliveries/*.md (or an older single deliveries.md) and changes/NNN-<slug>/decisions.md.
+Prints at most 14 lines: on success the files changed and a ready commit message; on each error `owner:` and `next:` lines. What it cannot decide (the TRD Planned merge, amendment folds) is a listed warning.
 """
 
 import argparse
@@ -15,7 +15,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gate_core import is_code_route, load_config, parse_supersedes  # noqa: E402
 
-MAX_LINES = 10
+MAX_LINES = 14
+OWNER_FIX = ("owner: executor fix", "next: executor fix with the printed lines, then executor close")
+OWNER_FOLD = ("owner: docs fold", "next: docs fold (fix Supersedes or fold the rows), then executor close")
 ID = r"[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d+"
 SPLIT = re.compile(r"(?<!\\)\|")
 SOURCE_LINE = re.compile(rf"^Source:\s*({ID}(?:\s*(?:,|\.\.)\s*(?:{ID}|\d+))*)\s*(?:->|=>|[:=])?\s*(\S.*?)\s*$", re.M)
@@ -294,7 +296,7 @@ def rebuild_html(root: Path, dry: bool) -> tuple[str, int]:
 
 
 def finish(lines: list[str], done: list[str], left: list[str]) -> tuple[list[str], int]:
-    return lines + [f"done: {', '.join(done) or 'nothing'}", f"left: {', '.join(left)}; fix the cause and rerun promote"], 1
+    return lines + [f"done: {', '.join(done) or 'nothing'}", f"left: {', '.join(left)}; fix the cause and rerun promote", *OWNER_FIX], 1
 
 
 def promote(root: Path, slug: str, dry: bool) -> tuple[list[str], int]:
@@ -302,19 +304,22 @@ def promote(root: Path, slug: str, dry: bool) -> tuple[list[str], int]:
     state = root / ".claude" / "prd-flow" / "state" / slug
     approved = state / "approved-rules.md"
     if not approved.is_file():
-        raise PromoteError(f"no {approved.relative_to(root).as_posix()}: nothing to promote for {slug}")
+        raise PromoteError(f"no {approved.relative_to(root).as_posix()}: nothing to promote for {slug}{chr(10)}{OWNER_FIX[0]}{chr(10)}{OWNER_FIX[1]}")
     files, old, approver = parse_approved(approved.read_text(encoding="utf-8"))
     sources = sources_from_trd(root, cfg)
-    deliveries = state / "deliveries.md"
-    if deliveries.is_file():
-        sources.update(sources_from_deliveries(deliveries.read_text(encoding="utf-8")))
+    delivery_files = sorted((state / "deliveries").glob("*.md")) if (state / "deliveries").is_dir() else []
+    if (state / "deliveries.md").is_file():
+        delivery_files.insert(0, state / "deliveries.md")
+    for f in delivery_files:
+        sources.update(sources_from_deliveries(f.read_text(encoding="utf-8")))
     change = find_change(root, slug)
     writes, stats, approved_ids, superseded, folder, log = plan_edits(root, cfg, slug, files, old, approver, sources, change)
     problems = [f"promote {slug}: ERROR {len(stats['missing'])} approved rule(s) have no Source line: {', '.join(stats['missing'])}"
                 ] if stats["missing"] else []
     problems += [f"promote {slug}: ERROR superseded ID {rid} matches no row in any PRD file" for rid in stats["unmatched"]]
     if problems:
-        return problems + ["nothing was changed; add the Source: lines or correct Supersedes, then rerun promote"], 1
+        owner = OWNER_FIX if stats["missing"] else OWNER_FOLD
+        return problems + ["nothing was changed; add the Source: lines or correct Supersedes, then rerun promote", *owner], 1
     lines = [f"promote {slug}{' (dry-run)' if dry else ''}: {len(approved_ids)} approved, {len(superseded)} superseded",
              f"markers dropped {stats['dropped']}, sources set {stats['src']}",
              f"changelog: entry added to {log.relative_to(root).as_posix()}"]
@@ -353,6 +358,16 @@ def promote(root: Path, slug: str, dry: bool) -> tuple[list[str], int]:
         tail = (r.stdout.strip().splitlines() or [""])[-1]
         lines.append(f"gate --final: {tail} (exit {r.returncode})")
         code = int(r.returncode != 0)
+        if code:
+            lines += list(OWNER_FIX)
+    if not code:
+        changed = sorted(p.relative_to(root).as_posix() for p in writes)
+        if cfg.get("html_mode") == "generated":
+            changed.append(cfg.get("html", "docs/prd/prd.html"))
+        if change:
+            changed.append(folder)
+        ids = ", ".join(sorted(approved_ids | superseded))
+        lines += [f"files: {', '.join(changed)}", f"commit: docs(prd): promote {slug}", f"Rules: {ids}"]
     warns = [f"WARN {w}" for w in warnings_for(root, cfg)]
     room = max(MAX_LINES - len(lines), 0)
     if len(warns) > room:

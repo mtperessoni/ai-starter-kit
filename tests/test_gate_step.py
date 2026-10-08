@@ -55,6 +55,19 @@ class StepTest(unittest.TestCase):
         write(self.p.root, "changes/001-orders/plan.md", PLAN + "Owns: src/a.py\nModel: sonnet\nLens: none\n")
         self.assertNotIn("P3", self.p.py(GATE, "--step", "plan", "--plan", "changes/001-orders/plan.md").stdout)
 
+    def test_a_task_without_read_is_error_p10(self) -> None:
+        base = PLAN + "Owns: src/a.py" + chr(10) + "Model: sonnet" + chr(10) + "Lens: none" + chr(10)
+        write(self.p.root, "changes/001-orders/plan.md", base)
+        out = self.p.py(GATE, "--step", "plan", "--plan", "changes/001-orders/plan.md").stdout
+        self.assertIn("ERROR P10", out)
+        write(self.p.root, "changes/001-orders/plan.md", base + "Read: src/a.py::f" + chr(10))
+        self.assertNotIn("P10", self.p.py(GATE, "--step", "plan", "--plan", "changes/001-orders/plan.md").stdout)
+
+    def test_the_reviewer_label_is_still_accepted_for_the_lens(self) -> None:
+        card = chr(10).join(["Owns: src/a.py", "Read: src/a.py", "Model: sonnet", "Reviewer: none", ""])
+        write(self.p.root, "changes/001-orders/plan.md", PLAN + card)
+        self.assertNotIn("P3", self.p.py(GATE, "--step", "plan", "--plan", "changes/001-orders/plan.md").stdout)
+
     def test_plan_step_checks_the_plan_and_the_change_folder(self) -> None:
         write(self.p.root, "changes/001-orders/plan.md", PLAN)
         r = self.p.py(GATE, "--step", "plan", "--plan", "changes/001-orders/plan.md", "--change", "changes/404-none")

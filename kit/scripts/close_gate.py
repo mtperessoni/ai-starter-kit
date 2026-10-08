@@ -20,6 +20,7 @@ MAX_LINES = 24
 DETAIL_LINES = 10
 RETRO_FINDINGS = 5
 SEVERITY = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+OWNER = "owner: executor fix"
 FINDING = re.compile(r"^\s+\S+ \[(\w+)\]")
 
 
@@ -61,7 +62,7 @@ def summarize(name: str, result: subprocess.CompletedProcess) -> list[str]:
     last = lines[-1] if lines else ""
     if result.returncode == 0:
         return [last if last.startswith(name) else f"{name} ok" + (f": {last}" if last else "")]
-    return [f"{name} FAILED (exit {result.returncode})"] + [f"  {ln}" for ln in lines[-DETAIL_LINES:]]
+    return [f"{name} FAILED (exit {result.returncode})", OWNER] + [f"  {ln}" for ln in lines[-DETAIL_LINES:]]
 
 
 def retro_block(result: subprocess.CompletedProcess) -> list[str]:
@@ -88,6 +89,7 @@ def main() -> int:
     for name, args in steps:
         if name == "compare" and not baseline.is_file():
             block.append(f"compare FAILED: baseline missing: run scripts/gates.sh baseline {slug} before the first task")
+            block.append(OWNER)
             failed = True
             continue
         result = gates(root, *args)

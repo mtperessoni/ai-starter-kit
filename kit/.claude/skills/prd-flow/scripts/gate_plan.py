@@ -25,6 +25,8 @@ def check_plan(path: Path, rules: Rules, cfg: dict[str, str]) -> None:
             continue
         if not re.search(r"^Owns:", block, re.M):
             err("P2", f"{tid} without 'Owns:'")
+        if not re.search(r"^Read:", block, re.M):
+            err("P10", f"{tid} without 'Read:' (exact paths or path::symbol the executor opens)")
         if not re.search(r"^(Lens|Reviewer):", block, re.M):
             warn("P3", f"{tid} without 'Lens:' (an extra reviewer, or none)")
         if not re.search(r"^Model:", block, re.M):

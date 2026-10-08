@@ -168,6 +168,7 @@ class GatesV5Test(unittest.TestCase):
         r = self.gates("close", "demo")
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
         self.assertIn("lint FAILED", r.stdout)
+        self.assertIn("owner: executor fix", r.stdout)
         self.assertLessEqual(len(r.stdout.strip().splitlines()), 15)
 
     def test_close_without_a_baseline_says_so(self) -> None:
@@ -175,6 +176,7 @@ class GatesV5Test(unittest.TestCase):
         r = self.gates("close", "nobase")
         self.assertEqual(r.returncode, 1, r.stdout)
         self.assertIn("baseline missing: run scripts/gates.sh baseline nobase before the first task", r.stdout)
+        self.assertIn("owner: executor fix", r.stdout)
 
     def stub_gates(self, lint_out: str = "", lint_rc: int = 0) -> None:
         write(self.p.root, "scripts/gates.sh", f"""case "$1" in
