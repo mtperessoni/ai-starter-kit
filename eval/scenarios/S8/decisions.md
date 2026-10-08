@@ -1,0 +1,8 @@
+- Express delivery: the customer asks for it when checking out; it is off unless asked. It costs a flat 25.00 for everybody, VIP or not, and is never free, not even above the free-shipping amount. Without it, shipping works as today.
+- The checkout takes an optional `express` choice, off by default; a refused value is not a concern, only true or false. No new public name is exported besides that choice and the new receipt field.
+- Loyalty points: one point for every full 10.00 of the amount left after discounts, shipping not counted, rounded down. A VIP customer earns double. Examples: 99.99 after discounts is 9 points, 100.00 is 10, a VIP at 100.00 earns 20.
+- The receipt carries the points as a new `points` whole number. The receipt text layout and `as_dict` do not change.
+- The points are computed in their own part of the code, separate from shipping and from the discount rules; checkout only wires the two new results in.
+- Shipping rules for a normal delivery, discounts, rounding and refusals of an invalid cart do not change.
+- Rollout: applies to every order from now on, no flag, no migration. Nobody is notified.
+- Not decided yet and nobody can answer it now: how long earned points stay valid. Do not invent an expiry rule; leave it visibly open for the product owner.

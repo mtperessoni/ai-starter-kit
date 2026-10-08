@@ -478,5 +478,22 @@ class JudgeKeysTest(unittest.TestCase):
             self.assertIn(grade.grade(project, scenario, "LT")["conflict_found"], (True, False))
 
 
+class FlowGradeTest(unittest.TestCase):
+    def test_review_weighted_per_100_lines(self):
+        rr = {"blind_findings": {"critical": 1, "high": 1, "medium": 1, "low": 1}}
+        self.assertEqual(grade.review_weighted(rr, 150), 15 * 100 / 150)
+        self.assertIsNone(grade.review_weighted(rr, 0))
+        self.assertIsNone(grade.review_weighted(None, 10))
+
+    def test_conflict_recall_reads_the_surveyor_impact(self):
+        import tempfile
+        root = Path(tempfile.mkdtemp())
+        state = root / ".claude/prd-flow/state/s"
+        state.mkdir(parents=True)
+        (state / "impact.md").write_text("conflicts: SHP-01", encoding="utf-8")
+        self.assertEqual(grade.conflict_recall(root, ["SHP-01", "SHP-02"]), 0.5)
+        self.assertIsNone(grade.conflict_recall(root, []))
+
+
 if __name__ == "__main__":
     unittest.main()

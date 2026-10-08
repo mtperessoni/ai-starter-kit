@@ -312,13 +312,14 @@ def efficiency(transcript):
             "subagent_tool_calls_median", "subagent_errors", "assistant_texts",
             "main_min", "agent_min", "cold_starts", "error_kinds", "gate_runs_main",
             "gate_runs_sub", "cost_main_usd", "cost_subagents_usd", "cache_hit_rate",
-            "output_share", "gate_fail_ratio", "rereads", "docs_dispatched")
+            "output_share", "gate_fail_ratio", "rereads", "docs_dispatched", *six.FLOW_KEYS)
     empty = {k: None for k in keys}
     if transcript is None:
         return empty
     try:
         import transcript as tr  # lazy: written by another module
-        s = tr.summarize(transcript)
+        s = (tr.summarize_phases(transcript) if isinstance(transcript, (list, tuple)) and len(transcript) > 1
+             else tr.summarize(transcript[0] if isinstance(transcript, (list, tuple)) else transcript))
     except (ImportError, OSError, ValueError):
         return empty
     return {k: s.get(k) for k in keys}
@@ -359,6 +360,33 @@ def task_counts(tasks, cov, tokens_total):
     done = round(cov * n) if cov is not None else 0
     per = tokens_total / done if done and isinstance(tokens_total, (int, float)) else None
     return {"tasks_planned": n, "tasks_done": done, "tokens_per_task": per}
+
+
+def conflict_recall(project, ids):
+    """Share of the expected conflict IDs named in a surveyor impact.md; None when none are expected."""
+    if not ids:
+        return None
+    text = "\n".join(read_text(p) or "" for prefix in STATE_PREFIXES
+                     for p in sorted((Path(project) / prefix).rglob("impact.md")))
+    return sum(1 for i in ids if re.search(rf"(?<![A-Z0-9-]){re.escape(i)}(?!\d)", text)) / len(ids)
+
+
+def changed_code_lines(project, seed):
+    lines = 0
+    for row in git(project, "diff", "--numstat", seed, "--").splitlines() if seed else []:
+        add, _, rest = row.partition("\t")
+        dele, _, path = rest.partition("\t")
+        if is_code_path(path) and add.isdigit() and dele.isdigit():
+            lines += int(add) + int(dele)
+    return lines
+
+
+def review_weighted(rr, lines):
+    """Blind findings weighted Critical 8, High 4, Medium 2, Low 1, per 100 changed lines."""
+    counts = (rr or {}).get("blind_findings")
+    if not counts or not lines:
+        return None
+    return sum(w * (counts.get(sev) or 0) for sev, w in six.SEVERITY_WEIGHTS.items()) * 100 / lines
 
 
 def blind_metrics(rr):
@@ -441,6 +469,13 @@ def grade(project, scenario_dir, arm, transcript=None, started_at=None, judge_re
                                "gate_fail_ratio", "rereads", "docs_dispatched")},
         **blind_metrics(review_result),
     })
+    m["conflict_recall"] = conflict_recall(project, exp.get("conflict_ids") or [])
+    m["review_weighted"] = review_weighted(review_result, changed_code_lines(project, seed))
+    m["first_pass"] = (bool(m["accept"] == 1.0 and eff["first_pass_clean"])
+                       if transcript and eff["first_pass_clean"] is not None else None)
+    if exp.get("expected_waves") is not None:
+        m["expected_waves"] = exp["expected_waves"]
+        m["waves_match"] = (eff["waves"] == exp["expected_waves"]) if eff["waves"] is not None else None
     m["first_pass_rate"] = six.first_pass_rate(m["rework_commits"], m["tasks_done"])
     if not transcript:
         m["subagents_wasted"] = None
@@ -452,7 +487,7 @@ def main():
     ap.add_argument("project")
     ap.add_argument("scenario")
     ap.add_argument("--arm", default="LT")
-    ap.add_argument("--transcript")
+    ap.add_argument("--transcript", nargs="+")
     ap.add_argument("--started-at", type=float)
     a = ap.parse_args()
     print(json.dumps(grade(a.project, a.scenario, a.arm, a.transcript, a.started_at), indent=2))

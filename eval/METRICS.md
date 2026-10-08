@@ -41,6 +41,23 @@ The single scorecard every eval round uses to judge a change to the kit (MAINTAI
 | M7 Output quality | `prd_fidelity`, `conflict_found`, `conflict_recall`, `contradiction_left`, `gap_recorded`, `traceability`, `single_source` |
 | M8 Protocol | `dispatch_map`, `main_violations`, `docs_first` |
 
+## Definitions of the flow fields
+| Field | Definition |
+|---|---|
+| `main_calls`, `start_context` | unique main API calls; input tokens of the first main call |
+| `main_cache_write`, `cache_busts` | largest cache write of a main call after the first; calls above 30k |
+| `dispatch_map` | share of the required roles (surveyor, docs, executor, reviewer) dispatched; role by `subagent_type` `prd-flow-<role>`, else by description |
+| `main_violations` | main Edit or Write under `src/`, `docs/` or `tests/`, main reads of those before the first surveyor, main reads of worker-only references, main gate runs outside `--rules`, `--step plan` and `close` plus repeats of those; None when no surveyor or executor ran |
+| `waves`, `wave_widths` | an executor dispatch opens a wave when no executor is outstanding; widths count executors per wave |
+| `parallel_factor` | executor agent minutes over the wall time from the first executor start to the last executor end |
+| `ceremony_ratio` | tool calls on docs, changes, specs and `.claude` paths over calls on `src` and `tests` paths |
+| `rework_actions` | gate fails + review rounds past the first + failed test runs + re-dispatched task cards + the largest rerun count of one gate or lint command |
+| `first_pass` | accepted, no review fix round, no gate rerun after a fail, no re-dispatch |
+| `conflict_recall` | expected conflict IDs named in the surveyor `impact.md` over expected IDs |
+| `review_weighted` | blind findings weighted 8, 4, 2, 1 per 100 changed code lines |
+| Two-phase arm | phase 2 transcript is `<pair>.p2.jsonl`; costs, tokens and counts add over both phases |
+| Hermetic limit | on a machine where the user-level CLAUDE.md, skills and agents still load despite `CLAUDE_CONFIG_DIR`, `start_context` shows it; `--bare` needs an API key |
+
 ## How a round runs
 | Rule | Why |
 |---|---|

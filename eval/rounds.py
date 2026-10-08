@@ -26,7 +26,8 @@ def load_column(folder, arm):
         summary = None
         log = Path(folder) / f"{stem}.jsonl"
         if log.is_file():
-            summary = transcript.summarize(log)
+            logs = [log] + sorted(Path(folder).glob(f"{stem}.p[2-9].jsonl"))
+            summary = transcript.summarize_phases(logs)
         sc = report.NAME.match(stem)["sc"]
         runs.setdefault(sc, []).append(six.derive(metrics, summary))
     return runs

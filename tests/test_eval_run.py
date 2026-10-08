@@ -151,5 +151,64 @@ class LargeConfigTest(unittest.TestCase):
             self.assertEqual(self.cfg["arms"][arm], CFG["arms"][arm])
 
 
+class HermeticRunTest(unittest.TestCase):
+    def test_env_points_to_a_fresh_folder_with_only_the_credentials(self):
+        import shutil
+        import tempfile
+        src = Path(tempfile.mkdtemp())
+        (src / ".credentials.json").write_text("{}", encoding="utf-8")
+        (src / "CLAUDE.md").write_text("personal", encoding="utf-8")
+        tmp, env = run.hermetic_env({"CLAUDE_CODE_SESSION_ID": "x", "CLAUDECODE": "1", "PATH": "p"}, src)
+        self.addCleanup(shutil.rmtree, tmp, True)
+        self.assertEqual(env["CLAUDE_CONFIG_DIR"], str(tmp))
+        self.assertEqual(sorted(p.name for p in tmp.iterdir()), [".credentials.json"])
+        self.assertEqual(env.get("PATH"), "p")
+        self.assertNotIn("CLAUDECODE", env)
+        self.assertNotIn("CLAUDE_CODE_SESSION_ID", env)
+
+    def test_command_pins_model_effort_and_sources(self):
+        cmd = run.build_command(5, "claude", "opus", "medium")
+        self.assertEqual(cmd[cmd.index("--model") + 1], "opus")
+        self.assertEqual(cmd[cmd.index("--effort") + 1], "medium")
+        self.assertEqual(cmd[cmd.index("--setting-sources") + 1], "project,local")
+        self.assertNotIn("--model", run.build_command(5, "claude"))
+
+
+class BigConfigTest(unittest.TestCase):
+    def setUp(self):
+        self.cfg = json.loads((EVAL / "arms-big.json").read_text(encoding="utf-8"))
+
+    def test_arms_scenarios_and_pins(self):
+        self.assertEqual(self.cfg["arms"]["GATE"]["ref"], "fix/existing-repo-adoption")
+        self.assertEqual(self.cfg["arms"]["FLOW"]["ref"], "HEAD")
+        fast = self.cfg["arms"]["FLOW-FAST"]
+        self.assertTrue(fast["two_phase"])
+        self.assertEqual(fast["phase2_model"], "sonnet")
+        self.assertEqual({k: v["reps"] for k, v in self.cfg["scenarios"].items()}, {"S5": 3, "S6": 1, "S7": 1, "S8": 1})
+        self.assertTrue(self.cfg["model"] and self.cfg["effort"])
+        self.assertEqual(len(run.plan_pairs(self.cfg)), 18)
+
+    def test_phase_prompts_exist_and_resume(self):
+        self.assertIn("/prd-flow resume {slug}", (EVAL / "prompt-phase2.md").read_text(encoding="utf-8"))
+        self.assertIn("approved and committed", (EVAL / "prompt-phase1.md").read_text(encoding="utf-8"))
+        self.assertEqual(run.render_phase2("resume {slug} {decisions}", "s", " d "), "resume s d")
+
+    def test_state_slug_reads_the_state_folder(self):
+        import tempfile
+        root = Path(tempfile.mkdtemp())
+        (root / ".claude/prd-flow/state/_close").mkdir(parents=True)
+        (root / ".claude/prd-flow/state/min-order").mkdir()
+        self.assertEqual(run.state_slug(root), "min-order")
+
+    def test_s8_is_complete(self):
+        folder = EVAL / "scenarios" / "S8"
+        exp = json.loads((folder / "expected.json").read_text(encoding="utf-8"))
+        self.assertEqual(exp["expected_waves"], 2)
+        self.assertTrue(exp["gap_topic"] and exp["prd_facts"] and exp["dup_phrases"])
+        for name in ("request.md", "decisions.md"):
+            self.assertNotIn(chr(0x2014), (folder / name).read_text(encoding="utf-8"))
+        self.assertTrue(list((folder / "hidden").glob("test_*.py")))
+
+
 if __name__ == "__main__":
     unittest.main()

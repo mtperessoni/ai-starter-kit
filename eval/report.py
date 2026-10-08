@@ -10,7 +10,7 @@ import six
 CAND, BASE = "LT", "SK"
 EXPECTED_REPS = {"S1": 2, "S2": 2, "S3": 1, "S4": 1}
 INFRA = {"rate_limited", "skipped_rate_limit", "build_failed"}
-NAME = re.compile(r"^(?P<arm>[^-]+)-(?P<sc>.+)-r(?P<n>\d+)$")
+NAME = re.compile(r"^(?P<arm>[^-]+(?:-[A-Z]+)*)-(?P<sc>[A-Z]\d+)-r(?P<n>\d+)$")
 LOWER, HIGHER = "lower", "higher"
 GROUP_LABELS = {"source_fidelity": "Source-of-truth fidelity"}
 GROUPS = {

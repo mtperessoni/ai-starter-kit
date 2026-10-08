@@ -46,9 +46,38 @@ def plan_pairs(cfg, only=None, arms=None):
     return pairs
 
 
-def build_command(budget_usd, claude="claude"):
-    return [claude, "-p", "--output-format", "stream-json", "--verbose",
-            "--dangerously-skip-permissions", "--max-budget-usd", str(budget_usd)]
+def build_command(budget_usd, claude="claude", model=None, effort=None):
+    cmd = [claude, "-p", "--output-format", "stream-json", "--verbose",
+           "--dangerously-skip-permissions", "--setting-sources", "project,local"]
+    if model:
+        cmd += ["--model", model]
+    if effort:
+        cmd += ["--effort", effort]
+    cmd += ["--max-budget-usd", str(budget_usd)]
+    return cmd
+
+
+INHERITED_PREFIXES = ("CLAUDE_CODE_", "CLAUDE_AGENT_")
+INHERITED_NAMES = {"CLAUDECODE", "AI_AGENT", "CLAUDE_PID", "CLAUDE_EFFORT"}
+
+
+def operator_config_dir(env=None):
+    env = os.environ if env is None else env
+    return Path(env.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude")
+
+
+def hermetic_env(base_env=None, source=None):
+    """(temp config folder, env): a fresh CLAUDE_CONFIG_DIR holding only the credentials file, so no
+    personal CLAUDE.md, skills, hooks, memory or settings load and auth still works."""
+    base_env = {k: v for k, v in (os.environ if base_env is None else base_env).items()
+                if not k.startswith(INHERITED_PREFIXES) and k not in INHERITED_NAMES}
+    src = Path(source) if source else operator_config_dir(base_env)
+    tmp = Path(tempfile.mkdtemp(prefix="ai-kit-claude-"))
+    creds = src / ".credentials.json"
+    if creds.is_file():
+        shutil.copy2(creds, tmp / ".credentials.json")
+    base_env["CLAUDE_CONFIG_DIR"] = str(tmp)
+    return tmp, base_env
 
 
 def render_prompt(template, request, decisions, protocol):
@@ -81,12 +110,12 @@ def kill_tree(proc):
         proc.kill()
 
 
-def run_claude(project, prompt, budget, timeout_s, out_jsonl, log):
+def run_claude(project, prompt, budget, timeout_s, out_jsonl, log, model=None, effort=None, env=None):
     exe = shutil.which("claude") or "claude"
     with open(out_jsonl, "w", encoding="utf-8") as so, open(log, "w", encoding="utf-8") as se:
         try:
-            proc = subprocess.Popen(build_command(budget, exe), cwd=project, stdin=subprocess.PIPE,
-                                    stdout=so, stderr=se, text=True, encoding="utf-8")
+            proc = subprocess.Popen(build_command(budget, exe, model, effort), cwd=project, env=env,
+                                    stdin=subprocess.PIPE, stdout=so, stderr=se, text=True, encoding="utf-8")
         except OSError as e:
             se.write(f"cannot start claude: {e}\n")
             return "crash"
@@ -118,6 +147,40 @@ def classify(jsonl, returncode):
     return "crash"
 
 
+def state_slug(project):
+    """The slug of the one change in flight: the state folder phase 1 left behind."""
+    base = Path(project) / ".claude" / "prd-flow" / "state"
+    names = sorted(p.name for p in base.iterdir() if p.is_dir() and not p.name.startswith("_")) if base.is_dir() else []
+    return names[0] if names else None
+
+
+def render_phase2(template, slug, decisions):
+    return template.replace("{slug}", slug).replace("{decisions}", decisions.strip())
+
+
+def run_sessions(arm_cfg, cfg, project, prompt, scenario, pair, args, results, name, env):
+    """Phase 1, then for a two-phase arm a new session that resumes the change. (status, [transcripts])."""
+    model, effort = arm_cfg.get("model", cfg.get("model")), arm_cfg.get("effort", cfg.get("effort"))
+    timeout = args.timeout_min * 60
+    transcript = results / f"{name}.jsonl"
+    two = arm_cfg.get("two_phase")
+    if two:
+        prompt += "\n\n" + (HERE / "prompt-phase1.md").read_text(encoding="utf-8")
+    status = run_claude(project, prompt, pair["budget_usd"], timeout, transcript,
+                        results / f"{name}.stderr.log", model, effort, env)
+    if not two or status != "ok":
+        return status, [transcript]
+    slug = state_slug(project)
+    if slug is None:
+        return "crash", [transcript]
+    p2 = results / f"{name}.p2.jsonl"
+    prompt2 = render_phase2((HERE / "prompt-phase2.md").read_text(encoding="utf-8"), slug,
+                            (scenario / "decisions.md").read_text(encoding="utf-8"))
+    status = run_claude(project, prompt2, pair["budget_usd"], timeout, p2, results / f"{name}.p2.stderr.log",
+                        arm_cfg.get("phase2_model", "sonnet"), arm_cfg.get("phase2_effort", effort), env)
+    return status, [transcript, p2]
+
+
 def run_pair(pair, cfg, args, projects, results, template):
     name, arm, sc = pair["name"], pair["arm"], pair["scenario"]
     arm_cfg = cfg["arms"][arm]
@@ -140,8 +203,13 @@ def run_pair(pair, cfg, args, projects, results, template):
         prompt = render_prompt(template, (scenario / "request.md").read_text(encoding="utf-8"),
                                (scenario / "decisions.md").read_text(encoding="utf-8"),
                                (HERE / arm_cfg["protocol"]).read_text(encoding="utf-8"))
-        status = run_claude(project, prompt, pair["budget_usd"], args.timeout_min * 60, transcript,
-                            results / f"{name}.stderr.log")
+        tmp, env = hermetic_env()
+        try:
+            status, transcripts = run_sessions(arm_cfg, cfg, project, prompt, scenario, pair, args,
+                                               results, name, env)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+        transcript = transcripts if len(transcripts) > 1 else transcripts[0]
     if status == "rate_limited":
         QUOTA_HIT.set()
     wall_min = round((time.time() - started_at) / 60, 3)

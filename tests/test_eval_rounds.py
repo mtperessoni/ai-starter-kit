@@ -125,15 +125,39 @@ class RepsAndAdoptionTest(unittest.TestCase):
         text = rounds.render([f"{self.base}:GATE", f"{self.good}:FLOW"], f"{self.base}:GATE")
         self.assertIn("## Adoption (M07)", text)
         self.assertIn("Verdict g:FLOW: PASS", text)
-        self.assertIn("PASS S5 cost_usd within +10%", text)
+        self.assertIn("PASS S5 cost_per_accept median within +10%", text)
 
     def test_adoption_fail_on_cost_tokens_and_gates(self):
         text = rounds.render([f"{self.base}:GATE", f"{self.bad}:FLOW"], f"{self.base}:GATE")
         self.assertIn("Verdict x:FLOW: FAIL", text)
-        self.assertIn("FAIL S5 cost_usd within +10%", text)
+        self.assertIn("FAIL S5 cost_per_accept median within +10%", text)
         self.assertIn("FAIL tokens_main per run at most 3.5M", text)
-        self.assertIn("FAIL M2 not worse (hard gate)", text)
-        self.assertIn("FAIL M8 not worse (hard gate)", text)
+        self.assertIn("FAIL M2 Tasks completed successfully: wins at least losses", text)
+        self.assertIn("FAIL M8 Protocol compliance: wins at least losses", text)
+
+    def test_hard_gates_judge_the_candidate_alone(self):
+        flow = folder(self.tmp.name, "f", {"FLOW-S5-r1": {"status": "ok", "hidden_passed": 4, "hidden_total": 4,
+                                                          "contradiction_left": 0, "conflict_recall": 0.5,
+                                                          "dispatch_map": 1.0, "main_violations": 2}})
+        text = rounds.render([f"{self.base}:GATE", f"{flow}:FLOW"], f"{self.base}:GATE")
+        self.assertIn("FAIL Conflict recall 1.0 (hard gate)", text)
+        self.assertIn("FAIL Protocol: main_violations 0 (hard gate)", text)
+        self.assertIn("PASS Protocol: dispatch_map 1.0 (hard gate)", text)
+        self.assertIn("PASS Behavior: hidden tests 100% (hard gate)", text)
+
+    def test_noise_band_is_the_spread_of_the_reps(self):
+        import adoption
+        wide = [{"wall_min": 8.0}, {"wall_min": 14.0}]
+        self.assertEqual(adoption.outcome("wall_min", adoption.stats(wide, "wall_min"), (12.0, 0.0)), "tie")
+        self.assertEqual(adoption.outcome("wall_min", (10.0, 0.0), (12.0, 0.0)), "loss")
+
+    def test_second_phase_transcript_is_summed(self):
+        d = folder(self.tmp.name, "p", {"FLOW-FAST-S5-r1": {"status": "ok", "wall_min": 10.0}})
+        for suffix, cost in ((".jsonl", 1.0), (".p2.jsonl", 2.0)):
+            (d / f"FLOW-FAST-S5-r1{suffix}").write_text(
+                json.dumps({"type": "result", "total_cost_usd": cost, "duration_ms": 60000}), encoding="utf-8")
+        run = rounds.load_column(d, "FLOW-FAST")["S5"][0]
+        self.assertAlmostEqual(run["cost_usd"], 3.0)
 
     def test_missing_data_never_crashes(self):
         d = folder(self.tmp.name, "e", {"FLOW-S1-r1": {"status": "ok"}})

@@ -5,6 +5,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+import protocol
+
 USAGE_KEYS = ("input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens")
 MODEL_KEYS = {"input_tokens": "inputTokens", "output_tokens": "outputTokens",
               "cache_read_tokens": "cacheReadInputTokens", "cache_write_tokens": "cacheCreationInputTokens"}
@@ -127,7 +129,8 @@ def summarize(path):
     kinds, gate_main, gate_sub = dict.fromkeys(ERROR_KINDS, 0), 0, 0
     texts = []  # main-thread assistant text blocks with their event time
     main_model, gate_ids, gate_failed, reads, rereads, docs_dispatched = None, set(), set(), {}, 0, False
-    for n, e in enumerate(_events(path)):
+    events = list(_events(path))
+    for n, e in enumerate(events):
         kind = e.get("type")
         if e.get("timestamp"):
             ts = _epoch(e["timestamp"])
@@ -236,7 +239,16 @@ def summarize(path):
     review_agents = sum(1 for d in detail if d["review"])
     for d in detail:
         d.pop("id")
+    flow = protocol.analyze(events)
+    review_fix_rounds = max(0, (rounds or review_agents) - 1)
+    rework = (len(gate_failed) + review_fix_rounds + failed_tests + flow["redispatches"]
+              + flow["max_reruns_per_step"])
+    clean = review_fix_rounds == 0 and not flow["gate_reruns_after_fail"] and not flow["redispatches"]
     return {
+        **flow,
+        "main_only_min": max(0.0, wall_min - agent_min) if wall_min is not None else None,
+        "rework_actions": rework,
+        "first_pass_clean": clean,
         "cost_usd": r.get("total_cost_usd"),
         "wall_min": wall_min,
         "agent_min": agent_min,
@@ -278,5 +290,52 @@ def summarize(path):
     }
 
 
+SUM_KEYS = ("cost_usd", "wall_min", "agent_min", "main_min", "main_only_min", "cold_starts", "gate_runs_main",
+            "gate_runs_sub", "cost_main_usd", "cost_subagents_usd", "rereads", "turns", "tokens_total",
+            "tokens_main", "tokens_subagents", "tool_calls", "tool_errors", "test_runs", "failed_test_runs",
+            "subagents", "subagent_errors", "review_rounds", "main_calls", "main_tokens_post_exec",
+            "cache_busts", "waves", "rework_actions", "max_reruns_per_step", "gate_reruns_after_fail",
+            "redispatches", "main_edits", "main_reads_before_surveyor", "worker_only_reads",
+            "extra_main_gate_runs", "inline_residency") + tuple(f"{k}" for k in MODEL_KEYS)
+
+
+def _add(vals):
+    vals = [v for v in vals if isinstance(v, (int, float)) and not isinstance(v, bool)]
+    return sum(vals) if vals else None
+
+
+def summarize_phases(paths):
+    """One summary over the sessions of a two-phase run: counts and costs add, the rest is recombined."""
+    parts = [summarize(p) for p in paths]
+    if len(parts) == 1:
+        return parts[0]
+    out = dict(parts[0])
+    for k in SUM_KEYS:
+        out[k] = _add([p.get(k) for p in parts])
+    for k in ("subagent_detail", "assistant_texts", "wave_widths"):
+        out[k] = [x for p in parts for x in p.get(k) or []]
+    out["skills"] = sorted({x for p in parts for x in p.get("skills") or []})
+    out["error_kinds"] = {k: sum(p["error_kinds"][k] for p in parts) for k in ERROR_KINDS}
+    out["agents_by_role"] = {r: sum(p["agents_by_role"][r] for p in parts) for r in protocol.ROLES}
+    out["dispatch_map"] = sum(out["agents_by_role"][r] > 0 for r in protocol.REQUIRED_ROLES) / len(protocol.REQUIRED_ROLES)
+    out["context_peak"] = max(p["context_peak"] for p in parts)
+    out["main_cache_write"] = max(p["main_cache_write"] for p in parts)
+    out["started_at"] = min((p["started_at"] for p in parts if p["started_at"] is not None), default=None)
+    out["is_error"] = parts[-1]["is_error"]
+    out["subtype"] = parts[-1]["subtype"]
+    out["docs_dispatched"] = any(p["docs_dispatched"] for p in parts)
+    out["first_pass_clean"] = all(p["first_pass_clean"] for p in parts)
+    out["main_violations"] = _add([p["main_violations"] for p in parts])
+    out["parallel_factor"] = next((p["parallel_factor"] for p in parts if p["parallel_factor"] is not None), None)
+    out["ceremony_ratio"] = next((p["ceremony_ratio"] for p in parts if p["ceremony_ratio"] is not None), None)
+    calls, errs = out["tool_calls"], out["tool_errors"]
+    out["error_rate"] = errs / calls if calls else None
+    weights = [p["tokens_total"] for p in parts]
+    for k in ("cache_hit_rate", "output_share", "gate_fail_ratio", "subagent_token_share"):
+        pairs = [(p[k], w) for p, w in zip(parts, weights) if p.get(k) is not None]
+        out[k] = sum(v * w for v, w in pairs) / sum(w for _, w in pairs) if pairs and sum(w for _, w in pairs) else None
+    return out
+
+
 if __name__ == "__main__":
-    print(json.dumps(summarize(sys.argv[1]), indent=2))
+    print(json.dumps(summarize_phases(sys.argv[1:]), indent=2))

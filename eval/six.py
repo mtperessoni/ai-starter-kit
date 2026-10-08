@@ -3,45 +3,59 @@ import statistics
 
 KINDS = ("gate_check", "environment", "missing_file", "test_failure", "other")
 METRICS = {
-    "M1": ("Token consumption", ["tokens_total", "tokens_main", "tokens_subagents", "context_peak",
+    "M1": ("Token consumption", ["cost_per_accept", "tokens_total", "tokens_main", "tokens_subagents", "context_peak",
+                                 "start_context", "main_calls", "main_tokens_post_exec", "main_cache_write",
                                  "cost_usd", "cost_main_usd", "cost_subagents_usd", "cache_hit_rate",
                                  "output_share", "tokens_per_task"]),
     "M2": ("Tasks completed successfully", ["tasks_planned", "tasks_done", "hidden_passed",
                                             "hidden_total", "completed"]),
     "M3": ("Total time", ["wall_min"]),
     "M4": ("Time per run", ["wall_min", "main_min", "agent_min", "cold_starts", "min_to_docs",
-                            "min_to_code", "min_per_task"]),
+                            "min_to_code", "min_per_task", "main_only_min", "parallel_factor"]),
     "M5": ("Error rate", ["tool_calls", "tool_errors", "error_rate", "gate_runs_main",
-                          "gate_runs_sub", "gate_fail_ratio", "rereads"] + [f"error_kinds.{k}" for k in KINDS]),
+                          "gate_runs_sub", "gate_fail_ratio", "rereads", "rework_actions",
+                          "max_reruns_per_step", "ceremony_ratio"] + [f"error_kinds.{k}" for k in KINDS]),
     "M6": ("Implementation versus plan", ["plan_coverage", "plan_drift", "tasks_per_executor",
-                                          "first_pass_rate", "review_rounds",
-                                          "blind_findings_total", "accept"]),
+                                          "first_pass_rate", "first_pass", "review_rounds",
+                                          "blind_findings_total", "review_weighted", "accept"]),
     "M7": ("Output quality", ["prd_fidelity", "conflict_found", "contradiction_left",
-                              "gap_recorded", "traceability", "single_source"]),
-    "M8": ("Protocol compliance", ["docs_dispatched", "protocol_adherence", "docs_first"]),
+                              "gap_recorded", "traceability", "single_source", "conflict_recall"]),
+    "M8": ("Protocol compliance", ["docs_dispatched", "protocol_adherence", "docs_first", "dispatch_map",
+                                  "main_violations", "inline_residency", "waves"]),
 }
+SEVERITY_WEIGHTS = {"critical": 8, "high": 4, "medium": 2, "low": 1}
+FLOW_KEYS = ("main_calls", "main_tokens_post_exec", "main_cache_write", "cache_busts", "start_context",
+             "main_only_min", "main_violations", "inline_residency", "waves", "wave_widths",
+             "parallel_factor", "ceremony_ratio", "max_reruns_per_step", "rework_actions",
+             "dispatch_map", "agents_by_role", "first_pass_clean")
 HIGHER, LOWER = "higher", "lower"
 DIRECTION = {
     **dict.fromkeys(("tokens_total", "tokens_main", "tokens_subagents", "context_peak", "cost_usd",
-                     "cost_main_usd", "cost_subagents_usd", "tokens_per_task", "wall_min",
+                     "cost_main_usd", "cost_subagents_usd", "tokens_per_task", "cost_per_accept", "wall_min",
                      "main_min", "agent_min", "cold_starts", "min_to_docs", "min_to_code",
                      "min_per_task", "tool_errors", "error_rate", "gate_runs_main", "gate_runs_sub",
                      "gate_fail_ratio", "rereads", "plan_drift", "review_rounds",
-                     "blind_findings_total", "contradiction_left", "single_source"), LOWER),
+                     "blind_findings_total", "contradiction_left", "single_source", "start_context",
+                     "main_calls", "main_tokens_post_exec", "main_cache_write", "main_only_min",
+                     "rework_actions", "max_reruns_per_step", "ceremony_ratio", "review_weighted",
+                     "main_violations", "inline_residency"), LOWER),
     **dict.fromkeys(("cache_hit_rate", "tasks_done", "hidden_passed", "completed", "plan_coverage",
                      "first_pass_rate", "accept", "prd_fidelity", "conflict_found", "gap_recorded",
-                     "traceability", "docs_dispatched", "protocol_adherence", "docs_first"), HIGHER),
+                     "traceability", "docs_dispatched", "protocol_adherence", "docs_first", "first_pass",
+                     "conflict_recall", "dispatch_map", "parallel_factor"), HIGHER),
     **{f"error_kinds.{k}": LOWER for k in KINDS},
 }
 ADDITIVE = {"tokens_total", "tokens_main", "tokens_subagents", "cost_usd", "tasks_planned",
             "tasks_done", "hidden_passed", "hidden_total", "completed", "wall_min", "main_min",
             "agent_min", "cold_starts", "tool_calls", "tool_errors", "gate_runs_main",
             "gate_runs_sub", "review_rounds", "blind_findings_total", "cost_main_usd",
-            "cost_subagents_usd", "rereads"} | {
+            "cost_subagents_usd", "rereads", "main_calls", "main_tokens_post_exec", "main_only_min",
+            "rework_actions", "main_violations"} | {
     f"error_kinds.{k}" for k in KINDS}
-TRANSCRIPT_KEYS = ("main_min", "agent_min", "cold_starts", "error_kinds", "gate_runs_main",
+TRANSCRIPT_KEYS = ("cost_usd", "main_min", "agent_min", "cold_starts", "error_kinds", "gate_runs_main",
                    "gate_runs_sub", "cost_main_usd", "cost_subagents_usd", "cache_hit_rate",
-                   "output_share", "gate_fail_ratio", "rereads", "docs_dispatched")
+                   "output_share", "gate_fail_ratio", "rereads", "docs_dispatched") + tuple(
+    k for k in FLOW_KEYS if k not in ("wave_widths", "agents_by_role", "first_pass_clean"))
 
 
 def _num(v):
@@ -78,6 +92,11 @@ def derive(m, summary=None):
         out["cold_starts"] = m.get("subagents")
     if out.get("first_pass_rate") is None:
         out["first_pass_rate"] = first_pass_rate(m.get("rework_commits"), out["tasks_done"])
+    if out.get("first_pass") is None and out.get("first_pass_clean") is not None and _num(m.get("accept")) is not None:
+        out["first_pass"] = bool(m["accept"] == 1.0 and out["first_pass_clean"])
+    if out.get("cost_per_accept") is None:
+        cost, passed = _num(m.get("cost_usd")), _num(m.get("hidden_passed"))
+        out["cost_per_accept"] = cost / passed if cost is not None and passed else None
     kinds = out.get("error_kinds") if isinstance(out.get("error_kinds"), dict) else {}
     for k in KINDS:
         out[f"error_kinds.{k}"] = kinds.get(k) if kinds else None

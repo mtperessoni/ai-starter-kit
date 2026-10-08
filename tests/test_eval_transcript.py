@@ -8,6 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "eval"))
+import protocol  # noqa: E402
 import transcript  # noqa: E402
 
 SAMPLE = ROOT / "tests" / "fixtures" / "stream_sample.jsonl"
@@ -328,6 +329,82 @@ class OutputQualityFieldsTest(unittest.TestCase):
         self.assertTrue(self.summarize([agent(description="Run Planner", prompt="x")])["docs_dispatched"])
         self.assertTrue(self.summarize([agent(description="d", prompt="the prd-WRITER task")])["docs_dispatched"])
         self.assertFalse(self.summarize([agent(description="executor", prompt="code")])["docs_dispatched"])
+
+
+def _ev(kind, ts, parent=None, **kw):
+    return {"type": kind, "timestamp": ts, "parent_tool_use_id": parent, **kw}
+
+
+def _call(mid, ts, blocks, usage=None, parent=None):
+    base = {"input_tokens": 1, "cache_read_input_tokens": 100, "cache_creation_input_tokens": 10, "output_tokens": 5}
+    return _ev("assistant", ts, parent, message={"id": mid, "usage": usage or base, "content": blocks})
+
+
+def _use(tid, name, **inp):
+    return {"type": "tool_use", "id": tid, "name": name, "input": inp}
+
+
+def _done(ts, tid, text="ok", parent=None):
+    return _ev("user", ts, parent, message={"content": [{"type": "tool_result", "tool_use_id": tid, "content": text}]})
+
+
+def _flow_session():
+    first = {"input_tokens": 5, "cache_read_input_tokens": 0, "cache_creation_input_tokens": 40000, "output_tokens": 1}
+    return [
+        _call("m1", "2026-10-07T10:00:00Z", [_use("S", "Agent", subagent_type="prd-flow-surveyor", prompt="go")], first),
+        _done("2026-10-07T10:01:00Z", "S"),
+        _call("m2", "2026-10-07T10:01:10Z", [_use("D", "Agent", description="Write docs and plan", prompt="docs")]),
+        _done("2026-10-07T10:02:00Z", "D"),
+        _call("m3", "2026-10-07T10:02:10Z", [_use("E1", "Agent", subagent_type="prd-flow-executor", prompt="T01 go"),
+                                             _use("E2", "Agent", subagent_type="prd-flow-executor", prompt="T02 go")]),
+        _call("s1", "2026-10-07T10:02:20Z", [], parent="E1"), _call("s2", "2026-10-07T10:02:20Z", [], parent="E2"),
+        _call("s3", "2026-10-07T10:06:20Z", [], parent="E1"), _call("s4", "2026-10-07T10:06:20Z", [], parent="E2"),
+        _done("2026-10-07T10:06:30Z", "E1"), _done("2026-10-07T10:06:31Z", "E2"),
+        _call("m4", "2026-10-07T10:06:40Z", [_use("E3", "Agent", subagent_type="prd-flow-executor", prompt="T03 go")]),
+        _done("2026-10-07T10:08:00Z", "E3"),
+        _call("m5", "2026-10-07T10:08:10Z", [_use("R", "Agent", description="Review the wave", prompt="r")]),
+        _done("2026-10-07T10:09:00Z", "R"),
+    ]
+
+
+class FlowMetricsTest(unittest.TestCase):
+    def setUp(self):
+        d = tempfile.TemporaryDirectory()
+        self.addCleanup(d.cleanup)
+        p = Path(d.name) / "t.jsonl"
+        p.write_text("\n".join(json.dumps(e) for e in _flow_session()) + "\n", encoding="utf-8")
+        self.s = transcript.summarize(p)
+
+    def test_dispatch_map_by_type_then_description(self):
+        self.assertEqual(self.s["agents_by_role"]["executor"], 3)
+        self.assertEqual(self.s["agents_by_role"]["docs"], 1)
+        self.assertEqual(self.s["agents_by_role"]["reviewer"], 1)
+        self.assertEqual(self.s["dispatch_map"], 1.0)
+
+    def test_waves_and_widths_follow_returns(self):
+        self.assertEqual((self.s["waves"], self.s["wave_widths"]), (2, [2, 1]))
+
+    def test_parallel_factor_over_the_execution_phase(self):
+        self.assertGreater(self.s["parallel_factor"], 1.0)
+
+    def test_start_context_and_cache_write(self):
+        self.assertEqual(self.s["start_context"], 40005)
+        self.assertEqual(self.s["main_calls"], 5)
+        self.assertEqual(self.s["cache_busts"], 0)
+        self.assertEqual(self.s["main_violations"], 0)
+
+    def test_main_violations_count_edits_reads_and_extra_gates(self):
+        ev = [_call("a", "2026-10-07T10:00:00Z", [_use("r", "Read", file_path="/p/src/orders/x.py"),
+                                                  _use("w", "Edit", file_path="/p/docs/prd/a.md")]),
+              _call("b", "2026-10-07T10:00:10Z", [_use("S", "Agent", subagent_type="prd-flow-surveyor", prompt="g")]),
+              _call("c", "2026-10-07T10:00:20Z", [_use("g", "Bash", command="python gate.py --final")])]
+        self.assertEqual(protocol.analyze(ev)["main_violations"], 3)
+
+    def test_redispatch_of_a_task_card_is_counted(self):
+        ev = _flow_session() + [
+            _call("m6", "2026-10-07T10:09:10Z", [_use("E4", "Agent", subagent_type="prd-flow-executor", prompt="T03 again")]),
+            _done("2026-10-07T10:09:50Z", "E4")]
+        self.assertEqual(protocol.analyze(ev)["redispatches"], 1)
 
 
 if __name__ == "__main__":

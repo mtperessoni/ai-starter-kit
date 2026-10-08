@@ -4,7 +4,6 @@ import six
 BAND = 0.10
 DECIDING = "S5"
 MAX_TOKENS_MAIN = 3_500_000
-HARD = ("M2", "M7", "M8")
 
 
 def stats(runs, field):
@@ -14,11 +13,14 @@ def stats(runs, field):
 
 
 def outcome(field, base, cand):
-    """'win', 'tie' or 'loss' of cand against base, or None without a direction or a value."""
+    """'win', 'tie' or 'loss' of cand against base, or None without a direction or a value.
+    The noise band is the spread of the reps; one rep on either side has no spread, so the 10% floor applies."""
     direction = six.DIRECTION.get(field)
     if direction is None or base is None or cand is None:
         return None
-    band = max(BAND * abs(base[0]), base[1], cand[1])
+    band = max(base[1], cand[1])
+    if band == 0:
+        band = BAND * abs(base[0])
     delta = cand[0] - base[0]
     if abs(delta) <= band:
         return "tie"
@@ -38,26 +40,48 @@ def tally(base_runs, cand_runs):
     return out
 
 
-def _within(base_runs, cand_runs, field):
-    b, c = stats(base_runs.get(DECIDING, []), field), stats(cand_runs.get(DECIDING, []), field)
+def _median_within(base_runs, cand_runs, field):
+    b = six.median(base_runs.get(DECIDING, []), field)
+    c = six.median(cand_runs.get(DECIDING, []), field)
     if b is None or c is None:
         return None, "no data"
-    ratio = c[0] / b[0] if b[0] else None
-    ok = c[0] <= b[0] * (1 + BAND)
-    return ok, f"{c[0]:.3f} vs {b[0]:.3f}" + (f" ({ratio - 1:+.0%})" if ratio else "")
+    ok = c <= b * (1 + BAND)
+    return ok, f"{c:.3f} vs {b:.3f}" + (f" ({c / b - 1:+.0%})" if b else "")
+
+
+def _all(cand_runs, field, ok):
+    """(ok or None, detail) of a hard gate over every candidate run that has the field."""
+    v = [x for runs in cand_runs.values() for x in six.vals(runs, field)]
+    if not v:
+        return None, "no data"
+    bad = sum(1 for x in v if not ok(x))
+    return bad == 0, f"{bad} of {len(v)} runs fail"
+
+
+def hard_gates(cand_runs):
+    """[(label, ok or None, detail)] of the hard gates of eval/METRICS.md, judged on the candidate alone."""
+    gates = []
+    passed = [r for runs in cand_runs.values() for r in runs
+              if six.vals([r], "hidden_passed") and six.vals([r], "hidden_total")]
+    gates.append(("Behavior: hidden tests 100% (hard gate)",
+                  all(r["hidden_passed"] == r["hidden_total"] for r in passed) if passed else None,
+                  f"{sum(1 for r in passed if r['hidden_passed'] != r['hidden_total'])} of {len(passed)} runs fail"))
+    for label, field, test in (("Consistent PRD: contradiction_left 0", "contradiction_left", lambda x: x == 0),
+                               ("Conflict recall 1.0", "conflict_recall", lambda x: x == 1.0),
+                               ("Protocol: dispatch_map 1.0", "dispatch_map", lambda x: x == 1.0),
+                               ("Protocol: main_violations 0", "main_violations", lambda x: x == 0)):
+        ok, detail = _all(cand_runs, field, test)
+        gates.append((f"{label} (hard gate)", ok, detail))
+    return gates
 
 
 def rules(base_runs, cand_runs):
     """[(label, ok or None, detail)]; ok None means no data to decide."""
     t = tally(base_runs, cand_runs)
-    out = []
-    for mid in HARD:
-        n = t[mid]["win"] + t[mid]["tie"] + t[mid]["loss"]
-        out.append((f"{mid} not worse (hard gate)", t[mid]["loss"] == 0 if n else None,
-                    f"{t[mid]['loss']} losses over {n} comparisons"))
-    for f in ("cost_usd", "wall_min"):
-        ok, detail = _within(base_runs, cand_runs, f)
-        out.append((f"{DECIDING} {f} within +{BAND:.0%}", ok, detail))
+    out = hard_gates(cand_runs)
+    for f in ("cost_per_accept", "wall_min"):
+        ok, detail = _median_within(base_runs, cand_runs, f)
+        out.append((f"{DECIDING} {f} median within +{BAND:.0%}", ok, detail))
     peaks = [v for runs in cand_runs.values() for v in six.vals(runs, "tokens_main")]
     out.append((f"tokens_main per run at most {MAX_TOKENS_MAIN / 1e6:.1f}M",
                 max(peaks) <= MAX_TOKENS_MAIN if peaks else None,
