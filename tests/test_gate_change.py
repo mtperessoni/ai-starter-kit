@@ -184,6 +184,20 @@ class FinalTest(unittest.TestCase):
         self.assertIn("ERROR G19", r.stdout)
         self.assertIn("ORD-01", r.stdout)
 
+    def test_a_mixed_route_with_code_is_still_code(self) -> None:
+        section = self.p.root / ORDERS
+        text = section.read_text(encoding="utf-8").replace("src/features/orders/order_service.py | config", "planned | code, adr")
+        section.write_text(text, encoding="utf-8")
+        r = self.p.py(GATE, "--final")
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("ERROR G19", r.stdout)
+
+    def test_an_unknown_route_counts_as_code(self) -> None:
+        section = self.p.root / ORDERS
+        text = section.read_text(encoding="utf-8").replace("src/features/orders/order_service.py | config", "planned | code (see T02)")
+        section.write_text(text, encoding="utf-8")
+        self.assertIn("ERROR G19", self.p.py(GATE, "--final").stdout)
+
     def test_a_planned_rule_closed_by_another_route_is_a_warning(self) -> None:
         section = self.p.root / ORDERS
         text = section.read_text(encoding="utf-8").replace("src/features/orders/order_service.py | config", "planned | config")

@@ -235,3 +235,11 @@ def parse_supersedes(body: str) -> dict[str, str]:
 
 def is_proposed(cell: str, cfg: dict[str, str]) -> bool:
     return f"({cfg['proposed_marker']})" in cell
+
+
+NON_CODE_ROUTES = {"config", "env", "prompt", "data", "backend", "frontend"}
+
+
+def is_code_route(via: str) -> bool:
+    words = [w for w in re.split(r"[^a-z]+", via.lower()) if w]
+    return not words or "code" in words or any(w not in NON_CODE_ROUTES for w in words)

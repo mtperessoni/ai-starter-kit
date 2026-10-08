@@ -13,7 +13,7 @@ from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from gate_core import load_config, parse_supersedes  # noqa: E402
+from gate_core import is_code_route, load_config, parse_supersedes  # noqa: E402
 
 MAX_LINES = 10
 ID = r"[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d+"
@@ -97,7 +97,7 @@ def edit_rows(text: str, ids: list[str], marker: re.Pattern, sources: dict[str, 
         if rid in ids and marker.search(parts[2]):
             if rid not in sources and parts[3].strip() == "planned":
                 kind = parts[via].strip().lower() if via is not None and via < len(parts) else "code"
-                (missing if kind == "code" else own).append(rid)
+                (missing if is_code_route(kind) else own).append(rid)
                 out.append(line)
                 continue
             parts[2] = marker.sub("", parts[2], count=1)

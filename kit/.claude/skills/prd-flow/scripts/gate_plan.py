@@ -4,7 +4,7 @@ import re
 import sys
 from pathlib import Path
 
-from gate_core import ID, ROW, TASK, Rules, cells, err, expand, is_proposed, is_table_line, warn
+from gate_core import ID, ROW, TASK, Rules, cells, err, expand, is_code_route, is_proposed, is_table_line, warn
 
 
 def check_plan(path: Path, rules: Rules, cfg: dict[str, str]) -> None:
@@ -136,7 +136,7 @@ def check_final(root: Path, rules: Rules, cfg: dict[str, str], trd: Path) -> Non
             err("G30", f"{rid} is still {cfg['proposed_marker']}: confront it and approve it, or drop it")
         elif len(row) >= 2 and (row[1].strip("` ").lower() == cfg["planned_source"] or cfg["pending_marker"] in row[0]):
             via = row[2].strip("` ").lower() if len(row) >= 3 else "code"
-            if via == "code":
+            if is_code_route(via):
                 err("G19", f"{rid} is still planned or pending code")
             else:
                 warn("G19", f"{rid} is still planned; it changes via {via} and closes by that route")
