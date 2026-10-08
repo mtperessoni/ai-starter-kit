@@ -70,20 +70,18 @@ Return: the confrontation (at most 25 lines, taken from `impact.md`, 15 in short
 
 Applies the approved rules to the PRD. Step 5 of the C5 route, E10 of the short C5, and C4. Input (C5): `approved-rules.md`, `interview.md`, `pack.md`, `state.md`, `changes/NNN-<slug>/decisions.md`. You never touch the TRD.
 
-**C4 mode** (stale PRD): input is the confirmed F2 divergence in `state.md` (rule ID, PRD text, what the code does, Source); there is no `interview.md`, `approved-rules.md` or `decisions.md`. Skip steps 1 and 5 and the `decisions.md` parts: edit the row in place per `reference/prd-writing.md`, old text literally to the CHANGELOG, INDEX if affected, then steps 3, 4, 6 (no `decisions.md` in the commit) and 7. Only the default gate runs, never `--rules` or `--applied`.
+**C4 mode** (stale PRD): input is the confirmed F2 divergence in `state.md` (rule ID, PRD text, what the code does, Source); there is no `interview.md`, `approved-rules.md` or `decisions.md`. Skip step 1 and the `decisions.md` parts: edit the row in place per `reference/prd-writing.md`, old text literally to the CHANGELOG, INDEX if affected, then steps 3, 4 (`gate.py --step prd` without `--rules`), 5 (no `decisions.md` in the commit) and 6.
 
 **New PRD variant** (classification.md): also read `pack.md`. Write only approved rows after the interview, never `*(proposed)*`; lay out the new PRD folder, INDEX row and README overview per `.claude/skills/prd-create/reference/anatomy.md` (M4).
 
 1. `python .claude/skills/prd-flow/scripts/gate.py --rules .claude/prd-flow/state/<slug>/approved-rules.md` (it reads `interview.md` beside it; Q3, G27 and the other errors). ERROR: stop and return it as a gap.
 2. Read `reference/prd-writing.md` and follow it: markdown of the owning section, markers, `Example` column when the approved row carries it, CHANGELOG (with the `Decisions:` block from `decisions.md`, and `decided by <owner>, written by <approver>` when `decisions.md` records an owner), INDEX, README if affected. In the short C5, apply only the dated section of `approved-rules.md`.
 3. HTML: with `html_mode: generated` (`repo.md`) run `python .claude/skills/prd-flow/scripts/build_prd_html.py` and never edit the HTML; with `hand`, only `Grep -n` of the ID and an exact `Edit` of the line.
-4. `python .claude/skills/prd-flow/scripts/gate.py`. ERROR: fix and run again until green. A WARNING about "earlier drift" is not yours.
-5. `python .claude/skills/prd-flow/scripts/gate.py --rules .claude/prd-flow/state/<slug>/approved-rules.md --applied` (Q4): every approved row must exist in the PRD with identical cells. ERROR: fix the PRD, not the approved file, and run again.
-   When `repo.md` "Shared PRDs" lists a PRD folder you touched, also run `python .claude/skills/prd-flow/scripts/gate.py --sibling` and report it (CI cannot: the sibling path is local).
-6. Commit `docs(prd): <sentence in the git log style>` with markdown, the generated or edited HTML and `decisions.md` together.
-7. Write `writing.md`: files touched, IDs, commit, final gate output, the `--applied` result and the `--sibling` result when run.
+4. One run checks everything this step needs: `python .claude/skills/prd-flow/scripts/gate.py --step prd --rules .claude/prd-flow/state/<slug>/approved-rules.md --applied` (the default checks, Q2, Q3, Q4 and G28 for the "Shared PRDs" of `repo.md`). ERROR: fix the PRD, never the approved file, and run it again. A WARNING about "earlier drift" is not yours.
+5. Commit `docs(prd): <sentence in the git log style>` with markdown, the generated or edited HTML and `decisions.md` together.
+6. Write `writing.md`: files touched, IDs, commit, the last gate line.
 
-Return: commit, IDs touched, the last line of the gate, the `--applied` result (and `--sibling` when run), non-table changes (amendment sections, INDEX, README, new folder; at most 5 lines, so step 6 shows them without reopening files), gaps.
+Return: commit, IDs touched, the last gate line (it covers `--applied` and `--sibling`), non-table changes (amendment sections, INDEX, README, new folder; at most 5 lines, so step 6 shows them without reopening files), gaps.
 
 ## writer-trd
 
@@ -94,18 +92,18 @@ Writes the TRD after the user confirmed the rule diff (C5 step 7; the TRD is nev
 C5 input: `approved-rules.md`, `pack.md`, `writing.md`.
 
 1. Read `reference/trd-planned.md` and write the "Planned" section of each feature in the pack (or the file of a new feature) in the table `| File | Changes or creates | Symbols | IDs |`: no parameters, intervals or values (they are rules or contracts), "Tests to write" is the table `| Test file | IDs |` (never expected values), and contracts are linked to `design.md`, not copied.
-2. `python .claude/skills/prd-flow/scripts/gate.py --trd` (G23 to G26) and `python .claude/skills/prd-flow/scripts/gate.py`. ERROR: fix and run again. A file over the TRD budget splits (trd-planned.md "Size and split").
+2. `python .claude/skills/prd-flow/scripts/gate.py --step trd` (the default checks and G23 to G26 in one run). ERROR: fix and run again. A file over the TRD budget splits (trd-planned.md "Size and split").
 3. Commit `docs(trd): <sentence>`.
 4. Append to `writing.md` the TRD files, the commit and the gate output.
 
-Return: commit, TRD files touched, the last line of both gate runs, gaps.
+Return: commit, TRD files touched, the last gate line, gaps.
 
 ## planner
 
 Builds the plan for agents (step 8; the short C5 appends tasks). Input: `approved-rules.md`, `pack.md`, `changes/NNN-<slug>/decisions.md`, the "Planned" section of the TRD files touched.
 
-1. Read `reference/agent-plan.md` and decide size and where the plan lives (LT04, "Where the plan lives"); reuse the change folder step 4 created. For size M and L write `brief.md` (`docs/templates/change-brief.md`, LT02) and, for L, `design.md` (`docs/templates/change-design.md`, LT03) first; the brief cites rule IDs only and `gate.py --change <dir>` must pass (LT09).
-2. Write the tasks in the format there, with the final promotion task, and copy the "Plan execution rules" and the `## Constitution check` (LT05) into the plan header. Before writing, check with `git log` which tasks the plan depends on are already done. Each task points to its TRD Planned row by file instead of describing it again. Run `python .claude/skills/prd-flow/scripts/gate.py --plan <plan>`: fix every ERROR. Commit `docs(changes): <sentence>`.
+1. Read `reference/agent-plan.md` and decide size and where the plan lives (LT04, "Where the plan lives"); reuse the change folder step 4 created. For size M and L write `brief.md` (`docs/templates/change-brief.md`, LT02) and, for L, `design.md` (`docs/templates/change-design.md`, LT03) first; the brief cites rule IDs only (LT09).
+2. Write the tasks in the format there, with the final promotion task, and copy the "Plan execution rules" and the `## Constitution check` (LT05) into the plan header. Before writing, check with `git log` which tasks the plan depends on are already done. Each task points to its TRD Planned row by file instead of describing it again. Run `python .claude/skills/prd-flow/scripts/gate.py --step plan --plan <plan> --change changes/NNN-<slug>` once (plan, brief and G27 together): fix every ERROR. Commit `docs(changes): <sentence>`.
 3. Structure (SKILL.md R08, `docs/code-structure.md`): every task names the area and its files per `docs/code-structure.md` "This repository's layout", files named after their responsibility, and the tests where AR10 puts them; no task creates a file above the limits or with a generic name; a legacy file over the limit follows AR21 (extract first); an untested legacy path gets a characterization test first (TS42); a task that changes the pieces of an area updates its map and TRD.
 4. Cost (execution.md E12 to E17): rules cited by ID, never copied outside the owning task; each task section at most 25 lines, naming files, entry symbols and tests; the whole plan around 30 KB. Replace the old path with the new one instead of keeping both in parallel, unless a rollback switch requires it: a double path makes every test be touched twice. Model `sonnet`; `opus` only with a reason on the line (E13). Reviewer from `repo.md`.
 

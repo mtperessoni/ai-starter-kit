@@ -8,7 +8,7 @@ IDs, texts and paths in the examples are illustrative: always read the real line
 | 1 | Writes the PRD files from `approved-rules.md` (rows literal, with the Example cell when present) |
 | 2 | Builds the HTML (section "HTML" below), updates CHANGELOG and INDEX |
 | 3 | Writes the `Decisions:` block of the CHANGELOG entry from `changes/NNN-<slug>/decisions.md` |
-| 4 | Runs `gate.py` and `gate.py --rules <approved-rules.md> --applied`: Q4 fails when a row of the file is not in the PRD with identical cells. Step 6 shows this result |
+| 4 | Runs `gate.py --step prd --rules <approved-rules.md> --applied` once: the default checks, Q4 (a row of the file not in the PRD with identical cells) and G28. Step 6 shows its last line from the return |
 | 5 | Commits `docs(prd)` with `decisions.md` and the PRD together |
 
 ## Where to write

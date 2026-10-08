@@ -56,4 +56,4 @@ Create `docs/trd/<area>.md` with the sections of the existing files (Where it li
 Merge "Planned" into the body sections, with the names the code actually used, and remove the section.
 
 ## Gate and commit
-Run `gate.py --trd` and commit `docs(trd): <sentence>`, after the PRD commit, no push.
+Run `gate.py --step trd` (the default checks and `--trd` in one run) and commit `docs(trd): <sentence>`, after the PRD commit, no push.

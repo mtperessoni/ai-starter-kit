@@ -20,7 +20,7 @@ Folder `changes/NNN-<slug>/` with the next free number (LT01); size from the cas
 
 Compatibility (LT11): a legacy `specs/` stays untouched as history. With `repo.md` "Spec-kit" `kept`, its `spec.md` cites PRD rule IDs and defines no FR, and `tasks.md` is not used: this plan is.
 
-Plan commit: `docs(changes): <sentence>`, no push. After writing: `gate.py --plan <plan>` and, for M and L, `gate.py --change changes/NNN-<slug>` (LT09; it warns G27 when the same change number exists on a remote branch).
+Plan commit: `docs(changes): <sentence>`, no push. After writing, one run: `gate.py --step plan --plan <plan> --change changes/NNN-<slug>` (LT09; it warns G27 when the same change number exists on a remote branch).
 
 ## Plan header
 Order: title, `## Constitution check`, `## Plan execution rules`, tasks.

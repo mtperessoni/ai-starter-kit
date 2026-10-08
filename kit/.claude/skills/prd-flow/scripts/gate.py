@@ -16,6 +16,11 @@ Usage: python .claude/skills/prd-flow/scripts/gate.py [--base REF]
        python .claude/skills/prd-flow/scripts/gate.py --final
        python .claude/skills/prd-flow/scripts/gate.py --trd
        python .claude/skills/prd-flow/scripts/gate.py --sibling
+       python .claude/skills/prd-flow/scripts/gate.py --step prd [--rules <approved-rules.md> --applied]
+       python .claude/skills/prd-flow/scripts/gate.py --step trd
+       python .claude/skills/prd-flow/scripts/gate.py --step plan --plan <plan.md> [--change <changes/NNN-slug>]
+--step: one run per worker step, one report. prd: default run, --rules and --applied when given, --sibling.
+        trd: default run and --trd. plan: --plan and --change.
 --rules: rows against the PRD (Q2), the interview.md beside the file (Q3), and G27 for IDs used on remote branches.
 --applied: with --rules, every approved row exists in the PRD file named by its heading, identical (Q4).
 --status: ID, state, file, Source and Change via of each rule; states proposed, approved, superseded, implemented.
@@ -57,66 +62,11 @@ def approved_ids(path: Path) -> set[str]:
     return ids
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--base", default=None, help="comparison ref; default: merge-base with origin/<base_branch>")
-    parser.add_argument("--pack", type=Path, help="check a pack.md from the state folder")
-    parser.add_argument("--rules", type=Path, help="check an approved-rules.md from the state folder")
-    parser.add_argument("--plan", type=Path, help="check a plan for agents")
-    parser.add_argument("--trace", action="store_true", help="every non-planned PRD rule is cited by a test file")
-    parser.add_argument("--change", type=Path, help="check a change folder (brief.md, design.md, plan.md)")
-    parser.add_argument("--final", action="store_true", help="nothing planned, pending or open is left")
-    parser.add_argument("--applied", action="store_true", help="with --rules: the rows were written to the PRD literally")
-    parser.add_argument("--trd", action="store_true", help="check the TRD paths, symbols, IDs and size against the tracked files")
-    parser.add_argument("--sibling", action="store_true", help="check the shared PRD folders against the sibling repositories")
-    parser.add_argument("--status", action="store_true", help="print the state of every rule")
-    parser.add_argument("--prd", help="with --status: only this PRD folder")
-    parser.add_argument("--state", choices=STATES, help="with --status: only this state")
-    args = parser.parse_args()
-    cfg = load_config()
-    vias = {v.strip().lower() for v in cfg["change_via"].split(",") if v.strip()}
-    root = Path(git(Path.cwd(), "rev-parse", "--show-toplevel").strip() or ".")
+def default_checks(root: Path, cfg: dict[str, str], rules, vias: set[str], base_arg: str | None) -> str:
     prd_rel, trd_rel = cfg["prd_dir"].rstrip("/"), cfg["trd_dir"].rstrip("/")
     prd, trd = root / prd_rel, root / trd_rel
-    rules = read_md_rules(prd, cfg["prd_glob"])
-
-    if args.status:
-        print(chr(10).join(status_lines(rules, vias, cfg, prd, args.prd, args.state)))
-        return report()
-
-    if args.trd or args.sibling:
-        if args.trd:
-            check_trd(root, cfg, trd_rel)
-        if args.sibling:
-            check_sibling(root, Path(__file__).resolve().parents[1] / "repo.md")
-        return report()
-
-    if args.trace or args.change or args.final:
-        if args.trace:
-            check_trace(root, rules, cfg, vias)
-        if args.change:
-            folder = args.change if args.change.is_absolute() else root / args.change
-            check_change(folder, rules)
-            warn_remote_change(root, folder)
-        if args.final:
-            check_final(root, rules, cfg, trd)
-        return report()
-
-    if args.pack or args.rules or args.plan:
-        if args.pack:
-            check_pack(root, args.pack, rules, cfg)
-        if args.rules:
-            check_rules(args.rules, rules, cfg, vias)
-            check_interview(args.rules, prd, rules)
-            if args.applied:
-                check_applied(args.rules, rules, cfg)
-            warn_remote_ids(root, prd_rel, approved_ids(args.rules) - set(rules))
-        if args.plan:
-            check_plan(args.plan, rules, cfg)
-        return report()
-
     upstream = f"origin/{cfg['base_branch']}"
-    base = args.base or git(root, "merge-base", "HEAD", upstream).strip() or "HEAD"
+    base = base_arg or git(root, "merge-base", "HEAD", upstream).strip() or "HEAD"
     old, new, touched, plain = changed_rows(root, base, prd_rel, cfg["prd_glob"])
     check_index(prd, rules, set(new) - set(old))
     changelog = f"{prd_rel}/CHANGELOG.md"
@@ -170,7 +120,92 @@ def main() -> int:
                 if not rid.startswith("I-") and rid not in known:
                     err("G8", f"{f.name}: '{cfg['planned_heading']}' cites {rid}, which does not exist in the PRD")
 
-    return report(f", base {base[:10]}, {len(rules)} rules")
+    return f", base {base[:10]}, {len(rules)} rules"
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--base", default=None, help="comparison ref; default: merge-base with origin/<base_branch>")
+    parser.add_argument("--pack", type=Path, help="check a pack.md from the state folder")
+    parser.add_argument("--rules", type=Path, help="check an approved-rules.md from the state folder")
+    parser.add_argument("--plan", type=Path, help="check a plan for agents")
+    parser.add_argument("--trace", action="store_true", help="every non-planned PRD rule is cited by a test file")
+    parser.add_argument("--change", type=Path, help="check a change folder (brief.md, design.md, plan.md)")
+    parser.add_argument("--final", action="store_true", help="nothing planned, pending or open is left")
+    parser.add_argument("--applied", action="store_true", help="with --rules: the rows were written to the PRD literally")
+    parser.add_argument("--trd", action="store_true", help="check the TRD paths, symbols, IDs and size against the tracked files")
+    parser.add_argument("--sibling", action="store_true", help="check the shared PRD folders against the sibling repositories")
+    parser.add_argument("--status", action="store_true", help="print the state of every rule")
+    parser.add_argument("--prd", help="with --status: only this PRD folder")
+    parser.add_argument("--state", choices=STATES, help="with --status: only this state")
+    parser.add_argument("--step", choices=("prd", "trd", "plan"), help="every check of one worker step in one run and one report")
+    args = parser.parse_args()
+    cfg = load_config()
+    vias = {v.strip().lower() for v in cfg["change_via"].split(",") if v.strip()}
+    root = Path(git(Path.cwd(), "rev-parse", "--show-toplevel").strip() or ".")
+    prd_rel, trd_rel = cfg["prd_dir"].rstrip("/"), cfg["trd_dir"].rstrip("/")
+    prd, trd = root / prd_rel, root / trd_rel
+    rules = read_md_rules(prd, cfg["prd_glob"])
+
+    if args.status:
+        print(chr(10).join(status_lines(rules, vias, cfg, prd, args.prd, args.state)))
+        return report()
+
+    repo_md = Path(__file__).resolve().parents[1] / "repo.md"
+
+    def rules_checks() -> None:
+        check_rules(args.rules, rules, cfg, vias)
+        check_interview(args.rules, prd, rules)
+        if args.applied:
+            check_applied(args.rules, rules, cfg)
+        warn_remote_ids(root, prd_rel, approved_ids(args.rules) - set(rules))
+
+    def change_checks() -> None:
+        folder = args.change if args.change.is_absolute() else root / args.change
+        check_change(folder, rules)
+        warn_remote_change(root, folder)
+
+    if args.step:
+        suffix = default_checks(root, cfg, rules, vias, args.base) if args.step in ("prd", "trd") else ""
+        if args.step == "prd":
+            if args.rules:
+                rules_checks()
+            check_sibling(root, repo_md)
+        elif args.step == "trd":
+            check_trd(root, cfg, trd_rel)
+        else:
+            if args.plan:
+                check_plan(args.plan, rules, cfg)
+            if args.change:
+                change_checks()
+        return report(suffix)
+
+    if args.trd or args.sibling:
+        if args.trd:
+            check_trd(root, cfg, trd_rel)
+        if args.sibling:
+            check_sibling(root, repo_md)
+        return report()
+
+    if args.trace or args.change or args.final:
+        if args.trace:
+            check_trace(root, rules, cfg, vias)
+        if args.change:
+            change_checks()
+        if args.final:
+            check_final(root, rules, cfg, trd)
+        return report()
+
+    if args.pack or args.rules or args.plan:
+        if args.pack:
+            check_pack(root, args.pack, rules, cfg)
+        if args.rules:
+            rules_checks()
+        if args.plan:
+            check_plan(args.plan, rules, cfg)
+        return report()
+
+    return report(default_checks(root, cfg, rules, vias, args.base))
 
 
 if __name__ == "__main__":

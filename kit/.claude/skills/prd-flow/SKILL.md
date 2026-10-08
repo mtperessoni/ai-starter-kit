@@ -13,7 +13,7 @@ Everything specific to this repository (base branch, commands, big files, review
 Everything that enters here is reread every round.
 - Independent reads in one message. Read by ID (`Grep -n`, then `Read` with offset and limit). The human-reading HTML is never read; big files from `repo.md` only by symbol; a sweep of large code goes to an Explore agent with questions.
 - Depth by case; a query does not hunt divergences. An out-of-scope divergence is noted, never investigated.
-- Heavy work goes to the workers, which write to `.claude/prd-flow/state/<slug>/`. This conversation classifies, confronts, interviews, approves, dispatches and commits; it does not reopen their files.
+- Heavy work goes to the workers, which write to `.claude/prd-flow/state/<slug>/`. This conversation classifies, confronts, interviews, approves, dispatches and commits; it does not reopen their files, does not read `reference/workers.md` or the worker-only references, and in the C5 route does not run `gate.py`: each worker runs its `--step` once and returns the last line. No TodoWrite: `state.md` is the progress record (LS24).
 - Count and list with the Grep tool (shell proxies can swallow output); patches with `git --no-pager diff`.
 - Budgets: context to the user at most 6 lines; confrontation at most 40; round message at most 25; at most 4 questions per round in one AskUserQuestion; worker return at most 30 lines (executor and reviewer at most 20).
 
@@ -44,10 +44,10 @@ Phases cited in the references: F1 context, F2 PRD versus code check, F5 PRD (st
 | 2 | `surveyor` | Context, freshness, impact (K01..K13), pre-interview (`doc`, `assumed`, `open`, `n/a`) | `pack.md`, `impact.md`, confrontation |
 | 3 | this conversation | Confrontation (`Checked:`, `Conflicts:`, history, remote branches, owner, at most 6 lines of assumed dimensions) and question: **This is the change I want** (assumed lines confirmed or corrected) · **Do not touch this rule** (C2/C3) · **Adjust the request** (back to 2) | decision |
 | 4 | this conversation | Interview (`reference/interview.md`) of what is still open; writes `interview.md`, `approved-rules.md`; creates `changes/NNN-<slug>/decisions.md`. With a rule owner (`repo.md` "Rule owners") who is not the approver, it does not close until the user states the owner agreed | the three files |
-| 5 | `writer-prd` | PRD, HTML build, CHANGELOG, INDEX, `decisions.md`, gate, `--rules --applied`, `docs(prd)` | `writing.md` |
-| 6 | this conversation | Only `git diff -U0` of the rule lines, the `--applied` result and a summary of the non-table changes; the user confirms | confirmation |
-| 7 | `writer-trd` | TRD "Planned", `gate.py --trd`, `docs(trd)`. Never before step 6 | `writing.md` |
-| 8 | `planner` | Size M and L: `brief.md` (and `design.md` for L); `plan.md` in `changes/NNN-<slug>/` with one contract per task; `gate.py --plan` and `--change <dir>` without errors | task table |
+| 5 | `writer-prd` | PRD, HTML build, CHANGELOG, INDEX, `decisions.md`, `gate.py --step prd --rules --applied`, `docs(prd)` | `writing.md` |
+| 6 | this conversation | Only `git diff -U0` of the rule lines, the gate line and the non-table summary from the `writer-prd` return (never rerun); the user confirms | confirmation |
+| 7 | `writer-trd` | TRD "Planned", `gate.py --step trd`, `docs(trd)`. Never before step 6 | `writing.md` |
+| 8 | `planner` | Size M and L: `brief.md` (and `design.md` for L); `plan.md` in `changes/NNN-<slug>/` with one contract per task; `gate.py --step plan` without errors | task table |
 | 9 | this conversation | Plan approval. More than 6 tasks or a big file: execute in a new session | end of the docs phase |
 | 10 | `executor`, `reviewer` | `reference/execution.md`: baseline, waves, commit per task, review with ceiling, short C5 if a rule changes | delivery, `deliveries.md` |
 
@@ -78,7 +78,7 @@ Worker: Agent `general-purpose`, `model: "sonnet"` (the executor on the task's m
 | `reference/execution.md`, `reference/review.md` | whoever executes and reviews (step 10 and light route with code); the planner for the plan execution rules |
 | `reference/workers.md` | each worker, only its own section |
 | `reference/impact.md`, `prd-writing.md`, `trd-planned.md`, `agent-plan.md` | workers only; `repo.md` "Rule owners" and "Shared PRDs" are read by the surveyor |
-| `scripts/gate.py` | run only: `python .claude/skills/prd-flow/scripts/gate.py [--base REF] [--pack F] [--rules F [--applied]] [--plan F] [--change DIR] [--trd] [--sibling] [--status] [--trace] [--final]` |
+| `scripts/gate.py` | run only: `python .claude/skills/prd-flow/scripts/gate.py [--step prd|trd|plan] [--base REF] [--pack F] [--rules F [--applied]] [--plan F] [--change DIR] [--trd] [--sibling] [--status] [--trace] [--final]` |
 
 ## Final
 Case, IDs touched, commits, plan path and out-of-scope divergences. With code: the findings of `scripts/gates.sh retro`, or one line saying the run stayed within every threshold (E20).
