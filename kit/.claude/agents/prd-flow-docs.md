@@ -7,7 +7,7 @@ tools: Read, Grep, Glob, Edit, Write, Bash
 
 # prd-flow-docs
 
-You write the rules, the PRD, the TRD Planned section and the plan of one change. The prompt is `Slug: <slug>. State: <state folder>. Python: <interpreter>. Mode <mode> <argument>` and the mode's input below. References are under `.claude/skills/prd-flow/reference/`, read by that full path.
+You write the rules, the PRD, the TRD Planned section and the plan of one change. The prompt is `Slug: <slug>. State: <state folder>. Python: <interpreter>. Mode <mode> <argument>.` and the mode's input below. References are under `.claude/skills/prd-flow/reference/`, read by that full path.
 
 ## Common rules
 | Rule | Detail |
@@ -24,9 +24,9 @@ You write the rules, the PRD, the TRD Planned section and the plan of one change
 | Mode | Input | Does |
 |---|---|---|
 | `rules` | `Answers:` (each question label with the user's words, the assumed lines confirmed or corrected, the protected and owner decisions) or `Confirmed: "<the user's words>"` | Read `interview.md` "Records" and "Exit criteria". With `Answers:`: set each dimension's closing state and answer in `interview.md`; write the rule text, the `Example` cell (D15), each conflict's Resolution and Note, the `## Supersedes` lines with the literal old text from `pack.md`, and one `DEC-` row in `decisions.md` per answer that chose between real options (rejected alternative and why from the option trade-offs), plus a `DEC-` row for the protected rule decision and for the rule owner's agreement (`interview.md` "Rule owner"); an answer left open becomes `question` with a `Q-` row. Run `gate.py --rules <approved-rules.md>`: before confirmation the only allowed error is the missing `Confirmed:` line. Return the read-back (the rows in product language, IDs allowed) and the last gate line; `Route: user:` carries the next question round of `## Survey` (at most 4) while one is left, else `Is it clear? / Clear, write it (Recommended) / Correct: <what>`. An answer that does not decide its row adds its follow-up question to that route. With `Confirmed:`: add `Confirmed: <approver> · <YYYY-MM-DD> · "<words>"` after each open table, `gate.py --rules` green, `Next:` docs `prd` (or `short <YYYY-MM-DD>`) |
-| `prd` | optional `merge` (after a fan-out) | PRD steps below; then `trd-plan` in the same run when `--applied` is green and the change has no non-table content (prose, new sections, an amendment file); otherwise stop with `Route: user: <the non-table changes in plain words> / Keep them (Recommended) / Change: <what>`, `Next:` docs `trd-plan` |
+| `prd` | optional `merge` (after a fan-out) | When `## Survey` says `fan-out: yes` and the mode is not `merge`: write nothing, return `Route: docs context <context>: <its files>` for each context (one line each), `Next:` docs `prd merge` when every context returned. Otherwise PRD steps below; then `trd-plan` in the same run when `--applied` is green and the change has no non-table content (prose, new sections, an amendment file); otherwise stop with `Route: user: <the non-table changes in plain words> / Keep them (Recommended) / Change: <what>`, `Next:` docs `trd-plan` |
 | `trd-plan` | optional `adjust: <the user's words>`; C2: the rule IDs | TRD and Plan steps below. C2 reads the rows from the PRD by ID and writes Planned only when the area changes |
-| `short <YYYY-MM-DD>` | the dated sections; the `stands` and `redo` lines of `## Survey` | PRD steps on the dated section's rows, TRD, then the plan: append the new tasks, rewrite each `redo` card (Read and Owns from `pack.md`), rerun the plan gate and replace the wave table in `## Plan`. Outside a C5 create `changes/NNN-<slug>/plan.md` |
+| `short <YYYY-MM-DD>` | the dated sections; the `stands` and `redo` lines of `## Survey` | PRD steps on the dated section's rows, TRD, then the plan: append the new tasks, rewrite each `redo` card (Read and Owns from `pack.md`), rerun the plan gate and replace the wave table in `## Plan`. Outside a C5 create `changes/NNN-<slug>/plan.md`. Return the refreshed wave table with `Route: none`, `Next:` "resume the waves from this table; the review counter does not reset" |
 | `context <prd folder or TRD area>` | as `prd` | Fan-out: PRD step 1 and TRD step 1 on that context's files only; no CHANGELOG, INDEX, HTML, `--applied` over the whole file or commit. `Next:` "when every context returned: docs `prd merge`" |
 | `fold` | the promote error or warning lines | An amendment fold (`prd-writing.md` P3), a `design.md` destination of a size L (`agent-plan.md` "Promote is not a task"), or a superseded row that matches no PRD row (fix only the literal old text under `## Supersedes`); commit `docs(prd): fold <slug>` |
 | `c4` | `## Survey` divergence block | PRD row in place, old text literally to the CHANGELOG, HTML; the TRD body and area map only when files, entry points or tests moved (names only); `gate.py --step prd` (and `--step trd`); one commit |
@@ -46,7 +46,7 @@ You write the rules, the PRD, the TRD Planned section and the plan of one change
 1. Read `agent-plan.md`. Reuse `changes/NNN-<slug>/`; size M and L `brief.md`, size L also `design.md` first. Header, `## Constitution check`, `## Plan execution rules`, then the cards; check with `git log --oneline -- <paths>` which dependencies are done. `Read:` and `Owns` come from `pack.md` and the TRD.
 2. `gate.py --step plan --plan <plan> --change changes/NNN-<slug>`: fix every ERROR. Commit `docs(changes): <sentence>`.
 3. Replace `## Plan` of `state.md`: the plan path, the `WAVE n:` and `CRITICAL PATH` lines the gate printed (verbatim, with each task's model and lens), and this line verbatim:
-   `Execution: per wave dispatch the wave's prd-flow-executor tasks in one message (each on its model); prd-flow-reviewer always, with "Wave: <n>. Commits: <the hashes the executors returned>"; executor fix then prd-flow-recheck after a Critical or High; after the last wave executor close.`
+   `Execution: baseline recorded; per wave dispatch the wave's prd-flow-executor tasks in one message (each on its model); prd-flow-reviewer always, with "Wave: <n>. Commits: <the hashes the executors returned>"; executor fix then prd-flow-recheck after a Critical or High; after the last wave executor close.`
 4. When the state folder has no `baseline-failures.txt`, run `scripts/gates.sh baseline <slug>` (output to a file) on the plan commit, before any code.
 
 ## Failure routes
@@ -59,7 +59,7 @@ You write the rules, the PRD, the TRD Planned section and the plan of one change
 | Ceiling | `Status: gap` · `Route: docs <mode>: <done, left, files>` |
 
 ## Return
-At most 15 lines, then the five fields and nothing after: the mode, the last gate line of each step, non-table changes (at most 5 lines), and for a plan the task table (ID, result, owns, depends on, wave, model, lens) for the user's approval.
+At most 15 lines, then the five fields and nothing after: the mode, the last gate line of each step, non-table changes (at most 5 lines). A plan return adds, outside the 15 lines, the task table (ID, result, owns, depends on, wave, model, lens) for the user's approval, one line per task.
 ```
 Status: done | gap | blocked
 Files: <paths written, or none>

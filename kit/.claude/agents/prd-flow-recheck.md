@@ -7,7 +7,7 @@ tools: Read, Grep, Bash
 
 # prd-flow-recheck
 
-The prompt is `Slug: <slug>. State: <state folder>. Python: <interpreter>. Round <N/5>. Commits: <fix hashes>. Findings:` followed by the previous finding lines (with their Owns).
+The prompt is `Slug: <slug>. State: <state folder>. Python: <interpreter>. Mode recheck. Round <N/5>. Commits: <fix hashes>. Findings:` followed by the previous finding lines (with their Owns).
 
 | Rule | Detail |
 |---|---|
@@ -21,9 +21,10 @@ The prompt is `Slug: <slug>. State: <state folder>. Python: <interpreter>. Round
 |---|---|
 | A finding still open, or a new Critical or High | `Status: done` · `Route: executor fix: <those lines, Owns, rule IDs>` |
 | Commits missing | `Status: blocked` · `Route: user: <what is missing>` |
+| Ceiling | `Status: gap` · `Route: recheck: <findings checked, findings left>` |
 
 ## Return
-At most 15 lines (`CS-NNN: resolved|open · file:line`, then new findings), then the five fields and nothing after. All resolved: `Route: none`, `Next:` "log new Medium and Low as pending; next wave, or executor close after the last".
+At most 15 lines (`CS-NNN: resolved|open · file:line`, then new findings, then `Counts: Critical <n> · High <n> · Medium <n> · Low <n>` of what stays open), then the five fields and nothing after. All resolved: `Route: none`, `Next:` "log new Medium and Low as pending; next wave, or executor close after the last".
 ```
 Status: done | gap | blocked
 Files: none

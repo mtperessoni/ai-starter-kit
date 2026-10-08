@@ -5,7 +5,7 @@ Decided by the maintainer on 2026-10-08. The prd-flow main thread is a chief: it
 ## C6-01 Roles
 | Role | Model | Does | Never |
 |---|---|---|---|
-| **chief** (the main thread) | the user's session | classify by the surveyor's return, ask the user, dispatch, route by return fields, keep the `## Chief` section of `state.md`, report | read PRD, TRD, source, diffs, references beyond its card, or any artifact other than `state.md`; write any file other than `state.md` `## Chief`; run any script, gate, test or git command; fix, verify or redo an agent's work |
+| **chief** (the main thread) | the user's session | classify by the surveyor's return, ask the user, dispatch, route by return fields, keep the `## Chief` section of `state.md`, report | read PRD, TRD, source, diffs, references beyond its card, or any artifact other than `state.md` and `repo.md`; write any file other than `state.md` `## Chief`; run any script, gate, test or git command; fix, verify or redo an agent's work |
 | **surveyor** (heavy) | strongest, high effort | every case starts here: proves the rules are functional (Source exists, has a caller outside tests, behavior matches the rule), sweeps conflicts and impact across every PRD, prepares the user's questions with scenarios and recommended options, writes the scaffolds; modes `query` (C1: the answer itself), `light` (C2, C3, C4, C6: rule rows, Source verdict, divergence, the task card), `full` (C5), `short` (mid-execution change) | write PRD, TRD or code |
 | **docs** | strongest for plans, high effort | modes `rules` (writes `interview.md` answers and `approved-rules.md` from the answers the chief passes, runs `gate.py --rules` until green), `prd`, `trd-plan`, `fold`, `c4`, `context` (fan-out); reads `pack.md` only, never source | talk to the user |
 | **executor** | fast | modes `task` (the card), `fix` (findings or a routed failure, with its own Owns and Read), `close` (runs `promote.py`, commits its output, runs `scripts/gates.sh close`, routes failures it cannot fix); commits its own work with the trailer; writes `deliveries/<task>.md` | change files outside Owns |
@@ -39,10 +39,10 @@ At most 15 lines before these fields. The chief acts on the fields only: `done` 
 ## C6-04 state.md sections (one writer each)
 | Section | Writer | Content |
 |---|---|---|
-| `## Chief` | chief | case, size, slug, phase, the user's decisions log (one line each), review counter `review: N/5`, pending Medium and Low, `Next:` |
+| `## Chief` | chief | case, size, slug, phase, the user's decisions log (one line each), review counter `review: N/5` with the last Critical plus High count, the wave's commit hashes, open finding lines, pending Medium and Low, `Next:` (enough for a resume to dispatch the reviewer or recheck) |
 | `## Survey` | surveyor | contexts, conflicts, protected rules, the scaffold paths |
 | `## Plan` | docs | plan path, wave table, `Execution:` line (baseline; per wave dispatch, review always, recheck after a fix; close) |
-| `## Close` | executor `close` | promote result, close summary, retro top findings |
+| `## Close` | executor `close` | promote result, written before the close gate (a passing close deletes the folder); the close summary and retro top findings travel in the return only |
 Deliveries are per task: `.claude/prd-flow/state/<slug>/deliveries/<task>.md` (no shared file for parallel writers). Resume reads only `state.md`.
 
 ## C6-05 Artifacts complete for their consumer
@@ -50,7 +50,7 @@ Deliveries are per task: `.claude/prd-flow/state/<slug>/deliveries/<task>.md` (n
 |---|---|
 | `pack.md` | literal rule rows, file and symbol map, conflicts, Leave items, DEC rows, contexts |
 | task card | contract IDs, Owns, Read (exact paths or `path::symbol`), Decisions, Leave, Tests, Commit with trailer, Lens, Model |
-| fix handoff | the finding or error lines, Owns, Read, the rule IDs |
+| fix handoff | the finding or error lines, Owns, Read, the rule IDs; over 10 lines it points to a findings file the reviewer wrote in the state folder |
 | close handoff | slug, the commands, what to commit |
 
 ## C6-06 Scripts are agents' tools
