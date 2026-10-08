@@ -2,7 +2,7 @@
 
 IDs, texts and paths in the examples are illustrative: always read the real line.
 
-The plan comes only from the PRD and the TRD already committed: the rule IDs are the contract. The docs agent writes it in `trd-plan` mode (or `short` for a rule change mid-execution); the surveyor in `light` mode writes a single card to `<state>/card.md` for a one-task C2, a C3 or a C6. Each card is complete for its executor: it never explores.
+The plan comes only from the PRD and the TRD already committed: the rule IDs are the contract. The docs agent writes it in `prd-plan` mode (`trd-plan` for a C2 or an adjustment; or `short` for a rule change mid-execution); the surveyor in `light` mode writes a single card to `<state>/card.md` for a one-task C2, a C3 or a C6. Each card is complete for its executor: it never explores.
 
 ## Where the plan lives
 Folder `changes/NNN-<slug>/` with the next free number (LT01); size from the case line (LT04). The surveyor created the folder with `decisions.md`, the docs agent in `rules` mode filled it, and the docs agent commits it with the PRD; the plan reuses it. Nothing in `changes/archive/` or a legacy `specs/` is read for current behavior (LT07).
@@ -57,7 +57,7 @@ Model: sonnet | opus (only for a new safety decision; reason on this line)
 Lens: <extra specialized reviewer from repo.md "Reviewers"> | none
 ```
 
-`Lens:` adds a specialized rubric to the wave review; the `prd-flow-reviewer` reviews every wave whatever it says. `Decisions:` lists the DEC rows that constrain the task (a "no new public name", a contract or a transition answer); executor and reviewer read them by ID. `Leave:` copies the out-of-scope divergences of `pack.md` "Divergences" in or near the task's files; executor and reviewer leave them untouched, even when they look wrong.
+`Lens:` adds a specialized rubric to the wave review; the `prd-flow-reviewer` reviews whatever it says (per wave, or once after the last wave for a serial plan). `Decisions:` lists the DEC rows that constrain the task (a "no new public name", a contract or a transition answer); executor and reviewer read them by ID. `Leave:` copies the out-of-scope divergences of `pack.md` "Divergences" in or near the task's files; executor and reviewer leave them untouched, even when they look wrong.
 
 Commit trailer: a commit that touches the source folders (`ai-kit.json`) carries `Rules: <IDs>` or `Case: none (<reason>)`; the executor commits its own work with it, and `scripts/gates.sh close` checks it.
 
@@ -86,7 +86,7 @@ The reviewer and the recheck build it from their findings (each finding carries 
 
 ## Plan execution rules
 The plan header copies these lines under `## Plan execution rules`, so whoever executes does not depend on the skill:
-- Review with a ceiling (`.claude/skills/prd-flow/reference/review.md`): at most 5 rounds per delivery; every wave is reviewed; from round 2 only the previous findings against the fix commit; Critical is fixed, High is fixed when it fits the approved rules, else the user decides; Medium and Low become pending; an open Critical at round 5, or a round that finds more than the previous one, stops the delivery and goes to the user.
+- Review with a ceiling (`.claude/skills/prd-flow/reference/review.md`): at most 5 rounds per delivery; every wave is reviewed (a serial plan once, after the last wave); from round 2 only the previous findings against the fix commit; Critical is fixed, High is fixed when it fits the approved rules, else the user decides; Medium and Low become pending; an open Critical at round 5, or a round that finds more than the previous one, stops the delivery and goes to the user.
 - Every agent stops at its ceiling (review.md V08) and returns the handoff for a new agent of the same role.
 - Inside a task, only the related tests; the full suite runs once, in `executor close`.
 - Any behavior outside the approved rules, safety included, stops the task and routes to the surveyor in `short` mode (R09).

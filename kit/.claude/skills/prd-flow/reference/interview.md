@@ -8,7 +8,7 @@ Used in C5 step 3 and in the short C5. Read by the surveyor (it prepares the que
 | chief | Asks those questions as returned, and passes the user's answers verbatim (and the user's own words for each confirmation) to docs `rules`. Records each decision as one line in `## Chief` |
 | docs `rules` | Writes the answers into `interview.md`, the rule text, Example, conflict resolutions, Supersedes, `DEC-` rows and the `Confirmed:` line; runs `<python> .claude/skills/prd-flow/scripts/gate.py --rules .claude/prd-flow/state/<slug>/approved-rules.md` until green, at most 2 reruns after fixing its own files, then `blocked` with the error lines; returns the read-back (the rows as the PRD will hold them), the last gate line, and the next round of questions as `Route: user` when a dimension is still open |
 
-A protected rule the user confirmed is recorded by docs `rules` in `approved-rules.md` and `decisions.md` (`impact.md` "Protected rules"); an ADR path is written by the docs agent in `prd` mode. D08 contract and D13 transition always get a real answer, even "nothing changes": docs carries them into the PRD.
+A protected rule the user confirmed is recorded by docs `rules` in `approved-rules.md` and `decisions.md` (`impact.md` "Protected rules"); an ADR path is written by the docs agent in `prd-plan` mode. D08 contract and D13 transition always get a real answer, even "nothing changes": docs carries them into the PRD.
 
 Only the dimensions left `open` become questions; `doc` ones and the `assumed` ones the user confirmed at the confrontation enter the read-back as facts. The interview starts right after the confrontation.
 

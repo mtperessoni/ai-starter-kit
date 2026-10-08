@@ -5,7 +5,7 @@ Review is what catches the serious defect before the user does, and it must run.
 ## Review table
 | Moment | Who | Over what |
 |---|---|---|
-| Every wave of a C5 (a one-task wave included), and the standalone task of C2, C3, C6, whatever the cards' `Lens:` says (a lens only adds a rubric) | `prd-flow-reviewer`, one round | the combined wave diff from the commit hashes the chief passes, the rule IDs, the `Decisions:` rows and the `Leave:` items of the wave's cards |
+| Every wave of a C5 plan with a parallel wave, and the standalone task of C2, C3, C6; a serial C5 plan (every wave one task) is reviewed once after the last wave (`Wave: last`); whatever the cards' `Lens:` says (a lens only adds a rubric) | `prd-flow-reviewer`, one round | the combined diff from the commit hashes the chief passes (one wave, or all the waves for `Wave: last`), the rule IDs, the `Decisions:` rows and the `Leave:` items of those cards |
 | After a fix of a Critical or High | `prd-flow-recheck`, a second round | only the fix diff and the previous finding IDs |
 | Medium and Low | none | pending items in `## Chief` of `state.md`, no re-review |
 | The fix of round 5 | `prd-flow-recheck` | a scoped check of that fix; it is not a round 6 |
@@ -24,7 +24,7 @@ The reviewer and the recheck decide, the chief only follows the fields:
 ## Rules
 | ID | Rule |
 |---|---|
-| V01 | A **round** is counted only when blocking findings (Critical or High) are sent back for a fix. Every wave (and the standalone task of C2, C3, C6) gets a review, but a wave review with no Critical or High finding costs no round. The stop of V07 applies to the delivery |
+| V01 | A **round** is counted only when blocking findings (Critical or High) are sent back for a fix. Every wave of a plan with a parallel wave (one review after the last wave for a serial plan), and the standalone task of C2, C3, C6, gets a review, but a wave review with no Critical or High finding costs no round. The stop of V07 applies to the delivery |
 | V02 | **At most 5 rounds per delivery.** The chief keeps one `review: N/5` in `## Chief` (each round's wave and findings by severity, one line) and tells the user every round |
 | V03 | The first review of a wave covers the combined wave diff. A second round happens only after a Critical or High fix, and it is **scoped**: it only checks the previous findings against the fix diff, and only points out new problems that diff created. Never "list any new problem" outside it |
 | V04 | Severity policy, decided by the reviewer in its Route: Critical is fixed; High is fixed when it fits the approved rules, else it goes to the user; Medium and Low go to pending, never re-reviewed; recheck only after a Critical or High fix |

@@ -7,7 +7,7 @@ tools: Read, Grep, Glob, Bash, Write
 
 # prd-flow-reviewer
 
-Reviews one wave. The prompt is `Slug: <slug>. State: <state folder>. Python: <interpreter>. Mode review. Round <N/5>. Wave: <n>. Commits: <hashes>`. You are the only agent that reads a diff; you never edit code, and write only `<state>/findings-r<N>.md`.
+Reviews one wave, or for a serial plan (every wave one task) all the waves at once. The prompt is `Slug: <slug>. State: <state folder>. Python: <interpreter>. Mode review. Round <N/5>. Wave: <n or last>. Commits: <hashes>`; with `Wave: last` the hashes are all the wave commits and you read the cards of every task in `## Plan`. You are the only agent that reads a diff; you never edit code, and write only `<state>/findings-r<N>.md`.
 
 ## Inputs (gather them yourself, one message)
 | Input | Where |

@@ -202,9 +202,12 @@ esac
         run(self.p.root, "git", "add", "-A", check=True)
         run(self.p.root, "git", "commit", "-q", "-m", "stub gates", check=True)
 
-    def test_a_dirty_tracked_tree_is_refused_with_an_executor_owner(self) -> None:
+    def test_a_dirty_tracked_file_under_docs_or_changes_is_refused_with_an_executor_owner(self) -> None:
         self.stub_gates()
-        write(self.p.root, "scripts/gates.sh", "echo changed\n")
+        write(self.p.root, "docs/prd/x.md", "base\n")
+        run(self.p.root, "git", "add", "-A", check=True)
+        run(self.p.root, "git", "commit", "-q", "-m", "doc", check=True)
+        write(self.p.root, "docs/prd/x.md", "changed\n")
         r = self.close_direct()
         self.assertEqual(r.returncode, 1, r.stdout)
         self.assertIn("uncommitted", r.stdout)
@@ -212,14 +215,59 @@ esac
         self.assertIn("next: commit promote's output, then executor close", r.stdout)
         self.assertNotIn("compare", r.stdout)
 
+    def test_a_dirty_tracked_file_outside_docs_and_changes_is_only_a_note(self) -> None:
+        self.stub_gates()
+        write(self.p.root, "notes.txt", "base\n")
+        run(self.p.root, "git", "add", "-A", check=True)
+        run(self.p.root, "git", "commit", "-q", "-m", "notes", check=True)
+        write(self.p.root, "notes.txt", "mine\n")
+        r = self.close_direct()
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("note: modified tracked file left alone: notes.txt", r.stdout)
+        self.assertNotIn("owner:", r.stdout)
+
+    def test_a_missing_baseline_is_not_masked_by_a_dirty_tree(self) -> None:
+        self.stub_gates()
+        write(self.p.root, "docs/prd/x.md", "base\n")
+        run(self.p.root, "git", "add", "-A", check=True)
+        run(self.p.root, "git", "commit", "-q", "-m", "doc", check=True)
+        write(self.p.root, "docs/prd/x.md", "changed\n")
+        (self.p.root / ".claude/prd-flow/state/demo/baseline-failures.txt").unlink()
+        r = self.close_direct()
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("baseline missing", r.stdout)
+        self.assertIn("owner: user", r.stdout)
+        self.assertNotIn("uncommitted", r.stdout)
+
     def test_an_already_closed_change_says_so_and_exits_zero(self) -> None:
         self.stub_gates()
         shutil.rmtree(self.p.root / ".claude/prd-flow/state/demo")
         write(self.p.root, "changes/archive/001-demo/plan.md", "plan\n")
+        run(self.p.root, "git", "add", "-A", check=True)
+        run(self.p.root, "git", "commit", "-q", "-m", "docs(prd): promote demo", check=True)
         r = self.close_direct()
         self.assertEqual(r.returncode, 0, r.stdout)
         self.assertIn("already closed", r.stdout)
         self.assertNotIn("baseline missing", r.stdout)
+
+    def test_an_archive_without_the_promote_commit_is_not_already_closed(self) -> None:
+        self.stub_gates()
+        shutil.rmtree(self.p.root / ".claude/prd-flow/state/demo")
+        write(self.p.root, "changes/archive/001-demo/plan.md", "plan\n")
+        run(self.p.root, "git", "add", "-A", check=True)
+        run(self.p.root, "git", "commit", "-q", "-m", "archive only", check=True)
+        r = self.close_direct()
+        self.assertNotIn("already closed", r.stdout)
+        self.assertIn("baseline missing", r.stdout)
+
+    def test_a_similar_slug_in_the_archive_is_not_already_closed(self) -> None:
+        self.stub_gates()
+        shutil.rmtree(self.p.root / ".claude/prd-flow/state/demo")
+        write(self.p.root, "changes/archive/001-old-demo/plan.md", "plan\n")
+        run(self.p.root, "git", "add", "-A", check=True)
+        run(self.p.root, "git", "commit", "-q", "-m", "docs(prd): promote demo", check=True)
+        r = self.close_direct()
+        self.assertNotIn("already closed", r.stdout)
 
     def close_direct(self):
         env = {**os.environ, "GATES_BASH": BASH}

@@ -19,7 +19,7 @@ IDs, texts and paths in the examples are illustrative: always read the real line
 | 4 | Runs `gate.py --step prd --rules <approved-rules.md> --applied` once: the default checks, Q4 (a row of the file not in the PRD with identical cells) and G28 |
 | 5 | Commits `docs(prd)` with `decisions.md` and the PRD together |
 
-In a fan-out, a `context` agent does only step 1 on its own section files; the `prd merge` dispatch does steps 2 to 5 once for the whole change.
+In a fan-out, a `context` agent does only step 1 on its own section files; the `prd-plan merge` dispatch does steps 2 to 5 once for the whole change.
 
 The user review skip (the single home of this rule): the user does not review the written PRD when `--applied` is green and the change has no non-table content (prose, new sections, an amendment file); the docs agent continues to the TRD and the plan in the same run. With non-table changes it stops and returns them as a `Route: user:` question in plain words. The contract and transition lines below are not non-table content: the user already confirmed them in the interview.
 
