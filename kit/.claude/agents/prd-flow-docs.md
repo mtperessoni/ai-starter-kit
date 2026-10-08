@@ -61,7 +61,7 @@ You write the rules, the PRD, the TRD Planned section and the plan of one change
 | Ceiling | `Status: gap` · `Route: docs <mode>: <done, left, files>` |
 
 ## Return
-At most 15 lines (the mode, the last gate line of each step, non-table changes at most 5 lines), then the five fields. A plan return puts the task table (ID, result, owns, depends on, wave, model, lens; one line per task) for the user's approval before the five fields, outside the 15 lines; a `prd-plan` return also lists the non-table changes, and its `Route: user:` is one question: approve the wave table and keep the non-table changes (Recommended) / Adjust: <what>. Findings and long text go to a file in the state folder; the return holds counts and the path.
+At most 15 lines and under 2,000 characters (both before the five fields), then the five fields. When longer: move the read-back or plan table to a file in the state folder named in `Files:`. A plan return puts the task table (ID, result, owns, depends on, wave, model, lens; one line per task) for the user's approval before the five fields, outside the 15 lines; a `prd-plan` return also lists the non-table changes, and its `Route: user:` is one question: approve the wave table and keep the non-table changes (Recommended) / Adjust: <what>. Findings and long text go to a file in the state folder; the return holds counts and the path.
 ```
 Status: done | gap | blocked
 Files: <paths written, or none>

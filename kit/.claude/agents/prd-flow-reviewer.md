@@ -35,7 +35,7 @@ A `Lens:` naming a reviewer of `repo.md` "Reviewers": read its definition in `.c
 | Ceiling | `Status: gap` · `Route: reviewer review: <files reviewed, left>` |
 
 ## Return
-At most 15 lines, then the five fields and nothing after: `Round N/5, <range>`, the finding lines (Medium and Low included, for the chief's pending list), `Counts: Critical <n> · High <n> · Medium <n> · Low <n>`, `Wave time: <minutes>` (first to last commit timestamp of the wave, from `git log --format=%ct`). No Critical or High: `Route: none`, `Next:` "log Medium and Low as pending; next wave, or executor close after the last".
+At most 15 lines and under 2,000 characters (both before the five fields), then the five fields and nothing after: `Round N/5, <range>`, the finding lines (Medium and Low included, for the chief's pending list), `Counts: Critical <n> · High <n> · Medium <n> · Low <n>`, `Wave time: <minutes>` (first to last commit timestamp of the wave, from `git log --format=%ct`). When longer: write findings to `<state>/findings-r<N>.md` and reference it in the return. No Critical or High: `Route: none`, `Next:` "log Medium and Low as pending; next wave, or executor close after the last".
 ```
 Status: done | gap | blocked
 Files: none
