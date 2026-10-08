@@ -1,6 +1,6 @@
 # Plan: subagent and context management for prd-flow
 
-Status: proposal, to validate with the maintainer before any change. Sources: `proposals/efficiency-audit.md` (my audit), `eval/AUDIT-prd-flow.md` (second audit, findings A1 to A12, B1 to B9, C1 to C3, EV1 to EV4), four eval rounds. Scorecard: `eval/METRICS.md`.
+Status: validated by the maintainer on 2026-10-08 (decisions D1 to D4 below); execution pending R0. Sources: `proposals/efficiency-audit.md` (my audit), `eval/AUDIT-prd-flow.md` (second audit, findings A1 to A12, B1 to B9, C1 to C3, EV1 to EV4), four eval rounds. Scorecard: `eval/METRICS.md`.
 
 ## Diagnosis in one paragraph
 Cost and time follow the number of main-thread calls on the strongest model at 80k to 130k context. The main makes 50 to 55 calls per change (prd-gate: 25 to 38), and 53% to 66% of them come after the executor (Promote with no owner, diff reads, gate debugging, closing ceremony). Agents are not too expensive by themselves (a Sonnet agent costs about a quarter of the same work done in the main); they are spawned without a clear owner, a bounded input or a bounded output, so work leaks back into the main, steps get skipped or done twice, and every agent explores instead of reading a pack. Instructions grew with each fix and became contradictory, which is where the S5 contradiction and the skipped steps come from.
@@ -53,10 +53,10 @@ Promote: `promote.py <slug>` does the mechanics (drop markers, fill Source from 
 
 Each round is adopted only on its own measured delta; a failed round is reverted or explained before the next.
 
-## Decisions for the maintainer
-| ID | Decision | Options |
+## Decisions of the maintainer (2026-10-08)
+| ID | Decision | Chosen |
 |---|---|---|
-| D1 | Step 6 (the user confirms the PRD diff before the TRD) | keep it (two docs agents for size M) or skip it when `--applied` is green and there are no non-table changes (one docs agent) |
-| D2 | Strong model for the surveyor and the planner on every C5 | yes (about +US$0.2 to 0.5 per run, better conflict judgment) or only for size L |
-| D3 | Eval budget for R0 to R4 | about US$135 in five rounds, or R0 to R2 first (about US$85) |
-| D4 | TRD Planned merge at the end | inside the last executor task with explicit Owns (one agent fewer) or its own small agent |
+| D1 | Step 6 (the user confirms the PRD diff before the TRD) | **Skipped when proven:** when `--applied` is green and there are no non-table changes, one docs agent writes PRD, TRD and plan; the approval stays the row-by-row one of step 4. A rule change of the flow: it goes through the kit's own PRD-first route (rules catalog, SKILL.md, CHANGELOG) in R2 |
+| D2 | Strong model for the surveyor and the planner | **Every C5**, high reasoning effort where the platform allows it |
+| D3 | Eval budget | **R0 to R2 first** (about US$85); R3 and R4 decided with their numbers |
+| D4 | TRD Planned merge at the end | **The last executor task**, with `docs/trd/<area>.md` in its Owns; `promote.py` does the rest |
