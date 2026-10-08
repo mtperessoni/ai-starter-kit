@@ -4,7 +4,9 @@ import re
 import sys
 from pathlib import Path
 
-from gate_core import ID, ROW, TASK, Rules, cells, err, expand, is_code_route, is_proposed, is_table_line, warn
+from gate_core import (
+    ID, ROW, TASK, Rules, cells, err, expand, git, is_code_route, is_proposed, is_table_line, rule_table_ids, warn,
+)
 
 
 def check_plan(path: Path, rules: Rules, cfg: dict[str, str]) -> None:
@@ -46,7 +48,22 @@ def source_files(source: str) -> list[str]:
 
 
 def rule_rows(rules: Rules, vias: set[str]) -> dict[str, list[str]]:
-    return {rid: row for rid, (_, row) in rules.items() if len(row) >= 3 and row[2].strip("` ").lower() in vias}
+    return {
+        rid: row for rid, (_, row) in rules.items()
+        if rid in rule_table_ids and len(row) >= 3 and row[2].strip("` ").lower() in vias
+    }
+
+
+def tracked_files(root: Path) -> list[str]:
+    return git(root, "ls-files", "--cached", "--others", "--exclude-standard").splitlines()
+
+
+def source_exists(root: Path, rel: str, tracked: list[str]) -> bool:
+    """A bare name or partial path counts when it matches the last whole path segments of a tracked file."""
+    if (root / rel).exists():
+        return True
+    tail = "/" + rel.lstrip("./")
+    return any(("/" + f).endswith(tail) for f in tracked)
 
 
 def check_trace(root: Path, rules: Rules, cfg: dict[str, str], vias: set[str]) -> None:
@@ -62,11 +79,12 @@ def check_trace(root: Path, rules: Rules, cfg: dict[str, str], vias: set[str]) -
     for f in kit_config.test_files(root, kit):
         cited |= set(re.findall(r"\b(" + ID + r")\b", f.read_text(encoding="utf-8", errors="replace")))
     allowed = set(kit.get("allowlist", {}).get("untested_rules", []))
+    tracked = tracked_files(root)
     for rid, row in sorted(rule_rows(rules, vias).items()):
         if row[1].strip("` ").lower() == cfg["planned_source"]:
             continue
         for rel in source_files(row[1]):
-            if not (root / rel).exists():
+            if not source_exists(root, rel, tracked):
                 err("G11", f"{rid}: Source names {rel}, which does not exist")
         if rid in cited:
             if rid in allowed:

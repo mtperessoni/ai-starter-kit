@@ -100,6 +100,47 @@ class TraceTest(unittest.TestCase):
         self.assertIn("ERROR G11", r.stdout)
         self.assertIn("missing_file.py", r.stdout)
 
+    def name_source(self, source: str) -> None:
+        self.cite("ORD-02")
+        section = self.p.root / ORDERS
+        text = section.read_text(encoding="utf-8").replace("src/features/orders/order_service.py::create_order", source)
+        section.write_text(text, encoding="utf-8")
+
+    def test_a_bare_file_name_of_a_tracked_file_is_found(self) -> None:
+        self.name_source("order_service.py::create_order")
+        r = self.p.py(GATE, "--trace")
+        self.assertNotIn("ERROR G11", r.stdout)
+
+    def test_a_partial_path_of_a_tracked_file_is_found(self) -> None:
+        self.name_source("orders/order_service.py::create_order")
+        r = self.p.py(GATE, "--trace")
+        self.assertNotIn("ERROR G11", r.stdout)
+
+    def test_a_partial_path_that_only_matches_a_name_suffix_is_an_error(self) -> None:
+        self.name_source("ers/order_service.py::create_order")
+        r = self.p.py(GATE, "--trace")
+        self.assertIn("ERROR G11", r.stdout)
+
+    def test_ids_outside_the_rule_tables_need_no_test(self) -> None:
+        self.cite("ORD-02")
+        write(self.p.root, "docs/prd/shop/09-open-questions.md",
+              "# Open questions\n\n| ID | Decision | Linked to | Resolved where |\n|---|---|---|---|\n| Q1-01 | Which limit? | ORD-01 | code |\n")
+        r = self.p.py(GATE, "--trace")
+        self.assertNotIn("Q1-01", r.stdout)
+
+    def set_via_header(self, header: str) -> None:
+        repo = self.p.root / ".claude/skills/prd-flow/repo.md"
+        text = repo.read_text(encoding="utf-8")
+        repo.write_text(text.replace("| pack_budget_lines |", f"| via_header | {header} |\n| pack_budget_lines |", 1), encoding="utf-8")
+
+    def test_a_configured_via_header_marks_the_rule_tables(self) -> None:
+        self.set_via_header("Muda via")
+        section = self.p.root / ORDERS
+        section.write_text(section.read_text(encoding="utf-8").replace("Change via", "Muda via"), encoding="utf-8")
+        r = self.p.py(GATE, "--trace")
+        self.assertIn("ERROR G12", r.stdout)
+        self.assertIn("ORD-02", r.stdout)
+
 
 class ChangeTest(unittest.TestCase):
     def setUp(self) -> None:

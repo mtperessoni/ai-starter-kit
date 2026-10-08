@@ -25,6 +25,7 @@ DEFAULTS = {
     "pending_marker": "pending code",
     "planned_source": "planned",
     "planned_heading": "Planned",
+    "via_header": "Change via",
     "language": "English",
     "pack_budget_lines": "120",
     "plan_budget_kb": "60",
@@ -40,7 +41,7 @@ warnings: list[str] = []
 baseline: dict[tuple[str, str], list[str]] = {}
 hints: dict[str, list[str]] = {}
 notes: list[str] = []  # plain report lines (wave table), never counted
-rule_table_ids: set[str] = set()  # IDs of rows in tables whose header has a "Change via" column
+rule_table_ids: set[str] = set()  # IDs of rows in tables whose header has the via_header column
 
 Rules = dict[str, tuple[Path, list[str]]]
 
@@ -150,8 +151,9 @@ def is_table_line(line: str) -> bool:
     return line.startswith("|") and not SEPARATOR.match(line)
 
 
-def read_md_rules(prd: Path, pattern: str) -> Rules:
+def read_md_rules(prd: Path, pattern: str, via_header: str = DEFAULTS["via_header"]) -> Rules:
     rules: Rules = {}
+    header = via_header.lower()
     for f in sorted(prd.glob(pattern)):
         is_rule_table = False
         for line in f.read_text(encoding="utf-8").splitlines():
@@ -160,7 +162,7 @@ def read_md_rules(prd: Path, pattern: str) -> Rules:
                 if not line.startswith("|"):
                     is_rule_table = False
                 elif not SEPARATOR.match(line):
-                    is_rule_table = "change via" in [c.lower() for c in cells(line.strip().strip("|"))]
+                    is_rule_table = header in [c.lower() for c in cells(line.strip().strip("|"))]
                 continue
             rid = m.group(1)
             if is_rule_table:
