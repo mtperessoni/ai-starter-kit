@@ -17,7 +17,7 @@
   },
   "scenarios": {
     "S5": {
-      "reps": 1,
+      "reps": 2,
       "budget_usd": 10
     },
     "S6": {

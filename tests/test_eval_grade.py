@@ -11,6 +11,7 @@ from pathlib import Path
 EVAL = Path(__file__).resolve().parents[1] / "eval"
 sys.path.insert(0, str(EVAL))
 import grade  # noqa: E402
+import six  # noqa: E402
 
 PRD_SEED = "| ID | Rule | Source | Change via |\n|---|---|---|---|\n| PRC-01 | VIP 15% | src/mod.py | code |\n"
 PRD_NEW = PRD_SEED + "| PRC-02 | cap 20% | src/mod.py | planned |\n\n## Planned\n\nFR-001 the cap of 20% applies\n"
@@ -179,6 +180,51 @@ class GradeTest(unittest.TestCase):
         self.assertEqual(m["protocol_adherence"], 1.0)
         self.assertTrue(m["completed"])
 
+    def test_protocol_gate_fields_reach_metrics(self):
+        sys.modules["transcript"] = FakeTranscript(
+            skills=[], is_error=False, main_violations=0, chief_violations=1, return_compliance=0.5,
+            surveyor_first=True)
+        m = grade.grade(self.project, self.scenario, "LT", transcript="t.jsonl")
+        self.assertEqual((m["main_violations"], m["chief_violations"], m["return_compliance"],
+                          m["surveyor_first"]), (0, 1, 0.5, True))
+
+    def test_min_to_docs_is_first_prd_commit(self):
+        started = self.commit_time("HEAD~1") - 120
+        m = grade.grade(self.project, self.scenario, "LT", started_at=started)
+        self.assertAlmostEqual(m["min_to_docs"], 2.0, places=1)
+
+    def test_min_to_docs_none_without_start(self):
+        self.assertIsNone(grade.grade(self.project, self.scenario, "LT")["min_to_docs"])
+
+    def test_first_pass_rate(self):
+        self.assertIsNone(grade.grade(self.project, self.scenario, "LT")["first_pass_rate"])
+        self.assertEqual(six.first_pass_rate(2, 4), 0.5)
+        self.assertEqual(six.first_pass_rate(9, 4), 0.0)
+        self.assertIsNone(six.first_pass_rate(1, 0))
+        self.assertIsNone(six.first_pass_rate(None, 3))
+
+    def test_new_transcript_fields_pass_through(self):
+        sys.modules["transcript"] = FakeTranscript(
+            skills=[], is_error=False, cost_main_usd=2.0, cost_subagents_usd=1.0, cache_hit_rate=0.5,
+            output_share=0.1, gate_fail_ratio=0.25, rereads=3, docs_dispatched=True)
+        m = grade.grade(self.project, self.scenario, "LT", transcript="t.jsonl")
+        self.assertEqual((m["cost_main_usd"], m["cost_subagents_usd"], m["cache_hit_rate"]),
+                         (2.0, 1.0, 0.5))
+        self.assertEqual((m["output_share"], m["gate_fail_ratio"], m["rereads"]), (0.1, 0.25, 3))
+        self.assertTrue(m["docs_dispatched"])
+
+    def test_grade_carries_six_metric_fields(self):
+        sys.modules["transcript"] = FakeTranscript(
+            tokens_total=1000, wall_min=3.0, is_error=False, skills=[], main_min=2.0,
+            agent_min=1.0, cold_starts=1, error_kinds={"other": 1}, gate_runs_main=2,
+            gate_runs_sub=3)
+        m = grade.grade(self.project, self.scenario, "LT", transcript="t.jsonl")
+        self.assertEqual((m["main_min"], m["agent_min"], m["cold_starts"]), (2.0, 1.0, 1))
+        self.assertEqual((m["gate_runs_main"], m["gate_runs_sub"]), (2, 3))
+        self.assertEqual(m["error_kinds"], {"other": 1})
+        self.assertIn("tasks_planned", m)
+        self.assertIn("tokens_per_task", m)
+
     def test_completed_false_when_run_errored(self):
         sys.modules["transcript"] = FakeTranscript(is_error=True, skills=[])
         m = grade.grade(self.project, self.scenario, "LT", transcript="t.jsonl")
@@ -302,6 +348,16 @@ class EfficiencyMetricsTest(unittest.TestCase):
         m = grade.subagent_metrics([], None, None, 10.0)
         self.assertEqual((m["subagents_wasted"], m["tasks_per_executor"], m["min_per_task"]),
                          (0, None, None))
+
+    def test_task_counts(self):
+        m = grade.task_counts([{"id": "T1"}, {"id": "T2"}, {"id": "T3"}, {"id": "T4"}], 0.5, 1000)
+        self.assertEqual((m["tasks_planned"], m["tasks_done"], m["tokens_per_task"]), (4, 2, 500.0))
+
+    def test_task_counts_without_plan_or_done(self):
+        m = grade.task_counts(None, None, 1000)
+        self.assertEqual((m["tasks_planned"], m["tasks_done"], m["tokens_per_task"]), (0, 0, None))
+        self.assertIsNone(grade.task_counts([{"id": "T1"}], 0.0, 5)["tokens_per_task"])
+        self.assertIsNone(grade.task_counts([{"id": "T1"}], 1.0, None)["tokens_per_task"])
 
     def test_blind_metrics_merge(self):
         rr = {"blind_findings": {"critical": 0, "high": 2, "medium": 1, "low": 0},
@@ -428,6 +484,37 @@ class JudgeKeysTest(unittest.TestCase):
             self.assertIsNone(m["conflict_found"])
             write(scenario, "expected.json", json.dumps({"case": "C5", "conflict_ids": ["PRC-01"]}))
             self.assertIn(grade.grade(project, scenario, "LT")["conflict_found"], (True, False))
+
+
+class FlowGradeTest(unittest.TestCase):
+    def test_review_weighted_per_100_lines(self):
+        rr = {"blind_findings": {"critical": 1, "high": 1, "medium": 1, "low": 1}}
+        self.assertEqual(grade.review_weighted(rr, 150), 15 * 100 / 150)
+        self.assertIsNone(grade.review_weighted(rr, 0))
+        self.assertIsNone(grade.review_weighted(None, 10))
+
+    def test_conflict_recall_reads_the_surveyor_impact(self):
+        import tempfile
+        root = Path(tempfile.mkdtemp())
+        state = root / ".claude/prd-flow/state/s"
+        state.mkdir(parents=True)
+        (state / "impact.md").write_text("conflicts: SHP-01", encoding="utf-8")
+        self.assertEqual(grade.conflict_recall(root, ["SHP-01", "SHP-02"]), 0.5)
+        self.assertIsNone(grade.conflict_recall(root, []))
+
+    def test_conflict_recall_reads_impact_writes_from_the_transcript_after_close(self):
+        import tempfile
+        root = Path(tempfile.mkdtemp())
+        tr = root / "run.jsonl"
+        write = {"type": "tool_use", "id": "w1", "name": "Write",
+                 "input": {"file_path": "C:/p/.claude/prd-flow/state/s/impact.md", "content": "Conflicts: SHP-02"}}
+        edit = {"type": "tool_use", "id": "e1", "name": "Edit",
+                "input": {"file_path": "C:/p/.claude/prd-flow/state/s/pack.md", "old_string": "x", "new_string": "Conflicts: SHP-01"}}
+        other = {"type": "tool_use", "id": "o1", "name": "Write", "input": {"file_path": "C:/p/src/a.py", "content": "SHP-03"}}
+        lines = [{"type": "assistant", "parent_tool_use_id": "agent1", "message": {"id": "m1", "content": [write, edit, other]}}]
+        tr.write_text("\n".join(json.dumps(x) for x in lines), encoding="utf-8")
+        self.assertEqual(grade.conflict_recall(root, ["SHP-01", "SHP-02", "SHP-03"], tr), 2 / 3)
+        self.assertEqual(grade.conflict_recall(root, ["SHP-01", "SHP-02"], [tr, root / "missing.p2.jsonl"]), 1.0)
 
 
 if __name__ == "__main__":

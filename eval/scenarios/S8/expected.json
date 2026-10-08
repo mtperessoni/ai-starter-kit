@@ -1,0 +1,19 @@
+{
+  "case": "C5",
+  "size": "M",
+  "expected_waves": 2,
+  "expected_tasks": 3,
+  "gap_topic": "how long earned loyalty points stay valid",
+  "prd_facts": [
+    {"id": "f1", "fact": "A customer can ask for express delivery at checkout; it is off unless asked and costs a flat 25.00 for everybody, VIP or not."},
+    {"id": "f2", "fact": "Express delivery is never free, not even above the free-shipping amount; normal delivery keeps its current shipping rule."},
+    {"id": "f3", "fact": "Every order earns one loyalty point per full 10.00 of the amount after discounts, shipping not counted, rounded down; a VIP earns double."},
+    {"id": "f4", "fact": "The receipt carries the points as a whole number; the receipt text layout and as_dict do not change."},
+    {"id": "f5", "fact": "Applies to every order from now on, with no flag and no migration."}
+  ],
+  "dup_phrases": [
+    "(?i)express.{0,60}25\\.00",
+    "(?i)25\\.00.{0,60}express",
+    "(?i)(one|1) point.{0,60}10\\.00"
+  ]
+}

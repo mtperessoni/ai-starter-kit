@@ -29,11 +29,14 @@ usage: scripts/gates.sh <target> [args]
   clean-outputs    delete Claude Code task outputs older than 2 days or over 200 MB
   baseline <slug>  run offline and record its failures as the slug's baseline
   compare <slug>   run offline and print only failures that are not in the baseline
-  lint             verify lint, format and types, as CI does
-  fix              repair lint and format; then run lint
-  imports          the import check (catches cycles)
+  lint             verify lint, format and types, as CI does; one line: lint ok, or lint FAILED (exit N), log <path>
+  fix              repair lint and format; same one-line result (then run lint)
+  imports          the import check (catches cycles); same one-line result
   ratchet          structure ratchet (docs/code-structure.md)
   docs [args]      the prd-flow docs gate
+  html [args]      rebuild the PRD HTML (the skill's build_prd_html.py); --check only verifies
+  close [slug]     the closing ceremony in one block (retro findings and failure lines included): compare against the baseline, lint,
+                   trailers, docs --final, retro; full log in .claude/prd-flow/state/_close/<slug>.log; exit 1 on a failure
   trailers [range] commits touching the source folders carry Rules: or Case: none (default origin/<base>..HEAD)
   context <name>   name the run context (.ai-kit/runs/current) for the telemetry
   retro [args]     the run retrospective (scripts/retro.py): --context <name>, --prune
@@ -53,6 +56,14 @@ import json, sys
 value = json.load(open("ai-kit.json", encoding="utf-8"))["commands"][sys.argv[1]]
 print(" ".join(value) if isinstance(value, list) else value)
 PY
+}
+
+# One result line per check; the output goes to the log so a proxy that swallows output cannot hide the verdict.
+checked() {
+    local name="$1" log="$LOG_DIR/$1.log" code=0
+    bash -c "$2" > "$log" 2>&1 || code=$?
+    if [ "$code" -eq 0 ]; then echo "$name ok"; else echo "$name FAILED (exit $code), log $log"; fi
+    return "$code"
 }
 
 # Every test and build target runs through the probe: same output, same exit code, plus one resources line.
@@ -170,13 +181,13 @@ compare)
     python scripts/new_failures.py "$dir/baseline-failures.txt" "$dir/final.log"
     ;;
 lint)
-    bash -c "$(cmd lint)"
+    checked lint "$(cmd lint)"
     ;;
 fix)
-    bash -c "$(cmd fix)"
+    checked fix "$(cmd fix)"
     ;;
 imports)
-    bash -c "$(cmd import_check)"
+    checked imports "$(cmd import_check)"
     ;;
 ratchet)
     python scripts/ratchet.py "$@"
@@ -192,6 +203,12 @@ retro)
     ;;
 docs)
     python .claude/skills/prd-flow/scripts/gate.py "$@"
+    ;;
+html)
+    python .claude/skills/prd-flow/scripts/build_prd_html.py "$@"
+    ;;
+close)
+    GATES_BASH="$(cygpath -w "$BASH" 2>/dev/null || printf %s "$BASH")" python scripts/close_gate.py "$@"
     ;;
 setup)
     setup_cmd="$(python -c 'import json; print(json.load(open("ai-kit.json", encoding="utf-8"))["commands"].get("setup", ""))')"

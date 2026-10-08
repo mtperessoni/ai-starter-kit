@@ -2,6 +2,7 @@
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -46,9 +47,55 @@ def plan_pairs(cfg, only=None, arms=None):
     return pairs
 
 
-def build_command(budget_usd, claude="claude"):
-    return [claude, "-p", "--output-format", "stream-json", "--verbose",
-            "--dangerously-skip-permissions", "--max-budget-usd", str(budget_usd)]
+def build_command(budget_usd, claude="claude", model=None, effort=None):
+    cmd = [claude, "-p", "--output-format", "stream-json", "--verbose",
+           "--dangerously-skip-permissions", "--setting-sources", "project,local",
+           "--settings", json.dumps({"autoMemoryEnabled": False})]
+    if model:
+        cmd += ["--model", model]
+    if effort:
+        cmd += ["--effort", effort]
+    cmd += ["--max-budget-usd", str(budget_usd)]
+    return cmd
+
+
+INHERITED_PREFIXES = ("CLAUDE_CODE_", "CLAUDE_AGENT_")
+INHERITED_NAMES = {"CLAUDECODE", "AI_AGENT", "CLAUDE_PID", "CLAUDE_EFFORT"}
+
+
+def operator_config_dir(env=None):
+    env = os.environ if env is None else env
+    return Path(env.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude")
+
+
+AUTH_NAMES = {"CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_USE_BEDROCK",
+              "CLAUDE_CODE_USE_VERTEX", "AWS_REGION", "AWS_DEFAULT_REGION", "AWS_PROFILE", "CLOUD_ML_REGION",
+              "ANTHROPIC_VERTEX_PROJECT_ID", "ANTHROPIC_BASE_URL"}
+AUTH_SOURCES = ("CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_USE_BEDROCK",
+                "CLAUDE_CODE_USE_VERTEX")
+
+
+def hermetic_env(base_env=None, source=None):
+    """(temp config folder, env): a fresh CLAUDE_CONFIG_DIR holding only the credentials file, so no
+    personal CLAUDE.md, skills, hooks, memory or settings load and auth still works. Auth variables are kept;
+    with neither a credentials file nor an auth variable it raises before any run is paid for."""
+    full = dict(os.environ if base_env is None else base_env)
+    base_env = {k: v for k, v in full.items()
+                if k in AUTH_NAMES or not (k.startswith(INHERITED_PREFIXES) or k in INHERITED_NAMES)}
+    src = Path(source) if source else operator_config_dir(base_env)
+    creds = src / ".credentials.json"
+    if not creds.is_file() and not any(base_env.get(k) for k in AUTH_SOURCES):
+        raise RuntimeError(f"no credentials: {creds} is missing and none of {', '.join(AUTH_SOURCES)} is set")
+    tmp = Path(tempfile.mkdtemp(prefix="ai-kit-claude-"))
+    try:
+        if creds.is_file():
+            shutil.copy2(creds, tmp / ".credentials.json")
+    except OSError:
+        shutil.rmtree(tmp, ignore_errors=True)
+        raise
+    base_env["CLAUDE_CONFIG_DIR"] = str(tmp)
+    base_env["CLAUDE_CODE_DISABLE_AUTO_MEMORY"] = "1"
+    return tmp, base_env
 
 
 def render_prompt(template, request, decisions, protocol):
@@ -81,12 +128,12 @@ def kill_tree(proc):
         proc.kill()
 
 
-def run_claude(project, prompt, budget, timeout_s, out_jsonl, log):
+def run_claude(project, prompt, budget, timeout_s, out_jsonl, log, model=None, effort=None, env=None):
     exe = shutil.which("claude") or "claude"
     with open(out_jsonl, "w", encoding="utf-8") as so, open(log, "w", encoding="utf-8") as se:
         try:
-            proc = subprocess.Popen(build_command(budget, exe), cwd=project, stdin=subprocess.PIPE,
-                                    stdout=so, stderr=se, text=True, encoding="utf-8")
+            proc = subprocess.Popen(build_command(budget, exe, model, effort), cwd=project, env=env,
+                                    stdin=subprocess.PIPE, stdout=so, stderr=se, text=True, encoding="utf-8")
         except OSError as e:
             se.write(f"cannot start claude: {e}\n")
             return "crash"
@@ -118,6 +165,58 @@ def classify(jsonl, returncode):
     return "crash"
 
 
+def state_slug(project):
+    """The change to resume: the newest state folder holding approved-rules.md; when a promotion already
+    cleared the state, the newest changes/NNN-<slug> folder created during the run; None when neither exists."""
+    root = Path(project)
+    base = root / ".claude" / "prd-flow" / "state"
+    approved = [p for p in base.iterdir() if p.is_dir() and not p.name.startswith("_")
+                and (p / "approved-rules.md").is_file()] if base.is_dir() else []
+    if approved:
+        return max(approved, key=lambda p: (p / "approved-rules.md").stat().st_mtime).name
+    changes = root / "changes"
+    seed = grade.seed_commit(root)
+    old = set(grade.git(root, "ls-tree", "--name-only", seed, "changes/").replace("changes/", "").split()) if seed else set()
+    names = sorted(p.name for p in changes.iterdir()
+                   if p.is_dir() and re.match(r"\d+-", p.name) and p.name not in old) if changes.is_dir() else []
+    return re.sub(r"^\d+-", "", names[-1]) if names else None
+
+
+def split_budget(budget_usd, phase2_share=0.3):
+    """(phase 1, phase 2) share of the budget of a two-phase run: 70% and 30% unless `phase2_share` is configured."""
+    return round(budget_usd * (1 - phase2_share), 4), round(budget_usd * phase2_share, 4)
+
+
+def render_phase2(template, slug, decisions):
+    return template.replace("{slug}", slug).replace("{decisions}", decisions.strip())
+
+
+def run_sessions(arm_cfg, cfg, project, prompt, scenario, pair, args, results, name, env):
+    """Phase 1, then for a two-phase arm a new session that resumes the change. (status, [transcripts])."""
+    model, effort = arm_cfg.get("model", cfg.get("model")), arm_cfg.get("effort", cfg.get("effort"))
+    timeout = args.timeout_min * 60
+    transcript = results / f"{name}.jsonl"
+    two = arm_cfg.get("two_phase")
+    if two:
+        prompt += "\n\n" + (HERE / "prompt-phase1.md").read_text(encoding="utf-8")
+    budget1, budget2 = split_budget(pair["budget_usd"], arm_cfg.get("phase2_share", cfg.get("phase2_share", 0.3))) if two else (pair["budget_usd"], 0)
+    status = run_claude(project, prompt, budget1, timeout, transcript,
+                        results / f"{name}.stderr.log", model, effort, env)
+    if not two or status != "ok":
+        return status, [transcript]
+    slug = state_slug(project)
+    if slug is None:
+        (results / f"{name}.p2.skipped.txt").write_text(
+            "phase 2 skipped: no state folder with approved-rules.md and no changes/ folder\n", encoding="utf-8")
+        return status, [transcript]
+    p2 = results / f"{name}.p2.jsonl"
+    prompt2 = render_phase2((HERE / "prompt-phase2.md").read_text(encoding="utf-8"), slug,
+                            (scenario / "decisions.md").read_text(encoding="utf-8"))
+    status = run_claude(project, prompt2, budget2, timeout, p2, results / f"{name}.p2.stderr.log",
+                        arm_cfg.get("phase2_model", "sonnet"), arm_cfg.get("phase2_effort", effort), env)
+    return status, [transcript, p2]
+
+
 def run_pair(pair, cfg, args, projects, results, template):
     name, arm, sc = pair["name"], pair["arm"], pair["scenario"]
     arm_cfg = cfg["arms"][arm]
@@ -140,14 +239,19 @@ def run_pair(pair, cfg, args, projects, results, template):
         prompt = render_prompt(template, (scenario / "request.md").read_text(encoding="utf-8"),
                                (scenario / "decisions.md").read_text(encoding="utf-8"),
                                (HERE / arm_cfg["protocol"]).read_text(encoding="utf-8"))
-        status = run_claude(project, prompt, pair["budget_usd"], args.timeout_min * 60, transcript,
-                            results / f"{name}.stderr.log")
+        tmp, env = hermetic_env()
+        try:
+            status, transcripts = run_sessions(arm_cfg, cfg, project, prompt, scenario, pair, args,
+                                               results, name, env)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+        transcript = transcripts if len(transcripts) > 1 else transcripts[0]
     if status == "rate_limited":
         QUOTA_HIT.set()
     wall_min = round((time.time() - started_at) / 60, 3)
     (results / f"{name}.run.json").write_text(json.dumps(
         {"name": name, "arm": arm, "scenario": sc, "rep": pair["rep"], "status": status,
-         "started_at": started_at, "runner_wall_min": wall_min}, indent=2), encoding="utf-8")
+         "started_at": started_at, "runner_wall_min": wall_min, "auto_memory": False}, indent=2), encoding="utf-8")
     metrics = {}
     if status != "build_failed":
         try:
@@ -186,6 +290,11 @@ def main(argv=None):
     if args.dry_run:
         os.environ["EVAL_NO_JUDGE"] = "1"
         os.environ["EVAL_NO_REVIEW"] = "1"
+    else:
+        try:
+            shutil.rmtree(hermetic_env()[0], ignore_errors=True)
+        except RuntimeError as e:
+            raise SystemExit(str(e))
 
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     results = Path(args.out) if args.out else HERE / "results" / stamp

@@ -23,6 +23,9 @@ Read-only. Reports, in at most 25 lines, what drifted from the kit and from its 
 | Leftover prd-gate | `.claude/skills/prd-gate/` or `.claude/prd-gate/` exists, or `Grep "prd-gate"` hits CLAUDE.md, AGENTS.md, the constitution, settings, `ai-kit.json` or `docs/`: drift, fixed by `/ai-kit update` |
 | Hand HTML under generated | `repo.md` `html_mode` is `generated` and `build_prd_html.py --check` fails: the HTML was edited by hand, rebuild it instead |
 | Commit trailers | `scripts/gates.sh trailers` on the last 20 commits; missing `Rules:` or `Case: none` is drift |
+| prd-flow agents | `.claude/agents/prd-flow-surveyor.md`, `-docs`, `-executor`, `-reviewer` and `-recheck` all exist; a missing one is drift, fixed by `/ai-kit update` |
+| Leftover workers | `.claude/skills/prd-flow/reference/workers/` exists: drift, fixed by `/ai-kit update` |
+| SKILL.md sizes | Every `.claude/skills/*/SKILL.md` is within `ai-kit.json` `limits.skill_md_bytes` or listed in `allowlist.skill_md_bytes` (`scripts/gates.sh ratchet`) |
 | Global block | `~/.claude/CLAUDE.md` contains the kit block (between the `ai-kit` markers) |
 
 End with the fixes, each as the command or skill that applies it (`/ai-kit update`, `/trd-create` mode N2, `/prd-flow`).

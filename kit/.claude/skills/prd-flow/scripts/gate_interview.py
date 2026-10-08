@@ -3,7 +3,7 @@
 import re
 from pathlib import Path
 
-from gate_core import Rules, cells, err, is_table_line
+from gate_core import Rules, cells, err, hint, is_table_line
 
 STATES = {"user", "doc", "assumed-confirmed", "n/a", "question"}
 BASE_DIMENSIONS = [f"D{n:02d}" for n in range(1, 16)]
@@ -45,10 +45,24 @@ def known_question(qid: str, rules_text: str, prd: Path) -> bool:
     return any(qid in f.read_text(encoding="utf-8", errors="replace") for f in prd.rglob("*.md"))
 
 
+def interview_skeleton() -> None:
+    dims = [*BASE_DIMENSIONS, *extra_dimensions()]
+    hint("interview", [
+        "interview.md expected format (one rewrite fixes it):",
+        "## Dimensions",
+        "| Dimension | State | Answer |",
+        "|---|---|---|",
+        *[f"| {d} <name> | <state> | <answer> |" for d in dims],
+        f"Allowed states: {', '.join(sorted(STATES))}",
+        'Confirmed: <name> · <YYYY-MM-DD> · "<the user\'s words>"',
+    ])
+
+
 def check_interview(rules_path: Path, prd: Path, rules: Rules) -> None:
     path = rules_path.parent / "interview.md"
     if not path.exists():
         err("Q3", f"{path.name} not found beside {rules_path.name}")
+        interview_skeleton()
         return
     text = path.read_text(encoding="utf-8")
     blocks = sections(text)
@@ -56,6 +70,7 @@ def check_interview(rules_path: Path, prd: Path, rules: Rules) -> None:
     short_scope = bool(blocks and blocks[0][0] and first and SHORT_SCOPE.search(text[:first.start()]))
     if not blocks:
         err("Q3", "interview.md without a '## Dimensions' table")
+        interview_skeleton()
         return
     rules_text = rules_path.read_text(encoding="utf-8")
     for n, (_, block) in enumerate(blocks):
@@ -71,6 +86,7 @@ def check_interview(rules_path: Path, prd: Path, rules: Rules) -> None:
             seen.add(dim)
             if state not in STATES:
                 err("Q3", f"{dim}: state '{row[1]}' is not one of {sorted(STATES)}")
+                interview_skeleton()
             elif state == "question":
                 qid = re.search(r"\bQ-[\w-]+", answer)
                 if not qid:
@@ -81,7 +97,9 @@ def check_interview(rules_path: Path, prd: Path, rules: Rules) -> None:
             for dim in [*BASE_DIMENSIONS, *extra_dimensions()]:
                 if dim not in seen:
                     err("Q3", f"interview.md without the dimension {dim}")
+                    interview_skeleton()
         elif not seen:
             err("Q3", "a follow-up '## Dimensions' table without any reopened dimension")
         if not re.search(r"^Confirmed:\s*\S", block, re.M):
             err("Q3", "a Dimensions table without a 'Confirmed:' line after it")
+            interview_skeleton()

@@ -5,10 +5,12 @@ import statistics
 import sys
 from pathlib import Path
 
+import six
+
 CAND, BASE = "LT", "SK"
 EXPECTED_REPS = {"S1": 2, "S2": 2, "S3": 1, "S4": 1}
 INFRA = {"rate_limited", "skipped_rate_limit", "build_failed"}
-NAME = re.compile(r"^(?P<arm>[^-]+)-(?P<sc>.+)-r(?P<n>\d+)$")
+NAME = re.compile(r"^(?P<arm>[^-]+(?:-[A-Z]+)*)-(?P<sc>[A-Z]\d+)-r(?P<n>\d+)$")
 LOWER, HIGHER = "lower", "higher"
 GROUP_LABELS = {"source_fidelity": "Source-of-truth fidelity"}
 GROUPS = {
@@ -260,10 +262,38 @@ def analysis_lines(an, arms):
     return lines
 
 
+RUN_COLUMNS = ("tokens_total", "tokens_per_task", "tasks_done", "tasks_planned", "wall_min",
+               "main_min", "agent_min", "cold_starts", "error_rate", "plan_coverage", "accept")
+
+
+def six_lines(data):
+    """M1 to M6 per arm as totals and medians over its runs, then one row per run."""
+    derived = {arm: [(sc, i + 1, six.derive(m)) for sc, runs in sorted(scs.items())
+                     for i, m in enumerate(runs)] for arm, scs in sorted(data.items())}
+    lines = ["## Six metrics", "",
+             "Totals sum the runs of the arm (n/a for ratios); medians are over its runs.", ""]
+    for arm, runs in derived.items():
+        flat = [m for _, _, m in runs]
+        lines += [f"### Arm {arm} ({len(flat)} runs)", "", "| Metric | Field | Total | Median |",
+                  "|---|---|---|---|"]
+        for mid, (title, fields) in six.METRICS.items():
+            lines += [f"| {mid} {title} | {f} | {fmt(six.total(flat, f))} | {fmt(six.median(flat, f))} |"
+                      for f in fields]
+        lines.append("")
+    lines += ["### Per run", "", "| Run | " + " | ".join(RUN_COLUMNS) + " |",
+              "|---|" + "---|" * len(RUN_COLUMNS)]
+    for arm, runs in derived.items():
+        lines += [f"| {arm} {sc} r{n} | " + " | ".join(fmt(m.get(c)) for c in RUN_COLUMNS) + " |"
+                  for sc, n, m in runs]
+    return lines + [""]
+
+
 def build(data, base=BASE, cand=CAND, reps=None, sizes=None):
     res = evaluate(data, base, cand)
     counts = run_counts(data, base, cand, reps)
-    lines = ["# Evaluation report", "", f"Candidate {cand} versus base {base}.", "", "## Runs", "", "| Arm and scenario | Found | Expected | Missing |",
+    lines = ["# Evaluation report", "", f"Candidate {cand} versus base {base}.", ""]
+    lines += six_lines(data)
+    lines += ["## Runs", "", "| Arm and scenario | Found | Expected | Missing |",
              "|---|---|---|---|"]
     lines += [f"| {k} | {c['found']} | {c['expected']} | {c['missing']} |" for k, c in counts.items()]
     lines += ["", "## Hard gates", ""]

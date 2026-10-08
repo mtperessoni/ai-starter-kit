@@ -66,7 +66,7 @@ class FlowConfigTest(unittest.TestCase):
         self.assertIn("/prd-gate", (EVAL / self.cfg["arms"]["GATE"]["protocol"]).read_text(encoding="utf-8"))
         self.assertIn("/prd-flow", (EVAL / self.cfg["arms"]["FLOW"]["protocol"]).read_text(encoding="utf-8"))
         self.assertEqual(sorted(self.cfg["scenarios"]), ["S5", "S6", "S7"])
-        self.assertEqual(len(run.plan_pairs(self.cfg)), 6)
+        self.assertEqual(len(run.plan_pairs(self.cfg)), 8)
 
     def test_new_scenarios_are_complete(self):
         for sc in self.cfg["scenarios"]:
@@ -149,6 +149,137 @@ class LargeConfigTest(unittest.TestCase):
         self.assertEqual(len(run.plan_pairs(self.cfg)), 48)
         for arm in self.cfg["arms"]:
             self.assertEqual(self.cfg["arms"][arm], CFG["arms"][arm])
+
+
+class HermeticRunTest(unittest.TestCase):
+    def test_env_points_to_a_fresh_folder_with_only_the_credentials(self):
+        import shutil
+        import tempfile
+        src = Path(tempfile.mkdtemp())
+        (src / ".credentials.json").write_text("{}", encoding="utf-8")
+        (src / "CLAUDE.md").write_text("personal", encoding="utf-8")
+        tmp, env = run.hermetic_env({"CLAUDE_CODE_SESSION_ID": "x", "CLAUDECODE": "1", "PATH": "p"}, src)
+        self.addCleanup(shutil.rmtree, tmp, True)
+        self.assertEqual(env["CLAUDE_CONFIG_DIR"], str(tmp))
+        self.assertEqual(sorted(p.name for p in tmp.iterdir()), [".credentials.json"])
+        self.assertEqual(env.get("PATH"), "p")
+        self.assertNotIn("CLAUDECODE", env)
+        self.assertNotIn("CLAUDE_CODE_SESSION_ID", env)
+
+    def test_command_pins_model_effort_and_sources(self):
+        cmd = run.build_command(5, "claude", "opus", "medium")
+        self.assertEqual(cmd[cmd.index("--model") + 1], "opus")
+        self.assertEqual(cmd[cmd.index("--effort") + 1], "medium")
+        self.assertEqual(cmd[cmd.index("--setting-sources") + 1], "project,local")
+        self.assertNotIn("--model", run.build_command(5, "claude"))
+
+
+class BigConfigTest(unittest.TestCase):
+    def setUp(self):
+        self.cfg = json.loads((EVAL / "arms-big.json").read_text(encoding="utf-8"))
+
+    def test_arms_scenarios_and_pins(self):
+        self.assertEqual(self.cfg["arms"]["GATE"]["ref"], "fix/existing-repo-adoption")
+        self.assertEqual(self.cfg["arms"]["FLOW"]["ref"], "HEAD")
+        fast = self.cfg["arms"]["FLOW-FAST"]
+        self.assertTrue(fast["two_phase"])
+        self.assertEqual(fast["phase2_model"], "sonnet")
+        self.assertEqual({k: v["reps"] for k, v in self.cfg["scenarios"].items()}, {"S5": 3, "S6": 1, "S7": 1, "S8": 1})
+        self.assertTrue(self.cfg["model"] and self.cfg["effort"])
+        self.assertEqual(len(run.plan_pairs(self.cfg)), 18)
+
+    def test_phase_prompts_exist_and_resume(self):
+        self.assertIn("/prd-flow resume {slug}", (EVAL / "prompt-phase2.md").read_text(encoding="utf-8"))
+        self.assertIn("approved and committed", (EVAL / "prompt-phase1.md").read_text(encoding="utf-8"))
+        self.assertEqual(run.render_phase2("resume {slug} {decisions}", "s", " d "), "resume s d")
+
+    def test_state_slug_reads_the_state_folder(self):
+        import tempfile
+        root = Path(tempfile.mkdtemp())
+        (root / ".claude/prd-flow/state/_close").mkdir(parents=True)
+        (root / ".claude/prd-flow/state/min-order").mkdir()
+        (root / ".claude/prd-flow/state/min-order/approved-rules.md").write_text("x", encoding="utf-8")
+        self.assertEqual(run.state_slug(root), "min-order")
+
+    def test_s8_is_complete(self):
+        folder = EVAL / "scenarios" / "S8"
+        exp = json.loads((folder / "expected.json").read_text(encoding="utf-8"))
+        self.assertEqual(exp["expected_waves"], 2)
+        self.assertTrue(exp["gap_topic"] and exp["prd_facts"] and exp["dup_phrases"])
+        for name in ("request.md", "decisions.md"):
+            self.assertNotIn(chr(0x2014), (folder / name).read_text(encoding="utf-8"))
+        self.assertTrue(list((folder / "hidden").glob("test_*.py")))
+
+
+class ReviewFixesTest(unittest.TestCase):
+    def _src(self):
+        import tempfile
+        src = Path(tempfile.mkdtemp())
+        self.addCleanup(__import__("shutil").rmtree, src, True)
+        return src
+
+    def test_auth_variables_survive_the_env_filter(self):
+        import shutil
+        env = {"CLAUDE_CODE_OAUTH_TOKEN": "t", "CLAUDE_CODE_USE_BEDROCK": "1", "AWS_REGION": "r",
+               "CLAUDE_CODE_SESSION_ID": "x", "ANTHROPIC_API_KEY": "k"}
+        tmp, out = run.hermetic_env(env, self._src())
+        self.addCleanup(shutil.rmtree, tmp, True)
+        for k in ("CLAUDE_CODE_OAUTH_TOKEN", "CLAUDE_CODE_USE_BEDROCK", "AWS_REGION", "ANTHROPIC_API_KEY"):
+            self.assertIn(k, out)
+        self.assertNotIn("CLAUDE_CODE_SESSION_ID", out)
+
+    def test_no_credentials_and_no_auth_variable_fails_early_and_cleans(self):
+        import tempfile
+        before = set(Path(tempfile.gettempdir()).glob("ai-kit-claude-*"))
+        with self.assertRaises(RuntimeError) as ctx:
+            run.hermetic_env({"PATH": "p"}, self._src())
+        self.assertIn("credentials", str(ctx.exception))
+        self.assertEqual(set(Path(tempfile.gettempdir()).glob("ai-kit-claude-*")), before)
+
+    def test_state_slug_picks_the_newest_approved_state(self):
+        import os
+        root = self._src()
+        base = root / ".claude/prd-flow/state"
+        for name, t in (("old", 100), ("new", 200)):
+            (base / name).mkdir(parents=True)
+            f = base / name / "approved-rules.md"
+            f.write_text("x", encoding="utf-8")
+            os.utime(f, (t, t))
+        (base / "unapproved").mkdir()
+        self.assertEqual(run.state_slug(root), "new")
+
+    def test_state_slug_falls_back_to_the_newest_change_folder(self):
+        root = self._src()
+        (root / ".claude/prd-flow/state/_close").mkdir(parents=True)
+        for n in ("001-first", "002-min-order", "archive"):
+            (root / "changes" / n).mkdir(parents=True)
+        self.assertEqual(run.state_slug(root), "min-order")
+        self.assertIsNone(run.state_slug(self._src()))
+
+    def test_state_slug_fallback_ignores_folders_of_the_seed_commit(self):
+        import subprocess
+        root = self._src()
+        git = lambda *a: subprocess.run(["git", "-C", str(root), *a], check=True, capture_output=True)
+        git("init", "-q")
+        (root / "changes/009-old").mkdir(parents=True)
+        (root / "changes/009-old/brief.md").write_text("x", encoding="utf-8")
+        git("add", "-A")
+        git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "seed")
+        self.assertIsNone(run.state_slug(root))
+        (root / "changes/010-new-one").mkdir()
+        self.assertEqual(run.state_slug(root), "new-one")
+
+    def test_phase_budgets_split_70_30(self):
+        self.assertEqual(run.split_budget(10), (7.0, 3.0))
+
+
+class AdoptionGateTest(unittest.TestCase):
+    def test_run_without_hidden_result_fails_the_gate(self):
+        import adoption
+        ok = {"hidden_passed": 4, "hidden_total": 4}
+        gate = adoption.hard_gates({"S5": [ok, {"status": "crash"}]})[0]
+        self.assertFalse(gate[1])
+        self.assertIn("1 had no hidden result", gate[2])
 
 
 if __name__ == "__main__":

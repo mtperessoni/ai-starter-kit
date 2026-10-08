@@ -1,11 +1,19 @@
 # Interview (C5, step 4)
 
-IDs, texts and paths in the examples are illustrative: always read the real line.
+Used in C5 step 3 and in the short C5. Read by the surveyor (it prepares the questions and the scaffolds) and by docs `rules` (it writes the records); the chief never reads this page nor writes `interview.md`, `approved-rules.md` or `decisions.md`. IDs, texts and paths in the examples are illustrative: always read the real line.
 
-Ask only the dimensions that the pre-interview of `pack.md` left **open**; `doc` ones and the `assumed` ones the user confirmed at step 3 enter the read-back as facts. Rounds are the most expensive part of the skill (the context is already large), so each one must count.
+| Who | Does |
+|---|---|
+| surveyor | Writes the scaffolds in the formats below: `interview.md` with every dimension prefilled, `approved-rules.md` with the rows to change, the new rules (next free ID per prefix, proposal text), the `## Conflicts` table and the `## Supersedes` lines, and `changes/NNN-<slug>/decisions.md`; in the short C5 it appends dated sections instead. Returns the questions for the dimensions left `open`, ready for AskUserQuestion (format below), at most 4 a round, plus the assumed block to confirm |
+| chief | Asks those questions as returned, and passes the user's answers verbatim (and the user's own words for each confirmation) to docs `rules`. Records each decision as one line in `## Chief` |
+| docs `rules` | Writes the answers into `interview.md`, the rule text, Example, conflict resolutions, Supersedes, `DEC-` rows and the `Confirmed:` line; runs `<python> .claude/skills/prd-flow/scripts/gate.py --rules .claude/prd-flow/state/<slug>/approved-rules.md` until green, at most 2 reruns after fixing its own files, then `blocked` with the error lines; returns the read-back (the rows as the PRD will hold them), the last gate line, and the next round of questions as `Route: user` when a dimension is still open |
+
+A protected rule the user confirmed is recorded by docs `rules` in `approved-rules.md` and `decisions.md` (`impact.md` "Protected rules"); an ADR path is written by the docs agent in `prd-plan` mode. D08 contract and D13 transition always get a real answer, even "nothing changes": docs carries them into the PRD.
+
+Only the dimensions left `open` become questions; `doc` ones and the `assumed` ones the user confirmed at the confrontation enter the read-back as facts. The interview starts right after the confrontation.
 
 ## Format of a question
-AskUserQuestion, at most 4 per round, each with:
+Prepared by the surveyor (or by docs `rules` for a follow-up round) so the chief asks it unchanged in one AskUserQuestion, at most 4 per round, each with:
 - product language, not code language: a usage example ("the customer taps Pay twice → the app ...?") and the effect on the user, the operator or the stored record. No rule IDs, symbol names, internal acronyms or words like "flag", "key", "handler"; IDs belong to the read-back. If the user asks for clarity, restart from the example and cut by half, without repeating the previous text;
 - a concrete scenario: "Payment provider takes 45 s to answer → the app ...?";
 - options with the trade-off in the description, the recommended one first, marked "(Recommended)";
@@ -33,10 +41,12 @@ AskUserQuestion, at most 4 per round, each with:
 Extra domain dimensions (D16 and up) are in `repo.md`.
 
 ## Closing each round
-Show the rows as they would look and ask for corrections. Each interview answer that chose between real options also gets a `DEC-NN` row in `decisions.md` (below).
+Docs `rules` returns the rows as they would look; the chief shows them and asks for corrections, which go back to docs `rules`. Each answer that chose between real options also gets a `DEC-NN` row in `decisions.md`, written by docs `rules`.
 
-## Record: `interview.md`
-This conversation writes it; `gate.py --rules` reads the `interview.md` beside the approved-rules file (Q3 when it fails).
+## Records
+
+### `interview.md`
+`gate.py --rules` reads the `interview.md` beside the approved-rules file (Q3 when it fails).
 
 ```markdown
 ## Dimensions
@@ -53,40 +63,56 @@ Confirmed: <name> · <YYYY-MM-DD> · "<the user's words>"
 | Rule | Detail |
 |---|---|
 | Rows | D01 to D15 plus every ID of `repo.md` "Extra interview dimensions", Dimension starting with its ID |
-| State | One of `user`, `doc`, `assumed-confirmed`, `n/a`, `question`. `open` and `assumed` are not allowed at closure |
+| Scaffold states | The surveyor writes `doc`, `assumed`, `open` or `n/a` (`impact.md` "Pre-interview states") and no `Confirmed:` line |
+| Closing states | One of `user`, `doc`, `assumed-confirmed`, `n/a`, `question`. An `assumed` row becomes `assumed-confirmed` or `user`; an `open` row becomes `user` or `question`. `open` and `assumed` are not allowed at closure |
 | `question` | The Answer carries a `Q-` ID that exists in `approved-rules.md` or the PRD |
 | `Confirmed:` | One line after each table: the person, the date and the user's own words |
-| Short C5 | Appends `## Dimensions (YYYY-MM-DD)` with only the reopened dimensions (at least one) and its own `Confirmed:` line. Outside a C5 the file is new and starts with the line `Scope: short C5 outside a C5` (execution.md E08); without it the first table needs every dimension |
+| Short C5 | Appends `## Dimensions (YYYY-MM-DD)` with only the reopened dimensions (at least one) and its own `Confirmed:` line. Outside a C5 the file is new and starts with the line `Scope: short C5 outside a C5` (execution.md, short C5); without it the first table needs every dimension |
 
-## Record: `decisions.md`
-At the end of this step, this conversation allocates the change folder (next free `NNN`, already checked against remote branches in K06) and creates `changes/NNN-<slug>/decisions.md` from `docs/templates/change-decisions.md`. `writer-prd` commits it with `docs(prd)`; the planner reuses the folder.
-
-`| ID | Question | Decision | Rejected alternative | Why | Rules |` with IDs `DEC-NN`: one row per trade-off decided and per interview answer that chose between real options. The Promote task copies the rows into the CHANGELOG entry under `Decisions:`.
-
-## Rule owner
-When the confrontation named an owner (`repo.md` "Rule owners") and the approver is not the owner, this step does not close until the user states the owner agreed. The owner is recorded in `decisions.md` (`state.md` only points to it); the CHANGELOG entry then says `decided by <owner>, written by <approver>`.
-
-## Exit criteria
-1. Every dimension answered (`user`, `doc`, `assumed-confirmed`, `question`), or `n/a` with a reason; `interview.md` passes Q3.
-2. Every row with ID (or section and number, for a table without IDs), text, Source (`planned`) and Change via.
-3. Every rule with a number, a branch or a failure path carries an `Example` (D15).
-4. No contradiction with a live rule; the superseded ones listed.
-5. Every trade-off of the confrontation with a decision (a `DEC-` row).
-6. A final read-back and an explicit "it is clear" from the user, copied into `Confirmed:`.
-
-Then write `approved-rules.md`. The `Example` column is optional (four-column tables stay valid); `writer-prd` copies the rows literally and `gate.py --rules --applied` (Q4) checks that:
+### `approved-rules.md`
+A heading per PRD file, whatever PRD it belongs to; each row exactly as the PRD will hold it: `| ID | Rule | Source | Change via | Example |`, the rule text starting with `*(approved YYYY-MM-DD, pending code)*` (replace the scaffold's placeholder date), Source `planned`, Example optional. The docs agent copies the rows literally and `gate.py --rules --applied` (Q4) checks it.
 
 ```markdown
 # Approved rules · <slug> · <YYYY-MM-DD> · <approver>
 ## docs/prd/product/04-checkout.md
 | CHK-02 | *(approved 2026-10-04, pending code)* Payment waits at most 20 s for the provider, then shows "try again" and keeps the cart. | planned | config | Provider answers after 45 s → the customer sees "try again" and the cart is intact |
 | CHK-13 | *(approved 2026-10-04, pending code)* A request in flight during the deploy keeps the timeout it started with. | planned | code | Payment started at 30 s timeout, deploy sets 20 s → that payment still waits 30 s |
+## docs/prd/product/06-orders.md
+| ORD-03 | *(approved 2026-10-04, pending code)* An order without payment is cancelled after 30 minutes, unless a payment attempt is still waiting for the provider. | planned | code | Payment waiting at minute 30 → the order stays open until the answer |
+## Conflicts
+| ID | Resolution | Note |
+|---|---|---|
+| ORD-03 | rewritten | |
+| CHK-05 | compatible | retry reuses the same timeout, so 20 s holds |
 ## Supersedes
-- CHK-02 (30 s)
+- CHK-07: Payment shows a spinner until the provider answers.
 ```
 
-A rule that came only from a document is written with `*(proposed)*` and is not approved until confronted and interviewed; never put a `*(proposed)*` row in `approved-rules.md`.
+| Rule | Detail |
+|---|---|
+| Conflicts | Every ID of the pack's `Conflicts:` line has a row (gate Q5). Resolution is one of `rewritten`, `superseded`, `compatible` |
+| `rewritten` | The same ID appears as a row under its file heading with the new text and the marker. Rewriting keeps the ID; the old text goes literally to the CHANGELOG at promotion. An ID is never reused for a different rule |
+| `superseded` | The ID is listed under `## Supersedes` as `- ID: old text`, never as a table row, and it exists in the PRD |
+| `compatible` | The Note states why both rules hold |
+| `*(proposed)*` | A rule that came only from a document is not approved until confronted and interviewed; never put a `*(proposed)*` row here |
+| Short C5 | A dated section: `## YYYY-MM-DD`, then `### <prd file>.md` with its rows (same cells). A re-approved ID replaces its earlier row; the gate takes the latest |
 
-Short C5: the file gets a dated section. Format: `## YYYY-MM-DD`, then `### <prd file>.md` with its rows (same cells). A re-approved ID replaces its earlier row; the gate takes the latest.
+### `decisions.md`
+The surveyor created `changes/NNN-<slug>/decisions.md` from `docs/templates/change-decisions.md` (next free `NNN`, checked against remote branches). Docs `rules` adds `| ID | Question | Decision | Rejected alternative | Why | Rules |` rows with IDs `DEC-NN`: one per trade-off decided and per answer that chose between real options. The docs agent commits it with `docs(prd)`; promotion copies the rows into the CHANGELOG entry under `Decisions:`.
 
-If the user wants to stop earlier: save the state and say what is missing. A rule with an open dimension does not go to the PRD; it becomes a `Q-` row in "Open questions" with the adopted default, if the user prefers to continue.
+## Rule owner
+When the confrontation named an owner (`repo.md` "Rule owners") and the approver is not the owner, the surveyor includes the question "did the owner agree?" and the interview does not close until the user states the owner agreed. Docs `rules` records the owner in `decisions.md`; the CHANGELOG entry then says `decided by <owner>, written by <approver>`.
+
+## Folded path
+When every answer of the last round was a prepared option that carries the full proposed rule text (the surveyor writes the text into the option and marks it in `## Survey`), `## Survey` has no round left, no `Owner:` question is open and no protected question was asked (the chief decides from the labels and `## Survey`), the chief skips the separate read-back and dispatches docs `prd-plan` with the `Answers:` of every round (kept in `## Chief`) and `Folded: yes`. Docs does the `rules` work, writes `Confirmed:` with the proposed rule text the user chose, runs `gate.py --rules`, then writes PRD, TRD and plan in the same dispatch. The options carry the current rule and the proposed text, so the user has seen both before any PRD write. The read-back and the wave table are confirmed together in one round; a correction of a rule is one docs `trd-plan` `adjust:` that reverts the run's PRD, prose, TRD and plan commits, reruns `gate.py --rules` and redoes `prd-plan`. Otherwise (free text, Other, an open dimension, a round left, an owner or protected question): the path above (read-back, "it is clear", `prd-plan`).
+
+## Exit criteria
+1. Every dimension in a closing state, `n/a` with a reason; `interview.md` passes Q3.
+2. Every row with ID (or section and number, for a table without IDs), text, Source (`planned`) and Change via.
+3. Every rule with a number, a branch or a failure path carries an `Example` (D15).
+4. Every conflict of the pack resolved in `## Conflicts` (Q5); no contradiction with a live rule left.
+5. Every trade-off of the confrontation with a `DEC-` row.
+6. A final read-back and an explicit "it is clear" from the user, copied into `Confirmed:`.
+7. `gate.py --rules` green, its last line in the docs `rules` return.
+
+If the user wants to stop earlier: the chief records it and what is missing in `## Chief`. A rule with an open dimension does not go to the PRD; it becomes a `Q-` row in "Open questions" with the adopted default, if the user prefers to continue.

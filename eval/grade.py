@@ -11,6 +11,9 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import plan_fidelity
+import six
+from grade_metrics import (blind_metrics, efficiency, review_fix_commits, review_weighted,  # noqa: F401
+                          subagent_metrics, task_counts)
 from plan_fidelity import is_code_path, is_test_path
 
 SKILL_NAMES = ("prd-flow", "prd-gate")
@@ -136,13 +139,16 @@ def commit_log(project, seed):
     return commits
 
 
+NON_RULE_PREFIXES = {"DEC", "Q"}
+
+
 def prd_diff_ids(project, seed):
     """Rule IDs in the first cell of PRD table rows added or changed since the seed."""
     ids = []
     for line in git(project, "diff", f"{seed}..HEAD", "--", "docs/prd").splitlines():
         if line.startswith("+") and not line.startswith("+++"):
             m = re.match(r"\+\s*\|\s*([A-Z][A-Z0-9]*-\d+)\s*\|", line)
-            if m and m.group(1) not in ids:
+            if m and m.group(1).split("-")[0] not in NON_RULE_PREFIXES and m.group(1) not in ids:
                 ids.append(m.group(1))
     return ids
 
@@ -302,61 +308,42 @@ def protocol_adherence(arm, case, skills):
     return sum(1 for s in need if have & set((s,) if isinstance(s, str) else s)) / len(need)
 
 
-def efficiency(transcript):
-    """Inputs of E1 to E6, R1 and R4 from eval/transcript.py; every key None when unavailable."""
-    keys = ("tokens_total", "cost_usd", "wall_min", "turns", "context_peak", "subagents",
-            "tool_errors", "subagent_token_share", "skills", "is_error", "started_at",
-            "tokens_main", "tokens_subagents", "tool_calls", "error_rate", "test_runs",
-            "failed_test_runs", "review_rounds", "subagent_detail", "subagent_tokens_median",
-            "subagent_tool_calls_median", "subagent_errors", "assistant_texts")
-    empty = {k: None for k in keys}
-    if transcript is None:
-        return empty
-    try:
-        import transcript as tr  # lazy: written by another module
-        s = tr.summarize(transcript)
-    except (ImportError, OSError, ValueError):
-        return empty
-    return {k: s.get(k) for k in keys}
+def impact_writes(transcript):
+    """Text written to impact.md or pack.md during the run; a passing close deletes the state folder."""
+    if isinstance(transcript, (list, tuple)):
+        return "\n".join(impact_writes(t) for t in transcript)
+    found = []
+    for line in Path(transcript).read_text(encoding="utf-8", errors="replace").splitlines() if transcript and Path(transcript).exists() else []:
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        content = (event.get("message") or {}).get("content") if isinstance(event.get("message"), dict) else None
+        for block in content if isinstance(content, list) else []:
+            inp = block.get("input") if isinstance(block, dict) and block.get("type") == "tool_use" else None
+            if isinstance(inp, dict) and re.search(r"(impact|pack)\.md$", str(inp.get("file_path", ""))):
+                found += [str(inp.get(k, "")) for k in ("content", "new_string")]
+    return "\n".join(found)
 
 
-def review_fix_commits(commits, detail, has_transcript):
-    """X5: commits made after the first reviewer subagent started, or after the first commit whose
-    subject names a review; 0 when the run shows no review, None without a transcript."""
-    if not has_transcript:
+def conflict_recall(project, ids, transcript=None):
+    """Share of the expected conflict IDs named in the surveyor's impact or pack; None when none are expected."""
+    if not ids:
         return None
-    times = [d["started_at"] for d in detail or [] if d.get("review") and d.get("started_at")]
-    if times:
-        t0 = min(times)
-        return sum(1 for c in commits if c["time"] is not None and c["time"] > t0)
-    for i, c in enumerate(commits):
-        if re.search(r"review", c["subject"], re.I):
-            return len(commits) - i - 1
-    return 0
+    text = "\n".join(read_text(p) or "" for prefix in STATE_PREFIXES
+                     for p in sorted((Path(project) / prefix).rglob("impact.md")))
+    text += "\n" + impact_writes(transcript)
+    return sum(1 for i in ids if re.search(rf"(?<![A-Z0-9-]){re.escape(i)}(?!\d)", text)) / len(ids)
 
 
-def subagent_metrics(detail, tasks, cov, wall_min):
-    """X2 and X4: wasted subagents (no file change, not a review), tasks per executor, minutes per task."""
-    detail = detail or []
-    executors = [d for d in detail if not d.get("review")]
-    wasted = sum(1 for d in detail if not d.get("file_changes") and not d.get("review"))
-    n = len(tasks) if tasks else 0
-    done = round(cov * n) if cov is not None else None
-    return {
-        "subagents_wasted": wasted if detail else 0,
-        "tasks_per_executor": done / len(executors) if executors and done is not None else None,
-        "min_per_task": wall_min / n if n and isinstance(wall_min, (int, float)) else None,
-    }
-
-
-def blind_metrics(rr):
-    rr = rr or {}
-    counts = rr.get("blind_findings") or {}
-    out = {k: rr.get(k) for k in ("blind_findings_total", "blind_bugs", "blind_approve",
-                                  "review_cost_usd")}
-    for sev in ("critical", "high", "medium", "low"):
-        out[f"blind_{sev}"] = counts.get(sev) if counts else None
-    return out
+def changed_code_lines(project, seed):
+    lines = 0
+    for row in git(project, "diff", "--numstat", seed, "--").splitlines() if seed else []:
+        add, _, rest = row.partition("\t")
+        dele, _, path = rest.partition("\t")
+        if is_code_path(path) and add.isdigit() and dele.isdigit():
+            lines += int(add) + int(dele)
+    return lines
 
 
 def grade(project, scenario_dir, arm, transcript=None, started_at=None, judge_result=None,
@@ -381,6 +368,10 @@ def grade(project, scenario_dir, arm, transcript=None, started_at=None, judge_re
     min_to_code = None
     if codes and codes[0]["time"] is not None and isinstance(start, (int, float)):
         min_to_code = round((codes[0]["time"] - start) / 60, 3)
+    docs = [c for c in commits if any(f.startswith("docs/prd/") for f in c["files"])]
+    min_to_docs = None
+    if docs and docs[0]["time"] is not None and isinstance(start, (int, float)):
+        min_to_docs = round((docs[0]["time"] - start) / 60, 3)
     left = planned_left(project)
     dup = dup_count(project, files, exp.get("dup_phrases", []), seed)
     frl = fr_lines(project, files, seed)
@@ -402,7 +393,7 @@ def grade(project, scenario_dir, arm, transcript=None, started_at=None, judge_re
         "tokens_total": eff["tokens_total"], "cost_usd": eff["cost_usd"],
         "wall_min": eff["wall_min"], "turns": eff["turns"], "context_peak": eff["context_peak"],
         "subagents": eff["subagents"], "subagent_token_share": eff["subagent_token_share"],
-        "min_to_code": min_to_code, "doc_bytes": doc_bytes(project, files, seed),
+        "min_to_code": min_to_code, "min_to_docs": min_to_docs, "doc_bytes": doc_bytes(project, files, seed),
         "cost_per_accept": (eff["cost_usd"] / m["hidden_passed"]
                             if eff["cost_usd"] is not None and m["hidden_passed"] else None),
         "tool_errors": eff["tool_errors"],
@@ -418,8 +409,22 @@ def grade(project, scenario_dir, arm, transcript=None, started_at=None, judge_re
         "subagent_errors": eff["subagent_errors"],
         "review_fix_commits": review_fix_commits(commits, eff["subagent_detail"], bool(transcript)),
         **subagent_metrics(eff["subagent_detail"], tasks, cov, eff["wall_min"]),
+        **task_counts(tasks, cov, eff["tokens_total"]),
+        **{k: eff[k] for k in ("main_min", "agent_min", "cold_starts", "error_kinds",
+                               "gate_runs_main", "gate_runs_sub", "cost_main_usd",
+                               "cost_subagents_usd", "cache_hit_rate", "output_share",
+                               "gate_fail_ratio", "rereads", "docs_dispatched")},
+        **{k: eff[k] for k in ("main_violations", "chief_violations", "return_compliance", "surveyor_first")},
         **blind_metrics(review_result),
     })
+    m["conflict_recall"] = conflict_recall(project, exp.get("conflict_ids") or [], transcript)
+    m["review_weighted"] = review_weighted(review_result, changed_code_lines(project, seed))
+    m["first_pass"] = (bool(m["accept"] == 1.0 and eff["first_pass_clean"])
+                       if transcript and eff["first_pass_clean"] is not None else None)
+    if exp.get("expected_waves") is not None:
+        m["expected_waves"] = exp["expected_waves"]
+        m["waves_match"] = (eff["waves"] == exp["expected_waves"]) if eff["waves"] is not None else None
+    m["first_pass_rate"] = six.first_pass_rate(m["rework_commits"], m["tasks_done"])
     if not transcript:
         m["subagents_wasted"] = None
     return m
@@ -430,7 +435,7 @@ def main():
     ap.add_argument("project")
     ap.add_argument("scenario")
     ap.add_argument("--arm", default="LT")
-    ap.add_argument("--transcript")
+    ap.add_argument("--transcript", nargs="+")
     ap.add_argument("--started-at", type=float)
     a = ap.parse_args()
     print(json.dumps(grade(a.project, a.scenario, a.arm, a.transcript, a.started_at), indent=2))

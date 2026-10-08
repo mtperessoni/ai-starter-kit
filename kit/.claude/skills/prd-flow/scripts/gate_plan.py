@@ -4,7 +4,7 @@ import re
 import sys
 from pathlib import Path
 
-from gate_core import ID, ROW, TASK, Rules, cells, err, expand, is_proposed, is_table_line, warn
+from gate_core import ID, ROW, TASK, Rules, cells, err, expand, is_code_route, is_proposed, is_table_line, warn
 
 
 def check_plan(path: Path, rules: Rules, cfg: dict[str, str]) -> None:
@@ -25,8 +25,10 @@ def check_plan(path: Path, rules: Rules, cfg: dict[str, str]) -> None:
             continue
         if not re.search(r"^Owns:", block, re.M):
             err("P2", f"{tid} without 'Owns:'")
-        if not re.search(r"^Reviewer:", block, re.M):
-            warn("P3", f"{tid} without 'Reviewer:'")
+        if not re.search(r"^Read:", block, re.M):
+            err("P10", f"{tid} without 'Read:' (exact paths or path::symbol the executor opens)")
+        if not re.search(r"^(Lens|Reviewer):", block, re.M):
+            warn("P3", f"{tid} without 'Lens:' (an extra reviewer, or none)")
         if not re.search(r"^Model:", block, re.M):
             warn("P4", f"{tid} without 'Model:'")
         for rid in sorted(set(re.findall(r"\b(" + ID + r")\b", block))):
@@ -135,7 +137,11 @@ def check_final(root: Path, rules: Rules, cfg: dict[str, str], trd: Path) -> Non
         if is_proposed(row[0], cfg):
             err("G30", f"{rid} is still {cfg['proposed_marker']}: confront it and approve it, or drop it")
         elif len(row) >= 2 and (row[1].strip("` ").lower() == cfg["planned_source"] or cfg["pending_marker"] in row[0]):
-            err("G19", f"{rid} is still planned or pending code")
+            via = row[2].strip("` ").lower() if len(row) >= 3 else "code"
+            if is_code_route(via):
+                err("G19", f"{rid} is still planned or pending code")
+            else:
+                warn("G19", f"{rid} is still planned; it changes via {via} and closes by that route")
     for f in sorted(trd.rglob("*.md")):
         if re.search(r"^## " + re.escape(cfg["planned_heading"]), f.read_text(encoding="utf-8"), re.M):
             err("G20", f"{f.name} still has a '## {cfg['planned_heading']}' section")

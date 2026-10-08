@@ -5,7 +5,7 @@ from pathlib import Path
 
 from gate_core import (
     ID, PACK_SECTIONS, ROW, SEPARATOR, Rules, baseline, cells, drift, ends_with_path, err, expand, git, is_table_line, joined,
-    literal_rows, read_html_rules, section, tokens, warn,
+    hint, literal_rows, read_html_rules, section, tokens, warn,
 )
 
 
@@ -127,11 +127,23 @@ def check_pack(root: Path, path: Path, rules: Rules, cfg: dict[str, str]) -> Non
         warn("Q1", f"pack with {size} lines (budget: {budget})")
 
 
+def rules_skeleton(cfg: dict[str, str]) -> None:
+    hint("rules", [
+        "approved-rules.md expected format (one rewrite fixes it):",
+        "## <prd file>.md",
+        "| ID | Rule | Source | Change via | Example |",
+        "|---|---|---|---|---|",
+        f"| PFX-NN | *(approved YYYY-MM-DD, {cfg['pending_marker']})* <rule text> | {cfg['planned_source']} | code | <given> -> <expected> |",
+        "A superseded row goes under '## Supersedes' as plain text, not as a table row.",
+    ])
+
+
 def check_rules(path: Path, rules: Rules, cfg: dict[str, str], vias: set[str]) -> None:
     seen: set[str] = set()
     rows = literal_rows(path.read_text(encoding="utf-8"))
     if not rows:
         err("Q2", "no rule row under a '## <file>' or '### <file>'")
+        rules_skeleton(cfg)
     prd_prefix = cfg["prd_dir"].rstrip("/") + "/"
     for rel, line in rows:
         m = ROW.match(line)
@@ -143,8 +155,10 @@ def check_rules(path: Path, rules: Rules, cfg: dict[str, str], vias: set[str]) -
         seen.add(rid)
         if len(row) < 3 or not row[1] or not row[2]:
             err("Q2", f"{rid} without Source or Change via")
+            rules_skeleton(cfg)
         elif row[2].strip("` ").lower() not in vias:
             err("Q2", f"{rid}: Change via '{row[2]}' outside {sorted(vias)}")
+            rules_skeleton(cfg)
         owner = rules.get(rid)
         if owner and not ends_with_path(owner[0], rel.removeprefix(prd_prefix)):
             err("Q2", f"{rid} already exists in {owner[0].name}; do not reuse the ID in {rel}")

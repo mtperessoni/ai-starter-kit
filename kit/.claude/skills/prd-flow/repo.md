@@ -25,6 +25,9 @@ Parsed by `scripts/gate.py`. Keep the two-column table format and the key names.
 | html_mode | generated |
 | html_template | docs/templates/prd.html |
 | trd_budget_lines | 250 |
+| prd_section_budget_lines | 200 |
+
+`prd_section_budget_lines`: lines a PRD section file may have before G31 warns; a section over it splits into smaller section files, so the rows a change reads stay bounded as the product grows.
 
 `proposed_marker`: the word inside `*(proposed)*`, the marker of a rule that comes only from documents. G30 fails `--final` while one is left.
 
@@ -54,6 +57,7 @@ Always through `scripts/gates.sh`; the stack commands behind each target are in 
 | Lint, repair | `scripts/gates.sh fix`, then `lint` |
 | Import and cycle check | `scripts/gates.sh imports` |
 | Structure ratchet | `scripts/gates.sh ratchet` |
+| Python interpreter | `python` |
 | Move code by line range | `python scripts/move_lines.py <source> <start> <end> <destination> [--at LINE]` |
 
 ## Layout
@@ -80,7 +84,7 @@ Always through `scripts/gates.sh`; the stack commands behind each target are in 
 
 ## Reviewers
 
-Findings-only agents in `.claude/agents/`. The planner assigns one per task; `none` is valid.
+Findings-only agents in `.claude/agents/`. The docs agent assigns one per task in the plan as the lens of the wave reviewer; `none` is valid.
 
 | The task touches | Reviewer agent |
 |---|---|
@@ -136,7 +140,7 @@ Domain dimensions added after D15 of `reference/interview.md`.
 
 K08 uses `scripts/gates.sh contracts` when snapshots are configured. A row here with no snapshot configured is a prompt for trd-create and `/ai-kit install` to propose configuring them.
 
-## Change routing (planner)
+## Change routing (docs agent, plan)
 
 | Change via | Plan task |
 |---|---|

@@ -56,7 +56,8 @@
     "test_lines": 1200,
     "feature_map_lines": 20,
     "id_header_lines": 15,
-    "files_per_dir": 20
+    "files_per_dir": 20,
+    "skill_md_bytes": 6144
   },
   "banned_names": [
     "helpers",
@@ -89,6 +90,10 @@
     "no_feature_map": [],
     "long_feature_maps": {},
     "crowded_dirs": {},
+    "skill_md_bytes": {
+      ".claude/skills/prd-create/SKILL.md": 8531,
+      ".claude/skills/trd-create/SKILL.md": 8285
+    },
     "generated_without_marker": [],
     "invariant_gaps": 0
   },
@@ -155,6 +160,10 @@
     "dead_mb": 500,
     "max_events_mb": 5,
     "keep_days": 14,
-    "doc_reads": 3
+    "doc_reads": 3,
+    "kpi_main_calls": 30,
+    "kpi_inline_reads": 0,
+    "kpi_gate_runs_main": 2,
+    "kpi_parallel_factor_min": 1.5
   }
 }

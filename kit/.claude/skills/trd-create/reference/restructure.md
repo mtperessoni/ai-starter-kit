@@ -28,4 +28,4 @@ Write `changes/NNN-feature-structure/plan.md` with the prd-flow task format (`.c
 | 5 | Maps: TRD and feature `CLAUDE.md` updated; ratchet allowlist lowered to the new state | gate, ratchet |
 | 6 | Full suite once, against the baseline | `scripts/gates.sh compare <slug>` |
 
-Present the plan as a table (ID, result, owns, depends on, model, reviewer) for approval; execution follows prd-flow `reference/execution.md` in a new session.
+Present the plan as a table (ID, result, owns, depends on, model, lens) for approval; execution follows prd-flow `reference/execution.md` in a new session.

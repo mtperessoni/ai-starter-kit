@@ -2,13 +2,22 @@
 
 Read only the section with your name. You do not talk to the user: anything missing becomes a **gap** in the return. Parallel batches when reads are independent; code only by symbol (`Grep -n`, then `Read` with offset and limit); big files from `.claude/skills/prd-flow/repo.md` never whole. Write with Write and Edit only. Names only, never line numbers or default values. Everything in English, no em dash (U+2014). State: `.claude/prd-flow/state/trd-create/`.
 
-Return, at most 30 lines:
+Stay inside the folders, globs and read budget of your assignment; do not explore beyond it, and do not call ToolSearch.
+
+Return: at most 15 lines of content, then these five fields as the last lines, nothing after:
 ```
-Done: <one line>
-Files: <paths written>
 <the content the section asks for>
-Gaps: <list, or "none">
+Status: done | gap | blocked
+Files: <paths written, or none>
+Commit: <short hash, or none>
+Route: none | user: <one question with options> | <worker>: <handoff of at most 10 lines>
+Next: <the step the chief runs next>
 ```
+A failing gate is rerun twice; then `blocked` with `Route` to a fresh worker of your role (the error lines as handoff), or `user` when the rule is unclear. A `gap` always carries a `Route`. Where a section says "gaps", put them in `Status: gap` and `Route`.
+
+## scoper
+
+Runs steps 1, 2 and, in N4 and N5, step 7. Reads `repo.md`, `docs/prd/INDEX.md`, the source tree two levels deep, `docs/code-structure.md` and `ai-kit.json` (`feature_root`, `areas`, `map_dirs`); writes `state.md` (slug, mode, base commit) and `features.md` (one row per area: files or globs, PRD sections). In N4 it also reads `reference/readiness.md` and `docs/ai-readiness.md` and returns the readiness plan; in N5, `reference/restructure.md` and the cost. Return: the table, and the questions for the user with options in `Route: user`.
 
 ## feature-mapper
 
@@ -47,5 +56,6 @@ Return: invariant count by kind, the gap count with the proposals ranked (at mos
 2. `docs/flow.md`: the one end-to-end mermaid diagram of the system (triggers, features, external systems, failure exits), with a short legend. It is the single overview; other docs link to it.
 3. `docs/prd/INDEX.md`: fill the TRD column of every section with the feature maps that implement it.
 4. Run `python .claude/skills/prd-flow/scripts/gate.py` and `gate.py --trd`; fix every error in the files you wrote.
+5. Commit `docs(trd): map <scope>` and, separately, `docs: add CLAUDE.md maps`; return the hashes in `Commit`.
 
-Return: files, the last line of each run, gaps.
+Return: files, the last line of each run.

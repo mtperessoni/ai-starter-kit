@@ -1,8 +1,8 @@
-# TRD (F6)
+# TRD (read by the docs agent and the executor that merges Planned)
 
 IDs, texts and paths in the examples are illustrative: always read the real line.
 
-The TRD says where each feature lives in the code and what must not break; the rules stay in the PRD and the TRD never repeats them. Before code, it receives the design of the target state, so the plan and the agents start from an approved map and not from the current code. It is written only after the user confirms the rule diff (C5 step 7).
+The TRD says where each feature lives in the code and what must not break; the rules stay in the PRD and the TRD never repeats them. Before code, it receives the design of the target state, so the plan and the agents start from an approved map and not from the current code. The docs agent writes Planned in `trd-plan` mode (or `context` for one area of a fan-out, `short` for a dated section), after the PRD commit; in `c4` mode it updates the body instead. The symbols come from `pack.md`: the docs agent never reads source.
 
 ## "Planned" section
 The heading text is `repo.md` `planned_heading` (default `Planned`); the gate reads it from there.
@@ -46,14 +46,14 @@ Must not break: <what of the "Must not break" section the change touches>.
 | History | The TRD has no "History" section: `git log` is the history. Existing History sections are not appended to |
 
 ## Area without a file
-Create `docs/trd/<area>.md` with the sections of the existing files (Where it lives, How it enters the flow, Tests, Must not break, Known pitfalls), filled with what you verified in the code, and add the row to the table in `docs/trd/README.md`.
+Create `docs/trd/<area>.md` with the sections of the existing files (Where it lives, How it enters the flow, Tests, Must not break, Known pitfalls), filled from the file and symbol map the surveyor verified in `pack.md`, and add the row to the table in `docs/trd/README.md`.
 
 ## Invariants and tests
 - New invariant: next free row of the table for its kind of change in `invariants.md`, with its proof (a test or a principle).
 - `testing.md` only if a new target, fake or way of running appears.
 
-## Promotion (last task of the plan)
-Merge "Planned" into the body sections, with the names the code actually used, and remove the section.
+## Merge of Planned
+The executor of the last code task owns `docs/trd/<area>.md` and does the merge in its own commit: it moves "Planned" into the body sections, with the names the code actually used, and removes the section. Promotion (`promote.py`, run by `executor close`) then reads the file column for the PRD Source.
 
 ## Gate and commit
-Run `gate.py --trd` and commit `docs(trd): <sentence>`, after the PRD commit, no push.
+The docs agent runs `gate.py --step trd` (the default checks and `--trd` in one run) and commits `docs(trd): <sentence>`, after the PRD commit, no push.

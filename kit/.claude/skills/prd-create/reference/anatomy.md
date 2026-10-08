@@ -24,6 +24,8 @@ docs/prd/
 | One journey with several steps | One PRD, one section per step |
 | Admin, configuration or back-office that governs another flow | A section of that PRD, or its own PRD when it has its own journey |
 
+A new context in a repository that already has PRDs starts in `/prd-flow` (C5, size L), not here. A section file stays within `prd_section_budget_lines`; past it, split by subsection.
+
 Each PRD has a short name and a number for prefixes when helpful (`R1-`, `Q2-`).
 
 ## Sections of a PRD

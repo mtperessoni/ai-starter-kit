@@ -7,18 +7,22 @@ Every file the kit installs is either **kit-owned** (the project never edits it;
 | `.claude/skills/prd-flow/` (except `repo.md`) | kit | Replace after showing the diff | Replace when unchanged since install; otherwise show a three-way diff and ask |
 | `.claude/skills/prd-flow/repo.md` | project | Merge: keep existing values, add missing sections | Propose new sections only |
 | `.claude/skills/prd-gate/` (legacy name) | kit, removed | Not installed | Removed by the prd-gate migration of `update.md`, after the user confirms |
-| `.claude/skills/prd-flow/scripts/build_prd_html.py`, `docs/templates/prd.html` | kit | Replace | Replace when unchanged |
+| `.claude/skills/prd-flow/scripts/build_prd_html.py`, `promote.py`, `docs/templates/prd.html` | kit | Replace | Replace when unchanged |
+| `.claude/skills/prd-flow/repo.md` key `prd_section_budget_lines` | project | Written with its default (200) | Added with its default; never changes a value |
+| `.claude/agents/prd-flow-surveyor.md`, `prd-flow-docs.md`, `prd-flow-executor.md`, `prd-flow-reviewer.md`, `prd-flow-recheck.md` | kit | Copied to `.claude/agents/`; a project agent with the same name is shown as a diff and never overwritten silently | Replace when unchanged; otherwise three-way diff and ask |
+| `.claude/prd-flow/state/<slug>/deliveries/<task>.md` | agent output | Never installed; written by the executors, one file per task, in the git-ignored state folder | Never touched |
+| `.claude/skills/prd-flow/reference/workers/` | kit, removed | Not installed | Removed by the workers migration of `update.md`, after the user confirms |
 | `scripts/commit_trailers.py` | kit | Replace | Replace when unchanged |
 | `.github/CODEOWNERS` | project | Fill from "Rule owners" of `repo.md`, or leave commented; an existing file only gets the `docs/prd/**` line added | Never touched; propose only |
 | `docs/prd/prd.html` (when `html_mode` is `generated`) | kit output | Built by `build_prd_html.py`, never by hand | Rebuilt |
 | `.claude/skills/prd-create/`, `trd-create/`, `adr/` | kit | Replace after showing the diff | Same as prd-flow |
-| `scripts/gates.sh`, `ratchet.py`, `related_tests.py`, `new_failures.py`, `move_lines.py`, `kit_config.py`, `hotspots.py`, `contract_drift.py`, `docker_hygiene.py`, `clean_task_outputs.py`, `telemetry_hook.py`, `run_probe.py`, `retro.py` | kit | Ask (an existing `scripts/gates.sh` is renamed to `scripts/gates.project.sh`; the kit's `gates.sh` delegates to it, see the next row) | Replace when unchanged |
+| `scripts/gates.sh`, `ratchet.py`, `related_tests.py`, `new_failures.py`, `move_lines.py`, `kit_config.py`, `hotspots.py`, `contract_drift.py`, `docker_hygiene.py`, `clean_task_outputs.py`, `telemetry_hook.py`, `run_probe.py`, `retro.py`, `close_gate.py` | kit | Ask (an existing `scripts/gates.sh` is renamed to `scripts/gates.project.sh`; the kit's `gates.sh` delegates to it, see the next row) | Replace when unchanged |
 | `scripts/gates.project.sh` | project | The project's former `gates.sh`, renamed. Wired: the kit's `gates.sh` sends it every target the kit does not define and every target in `ai-kit.json` `commands.project_targets`, with the arguments. List there the targets the project keeps (for example `full`, `offline`, `divergence`) | Never touched |
 | `docs/templates/` (includes `folder-CLAUDE.md`) | kit | Replace | Replace when unchanged |
 | `docs/ai-readiness.md` | kit | Replace | Replace when unchanged |
 | `.ignore` | project | Append the lines that are missing | Propose missing lines |
 | `docs/code-structure.md` | project | Merge the AR table; keep project additions | Propose new rules only |
-| `ai-kit.json` | project | Create | Add new keys with defaults; never change values |
+| `ai-kit.json` | project | Create (includes `limits.skill_md_bytes` 6144 and `allowlist.skill_md_bytes`) | Add new keys with defaults; never change values |
 | `CLAUDE.md`, `AGENTS.md` | project | Merge: keep every existing line, add the kit sections that are missing, resolve contradictions with the user | Propose new sections only |
 | `.specify/memory/constitution.md` | project | Merge: existing principles stay, the kit's process principles are added and numbered after them; with spec-kit already initialized, run its versioning rule (MINOR bump) and keep the file at its path | Propose new kit principles only |
 | `changes/`, `changes/archive/` | project | Create `changes/archive/` (with `.gitkeep`) when missing; a legacy `specs/` is never touched or moved | Never touched; only `changes/archive/` is created when missing |

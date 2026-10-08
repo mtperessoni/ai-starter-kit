@@ -8,6 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "eval"))
+import protocol  # noqa: E402
 import transcript  # noqa: E402
 
 SAMPLE = ROOT / "tests" / "fixtures" / "stream_sample.jsonl"
@@ -182,10 +183,6 @@ class EfficiencyTest(unittest.TestCase):
         self.assertIsNone(s["subagent_tokens_median"])
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class AssistantTextTest(unittest.TestCase):
     def test_main_thread_text_blocks_keep_their_time(self):
         a = json.loads(asst("m1", [{"type": "text", "text": "PRC-03 conflicts with the new cap"}]))
@@ -203,3 +200,407 @@ class AssistantTextTest(unittest.TestCase):
         d, p = tmp_file([""])
         with d:
             self.assertEqual(transcript.summarize(p)["assistant_texts"], [])
+
+
+def ev(kind, ts=None, parent=None, mid=None, blocks=(), usage=None):
+    e = {"type": kind, "message": {"content": list(blocks)}}
+    if ts:
+        e["timestamp"] = f"2026-10-07T10:{ts}Z"
+    if parent:
+        e["parent_tool_use_id"] = parent
+    if mid:
+        e["message"]["id"] = mid
+        e["message"]["usage"] = usage or {"input_tokens": 1}
+    return json.dumps(e)
+
+
+def tool_use(tid, name="Bash", **inp):
+    return {"type": "tool_use", "id": tid, "name": name, "input": inp}
+
+
+def tool_result(tid, text, is_error=True):
+    return {"type": "tool_result", "tool_use_id": tid, "is_error": is_error, "content": text}
+
+
+class SixMetricsTest(unittest.TestCase):
+    def summary(self):
+        lines = [
+            ev("assistant", "00:00", mid="m1", blocks=[tool_use("A1", "Agent", description="build")]),
+            ev("assistant", "01:00", "A1", "s1", [tool_use("b1", command="python gate.py")]),
+            ev("user", "03:00", "A1", blocks=[tool_result("b1", "ERROR Q1 missing")]),
+            ev("assistant", "05:00", "A1", "s2", [tool_use("b2", command="ls")]),
+            ev("assistant", "06:00", mid="m2", blocks=[tool_use("b3", command="python .claude/skills/x/scripts/gate.py")]),
+            ev("user", "06:30", blocks=[tool_result("b3", "python: not found")]),
+            ev("assistant", "07:00", mid="m3", blocks=[tool_use("b4", "Read", file_path="x")]),
+            ev("user", "07:10", blocks=[tool_result("b4", "File does not exist")]),
+            ev("assistant", "07:20", mid="m4", blocks=[tool_use("b5", command="pytest")]),
+            ev("user", "07:30", blocks=[tool_result("b5", "Traceback (most recent call last)")]),
+            ev("user", "07:40", blocks=[tool_result("b4", "weird failure")]),
+            ev("user", "07:50", blocks=[tool_result("b4", "Traceback in a fine read", is_error=False)]),
+            json.dumps({"type": "result", "duration_ms": 600000, "is_error": False}),
+        ]
+        d, p = tmp_file(lines)
+        with d:
+            return transcript.summarize(p)
+
+    def test_time_split(self):
+        s = self.summary()
+        self.assertAlmostEqual(s["agent_min"], 4.0)
+        self.assertAlmostEqual(s["main_min"], 6.0)
+        self.assertEqual(s["cold_starts"], 1)
+
+    def test_error_kinds(self):
+        k = self.summary()["error_kinds"]
+        self.assertEqual(k, {"gate_check": 1, "environment": 1, "missing_file": 1,
+                             "test_failure": 1, "other": 1})
+
+    def test_gate_runs_split_by_parent(self):
+        s = self.summary()
+        self.assertEqual((s["gate_runs_main"], s["gate_runs_sub"]), (1, 1))
+
+    def test_no_wall_gives_none_main_min(self):
+        d, p = tmp_file([ev("assistant", "00:00", mid="m1")])
+        with d:
+            s = transcript.summarize(p)
+        self.assertIsNone(s["main_min"])
+        self.assertEqual(s["error_kinds"]["other"], 0)
+
+
+def raw(e):
+    return json.dumps(e)
+
+
+def result_event(usage):
+    return raw({"type": "result", "total_cost_usd": 3.0, "modelUsage": usage})
+
+
+class OutputQualityFieldsTest(unittest.TestCase):
+    def summarize(self, lines):
+        d, p = tmp_file(lines)
+        with d:
+            return transcript.summarize(p)
+
+    def test_cost_split_by_init_model(self):
+        s = self.summarize([
+            raw({"type": "system", "subtype": "init", "model": "opus"}),
+            result_event({"opus": {"costUSD": 2.0, "inputTokens": 10, "outputTokens": 10,
+                                   "cacheReadInputTokens": 60, "cacheCreationInputTokens": 20},
+                          "haiku": {"costUSD": 0.5, "inputTokens": 0, "outputTokens": 0,
+                                    "cacheReadInputTokens": 0, "cacheCreationInputTokens": 0},
+                          "sonnet": {"costUSD": 0.25}})])
+        self.assertEqual((s["cost_main_usd"], s["cost_subagents_usd"]), (2.0, 0.75))
+        self.assertAlmostEqual(s["cache_hit_rate"], 60 / 90)
+        self.assertAlmostEqual(s["output_share"], 10 / 100)
+
+    def test_missing_data_is_none(self):
+        s = self.summarize([ev("assistant", "00:00", mid="m1")])
+        for k in ("cost_main_usd", "cost_subagents_usd", "cache_hit_rate", "output_share",
+                  "gate_fail_ratio"):
+            self.assertIsNone(s[k])
+        self.assertEqual(s["rereads"], 0)
+        self.assertFalse(s["docs_dispatched"])
+
+    def test_no_init_model_gives_none_cost_split(self):
+        s = self.summarize([result_event({"opus": {"costUSD": 2.0}})])
+        self.assertIsNone(s["cost_main_usd"])
+
+    def test_gate_fail_ratio(self):
+        def res(tid, text, err=False):
+            return ev("user", blocks=[{"type": "tool_result", "tool_use_id": tid, "content": text,
+                                       "is_error": err}])
+        s = self.summarize([
+            ev("assistant", "00:00", mid="a", blocks=[tool_use("g1", command="python gate.py x"),
+                                                     tool_use("g2", command="python gate.py y"),
+                                                     tool_use("g3", command="python gate.py z"),
+                                                     tool_use("b1", command="ls")]),
+            res("g1", "ok"), res("g2", "ERROR G1 bad"), res("g3", "boom", True), res("b1", "ERROR x")])
+        self.assertAlmostEqual(s["gate_fail_ratio"], 2 / 3)
+
+    def test_rereads_per_context(self):
+        rd = lambda i, f: tool_use(i, "Read", file_path=f)
+        s = self.summarize([
+            ev("assistant", "00:00", mid="a", blocks=[rd("1", "a"), rd("2", "a"), rd("3", "b")]),
+            ev("assistant", "00:01", mid="b", parent="S", blocks=[rd("4", "a"), rd("5", "a")]),
+            ev("assistant", "00:02", mid="c", parent="T", blocks=[rd("6", "a")])])
+        self.assertEqual(s["rereads"], 2)
+
+    def test_docs_dispatched(self):
+        agent = lambda **i: ev("assistant", "00:00", mid="a", blocks=[tool_use("A", "Agent", **i)])
+        self.assertTrue(self.summarize([agent(description="Run Planner", prompt="x")])["docs_dispatched"])
+        self.assertTrue(self.summarize([agent(description="d", prompt="the prd-WRITER task")])["docs_dispatched"])
+        self.assertFalse(self.summarize([agent(description="executor", prompt="code")])["docs_dispatched"])
+
+
+def _ev(kind, ts, parent=None, **kw):
+    return {"type": kind, "timestamp": ts, "parent_tool_use_id": parent, **kw}
+
+
+def _call(mid, ts, blocks, usage=None, parent=None):
+    base = {"input_tokens": 1, "cache_read_input_tokens": 100, "cache_creation_input_tokens": 10, "output_tokens": 5}
+    return _ev("assistant", ts, parent, message={"id": mid, "usage": usage or base, "content": blocks})
+
+
+def _use(tid, name, **inp):
+    return {"type": "tool_use", "id": tid, "name": name, "input": inp}
+
+
+def _done(ts, tid, text="ok", parent=None):
+    return _ev("user", ts, parent, message={"content": [{"type": "tool_result", "tool_use_id": tid, "content": text}]})
+
+
+def _flow_session():
+    first = {"input_tokens": 5, "cache_read_input_tokens": 0, "cache_creation_input_tokens": 40000, "output_tokens": 1}
+    return [
+        _call("m1", "2026-10-07T10:00:00Z", [_use("S", "Agent", subagent_type="prd-flow-surveyor", prompt="go")], first),
+        _done("2026-10-07T10:01:00Z", "S"),
+        _call("m2", "2026-10-07T10:01:10Z", [_use("D", "Agent", description="Write docs and plan", prompt="docs")]),
+        _done("2026-10-07T10:02:00Z", "D"),
+        _call("m3", "2026-10-07T10:02:10Z", [_use("E1", "Agent", subagent_type="prd-flow-executor", prompt="T01 go"),
+                                             _use("E2", "Agent", subagent_type="prd-flow-executor", prompt="T02 go")]),
+        _call("s1", "2026-10-07T10:02:20Z", [], parent="E1"), _call("s2", "2026-10-07T10:02:20Z", [], parent="E2"),
+        _call("s3", "2026-10-07T10:06:20Z", [], parent="E1"), _call("s4", "2026-10-07T10:06:20Z", [], parent="E2"),
+        _done("2026-10-07T10:06:30Z", "E1"), _done("2026-10-07T10:06:31Z", "E2"),
+        _call("m4", "2026-10-07T10:06:40Z", [_use("E3", "Agent", subagent_type="prd-flow-executor", prompt="T03 go")]),
+        _done("2026-10-07T10:08:00Z", "E3"),
+        _call("m5", "2026-10-07T10:08:10Z", [_use("R", "Agent", description="Review the wave", prompt="r")]),
+        _done("2026-10-07T10:09:00Z", "R"),
+    ]
+
+
+def _plan_write(review, waves=2):
+    lines = "\n".join(f"WAVE {i}: T0{i} (sonnet, lens none)" for i in range(1, waves + 1))
+    text = f"## Plan\nPlan: changes/001-x/plan.md\n{lines}\nCRITICAL PATH: T01\nReview: {review}\nExecution: x\n"
+    return _call("p", "2026-10-07T10:00:00Z", [_use("W", "Edit", file_path="/p/.claude/prd-flow/state/x/state.md",
+                                                      old_string="a", new_string=text)])
+
+
+def _reviewer(n):
+    return [_call(f"r{i}", f"2026-10-07T10:1{i}:00Z",
+                  [_use(f"R{i}", "Agent", subagent_type="prd-flow-reviewer", prompt="Wave: 1")]) for i in range(n)]
+
+
+class ReviewCoverageTest(unittest.TestCase):
+    def cov(self, review, done, waves=2, plan=True):
+        d = tempfile.TemporaryDirectory()
+        self.addCleanup(d.cleanup)
+        p = Path(d.name) / "t.jsonl"
+        evs = ([_plan_write(review, waves)] if plan else []) + _reviewer(done)
+        p.write_text("\n".join(json.dumps(e) for e in evs) + "\n", encoding="utf-8")
+        return transcript.summarize(p)["review_coverage"]
+
+    def test_per_wave_with_one_review_is_half(self):
+        self.assertEqual(self.cov("per wave", 1), 0.5)
+
+    def test_per_wave_fully_reviewed(self):
+        self.assertEqual(self.cov("per wave", 2), 1.0)
+
+    def test_serial_plan_needs_one_review(self):
+        self.assertEqual(self.cov("once after the last wave", 1), 1.0)
+        self.assertEqual(self.cov("once after the last wave", 0), 0.0)
+
+    def test_extra_reviews_cap_at_one(self):
+        self.assertEqual(self.cov("once after the last wave", 3), 1.0)
+
+    def test_no_plan_is_none(self):
+        self.assertIsNone(self.cov("", 1, plan=False))
+
+
+class FlowMetricsTest(unittest.TestCase):
+    def setUp(self):
+        d = tempfile.TemporaryDirectory()
+        self.addCleanup(d.cleanup)
+        p = Path(d.name) / "t.jsonl"
+        p.write_text("\n".join(json.dumps(e) for e in _flow_session()) + "\n", encoding="utf-8")
+        self.s = transcript.summarize(p)
+
+    def test_dispatch_map_by_type_then_description(self):
+        self.assertEqual(self.s["agents_by_role"]["executor"], 3)
+        self.assertEqual(self.s["agents_by_role"]["docs"], 1)
+        self.assertEqual(self.s["agents_by_role"]["reviewer"], 1)
+        self.assertEqual(self.s["dispatch_map"], 1.0)
+
+    def test_waves_and_widths_follow_returns(self):
+        self.assertEqual((self.s["waves"], self.s["wave_widths"]), (2, [2, 1]))
+
+    def test_parallel_factor_over_the_execution_phase(self):
+        self.assertGreater(self.s["parallel_factor"], 1.0)
+
+    def test_start_context_and_cache_write(self):
+        self.assertEqual(self.s["start_context"], 40005)
+        self.assertEqual(self.s["main_calls"], 5)
+        self.assertEqual(self.s["cache_busts"], 0)
+        self.assertEqual(self.s["main_violations"], 0)
+
+    def test_main_violations_count_edits_reads_and_extra_gates(self):
+        ev = [_call("a", "2026-10-07T10:00:00Z", [_use("r", "Read", file_path="/p/src/orders/x.py"),
+                                                  _use("w", "Edit", file_path="/p/docs/prd/a.md")]),
+              _call("b", "2026-10-07T10:00:10Z", [_use("S", "Agent", subagent_type="prd-flow-surveyor", prompt="g")]),
+              _call("c", "2026-10-07T10:00:20Z", [_use("g", "Bash", command="python gate.py --final")])]
+        self.assertEqual(protocol.analyze(ev)["main_violations"], 3)
+
+    def test_redispatch_of_a_task_card_is_counted(self):
+        ev = _flow_session() + [
+            _call("m6", "2026-10-07T10:09:10Z", [_use("E4", "Agent", subagent_type="prd-flow-executor", prompt="T03 again")]),
+            _done("2026-10-07T10:09:50Z", "E4")]
+        self.assertEqual(protocol.analyze(ev)["redispatches"], 1)
+
+
+def _surv(ts="2026-10-07T10:00:05Z"):
+    return _call("sv", ts, [_use("S", "Agent", subagent_type="prd-flow-surveyor", prompt="g")])
+
+
+def _bash(mid, ts, cmd, tid=None):
+    return _call(mid, ts, [_use(tid or mid, "Bash", command=cmd)])
+
+
+def _viol(ev):
+    return protocol.analyze(ev)["main_violations"]
+
+
+class ProtocolReviewFixesTest(unittest.TestCase):
+    def test_rules_once_and_rerun_after_failure_are_allowed(self):
+        cmd = "python scripts/gate.py --rules x"
+        ev = [_surv(), _bash("a", "2026-10-07T10:01:00Z", cmd),
+              _done("2026-10-07T10:01:05Z", "a")]
+        ev[-1]["message"]["content"][0]["is_error"] = True
+        ev += [_bash("b", "2026-10-07T10:01:10Z", cmd), _done("2026-10-07T10:01:15Z", "b"),
+               _bash("c", "2026-10-07T10:01:20Z", cmd)]
+        self.assertEqual(_viol(ev), 1)
+
+    def test_close_allowed_and_step_in_main_is_a_violation(self):
+        ev = [_surv(), _bash("a", "2026-10-07T10:01:00Z", "scripts/gates.sh close x"),
+              _bash("b", "2026-10-07T10:01:10Z", "python gate.py --step plan --slug x")]
+        self.assertEqual(_viol(ev), 1)
+
+    def test_step_plan_allowed_once_after_docs_agent(self):
+        docs = _call("d", "2026-10-07T10:00:30Z", [_use("D", "Agent", description="Write docs", prompt="p")])
+        cmd = "python gate.py --step plan --slug x"
+        ev = [_surv(), docs, _bash("a", "2026-10-07T10:01:00Z", cmd),
+              _bash("b", "2026-10-07T10:01:10Z", cmd + " ")]
+        ev[-1]["message"]["content"][0]["input"]["command"] = cmd + " --again"
+        self.assertEqual(_viol(ev), 1)
+
+    def test_exempt_main_calls_score_zero(self):
+        ev = [_call("a", "2026-10-07T10:00:00Z", [
+            _use("g", "Grep", pattern="PRD-01", path="docs/prd/INDEX.md"),
+            _use("r", "Read", file_path=".claude/skills/prd-flow/repo.md"),
+            _use("c", "Bash", command="scripts/gates.sh context my-slug"),
+            _use("b", "Bash", command="scripts/gates.sh baseline my-slug"),
+            _use("u", "Bash", command="git config user.name"),
+            _use("v", "Bash", command="git rev-parse HEAD"),
+            _use("l", "Bash", command="git log --oneline -5")]), _surv("2026-10-07T10:00:10Z")]
+        self.assertEqual(_viol(ev), 0)
+        self.assertEqual(protocol.analyze(ev)["main_reads_before_surveyor"], 0)
+
+    def test_second_index_grep_counts(self):
+        g = lambda i: _use(i, "Grep", pattern="x", path="docs/prd/INDEX.md")
+        ev = [_call("a", "2026-10-07T10:00:00Z", [g("g1"), g("g2")]), _surv()]
+        self.assertEqual(_viol(ev), 1)
+
+    def test_plan_range_read_after_docs_is_allowed(self):
+        docs = _call("d", "2026-10-07T10:00:30Z", [_use("D", "Agent", description="Write docs", prompt="p")])
+        ev = [_surv(), docs, _call("a", "2026-10-07T10:01:00Z", [
+            _use("r", "Read", file_path="changes/001-x/plan.md", offset=10, limit=20)])]
+        self.assertEqual(_viol(ev), 0)
+
+    def test_phase_two_reads_after_surveyor_of_phase_one_are_not_violations(self):
+        carry = {}
+        protocol.analyze([_surv()], carry)
+        ev = [_call("a", "2026-10-07T11:00:00Z", [_use("r", "Read", file_path="docs/prd/x.md")])]
+        self.assertEqual(_viol(ev), None)
+        self.assertEqual(protocol.analyze(ev, carry)["main_violations"], 0)
+
+    def test_background_executors_span_and_one_wave(self):
+        ev = [_call("m1", "2026-10-07T10:00:00Z", [
+            _use("E1", "Agent", subagent_type="prd-flow-executor", prompt="T01", run_in_background=True),
+            _use("E2", "Agent", subagent_type="prd-flow-executor", prompt="T02", run_in_background=True)]),
+            _done("2026-10-07T10:00:01Z", "E1", "Async agent launched"),
+            _done("2026-10-07T10:00:01Z", "E2", "Async agent launched"),
+            _call("m2", "2026-10-07T10:00:05Z", [_use("E3", "Agent", subagent_type="prd-flow-executor",
+                                                     prompt="T03", run_in_background=True)]),
+            _done("2026-10-07T10:00:06Z", "E3", "Async agent launched"),
+            _call("s1", "2026-10-07T10:00:10Z", [], parent="E1"),
+            _call("s2", "2026-10-07T10:00:10Z", [], parent="E2"),
+            _call("s3", "2026-10-07T10:04:00Z", [], parent="E1"),
+            _call("s4", "2026-10-07T10:04:00Z", [], parent="E2"),
+            _ev("user", "2026-10-07T10:04:10Z", message={"content": "<task-notification>E1 done</task-notification>"}),
+            _ev("user", "2026-10-07T10:04:20Z", message={"content": "<task-notification>E2 done</task-notification>"}),
+            _ev("user", "2026-10-07T10:04:30Z", message={"content": "<task-notification>E3 done</task-notification>"})]
+        r = protocol.analyze(ev)
+        self.assertEqual(r["wave_widths"], [3])
+        self.assertGreater(r["parallel_factor"], 2.0)
+
+    def test_same_message_executors_are_one_wave_even_when_foreground_returns_interleave(self):
+        ev = _flow_session()[4:5]
+        self.assertEqual(protocol.analyze(ev)["wave_widths"], [2])
+
+    def test_role_by_type_then_description_only(self):
+        self.assertEqual(protocol.role_of({"subagent_type": "prd-flow-reviewer", "description": "x"}), "reviewer")
+        self.assertEqual(protocol.role_of({"description": "Implement T03 fixes", "prompt": "survey"}), "executor")
+        self.assertEqual(protocol.role_of({"description": "Review T03"}), "reviewer")
+        self.assertEqual(protocol.role_of({"description": "Re-check fix PRO-001"}), "recheck")
+        self.assertEqual(protocol.role_of({"description": "T04 orders"}), "executor")
+        self.assertEqual(protocol.role_of({"description": "Review the wave", "prompt": "implement T01"}), "reviewer")
+        self.assertEqual(protocol.role_of({"description": "x", "prompt": "review it"}), "other")
+        self.assertEqual(protocol.role_of({"description": "Fix review findings"}), "executor")
+        self.assertEqual(protocol.role_of({"description": "fix CS-001 CS-002"}), "executor")
+        self.assertEqual(protocol.role_of({"description": "Apply the review fixes of T02"}), "executor")
+
+    def test_paths_are_relative_to_the_project_root(self):
+        init = _ev("system", "2026-10-07T10:00:00Z", subtype="init", cwd="/home/me/src/proj")
+        ev = [init, _call("a", "2026-10-07T10:00:01Z", [_use("r", "Read", file_path="/home/me/src/proj/README.txt"),
+                                                         _use("r2", "Read", file_path="/home/me/src/proj/src/a.py")]),
+              _surv("2026-10-07T10:00:05Z")]
+        self.assertEqual(protocol.analyze(ev)["main_reads_before_surveyor"], 1)
+
+    def test_commands_match_whole_commands_only(self):
+        ev = [_bash("a", "2026-10-07T10:00:00Z", "echo concatenate src/a.py && ls src/"),
+              _bash("b", "2026-10-07T10:00:01Z", "sed -n '1,20p' src/a.py"), _surv()]
+        self.assertEqual(protocol.analyze(ev)["main_reads_before_surveyor"], 1)
+
+    def test_a_background_executor_ends_at_its_last_child_event(self):
+        launch = "Async agent launched successfully.\nagentId: a1b2c3 (internal ID)\nThe agent is working in the background."
+        ev = [_call("m1", "2026-10-07T10:00:00Z", [
+            _use("E1", "Agent", subagent_type="prd-flow-executor", prompt="T01", run_in_background=True)]),
+            _done("2026-10-07T10:00:01Z", "E1", launch),
+            _call("s1", "2026-10-07T10:00:10Z", [], parent="E1"),
+            _call("s2", "2026-10-07T10:02:00Z", [], parent="E1"),
+            _call("m2", "2026-10-07T10:03:00Z", [_use("E2", "Agent", subagent_type="prd-flow-executor",
+                                                     prompt="T02", run_in_background=True)]),
+            _done("2026-10-07T10:03:01Z", "E2", launch),
+            _call("s3", "2026-10-07T10:04:00Z", [], parent="E2"),
+            _ev("user", "2026-10-07T10:09:00Z", message={"content": "<task-notification>agent a1b2c3 completed</task-notification>"})]
+        self.assertEqual(protocol.analyze(ev)["wave_widths"], [1, 1])
+
+    def test_a_background_executor_without_children_ends_at_the_result_event(self):
+        ev = [_call("m1", "2026-10-07T10:00:00Z", [
+            _use("E1", "Agent", subagent_type="prd-flow-executor", prompt="T01", run_in_background=True)]),
+            _done("2026-10-07T10:00:01Z", "E1", "Async agent launched"),
+            _ev("result", "2026-10-07T10:05:00Z"),
+            _call("m2", "2026-10-07T10:06:00Z", [_use("E2", "Agent", subagent_type="prd-flow-executor", prompt="T02")])]
+        self.assertEqual(protocol.analyze(ev)["wave_widths"], [1, 1])
+
+    def test_step_plan_rerun_after_a_failed_one_is_allowed(self):
+        docs = _call("d", "2026-10-07T10:00:30Z", [_use("D", "Agent", description="Write docs", prompt="p")])
+        cmd = "python gate.py --step plan --slug x"
+        ev = [_surv(), docs, _bash("a", "2026-10-07T10:01:00Z", cmd), _done("2026-10-07T10:01:05Z", "a", "ERROR P7 clash"),
+              _bash("b", "2026-10-07T10:01:10Z", cmd)]
+        self.assertEqual(_viol(ev), 0)
+
+    def test_gates_related_is_setup_before_the_executor_and_a_violation_after(self):
+        before = [_surv(), _bash("a", "2026-10-07T10:01:00Z", "scripts/gates.sh related src/a.py"),
+                  _bash("b", "2026-10-07T10:01:05Z", "scripts/gates.sh ratchet")]
+        self.assertEqual(_viol(before), 0)
+        execu = _call("e", "2026-10-07T10:02:00Z", [_use("E", "Agent", subagent_type="prd-flow-executor", prompt="T01")])
+        after = before + [execu, _bash("c", "2026-10-07T10:03:00Z", "scripts/gates.sh lint")]
+        self.assertEqual(_viol(after), 1)
+
+    def test_an_index_grep_by_glob_is_exempt(self):
+        ev = [_call("a", "2026-10-07T10:00:00Z", [
+            _use("g", "Grep", pattern="PRD-01", path="docs/prd", glob="INDEX.md")]), _surv()]
+        self.assertEqual(_viol(ev), 0)
+        self.assertEqual(protocol.analyze(ev)["main_reads_before_surveyor"], 0)
+
+
+if __name__ == "__main__":
+    unittest.main()
