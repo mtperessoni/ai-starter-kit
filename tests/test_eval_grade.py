@@ -506,6 +506,7 @@ class FlowGradeTest(unittest.TestCase):
         lines = [{"type": "assistant", "parent_tool_use_id": "agent1", "message": {"id": "m1", "content": [write, edit, other]}}]
         tr.write_text("\n".join(json.dumps(x) for x in lines), encoding="utf-8")
         self.assertEqual(grade.conflict_recall(root, ["SHP-01", "SHP-02", "SHP-03"], tr), 2 / 3)
+        self.assertEqual(grade.conflict_recall(root, ["SHP-01", "SHP-02"], [tr, root / "missing.p2.jsonl"]), 1.0)
 
 
 if __name__ == "__main__":

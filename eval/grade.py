@@ -310,6 +310,8 @@ def protocol_adherence(arm, case, skills):
 
 def impact_writes(transcript):
     """Text written to impact.md or pack.md during the run; a passing close deletes the state folder."""
+    if isinstance(transcript, (list, tuple)):
+        return "\n".join(impact_writes(t) for t in transcript)
     found = []
     for line in Path(transcript).read_text(encoding="utf-8", errors="replace").splitlines() if transcript and Path(transcript).exists() else []:
         try:
