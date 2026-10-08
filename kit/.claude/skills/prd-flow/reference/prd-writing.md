@@ -3,13 +3,15 @@
 IDs, texts and paths in the examples are illustrative: always read the real line.
 
 ## Writer steps (C5 step 5)
-| Step | What the `writer-prd` does |
+| Step | What the docs agent does |
 |---|---|
 | 1 | Writes the PRD files from `approved-rules.md` (rows literal, with the Example cell when present) |
 | 2 | Builds the HTML (section "HTML" below), updates CHANGELOG and INDEX |
 | 3 | Writes the `Decisions:` block of the CHANGELOG entry from `changes/NNN-<slug>/decisions.md` |
-| 4 | Runs `gate.py --step prd --rules <approved-rules.md> --applied` once: the default checks, Q4 (a row of the file not in the PRD with identical cells) and G28. Step 6 shows its last line from the return |
+| 4 | Runs `gate.py --step prd --rules <approved-rules.md> --applied` once: the default checks, Q4 (a row of the file not in the PRD with identical cells) and G28 |
 | 5 | Commits `docs(prd)` with `decisions.md` and the PRD together |
+
+Step 6 (the user reviews the written PRD) is skipped when `--applied` is green and the change has no non-table content (prose, new sections, an amendment file); the main shows the gate line, and the docs agent continues to the TRD and the plan. With non-table changes, step 6 shows only those.
 
 ## Where to write
 | Change | Form |
@@ -28,9 +30,11 @@ Table format: `| ID | Rule | Source | Change via |` with an optional fifth colum
 | Proposed (comes only from documents, not proven by code) | `*(proposed)*` (the `proposed_marker` of `repo.md`) at the start of the text; Source `planned`. Input of C5, never C2. Greenfield M2 rules come from the interview and are approved, not proposed |
 | Approved, no code yet | `*(approved YYYY-MM-DD, pending code)*` at the start of the text; Source `planned`. Approving a proposed rule replaces its `*(proposed)*` marker with this one |
 | Rule the new one supersedes | Keeps its text and gets `*(superseded: <link to the new rule>, valid until deploy)*` at the start |
+| Rule rewritten (same rule, new text) | Keeps its ID; the rewritten row carries the approved marker; the old text goes literally to the CHANGELOG at promotion. An ID is never reused for a different rule |
+| Conflict found by the surveyor | `approved-rules.md` has `## Conflicts` with `\| ID \| Resolution \| Note \|`. Resolution is `rewritten` (the same ID is a row under its file heading, with the new text and marker), `superseded` (listed under `## Supersedes` as `ID: old text`) or `compatible` (the Note says why). The gate (Q5) requires a row for every ID of the pack's `Conflicts:` line, the table row for `rewritten`, an existing PRD ID for `superseded`, and a non-empty Note for `compatible` |
 | `Q-`, `R-`, `S-` answered | Append `*Decided on YYYY-MM-DD: <decision>, see <ID>.*` at the end; nothing is deleted |
 | Table row without ID | Keeps the table format and is cited by section and number (`04-02 #5`). Do not invent an ID. Approved without code: the marker goes at the start of the text cell |
-| Promotion (last task of the plan) | See "Promotion" below |
+| Promotion | See "Promotion" below |
 
 `--final` fails on any rule still marked proposed (G30).
 
@@ -63,13 +67,15 @@ In C5 the entry is created in F5 with the reason, the IDs and the Decisions bloc
 - `INDEX.md`: the IDs column of the file's row (range `CHK-01..13`), the TRD column when a feature file appears. A new amendment section gets its own row.
 - `README.md`: "State per spec" and "What weighs most today" only when the change affects them.
 
-## Promotion (last task of the plan)
+## Promotion
+The main runs `promote.py <slug>` (`--dry-run` to preview) after the last wave; no task does it. The script applies these rules:
+
 | Step | Rule |
 |---|---|
-| P1 | Old text literally to the CHANGELOG; superseded rows leave; markers leave; Source gets the real file |
+| P1 | Old text (superseded and rewritten rows) literally to the CHANGELOG; superseded rows leave; markers leave; Source gets the real file (from the `Source:` lines of `deliveries.md`, or the TRD Planned file column) |
 | P2 | The `decisions.md` rows are in the CHANGELOG entry under `Decisions:` (copied, not summarized) |
-| P3 | Fold amendments (the single home of this rule): each amendment row moves to the step section that owns the behavior (ID unchanged, markers removed, Source filled); an amendment file whose rows all moved is deleted after its prose is merged into the step prose; the `[!IMPORTANT]` pointers go; INDEX follows; the CHANGELOG entry says "folded into <files>" |
-| P4 | Rebuild the HTML (section "HTML") |
+| P3 | Fold amendments (the single home of this rule): each amendment row moves to the step section that owns the behavior (ID unchanged, markers removed, Source filled); an amendment file whose rows all moved is deleted after its prose is merged into the step prose; the `[!IMPORTANT]` pointers go; INDEX follows; the CHANGELOG entry says "folded into <files>". A fold the script cannot decide is listed as a warning and done by hand |
+| P4 | Rebuild the HTML when `html_mode` is `generated` (section "HTML"); with `hand` it is the same edit by hand |
 
 ## HTML (only when `repo.md` sets `html` to a path)
 | `html_mode` | Procedure |

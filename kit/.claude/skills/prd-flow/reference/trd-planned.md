@@ -52,8 +52,8 @@ Create `docs/trd/<area>.md` with the sections of the existing files (Where it li
 - New invariant: next free row of the table for its kind of change in `invariants.md`, with its proof (a test or a principle).
 - `testing.md` only if a new target, fake or way of running appears.
 
-## Promotion (last task of the plan)
-Merge "Planned" into the body sections, with the names the code actually used, and remove the section.
+## Merge of Planned
+The last code task of the plan owns `docs/trd/<area>.md` and does the merge: it moves "Planned" into the body sections, with the names the code actually used, and removes the section. Promotion (`promote.py`) then reads the file column for the PRD Source.
 
 ## Gate and commit
 Run `gate.py --step trd` (the default checks and `--trd` in one run) and commit `docs(trd): <sentence>`, after the PRD commit, no push.

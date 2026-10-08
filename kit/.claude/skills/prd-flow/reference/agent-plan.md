@@ -5,7 +5,7 @@ IDs, texts and paths in the examples are illustrative: always read the real line
 The plan comes only from the PRD and the TRD already committed (C5 step 8, after step 7): the rule IDs are the contract. An agent that receives the rule row and the map does not need to rediscover the domain.
 
 ## Where the plan lives
-Folder `changes/NNN-<slug>/` with the next free number (LT01); size from the case line (LT04). Step 4 of C5 already created the folder with `decisions.md`, which `writer-prd` commits at step 5; the planner reuses it. Nothing in `changes/archive/` or a legacy `specs/` is read for current behavior (LT07).
+Folder `changes/NNN-<slug>/` with the next free number (LT01); size from the case line (LT04). Step 4 of C5 already created the folder with `decisions.md`, which the docs agent commits at step 5; the plan reuses it. Nothing in `changes/archive/` or a legacy `specs/` is read for current behavior (LT07).
 
 | Size | Files in the folder |
 |---|---|
@@ -20,7 +20,9 @@ Folder `changes/NNN-<slug>/` with the next free number (LT01); size from the cas
 
 Compatibility (LT11): a legacy `specs/` stays untouched as history. With `repo.md` "Spec-kit" `kept`, its `spec.md` cites PRD rule IDs and defines no FR, and `tasks.md` is not used: this plan is.
 
-Plan commit: `docs(changes): <sentence>`, no push. After writing, one run: `gate.py --step plan --plan <plan> --change changes/NNN-<slug>` (LT09; it warns G27 when the same change number exists on a remote branch).
+Plan commit: `docs(changes): <sentence>`, no push. After writing, one run: `gate.py --step plan --plan <plan> --change changes/NNN-<slug>` (LT09; it warns G27 when the same change number exists on a remote branch). It also prints the waves (`WAVE n: T01, T02`, critical path first, at most 4 per wave) and the `CRITICAL PATH`; it fails when two tasks of one wave share a file in Owns, or a task touches `docs/` or `changes/` without owning it, and warns when two serial tasks of the same area could be one.
+
+Docs fan-out by context: a change over two or more PRDs or TRD areas, each with more than about 5 rows, gets one docs agent per context (disjoint files) in parallel, then one planner merge of the plan; otherwise one docs agent.
 
 ## Plan header
 Order: title, `## Constitution check`, `## Plan execution rules`, tasks.
@@ -35,29 +37,33 @@ One row per principle the change touches (LT05); it replaces spec-kit's Constitu
 The table is in `repo.md`, "Change routing". `code` always becomes agent tasks in the format below; anything owned by another repository becomes a handoff note with the rule rows, outside this plan.
 
 ## Format of a task
+A card has at most 25 lines; all fields are mandatory.
+
 ```markdown
 ### T03 · <verb + result>
-Contract (literal):
-| CHK-02 | ... | planned | config | Provider silent for 20 s → "try again" shown, cart kept |
-TRD: docs/trd/checkout.md, Planned row `src/features/checkout/payment_call.py` (point to the row, do not describe it again)
+Contract: CHK-02 (IDs only; the literal row stays in `approved-rules.md` and the pack)
 Owns: src/features/checkout/payment_call.py, src/features/checkout/tests/test_payment_call.py
-Does not touch: <files of other parallel tasks>
-Test first: test_<behavior> in <file>, docstring citing CHK-02; fails before the change
-Commands: scripts/gates.sh related <files in Owns> · scripts/gates.sh lint
-Done when: test green, related tests green, lint green, ratchet green
-Depends on: T01 · Parallel with: T02
+Read: docs/trd/checkout.md (Planned row), src/features/checkout/payment_call.py::call_provider (exact paths or `path::symbol`, about 25k tokens at most)
+Depends on: T01
 Creates / consumes: creates `PaymentOutcome.retry_after`; consumes `PaymentConfig.provider_timeout_seconds` (T01)
-Model: sonnet (config, docs, test adjustment, small contract) | opus (safety decision, agent prompt, big file, serial chain; reason on this line)
-Reviewer: <agent from repo.md "Reviewers"> | none
+Tests: test_<behavior> in <file>, docstring citing CHK-02, fails before the change; then scripts/gates.sh related <Owns> and scripts/gates.sh lint
 Commit: <type>(<scope>): <sentence>
         Rules: CHK-02            (or: Case: none (<reason in at most 8 words>))
+Model: sonnet (config, docs, test adjustment, small contract) | opus (safety decision, agent prompt, big file, serial chain; reason on this line)
+Reviewer: <agent from repo.md "Reviewers"> | none
 ```
 
 Commit trailer: a commit that touches the source folders (`ai-kit.json`) carries `Rules: <IDs>` or `Case: none (<reason>)`; `scripts/gates.sh trailers [range]` checks it. The executor's proposed message includes the trailer.
 
-The literal rule goes only in the task that owns it; the others cite the ID. "Creates / consumes" tells the executor which blocks of `deliveries.md` to read. `gate.py --plan` checks: every task has Owns (error), Reviewer and Model (warning), no ID missing from the PRD (error), and the file size (warning above the `plan_budget_kb` of `repo.md`).
+The card cites IDs; the executor reads the literal row from the pack. "Creates / consumes" names the shared symbols: a consumer reads the producer's block in `deliveries.md` (at `.claude/prd-flow/state/<slug>/deliveries.md`), never the producer's code. `gate.py --step plan` checks: every task has Owns (error), Reviewer and Model (warning), no ID missing from the PRD (error), and the file size (warning above the `plan_budget_kb` of `repo.md`).
 
-Split work into tasks only when the pieces run in parallel (disjoint "Owns") or a big file needs its own serial chain; otherwise one task per area. Each task is an agent with a cold start of about a minute, so serial tasks that could be one only add time (LS26). Parallel tasks have disjoint "Owns". Order by dependency and mark what runs together. In "Owns", include the tests outside the area the change will break (search who imports the changed symbols); a task that discovers this midway stops and comes back, and each stop costs a resume.
+| Rule | Detail |
+|---|---|
+| Granularity by the critical path | A task is at least one file and its test. Split only when the pieces run in parallel (disjoint Owns) and each piece is at least about 10 tool calls of work; sequential pieces of one area are one task; a one-rule change is one task. Each task is an agent with a cold start, so serial tasks that could be one only add time |
+| Context affinity | Tasks that read the same large files (a big module, the same area map) go to the same executor, since parallel agents each reread them |
+| Interfaces before parallel work | Names shared between tasks are written in `Creates / consumes` and come from the producer's `deliveries.md` block |
+| Owns | Include the tests outside the area that the change will break (search who imports the changed symbols); a task that discovers this midway stops and comes back |
+| TRD | The last code task owns `docs/trd/<area>.md` and merges Planned into the body (trd-planned.md) |
 
 ## Plan execution rules
 The plan header copies these lines under `## Plan execution rules`, so whoever executes does not depend on the skill:
@@ -66,21 +72,10 @@ The plan header copies these lines under `## Plan execution rules`, so whoever e
 - Inside a task, only the related tests; the full suite runs once, at the end of all tasks.
 - Any behavior outside the approved rules, safety included, stops and goes to the short C5 (R09).
 - Each commit carries the `Rules:` or `Case: none (...)` trailer.
-- Execution follows `.claude/skills/prd-flow/reference/execution.md`: baseline once, each task through the `executor` with a one-line prompt on the task's model, a block in `deliveries.md`, a commit per task by the main thread, and a plan with more than 6 tasks or a big file executed in a new session.
+- Execution follows `.claude/skills/prd-flow/reference/execution.md`: baseline once, waves from the gate, each task through the `prd-flow-executor` with its card on the task's model, a block in `deliveries.md`, a commit per task by the main thread, a review per wave, and a checkpoint to a fresh session when the main grows past about 120k tokens or more than 2 waves are left.
 
-## Mandatory final task
-```markdown
-### TNN · Promote
-- PRD: old text literally to the CHANGELOG, remove superseded rows and markers, fill the Source, copy the `decisions.md` rows under `Decisions:` (prd-writing.md, "Promotion")
-- Fold amendments (prd-writing.md P3)
-- HTML, if any: rebuild it (`build_prd_html.py`, or the same hand edit with `html_mode` hand)
-- TRD: merge "Planned" into the body (trd-planned.md, "Promotion")
-- `design.md` (L): decisions to `docs/adr/` (`/adr`), data model to the real schema or migration plus the TRD, contracts to the real artifact plus a TRD link (LT03)
-- Archive: `git mv changes/NNN-<slug> changes/archive/NNN-<slug>` (LT06)
-- prd-flow gate green (`gate.py --final` clean when it is the last open change, LT10), full suite and lint green
-```
-
-A plan of at most 3 code tasks, with no `design.md` and no amendment file to fold, puts these steps at the end of its last code task instead of a separate task: a separate Promote agent paid a cold start and rereads for a few edits (LS26).
+## Promote is not a task
+The main runs `promote.py <slug>` after the last wave (execution.md E20), then `scripts/gates.sh close <slug>`. The plan has no Promote task. What the script leaves as a listed warning (an amendment fold it cannot decide, prd-writing.md P3) and the `design.md` (L) destinations (decisions to `docs/adr/` with `/adr`, data model to the real schema or migration plus the TRD, contracts to the real artifact plus a TRD link, LT03) are the last code task's job when it owns them, or the main's after the script.
 
 ## Presentation
-Show the user the tasks in a table (ID, result, owns, depends on, model, reviewer) and ask for approval. Adjust until approved. Execution happens when the user asks: each agent receives only its task, which already is the contract.
+Show the user the tasks in a table (ID, result, owns, depends on, wave, model, reviewer) and ask for approval. Adjust until approved. Execution happens when the user asks: each agent receives only its task card, which already is the contract.
