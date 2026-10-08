@@ -74,8 +74,8 @@ In C5 the entry is created in F5 with the reason, the IDs and the Decisions bloc
 ## HTML (only when `repo.md` sets `html` to a path)
 | `html_mode` | Procedure |
 |---|---|
-| `generated` | Run `python .claude/skills/prd-flow/scripts/build_prd_html.py` after every PRD edit and commit the result with the markdown. Never edit the HTML by hand; G29 fails when it is out of date (`--check`) |
+| `generated` | Run `<python> .claude/skills/prd-flow/scripts/build_prd_html.py` after every PRD edit and commit the result with the markdown. Never edit the HTML by hand; G29 fails when it is out of date (`--check`) |
 | `hand` | Kept briefly for repositories not yet migrated (`/ai-kit update` offers the migration). The HTML is maintained by hand, so every markdown edit goes into it in the same commit. Rule row: `<tr data-via="config"><td>CHK-02</td><td>text</td><td>source</td></tr>` (risks and problems also carry `data-sev="high\|medium\|low"`). Locate by ID (`Grep ">CHK-02<"`) and replace exactly that line; markers become `<i>(...)</i>`, links `<a href="#<anchor>">`, backticks `<code>`. The rule text has the same words as the markdown (the gate compares word by word). Never rewrite the whole file nor touch scripts, styles, tabs or filters |
 
 ## Gate and commit
-`python .claude/skills/prd-flow/scripts/gate.py`: ERROR blocks the commit; a WARNING about "earlier drift" belongs to the base, not to this change, and goes to the final list of divergences. Commit `docs(prd): <sentence in the git log style>`, markdown (and HTML) together, no push.
+`<python> .claude/skills/prd-flow/scripts/gate.py`: ERROR blocks the commit; a WARNING about "earlier drift" belongs to the base, not to this change, and goes to the final list of divergences. Commit `docs(prd): <sentence in the git log style>`, markdown (and HTML) together, no push.

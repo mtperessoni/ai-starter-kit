@@ -19,7 +19,13 @@ IDs, texts and paths in the examples are illustrative: always read the real line
 | K12 | History | `Grep` each in-scope ID in `docs/prd/CHANGELOG.md`; per ID with history show `Decided <date>: <why>; rejected: <alternative> (<why>)` from the entry's Decisions block |
 | K13 | Rule owner and shared PRD | `repo.md` "Rule owners": when the change touches an owned section, name the owner. `repo.md` "Shared PRDs": when the PRD folder is shared, say the sibling repository path that must receive the same change |
 
-K11 and K12 are never skipped, in the short C5 they run on the touched rules only.
+### Sweep by size
+| Case | Sweep |
+|---|---|
+| Size L, a change touching more than one PRD section, or a request that reuses an existing ID | Full: K01 to K13 |
+| Size M touching one section | K01, K02, K06 (local), K09, K11; K12 history only for the IDs it edits; K07, K08, K10, K13 only when the pack shows the trigger (a linked `Q-` row, a consumer field, a verification prerequisite, an owned or shared section); K03 to K05 where `repo.md` documents variants, tenants or invariants for the area |
+
+The confrontation still prints `Checked:` and `Conflicts:` in every case. K11 and K12 are never skipped for the IDs the change touches; in the short C5 they run on the touched rules only.
 
 Sweep of large code: delegate to an Explore agent with the K01 to K07 questions and ask only for the answers.
 

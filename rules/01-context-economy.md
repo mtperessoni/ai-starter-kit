@@ -6,7 +6,7 @@ Everything an agent reads is resent on every following call of that agent. A fil
 |---|---|---|---|
 | CE01 | Load only what the task needs. Every lookup is one Glob, one Grep or one ranged Read | Whole-file reads are the main cost of a session | AGENTS.md "Finding things" |
 | CE02 | Independent reads go in one message, in parallel | Fewer turns, each turn resends the context | skill SKILL.md "Context economy" |
-| CE03 | Read by ID: `Grep -n` for the ID or symbol, then `Read` with offset and limit | A rule is one line; its file can be hundreds | skill SKILL.md; workers.md header |
+| CE03 | Read by ID: `Grep -n` for the ID or symbol, then `Read` with offset and limit | A rule is one line; its file can be hundreds | skill SKILL.md; workers/README.md |
 | CE04 | Files listed as big in `repo.md` are read only by symbol, never whole | One big file can cost more than the rest of the task | skill repo.md "Big files" |
 | CE05 | A human-reading version (HTML, PDF) is never read by an agent | It duplicates the markdown at several times the size | AGENTS.md "Finding things" |
 | CE06 | A broad sweep of a large codebase goes to an Explore agent with explicit questions; only the answers come back | The sweep's file dumps stay out of the main context | prd-flow impact.md; prd-create and trd-create workers |

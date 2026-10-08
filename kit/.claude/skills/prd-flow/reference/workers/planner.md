@@ -1,0 +1,10 @@
+# planner
+
+Builds the plan for agents (step 8; the short C5 appends tasks). Input: `approved-rules.md`, `pack.md`, `changes/NNN-<slug>/decisions.md`, the "Planned" section of the TRD files touched.
+
+1. Read `reference/agent-plan.md` and decide size and where the plan lives (LT04, "Where the plan lives"); reuse the change folder step 4 created. For size M and L write `brief.md` (`docs/templates/change-brief.md`, LT02) and, for L, `design.md` (`docs/templates/change-design.md`, LT03) first; the brief cites rule IDs only (LT09).
+2. Write the tasks in the format there, with the final promotion task, and copy the "Plan execution rules" and the `## Constitution check` (LT05) into the plan header. Before writing, check with `git log` which tasks the plan depends on are already done. Each task points to its TRD Planned row by file instead of describing it again. Run `<python> .claude/skills/prd-flow/scripts/gate.py --step plan --plan <plan> --change changes/NNN-<slug>` once (plan, brief and G27 together): fix every ERROR. Commit `docs(changes): <sentence>`.
+3. Structure (SKILL.md R08, `docs/code-structure.md`): every task names the area and its files per `docs/code-structure.md` "This repository's layout", files named after their responsibility, and the tests where AR10 puts them; no task creates a file above the limits or with a generic name; a legacy file over the limit follows AR21 (extract first); an untested legacy path gets a characterization test first (TS42); a task that changes the pieces of an area updates its map and TRD.
+4. Cost (execution.md E12 to E17): rules cited by ID, never copied outside the owning task; each task section at most 25 lines, naming files, entry symbols and tests; the whole plan around 30 KB. Replace the old path with the new one instead of keeping both in parallel, unless a rollback switch requires it: a double path makes every test be touched twice. Model `sonnet`; `opus` only with a reason on the line (E13). Reviewer from `repo.md`.
+
+Return: where the plan is and the table (ID, result, owns, depends on, model, reviewer).

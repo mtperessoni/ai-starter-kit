@@ -54,6 +54,7 @@ Always through `scripts/gates.sh`; the stack commands behind each target are in 
 | Lint, repair | `scripts/gates.sh fix`, then `lint` |
 | Import and cycle check | `scripts/gates.sh imports` |
 | Structure ratchet | `scripts/gates.sh ratchet` |
+| Python interpreter | `python` |
 | Move code by line range | `python scripts/move_lines.py <source> <start> <end> <destination> [--at LINE]` |
 
 ## Layout
