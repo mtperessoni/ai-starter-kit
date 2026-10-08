@@ -24,11 +24,14 @@ class Tracked:
         self.texts: dict[str, str] = {}
 
     def matches(self, token: str) -> list[str]:
-        if token.endswith("/"):
+        if token.endswith("/") and "*" not in token:
             return [f for f in self.files if f.startswith(token) or ("/" + token) in f]
         pattern = re.escape(token).replace(r"\*\*/", "(.*/)?").replace(r"\*\*", ".*").replace(r"\*", ".*")
-        rx = re.compile(r"(^|/)" + pattern + "(/|$)")
+        rx = re.compile(r"(^|/)" + pattern + ("" if token.endswith("/") else "(/|$)"))
         return [f for f in self.files if rx.search(f)]
+
+    def ignored(self, token: str) -> bool:
+        return bool(git(self.root, "check-ignore", token.rstrip("/")).strip())
 
     def text(self, rel: str) -> str:
         if rel not in self.texts:
@@ -43,7 +46,7 @@ def path_of(token: str, tracked: Tracked) -> str:
     tok = token.split("::")[0].strip()
     while tok.startswith(("./", ".../", "../")):
         tok = tok.split("/", 1)[1]
-    if not tok or tok.startswith(("/", "~", "http", "@")) or re.search(r"[\s<>{}()$|,;:=?#]", tok.replace("[", "").replace("]", "")):
+    if not tok or "..." in tok or tok.startswith(("/", "~", "http", "@")) or re.search(r"[\s<>{}()$|,;:=?#]", tok.replace("[", "").replace("]", "")):
         return ""
     ext = EXT.search(tok.rstrip("/"))
     has_ext = bool(ext) and ext.group(1).lower() in EXTENSIONS and not tok.endswith("/")
@@ -85,7 +88,7 @@ def check_row(rel: str, header: list[str], row: list[str], tracked: Tracked, g23
     files: list[str] = []
     for p in paths:
         found = tracked.matches(p)
-        if not found and p not in g23:
+        if not found and p not in g23 and not tracked.ignored(p):
             g23.add(p)
             err("G23", f"{rel}: `{p}` matches no tracked file")
         files.extend(found)
@@ -121,7 +124,7 @@ def check_file(root: Path, f: Path, cfg: dict[str, str], tracked: Tracked) -> No
             header = []
             for tok in TICKS.findall(line):
                 p = path_of(tok, tracked)
-                if p and not tracked.matches(p) and p not in g23:
+                if p and not tracked.matches(p) and p not in g23 and not tracked.ignored(p):
                     g23.add(p)
                     err("G23", f"{rel}: `{p}` matches no tracked file")
             continue
