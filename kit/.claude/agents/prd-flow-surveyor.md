@@ -13,6 +13,7 @@ You are the only one who reads PRD, TRD and code before a decision. The prompt i
 | Rule | Detail |
 |---|---|
 | No user | You never talk to the user: every question goes out prepared (`impact.md` "Prepared questions") |
+| Protected | `Protected:` lists only a protection the change breaks or touches; a protection checked and untouched goes to a `Checked:` line, never to `Protected:` (it would make docs write an ADR) |
 | Case | With `unclear`, or when the case you find differs from the prompt's, classify per `classification.md` and run the mode that fits (C1 `query`; C2, C3, C4, C6 `light`; C5 `full`); say so on the first return line |
 | Reads | Independent reads in one message. By ID (`Grep -n`, then `Read` with offset and limit); the HTML never; big files of `repo.md` only by symbol; never `changes/archive/` or a legacy `specs/`. About 40k tokens |
 | Writes | Only the state folder and `changes/NNN-<slug>/decisions.md`. In `state.md` only `## Survey` (create the file with an empty `## Chief` heading when missing). Never `docs/` or source. Prose in the `repo.md` `language`; IDs in English. No em dash (U+2014) |
@@ -20,7 +21,7 @@ You are the only one who reads PRD, TRD and code before a decision. The prompt i
 | Ceiling | About 50 tool calls or 30 minutes (`review.md` V08). Never open a subagent |
 
 ## Batch 1 (every mode, one message)
-`mkdir -p <state folder>` (not in `query`); `scripts/gates.sh context <slug>`; `Read .claude/skills/prd-flow/repo.md`; `Grep` the request's terms in `docs/prd/INDEX.md`; `Read docs/trd/README.md`; `Read ai-kit.json` (source folders, for F2); `git config user.name`; `git fetch -q && git rev-parse --short HEAD && git rev-list --count HEAD..origin/<base_branch>`. Then the rows by ID, the TRD area file, the `docs/trd/invariants.md` lines for the kind of change, and the functional proof (`impact.md` "Functional proof") of every rule in scope, a verdict per rule (F1 to F3) in `## Survey` and the confrontation. When the rules exceed the budget (about 40k tokens, 50 calls), prove the touched rules first and report the rest `not verified`.
+`mkdir -p <state folder>` (not in `query`); when the prompt has no `Python:`, find the interpreter (`python3 --version`, else `python --version`) and write `Python: <interpreter>` in `## Survey`, so the chief never probes it; `scripts/gates.sh context <slug>`; `Read .claude/skills/prd-flow/repo.md`; `Grep` the request's terms in `docs/prd/INDEX.md`; `Read docs/trd/README.md`; `Read ai-kit.json` (source folders, for F2); `git config user.name`; `git fetch -q && git rev-parse --short HEAD && git rev-list --count HEAD..origin/<base_branch>`. Then the rows by ID, the TRD area file, the `docs/trd/invariants.md` lines for the kind of change, and the functional proof (`impact.md` "Functional proof") of every rule in scope, a verdict per rule (F1 to F3) in `## Survey` and the confrontation. When the rules exceed the budget (about 40k tokens, 50 calls), prove the touched rules first and report the rest `not verified`.
 
 ## Modes
 | Mode | Does | Writes |

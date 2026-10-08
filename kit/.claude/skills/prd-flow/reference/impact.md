@@ -88,7 +88,8 @@ The change question (full mode, in `Route: user:`): "Change the rule as proposed
 ## Survey
 Case: C5 · Size: M · Approver: <name> · Base: <short commit> · Mode: full
 Contexts: product/04: 3 rows · fan-out: no
-Protected: none   [or: <rule or invariant> · <source> · <right path>]
+Python: <interpreter>
+Protected: none   [or: <rule or invariant> · <source> · <right path>; only a protection the change breaks or touches, an untouched one goes to a Checked: line]
 Owner: none   [or: <owner> owns product/04-*]
 Scaffolds: pack.md, impact.md, interview.md, approved-rules.md, changes/007-checkout-timeout/decisions.md
 Confrontation
@@ -178,4 +179,4 @@ The repository's list is in `repo.md`, "Protected rules". Always protected, in a
 | A registered exception to a principle | constitution, ADR | A new ADR to change the exception |
 | A safety control | constitution | Loosening it requires an ADR and the safety reviewer |
 
-With a protection involved: name it, its source and the right path in `## Survey` `Protected:`, and prepare the protected rule question. The chief records the answer in `## Chief` (`Protected: <ID> · ADR`, constitution amendment, or "stale"); the docs agent in `prd` mode writes the ADR; a constitution amendment goes back to the user.
+With a protection the change breaks or touches (not one merely checked and left intact): name it, its source and the right path in `## Survey` `Protected:`, and prepare the protected rule question. The chief records the answer in `## Chief` (`Protected: <ID> · ADR`, constitution amendment, or "stale"); the docs agent in `prd` mode writes the ADR; a constitution amendment goes back to the user.
