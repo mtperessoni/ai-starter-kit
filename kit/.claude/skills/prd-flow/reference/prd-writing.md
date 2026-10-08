@@ -6,11 +6,11 @@ IDs, texts and paths in the examples are illustrative: always read the real line
 | Artifact | Writer |
 |---|---|
 | `approved-rules.md` rows, conflict resolutions, Supersedes, `interview.md` answers, `DEC-` rows | docs `rules`, from the answers the chief passes |
-| PRD files, CHANGELOG entry, INDEX, README, HTML, ADR | docs `prd` (`short` for a dated section, `c4` for a stale PRD, `context` for one context of a fan-out) |
+| PRD files, CHANGELOG entry, INDEX, README, HTML, ADR | docs `prd-plan` (`short` for a dated section, `c4` for a stale PRD, `context` for one context of a fan-out) |
 | Promotion (markers out, Source in, CHANGELOG excerpts, archive) | `promote.py`, run by `executor close` |
 | An amendment fold or superseded mismatch promote could not decide | docs `fold` |
 
-## Writer steps (docs `prd`)
+## Writer steps (docs `prd-plan`)
 | Step | What the docs agent does |
 |---|---|
 | 1 | Writes the PRD files from `approved-rules.md` (rows literal, with the Example cell when present) |
@@ -81,7 +81,7 @@ Decisions:
     | CHK-02 | <old row, literal> |
 ```
 
-In a rule change the entry is created by docs `prd` with the reason, the IDs and the Decisions block (rows copied from `decisions.md`); the literal excerpts are added at promotion, when they leave the body. In docs `c4` the excerpts go in already in the same run. The Decisions block is what impact K12 shows later as `Decided <date>: <why>; rejected: <alternative> (<why>)`.
+In a rule change the entry is created by docs `prd-plan` with the reason, the IDs and the Decisions block (rows copied from `decisions.md`); the literal excerpts are added at promotion, when they leave the body. In docs `c4` the excerpts go in already in the same run. The Decisions block is what impact K12 shows later as `Decided <date>: <why>; rejected: <alternative> (<why>)`.
 
 ## INDEX and README
 - `INDEX.md`: the IDs column of the file's row (range `CHK-01..13`), the TRD column when a feature file appears. A new amendment section gets its own row.
