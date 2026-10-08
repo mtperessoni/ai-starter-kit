@@ -7,7 +7,7 @@ tools: Read, Grep, Glob, Edit, Write, Bash
 
 # prd-flow-executor
 
-The prompt is `Slug: <slug>. State: <state folder>. Python: <interpreter>. Mode <task|fix|close>` and its input: `task` names `Plan: <path> · Task: <ID>` or `Card: <state>/card.md`; `fix` carries a handoff (the finding or error lines, Owns, Read, the rule IDs, or a path to `<state>/findings-r<N>.md` that holds the finding lines); `close` names `Case <C2|C3|C4|C5|C6>`. An `Interrupted: <files>` line means you replace a stopped agent: first save `git --no-pager diff -- <files>` to `<state>/interrupted-<task>.patch`, then continue from it.
+The prompt is `Slug: <slug>. State: <state folder>. Python: <interpreter>. Mode <task|fix|close>` and its input: `task` names `Task: <ID>` (the plan path is the `Plan:` line of `## Plan` in `<state>/state.md`, read it yourself) or `Card: <state>/card.md`; `fix` carries a handoff (the finding or error lines, Owns, Read, the rule IDs, or a path to `<state>/findings-r<N>.md` that holds the finding lines); `close` names `Case <C2|C3|C4|C5|C6>`. An `Interrupted: <files>` line means you replace a stopped agent: first save `git --no-pager diff -- <files>` to `<state>/interrupted-<task>.patch`, then continue from it.
 
 ## Common rules
 | Rule | Detail |
@@ -22,7 +22,7 @@ The prompt is `Slug: <slug>. State: <state folder>. Python: <interpreter>. Mode 
 
 ## task
 1. **Batch 1, one message:** the card; the rows of its Contract from `approved-rules.md` (new rules) or `pack.md` (unchanged), or from the PRD by ID when neither exists (C2, C3, C6); `<state>/deliveries/<ID>.md` of each task in `Depends on`; the `Read:` list; the card's `DEC-` rows (`Grep -n "<DEC-ID>" changes/NNN-<slug>/decisions.md`; a DEC row binds like a rule); `git log -5 --oneline -- <Owns>`; the Commands of `repo.md`.
-2. **Baseline:** when the state folder has no `baseline-failures.txt`: with a `Card:` (one task, no parallel agent) run `scripts/gates.sh baseline <slug>` before any edit; with a `Plan:` task, return `Status: blocked` · `Route: user: baseline missing before the wave`.
+2. **Baseline:** when the state folder has no `baseline-failures.txt`: with a `Card:` (one task, no parallel agent) run `scripts/gates.sh baseline <slug>` before any edit; with a plan task, return `Status: blocked` · `Route: user: baseline missing before the wave`.
 3. **Test first:** the test from the row's `Example` (given, expected), see it fail; implement the minimum; see it pass; then the related tests and lint.
 4. **Structure:** `docs/code-structure.md` limits, the PRD IDs in the first comment of each module and test, the area map follows the change, the ratchet never regresses. When Owns lists `docs/trd/<area>.md`, merge its Planned rows per `.claude/skills/prd-flow/reference/trd-planned.md`.
 5. **Outside Owns:** a test of another file that broke as a direct, expected consequence may get only its expectation adjusted (never a loosened safety assertion) and joins the commit. Each `Leave:` item stays as it is.
@@ -42,6 +42,7 @@ One `Source: <ID>: <path::symbol>` line per approved rule of the Contract whose 
 Fix only what the handoff names, inside its Owns, under the rules of `task` (test first for a behavior finding). Commit `fix(<scope>): <sentence>` with the trailer. A missing `Source:` line: `Grep` the rule ID in the source folders, append the line to the implementing task's `deliveries/<ID>.md`, no commit.
 
 ## close
+0. Rerun: when `## Chief` of `<state>/state.md` logs `closed: <commit>` for a passing close, or the state folder is gone after a pass (C2, C3, C4, C6, no archive), return `Status: done` · `Commit: <that commit>` · `Route: none` without rerunning anything; a missing baseline is then never a failure.
 1. C5 only (C2, C3, C4, C6 have no promote): `<python> .claude/skills/prd-flow/scripts/promote.py <slug>`. On error, route it (table below). On success commit the paths it changed (`git status --porcelain -- docs changes`) as `docs(prd): promote <slug>` before step 3; the tree must be clean in `docs` and `changes`. Never `git add` anything under `.claude/prd-flow/` (git-ignored). A WARN line on success is routed before step 3: an amendment file is `Route: docs fold: <the WARN lines>`; a TRD still holding Planned is `Route: executor fix: <the WARN lines, Owns: that TRD file>` (merge per `trd-planned.md`).
 2. Write `## Close` of `state.md` (the promote result only) now: a passing close deletes the state folder, so nothing is written into it after close starts.
 3. `scripts/gates.sh close <slug>` with its stdout read directly (or redirected to a file under `.ai-kit/runs/`, never inside the state folder); read its summary block. The close summary and the top retro findings go in the return only. Never rerun close to recover output: a rerun after a pass finds no state folder.
