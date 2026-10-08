@@ -1,6 +1,6 @@
 # Classification (F0) and divergence (F2)
 
-IDs, texts and paths in the examples are illustrative: always read the real line.
+IDs, texts and paths in the examples are illustrative: always read the real line. Phases: F1 context, F2 PRD versus code check, F5 PRD, F6 TRD, F7 plan.
 
 ## Cases
 | Case | When | Signals in the request | Route |
@@ -14,15 +14,18 @@ IDs, texts and paths in the examples are illustrative: always read the real line
 | C6 refactor | Structure changes and behavior does not | "rename", "extract", "move", "split", "clean up" | Area TRD + invariants; F6 if files, entry points or tests move |
 
 ## Size (LT04)
-Stated in the case line: `C5 · size L · <one line>`. It decides which files the change folder holds (`agent-plan.md`, "Where the plan lives").
+Stated in the case line: `C5 · size L · <one line>`. It decides which files the change folder holds (`agent-plan.md`, "Where the plan lives") and how wide the surveyor sweeps (`impact.md`, "Sweep by size").
 
 | Size | When | Change folder |
 |---|---|---|
-| S | C1, C2, C3, C4, C6 | None, or only `plan.md` |
+| S | C1, C2, C3, C4, C6. Never a C5 | None, or only `plan.md` |
 | M | C5 with an evident design: no new data model, contract, external dependency or open technical unknown | `brief.md`, `plan.md` |
-| L | C5 with a new data model, contract, external integration, technical unknown, a new feature area, or a new PRD variant | `brief.md`, `design.md`, `plan.md` |
+| L | C5 with any of: a new data model, a new contract, an external integration, a technical unknown, a new feature area, a new PRD | `brief.md`, `design.md`, `plan.md` |
 
-New PRD variant: when the repository already has PRDs and the request is a new product, module or an incoming spec document, it is C5 size L. The surveyor sweeps the document against every existing PRD (impact.md K11). Inside prd-flow the variant writes only approved rows, after the interview; `writer-prd` lays out the new PRD folder, INDEX row and README overview per `.claude/skills/prd-create/reference/anatomy.md` (M4). Only `/prd-create` (C0) writes `*(proposed)*` rules (Source `planned`); prd-flow confronts and interviews them per section and replaces the marker with `*(approved YYYY-MM-DD, pending code)*`. A proposed rule is C5 input, never C2.
+A C5 is size M or L, never S: a one-row change is size M.
+
+## A new context is a new PRD
+When the repository already has PRDs and the request is a new product context (a product, module or incoming spec document that runs on its own), it is C5 size L, new PRD variant, never C0. The surveyor sweeps it against every existing PRD of `docs/prd/INDEX.md` (`impact.md` K11). The variant writes only approved rows, after the interview: the docs agent lays out the new PRD folder with the anatomy of `.claude/skills/prd-create/reference/anatomy.md` and adds its INDEX section and its HTML tab. Only `/prd-create` (C0) writes `*(proposed)*` rules (Source `planned`); prd-flow confronts and interviews them per section and replaces the marker with `*(approved YYYY-MM-DD, pending code)*`. A proposed rule is C5 input, never C2.
 
 ## Classification traps
 | Situation | Right case | Why |
