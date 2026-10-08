@@ -2,6 +2,20 @@
 
 User-visible changes to the kit, newest first. Projects receive them through `/ai-kit update`.
 
+## prd-flow v5
+
+The rule-change flow is cheaper to run and harder to skip: the roles are defined subagents, the main thread keeps a thin contract, waves and promotion are computed by scripts, and a new rule that contradicts a live one must be resolved in the same change. Rules: SA27 to SA42, CE23 to CE28, DS44, WF58 to WF63, LS28 ([rules/](rules/README.md)).
+
+- Agents: `.claude/agents/prd-flow-{surveyor,docs,executor,reviewer,recheck}.md` carry the briefing, the pinned model and the minimum tools; `reference/workers/` is gone and one docs agent replaces writer-prd, writer-trd and the planner. No agent is resumed and no tool is loaded mid-run.
+- Main thread: a thin card with an allowed and a forbidden list, counted as `main_violations`; the interview and the single `gate.py --rules` run at step 4; step 6 is skipped when `--applied` is green and nothing outside the tables changed.
+- Plan: granularity by the critical path, context affinity, waves and the Owns overlap check printed by `gate.py --step plan`, a task card of at most 25 lines, one reviewer per wave, a checkpoint to a fresh session, and an optional execution session on the fast model.
+- Conflicts and rewrites: sweep K14 and gate Q5 fail until each conflict is resolved; a rewritten rule keeps its ID.
+- Scripts: `promote.py <slug>` fills Source from the `Source: <ID> <path[::symbol]>` lines of `deliveries.md` and archives the change; `scripts/gates.sh close <slug>` runs the suite against the baseline, lint, trailers, the final gate and the retro in one call; `gates.sh html`.
+- Telemetry targets: 30 main calls, 0 inline reads, 2 main gate runs, parallel factor 1.5 (`kpi_*` keys of `ai-kit.json`).
+- Evaluation: `eval/arms-big.json` (arms GATE, FLOW, FLOW-FAST; S5 at 3 reps, S6 to S8 at 1) and the scorecard of `eval/METRICS.md`.
+
+On update: add the five agent files, delete `.claude/skills/prd-flow/reference/workers/`, take the new `reference/`, `scripts/` and `ai-kit.json` `telemetry` keys (shown as diffs), and add `prd_section_budget_lines` to the Gate config of `repo.md`.
+
 ## prd-flow v4
 
 The `prd-gate` skill is now `prd-flow`, and the rule-change flow checks conflicts, gaps and the interview itself instead of trusting the conversation. Rules: WF35 to WF52, DS32 to DS43, PC13, PC14, IN14 to IN16, TM13 ([rules/](rules/README.md)).

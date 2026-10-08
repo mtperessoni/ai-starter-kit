@@ -19,8 +19,10 @@ Usage: python .claude/skills/prd-flow/scripts/gate.py [--base REF]
        python .claude/skills/prd-flow/scripts/gate.py --step prd [--rules <approved-rules.md> --applied]
        python .claude/skills/prd-flow/scripts/gate.py --step trd
        python .claude/skills/prd-flow/scripts/gate.py --step plan --plan <plan.md> [--change <changes/NNN-slug>]
---step: one run per worker step, one report. prd: default run, --rules and --applied when given, --sibling.
-        trd: default run and --trd. plan: --plan and --change.
+--step: one run per agent step, one report. prd: default run, --rules and --applied when given, --sibling.
+        trd: default run and --trd. plan: --plan and --change, plus the computed WAVE table and CRITICAL PATH (Owns overlap in a wave fails).
+--rules also runs Q5 (every conflict of the pack is resolved under '## Conflicts', a rewrite keeps its ID).
+G31: a PRD section file over prd_section_budget_lines (warning).
 --rules: rows against the PRD (Q2), the interview.md beside the file (Q3), and G27 for IDs used on remote branches.
 --applied: with --rules, every approved row exists in the PRD file named by its heading, identical (Q4).
 --status: ID, state, file, Source and Change via of each rule; states proposed, approved, superseded, implemented.
@@ -143,7 +145,7 @@ def main() -> int:
     parser.add_argument("--status", action="store_true", help="print the state of every rule")
     parser.add_argument("--prd", help="with --status: only this PRD folder")
     parser.add_argument("--state", choices=STATES, help="with --status: only this state")
-    parser.add_argument("--step", choices=("prd", "trd", "plan"), help="every check of one worker step in one run and one report")
+    parser.add_argument("--step", choices=("prd", "trd", "plan"), help="every check of one agent step in one run and one report")
     args = parser.parse_args()
     cfg = load_config()
     vias = {v.strip().lower() for v in cfg["change_via"].split(",") if v.strip()}

@@ -50,6 +50,8 @@ Rules of a round:
 - **Adoption.** Against the base arm: M2, M7 and M8 not worse (hard gates); on the deciding scenario `cost_usd` and `wall_min` within +10%; `tokens_main` per run at most 3.5M; every metric outside the noise band is a win or a tie in at least as many cases as it is a loss. A failed rule becomes the work list of the next round, recorded as a lesson in `rules/09-lessons.md` with the numbers.
 - **Cause before fix.** A regression is explained from the transcripts (which agent, which turns, which error kind) before anything is changed; the fix cites the metric it should move and the next round checks it.
 
+The big evaluation is `eval/arms-big.json` (arms GATE, FLOW and FLOW-FAST, the last with the execution session on the fast model; S5 at 3 reps, S6 to S8 at 1 on the large fixture), graded on the headline KPIs and hard gates of `eval/METRICS.md`; if the targets are not met, a full audit follows before any further change.
+
 The scenarios live in `eval/scenarios/`: S1 to S4 cover the basic cases; S5 (a conflict phrased in other words in another section), S6 (an incoming spec document that conflicts with a live rule) and S7 (a dimension the decisions record does not answer) cover the confrontation and gap handling. `eval/arms-flow.json` runs S5 to S7 on the small fixture with the previous skill (arm GATE) and the current one (arm FLOW), one repetition each, so cost and time are compared on the same runs; the metrics `conflict_found`, `contradiction_left` and `gap_recorded` grade them. Generated HTML is no longer a candidate: it is adopted, with its build and a quality check against a real PRD.
 
 ## Releasing

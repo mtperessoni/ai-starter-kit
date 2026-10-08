@@ -44,7 +44,7 @@ The weight of an agent is the context it resends on every call, times the number
 ## Deliveries and cost record
 | ID | Rule |
 |---|---|
-| E21 | `deliveries.md` is always at `.claude/prd-flow/state/<slug>/deliveries.md`: one block per finished task (at most 8 lines: what was created, the symbols later tasks consume, the `Source:` files). A consumer reads the producer's block, never its code |
+| E21 | `deliveries.md` is always at `.claude/prd-flow/state/<slug>/deliveries.md`: one block per finished task (at most 8 lines: what was created, the symbols later tasks consume, the `Source:` files). Each `Source:` line reads `Source: <ID> <path[::symbol]>`, one per rule ID, and `promote.py` reads exactly these to fill the PRD Source column (no line: the rule stays planned and is listed). A consumer reads the producer's block, never its code |
 | E11 | At the end of each wave, append one line to `state.md`: wave, agents dispatched, review rounds, the most expensive agent (tokens and minutes). It is the baseline to compare one execution with the next |
 
 ```markdown

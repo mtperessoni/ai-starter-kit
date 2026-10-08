@@ -93,7 +93,8 @@ ai-kit.json                     stack commands, structure limits, ratchet allowl
 .ai-kit/manifest.json           kit version and the files it owns
 .specify/memory/constitution.md binding principles: the project's own plus the kit's process principles
 .claude/skills/                 prd-create, trd-create, prd-flow (with repo.md, the project adapter), adr
-.claude/agents/                 one findings-only reviewer per risk class of the domain
+.claude/agents/                 the prd-flow roles (surveyor, docs, executor, reviewer, recheck) as defined
+                                subagents, plus one findings-only reviewer per risk class of the domain
 docs/prd/                       INDEX.md, README.md, CHANGELOG.md, prd.html (generated), one folder per PRD
 .github/CODEOWNERS              PRD files owned by the rule owners listed in repo.md
 docs/trd/                       README.md, one file per feature, infra.md, invariants.md, testing.md
@@ -102,7 +103,7 @@ docs/ai-readiness.md            the readiness checklist by category, used by trd
 docs/flow.md, docs/adr/         the one end-to-end diagram; decision records
 changes/, changes/archive/      change folders in flight (brief, design, plan) and the finished ones
 docs/templates/                 PRD section, TRD feature, feature CLAUDE.md, HTML shell, reviewer agent
-scripts/                        gates.sh, ratchet.py, related_tests.py, new_failures.py, move_lines.py,
+scripts/                        gates.sh (including `close`: suite, lint, trailers, final gate, retro), ratchet.py, related_tests.py, new_failures.py, move_lines.py,
                                 hotspots.py, contract_drift.py, telemetry_hook.py, run_probe.py, retro.py
 .claude/settings.json           the telemetry hooks and the gate permissions, merged into the project's own;
                                 reads of generated and vendored paths denied
@@ -123,7 +124,7 @@ The full catalog, with the reason for each rule and the file that enforces it, i
 |---|---|
 | Source of truth | Behavior lives in the PRD as rule rows with permanent IDs; a rule change goes PRD, TRD, plan, code, after the person asking sees the current rule and confirms ([WF](rules/07-workflow.md)) |
 | Lazy loading | Small files, an index, maps by symbol name; agents read the markdown one section at a time and never the HTML ([CE](rules/01-context-economy.md)) |
-| Subagents | One-line prompts pointing to a briefing section; outputs written to a state folder; returns of at most 20 or 30 lines; no nested subagents; ceilings of calls and minutes ([SA](rules/02-subagents.md)) |
+| Subagents | Defined agents dispatched with a task card; outputs written to a state folder; returns of at most 20 or 30 lines; no nested subagents; ceilings of calls and minutes ([SA](rules/02-subagents.md)) |
 | Tests | Test first; only the mirror test and the importers of what changed while working; the full suite once at the end against a baseline, so agents never chase failures they did not cause ([TS](rules/04-testing.md)) |
 | Review | At most 5 rounds per delivery, scoped re-review, stop and ask on an open Critical ([RV](rules/03-review.md)) |
 | Structure | Feature folders recommended, any layout declared and accepted; in every layout: size and complexity limits, one responsibility per file, unique descriptive names, the PRD ID in every module and test, a `CLAUDE.md` map where the agent works, no runtime-built dispatch, no dead code, enforced by a shrink-only ratchet ([AR](rules/05-code-structure.md)) |

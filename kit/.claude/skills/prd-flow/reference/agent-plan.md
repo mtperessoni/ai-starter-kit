@@ -22,7 +22,7 @@ Compatibility (LT11): a legacy `specs/` stays untouched as history. With `repo.m
 
 Plan commit: `docs(changes): <sentence>`, no push. After writing, one run: `gate.py --step plan --plan <plan> --change changes/NNN-<slug>` (LT09; it warns G27 when the same change number exists on a remote branch). It also prints the waves (`WAVE n: T01, T02`, critical path first, at most 4 per wave) and the `CRITICAL PATH`; it fails when two tasks of one wave share a file in Owns, or a task touches `docs/` or `changes/` without owning it, and warns when two serial tasks of the same area could be one.
 
-Docs fan-out by context: a change over two or more PRDs or TRD areas, each with more than about 5 rows, gets one docs agent per context (disjoint files) in parallel, then one planner merge of the plan; otherwise one docs agent.
+Docs fan-out by context: a change over two or more PRDs or TRD areas, each with more than about 5 rows, gets one docs agent per context (disjoint files) in parallel, then the docs agent in plan mode merges the plan; otherwise one docs agent.
 
 ## Plan header
 Order: title, `## Constitution check`, `## Plan execution rules`, tasks.
@@ -55,7 +55,7 @@ Reviewer: <agent from repo.md "Reviewers"> | none
 
 Commit trailer: a commit that touches the source folders (`ai-kit.json`) carries `Rules: <IDs>` or `Case: none (<reason>)`; `scripts/gates.sh trailers [range]` checks it. The executor's proposed message includes the trailer.
 
-The card cites IDs; the executor reads the literal row from the pack. "Creates / consumes" names the shared symbols: a consumer reads the producer's block in `deliveries.md` (at `.claude/prd-flow/state/<slug>/deliveries.md`), never the producer's code. `gate.py --step plan` checks: every task has Owns (error), Reviewer and Model (warning), no ID missing from the PRD (error), and the file size (warning above the `plan_budget_kb` of `repo.md`).
+The card cites IDs. Its commit and delivery: the executor ends with a `deliveries.md` block whose `Source: <ID> <path[::symbol]>` lines (one per rule ID, the code that implements it) are what `promote.py` reads to fill each rule's Source; a rule with no such line is left as planned and listed.  the executor reads the literal row from the pack. "Creates / consumes" names the shared symbols: a consumer reads the producer's block in `deliveries.md` (at `.claude/prd-flow/state/<slug>/deliveries.md`), never the producer's code. `gate.py --step plan` checks: every task has Owns (error), Reviewer and Model (warning), no ID missing from the PRD (error), and the file size (warning above the `plan_budget_kb` of `repo.md`).
 
 | Rule | Detail |
 |---|---|

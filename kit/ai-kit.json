@@ -163,7 +163,7 @@
     "doc_reads": 3,
     "kpi_main_calls": 30,
     "kpi_inline_reads": 0,
-    "kpi_gate_runs_main": 4,
+    "kpi_gate_runs_main": 2,
     "kpi_parallel_factor_min": 1.5
   }
 }

@@ -43,7 +43,7 @@ Fakes: `FakePaymentClient` (`tests/fakes/payment_client.py`).
 - Patch `charge_service.PaymentClient`, not `infra.providers.payment_client.PaymentClient`: the patch targets the caller module.
 
 ## Planned
-Written by prd-flow `writer-trd` for an approved change, removed at promotion. Names only: no parameters, intervals or values (they are rules or contracts). Contracts live in `changes/NNN-<slug>/design.md`; link it here.
+Written by the prd-flow docs agent for an approved change, removed at promotion. Names only: no parameters, intervals or values (they are rules or contracts). Contracts live in `changes/NNN-<slug>/design.md`; link it here.
 
 | File | Changes or creates | Symbols | IDs |
 |---|---|---|---|
