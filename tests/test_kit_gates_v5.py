@@ -173,6 +173,8 @@ class GatesV5Test(unittest.TestCase):
 
     def test_close_without_a_baseline_says_so(self) -> None:
         self.configure(test=f'"{PY}" -c "print(1)"', offline_args="", lint=f'"{PY}" -c "pass"')
+        run(self.p.root, "git", "add", "-A", check=True)
+        run(self.p.root, "git", "commit", "-q", "-m", "config", check=True)
         r = self.gates("close", "nobase")
         self.assertEqual(r.returncode, 1, r.stdout)
         self.assertIn("baseline missing: run scripts/gates.sh baseline nobase before the first task", r.stdout)
@@ -183,7 +185,7 @@ class GatesV5Test(unittest.TestCase):
     def stub_gates(self, lint_out: str = "", lint_rc: int = 0, trailers_out: str = "", trailers_rc: int = 0) -> None:
         write(self.p.root, "scripts/gates.sh", f"""case "$1" in
 lint) printf '%b' '{lint_out}'; exit {lint_rc} ;;
-trailers) printf '%b' '{trailers_out}'; exit {trailers_rc} ;;
+trailers) printf '%b' '{trailers_out}' | sed "s/@HEAD@/$(git rev-parse HEAD | cut -c1-8)/"; exit {trailers_rc} ;;
 retro) echo "retro demo: 7 finding(s), wall 10 s, wait 0 s"
   echo "  F1 [medium] value 3, threshold 2, seq [1]"
   echo "  F2 [high] value 9, threshold 2, seq [2]"
@@ -197,6 +199,27 @@ retro) echo "retro demo: 7 finding(s), wall 10 s, wait 0 s"
 esac
 """)
         write(self.p.root, ".claude/prd-flow/state/demo/baseline-failures.txt", "")
+        run(self.p.root, "git", "add", "-A", check=True)
+        run(self.p.root, "git", "commit", "-q", "-m", "stub gates", check=True)
+
+    def test_a_dirty_tracked_tree_is_refused_with_an_executor_owner(self) -> None:
+        self.stub_gates()
+        write(self.p.root, "scripts/gates.sh", "echo changed\n")
+        r = self.close_direct()
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("uncommitted", r.stdout)
+        self.assertIn("owner: executor fix", r.stdout)
+        self.assertIn("next: commit promote's output, then executor close", r.stdout)
+        self.assertNotIn("compare", r.stdout)
+
+    def test_an_already_closed_change_says_so_and_exits_zero(self) -> None:
+        self.stub_gates()
+        shutil.rmtree(self.p.root / ".claude/prd-flow/state/demo")
+        write(self.p.root, "changes/archive/001-demo/plan.md", "plan\n")
+        r = self.close_direct()
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("already closed", r.stdout)
+        self.assertNotIn("baseline missing", r.stdout)
 
     def close_direct(self):
         env = {**os.environ, "GATES_BASH": BASH}
@@ -240,8 +263,7 @@ esac
         self.assertNotIn("owner: executor fix", r.stdout)
 
     def test_a_trailer_missing_only_on_head_is_an_executor_fix(self) -> None:
-        head = subprocess.run(["git", "-C", str(self.p.root), "rev-parse", "HEAD"], capture_output=True, text=True, check=False).stdout.strip()[:8]
-        self.stub_gates(trailers_out=f"{head} fix: x: touches the source folders without a trailer\n", trailers_rc=1)
+        self.stub_gates(trailers_out="@HEAD@ fix: x: touches the source folders without a trailer\n", trailers_rc=1)
         r = self.close_direct()
         self.assertIn("owner: executor fix", r.stdout)
 

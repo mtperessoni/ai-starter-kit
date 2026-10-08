@@ -83,6 +83,15 @@ class PromoteTest(unittest.TestCase):
     def text(self, rel: str) -> str:
         return (self.p.root / rel).read_text(encoding="utf-8")
 
+    def test_open_question_and_decision_rows_are_not_rules(self) -> None:
+        extra = "| Q-ORD-01 | Should refunds be partial? | planned | code |\n| DEC-02 | x | planned | code |\n"
+        write(self.p.root, f"{STATE}/approved-rules.md", APPROVED.replace("## Supersedes", extra + "## Supersedes"))
+        write(self.p.root, PRD, PRD_TEXT + "| Q-ORD-01 | *(approved 2026-10-04, pending code)* Partial refunds? | planned | code |\n")
+        r = self.promote("--dry-run")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertNotIn("Q-ORD-01", r.stdout)
+        self.assertIn("3 approved", r.stdout)
+
     def test_dry_run_changes_nothing_and_prints_at_most_ten_lines(self) -> None:
         def status() -> list[str]:
             return [ln for ln in run(self.p.root, "git", "status", "--porcelain").stdout.splitlines() if "__pycache__" not in ln]

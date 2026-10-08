@@ -2,6 +2,7 @@
 
 Usage: python scripts/close_gate.py [slug]     (through scripts/gates.sh close [slug])
 Prints one block of at most 24 lines, every failure with `owner:` and `next:` lines (a missing baseline or a trailer that needs a history rewrite is `owner: user`) (the retro findings, at most 5, highest severity first; a failing check's last lines, at most 10); the full output of every step goes to .claude/prd-flow/state/_close/<slug>.log.
+Refuses a dirty tracked tree (exit 1) and prints "already closed" (exit 0) when the state is gone and the change is archived.
 Exits 1 when any step fails. On success the slug's state folder, the gate and test logs of earlier runs and the close log are deleted;
 on failure nothing is deleted, so the close can be rerun.
 """
@@ -60,6 +61,19 @@ def clean_success(root: Path, slug: str, started: float, log: Path) -> None:
     log.unlink(missing_ok=True)
 
 
+def already_closed(root: Path, slug: str) -> bool:
+    if (root / ".claude" / "prd-flow" / "state" / slug).exists():
+        return False
+    archive = root / "changes" / "archive"
+    return archive.is_dir() and any(d.is_dir() and (d.name == slug or d.name.split("-", 1)[-1] == slug) for d in archive.iterdir())
+
+
+def dirty_tracked(root: Path) -> list[str]:
+    out = subprocess.run(["git", "-C", str(root), "status", "--short", "--untracked-files=no"], capture_output=True, text=True,  # noqa: S603, S607
+                         encoding="utf-8", check=False).stdout
+    return [ln for ln in out.splitlines() if ln.strip()]
+
+
 def needs_rewrite(root: Path, result: subprocess.CompletedProcess) -> bool:
     head = subprocess.run(["git", "-C", str(root), "rev-parse", "HEAD"], capture_output=True, text=True,  # noqa: S603, S607
                           encoding="utf-8", check=False).stdout.strip()[:8]
@@ -89,6 +103,14 @@ def main() -> int:
     if not valid_slug(slug):
         print(f"close FAILED: slug '{slug}' must not contain a path separator or '..'")
         return 2
+    if already_closed(root, slug):
+        print(f"close {slug}: already closed (state cleared, change archived)")
+        return 0
+    dirty = dirty_tracked(root)
+    if dirty:
+        print("\n".join([f"close {slug}", f"close FAILED: {len(dirty)} uncommitted tracked change(s)", "owner: executor fix",
+                         "next: commit promote's output, then executor close", *[f"  {ln}" for ln in dirty[:5]]]))
+        return 1
     started = time.time()
     log = root / ".claude" / "prd-flow" / "state" / "_close" / f"{slug}.log"
     log.parent.mkdir(parents=True, exist_ok=True)

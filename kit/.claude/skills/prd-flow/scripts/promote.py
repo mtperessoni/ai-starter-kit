@@ -53,7 +53,7 @@ def parse_approved(text: str) -> tuple[dict[str, list[str]], dict[str, str], str
             body.append(line)
         elif section and section.endswith(".md"):
             m = re.match(rf"\|\s*({ID})\s*\|", line)
-            if m:
+            if m and not m.group(1).startswith(("Q-", "DEC-")):
                 files.setdefault(section, []).append(m.group(1))
     return files, parse_supersedes(chr(10).join(body)), approver
 
