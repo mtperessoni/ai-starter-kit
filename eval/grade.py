@@ -414,6 +414,7 @@ def grade(project, scenario_dir, arm, transcript=None, started_at=None, judge_re
                                "gate_runs_main", "gate_runs_sub", "cost_main_usd",
                                "cost_subagents_usd", "cache_hit_rate", "output_share",
                                "gate_fail_ratio", "rereads", "docs_dispatched")},
+        **{k: eff[k] for k in ("main_violations", "chief_violations", "return_compliance", "surveyor_first")},
         **blind_metrics(review_result),
     })
     m["conflict_recall"] = conflict_recall(project, exp.get("conflict_ids") or [], transcript)

@@ -84,7 +84,7 @@ def _agent_rows(paths):
     msgs, reported = {}, {}
     main_minutes = 0.0
     for path in paths:
-        seen = {}
+        seen, last_usage = {}, None
         for e in _events(path):
             kind, parent = e.get("type"), e.get("parent_tool_use_id")
             key = parent if parent in agents else "main" if parent is None else None
@@ -96,9 +96,8 @@ def _agent_rows(paths):
             if kind == "result":
                 main_minutes += _num(e.get("duration_ms")) / 60000
                 agents["main"]["return_chars"] = max(agents["main"]["return_chars"], len(str(e.get("result") or "")))
-                for m, v in (e.get("modelUsage") or {}).items():
-                    if isinstance(v, dict):
-                        reported.setdefault(m, {"costUSD": 0.0})["costUSD"] += _num(v.get("costUSD"))
+                if e.get("modelUsage"):
+                    last_usage = e["modelUsage"]
             elif kind == "assistant" and key:
                 msg = e.get("message") if isinstance(e.get("message"), dict) else {}
                 usage = msg.get("usage") if isinstance(msg.get("usage"), dict) else {}
@@ -125,6 +124,9 @@ def _agent_rows(paths):
                     if b.get("type") == "tool_result" and b.get("tool_use_id") in agents:
                         a = agents[b["tool_use_id"]]
                         a["return_chars"] = max(a["return_chars"], _text_len(b))
+        for m, v in (last_usage or {}).items():
+            if isinstance(v, dict):
+                reported.setdefault(m, {"costUSD": 0.0})["costUSD"] += _num(v.get("costUSD"))
     spent = costs.role_costs([(k, m, u) for k, m, u in msgs.values()], reported)
     rows = []
     for key, a in agents.items():

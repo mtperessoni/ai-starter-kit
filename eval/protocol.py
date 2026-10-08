@@ -48,6 +48,7 @@ RETRO_RE = re.compile(r"(^|[\/])retro\.md$")
 DIFF_CMD = re.compile(r"\bgit\s+(?:diff|show)\b")
 STAT_FLAG = re.compile(r"--(?:stat|name-only|name-status|shortstat|numstat)\b")
 FIX_RE = re.compile(r"\bfix(?:es|ing)?\b", re.I)
+NON_TASK_RE = re.compile(r"\b(?:close|closing|archive|promote|baseline|compare|gate)\b", re.I)
 
 
 def role_of(inp):
@@ -264,8 +265,10 @@ def analyze(events, carry=None):
                         exec_seen = True
                         exec_ids.add(b.get("id"))
                         exec_start[b.get("id")] = ts
-                        fix = bool(widths) and FIX_RE.search(str(inp.get("description", "")))
-                        if not fix:
+                        desc = str(inp.get("description", ""))
+                        fix = bool(widths) and FIX_RE.search(desc)
+                        non_task = NON_TASK_RE.search(desc) and not TASK_RE.search(desc)
+                        if not (fix or non_task):
                             if mid != wave_mid and (outstanding == 0 or not widths):
                                 waves += 1
                                 widths.append(0)

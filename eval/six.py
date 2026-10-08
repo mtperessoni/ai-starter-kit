@@ -9,8 +9,8 @@ METRICS = {
                                  "output_share", "tokens_per_task"]),
     "M2": ("Tasks completed successfully", ["tasks_planned", "tasks_done", "hidden_passed",
                                             "hidden_total", "completed"]),
-    "M3": ("Total time", ["wall_min"]),
-    "M4": ("Time per run", ["wall_min", "main_min", "agent_min", "cold_starts", "min_to_docs",
+    "M3": ("Total time", ["runner_wall_min", "wall_min"]),
+    "M4": ("Time per run", ["runner_wall_min", "wall_min", "main_min", "agent_min", "cold_starts", "min_to_docs",
                             "min_to_code", "min_per_task", "main_only_min", "parallel_factor"]),
     "M5": ("Error rate", ["tool_calls", "tool_errors", "error_rate", "gate_runs_main",
                           "gate_runs_sub", "gate_fail_ratio", "rereads", "rework_actions",
@@ -21,29 +21,32 @@ METRICS = {
     "M7": ("Output quality", ["prd_fidelity", "conflict_found", "contradiction_left",
                               "gap_recorded", "traceability", "single_source", "conflict_recall"]),
     "M8": ("Protocol compliance", ["docs_dispatched", "protocol_adherence", "docs_first", "dispatch_map",
-                                  "main_violations", "inline_residency", "waves"]),
+                                  "main_violations", "chief_violations", "return_compliance", "surveyor_first",
+                                  "inline_residency", "waves"]),
 }
 SEVERITY_WEIGHTS = {"critical": 8, "high": 4, "medium": 2, "low": 1}
 FLOW_KEYS = ("main_calls", "main_tokens_post_exec", "main_cache_write", "cache_busts", "start_context",
              "main_only_min", "main_violations", "inline_residency", "waves", "wave_widths",
              "parallel_factor", "ceremony_ratio", "max_reruns_per_step", "rework_actions",
              "dispatch_map", "agents_by_role", "first_pass_clean", "main_diff_reads", "main_source_reads",
-             "kit_script_reads", "agent_file_edits", "retro_rereads", "cost_by_role")
+             "kit_script_reads", "agent_file_edits", "retro_rereads", "cost_by_role", "chief_violations",
+             "return_compliance", "surveyor_first")
+LABELS = {"wall_min": "wall_min (active turns only)", "runner_wall_min": "runner_wall_min (run clock)"}
 HIGHER, LOWER = "higher", "lower"
 DIRECTION = {
     **dict.fromkeys(("tokens_total", "tokens_main", "tokens_subagents", "context_peak", "cost_usd",
                      "cost_main_usd", "cost_subagents_usd", "tokens_per_task", "cost_per_accept", "wall_min",
                      "main_min", "agent_min", "cold_starts", "min_to_docs", "min_to_code",
-                     "min_per_task", "tool_errors", "error_rate", "gate_runs_main", "gate_runs_sub",
+                     "min_per_task", "runner_wall_min", "tool_errors", "error_rate", "gate_runs_main", "gate_runs_sub",
                      "gate_fail_ratio", "rereads", "plan_drift", "review_rounds",
                      "blind_findings_total", "contradiction_left", "single_source", "start_context",
                      "main_calls", "main_tokens_post_exec", "main_cache_write", "main_only_min",
                      "rework_actions", "max_reruns_per_step", "ceremony_ratio", "review_weighted",
-                     "main_violations", "inline_residency"), LOWER),
+                     "main_violations", "chief_violations", "inline_residency"), LOWER),
     **dict.fromkeys(("cache_hit_rate", "tasks_done", "hidden_passed", "completed", "plan_coverage",
                      "first_pass_rate", "accept", "prd_fidelity", "conflict_found", "gap_recorded",
                      "traceability", "docs_dispatched", "protocol_adherence", "docs_first", "first_pass",
-                     "conflict_recall", "dispatch_map", "parallel_factor"), HIGHER),
+                     "conflict_recall", "dispatch_map", "parallel_factor", "return_compliance"), HIGHER),
     **{f"error_kinds.{k}": LOWER for k in KINDS},
 }
 ADDITIVE = {"tokens_total", "tokens_main", "tokens_subagents", "cost_usd", "tasks_planned",
@@ -51,7 +54,7 @@ ADDITIVE = {"tokens_total", "tokens_main", "tokens_subagents", "cost_usd", "task
             "agent_min", "cold_starts", "tool_calls", "tool_errors", "gate_runs_main",
             "gate_runs_sub", "review_rounds", "blind_findings_total", "cost_main_usd",
             "cost_subagents_usd", "rereads", "main_calls", "main_tokens_post_exec", "main_only_min",
-            "rework_actions", "main_violations"} | {
+            "rework_actions", "main_violations", "chief_violations", "runner_wall_min"} | {
     f"error_kinds.{k}" for k in KINDS}
 TRANSCRIPT_KEYS = ("cost_usd", "main_min", "agent_min", "cold_starts", "error_kinds", "gate_runs_main",
                    "gate_runs_sub", "cost_main_usd", "cost_subagents_usd", "cache_hit_rate",

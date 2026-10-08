@@ -85,7 +85,7 @@ def rules(base_runs, cand_runs):
     """[(label, ok or None, detail)]; ok None means no data to decide."""
     t = tally(base_runs, cand_runs)
     out = hard_gates(cand_runs)
-    for f in ("cost_per_accept", "wall_min"):
+    for f in ("cost_per_accept", "runner_wall_min"):
         ok, detail = _median_within(base_runs, cand_runs, f)
         out.append((f"{DECIDING} {f} median within +{BAND:.0%}", ok, detail))
     peaks = [v for runs in cand_runs.values() for v in six.vals(runs, "tokens_main")]

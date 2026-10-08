@@ -180,6 +180,14 @@ class GradeTest(unittest.TestCase):
         self.assertEqual(m["protocol_adherence"], 1.0)
         self.assertTrue(m["completed"])
 
+    def test_protocol_gate_fields_reach_metrics(self):
+        sys.modules["transcript"] = FakeTranscript(
+            skills=[], is_error=False, main_violations=0, chief_violations=1, return_compliance=0.5,
+            surveyor_first=True)
+        m = grade.grade(self.project, self.scenario, "LT", transcript="t.jsonl")
+        self.assertEqual((m["main_violations"], m["chief_violations"], m["return_compliance"],
+                          m["surveyor_first"]), (0, 1, 0.5, True))
+
     def test_min_to_docs_is_first_prd_commit(self):
         started = self.commit_time("HEAD~1") - 120
         m = grade.grade(self.project, self.scenario, "LT", started_at=started)

@@ -80,11 +80,11 @@ def render(specs, baseline=None):
                   "|---|" + "---|" * len(cols)]
         for f in fields:
             for sc in scenarios:
-                lines.append(f"| {f} {sc} | " + " | ".join(_cell(r.get(sc), f) for _, r in cols) + " |")
+                lines.append(f"| {six.LABELS.get(f, f)} {sc} | " + " | ".join(_cell(r.get(sc), f) for _, r in cols) + " |")
             label = "total" if f in six.ADDITIVE else "median"
             allruns = [[m for ms in r.values() for m in ms] for _, r in cols]
             fn = six.total if f in six.ADDITIVE else six.median
-            lines.append(f"| {f} {label} | " + " | ".join(report.fmt(fn(x, f)) for x in allruns) + " |")
+            lines.append(f"| {six.LABELS.get(f, f)} {label} | " + " | ".join(report.fmt(fn(x, f)) for x in allruns) + " |")
         lines.append("")
     if baseline:
         path, arm = parse_spec(baseline)

@@ -6,7 +6,7 @@ The single scorecard every eval round uses to judge a change to the kit (MAINTAI
 | KPI | Definition | Target, one-rule C5 (S5) |
 |---|---|---|
 | Cost per accepted result | `cost_usd` over hidden tests passed (`cost_per_accept`) | at most the base |
-| Wall time | `wall_min` | at most 15 min |
+| Wall time | `runner_wall_min` (the run clock) | at most 15 min |
 | Main-thread calls | unique main API calls (`main_calls`) | at most 30 |
 | Main-thread tokens | `tokens_main`; after the first executor dispatch (`main_tokens_post_exec`) | at most 3.5M; at most 1.5M |
 | Main-only time | wall minus agent intervals (`main_only_min`) | at most 6 min |
@@ -35,8 +35,8 @@ The single scorecard every eval round uses to judge a change to the kit (MAINTAI
 |---|---|
 | M1 Tokens and cost | `tokens_total`, `tokens_main`, `tokens_subagents`, `cost_main_usd`, `cost_subagents_usd`, `context_peak`, `cache_hit_rate`, `main_cache_write` (a single write above 30k is a cache bust), `output_share`, `tokens_per_task` |
 | M2 Tasks | `tasks_done` over `tasks_planned`, `hidden_passed` over `hidden_total`, `completed` |
-| M3 Total time | sum of `wall_min` per arm |
-| M4 Time per run | `wall_min`, `main_only_min`, `agent_min`, `cold_starts`, `min_to_docs`, `min_to_code`, `min_per_task` |
+| M3 Total time | sum of `runner_wall_min` per arm; `wall_min` (active turns only) beside it |
+| M4 Time per run | `runner_wall_min`, `wall_min`, `main_only_min`, `agent_min`, `cold_starts`, `min_to_docs`, `min_to_code`, `min_per_task` |
 | M5 Errors and waste | `error_rate`, `error_kinds`, `gate_runs_main`, `gate_runs_sub`, `gate_fail_ratio`, `rereads`, `max_reruns_per_step` |
 | M6 Implementation versus plan | `plan_coverage`, `plan_drift`, `first_pass_rate`, `review_rounds`, `findings_by_severity`, `review_weighted` (blind findings weighted Critical 8, High 4, Medium 2, Low 1, per 100 changed lines) |
 | M7 Output quality | `prd_fidelity`, `conflict_found`, `conflict_recall`, `contradiction_left`, `gap_recorded`, `traceability`, `single_source` |
@@ -55,7 +55,8 @@ The single scorecard every eval round uses to judge a change to the kit (MAINTAI
 | `waves`, `wave_widths` | executors dispatched in one assistant message are one wave; a later dispatch opens a wave when no executor is outstanding; a fix dispatch (description names a fix) after the first wave never opens one. An executor ends at its completion (last child event, task notification or final result), not at the immediate result of a background launch |
 | `parallel_factor` | executor agent minutes over the union of executor intervals (executor segments only) |
 | `cost_by_role`, `cost_main_usd`, `cost_subagents_usd` | each assistant message priced by its own model (`costs.py` table) and attributed to the main or to the role of the subagent that sent it, then scaled so each model matches the result's `costUSD`; `cost_main_usd` is the `main` role, `cost_subagents_usd` the rest |
-| `wall_min` | sum of `duration_ms` over every `result` event of a session (a main that ends its turn while background agents run emits several), then over the phases |
+| `runner_wall_min` | the runner's clock around both sessions (build, judge and grading outside it); it includes the idle minutes of a main waiting for background agents, so it is the time the scorecard and the adoption rule use |
+| `wall_min` | active turns only: sum of `duration_ms` over every `result` event of a session (a main that ends its turn while background agents run emits several), then over the phases; it misses the idle minutes of background agents, so it is a secondary column |
 | `ceremony_ratio` | tool calls on docs, changes, specs and `.claude` paths over calls on `src` and `tests` paths |
 | `rework_actions` | gate fails + review rounds past the first + failed test runs + re-dispatched task cards + the largest rerun count of one gate or lint command |
 | `first_pass` | accepted, no review fix round, no gate rerun after a fail, no re-dispatch |
@@ -74,13 +75,16 @@ The single scorecard every eval round uses to judge a change to the kit (MAINTAI
 | A regression is explained from the transcripts before it is fixed; the fix names the metric it should move | Fixes built on unchecked premises (LS26) became the largest regressions |
 
 ## Adoption
-Hard gates hold; on S5 the median of 3 reps is within +10% of the base on `cost_per_accept` and `wall_min`; every other metric outside the noise band (the spread of the reps) counts as a win or a loss, and wins must at least equal losses in each group.
+Hard gates hold; on S5 the median of 3 reps is within +10% of the base on `cost_per_accept` and `runner_wall_min`; every other metric outside the noise band (the spread of the reps) counts as a win or a loss, and wins must at least equal losses in each group.
 
 ## Agents report
-`python eval/agents_report.py <results-folder> [--arm ARM] [--scenario S] [--out file.md]` prints, per run, one row per agent (main included): role, model, calls, input tokens (fresh, cache read, cache write, start write: the cache write of the agent's first call, its start cost), output tokens, cost, minutes, Read calls, distinct files, rereads, prompt and return length in characters, max context, then run totals and flags: prompt over 4000 characters, return over 2000, more than 25 files read, more than 3 rereads, more than 50 calls. Offline; it reads the `.jsonl` and `.p2.jsonl` transcripts only. Output tokens come from the stream events and understate real output, so compare the cost column instead.
+`python eval/agents_report.py <results-folder> [--arm ARM] [--scenario S] [--out file.md]` prints, per run, one row per agent (main included): role, model, calls, input tokens (fresh, cache read, cache write, start write: the cache write of the agent's first call, its start cost), output tokens, cost, minutes, Read calls, distinct files, rereads, prompt and return length in characters, max context, then run totals (cost is the last `result` event of each session, since `modelUsage` is cumulative) and flags: prompt over 4000 characters, return over 2000, more than 25 files read, more than 3 rereads, more than 50 calls. Offline; it reads the `.jsonl` and `.p2.jsonl` transcripts only. Output tokens come from the stream events and understate real output, so compare the cost column instead.
 
 ## Harness
 Auto-memory is off in every run: `--settings {"autoMemoryEnabled": false}` on the command, `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1` in the environment, and `"auto_memory": false` in each `<run>.run.json`. `traceability` ignores `DEC-nn` and `Q-nn` rows: only rule IDs count.
 
 ## Two-phase budget
 A two-phase arm splits `budget_usd` between the sessions: 70% to phase 1 and 30% to phase 2 (`run.split_budget`). A phase 2 with no state folder holding `approved-rules.md` and no `changes/` folder is skipped with a `<run>.p2.skipped.txt` reason, not a crash.
+
+## Hard gates from the transcript
+`main_violations`, `chief_violations`, `return_compliance` and `surveyor_first` are written to `metrics.json` by `grade.py` and recomputed from the transcripts by `rounds.py`; all four are hard gates (0, 0, 1.0, true). `waves` and `wave_widths` count only executor task dispatches (fix, close, promote, baseline and compare-gate dispatches are not waves).
