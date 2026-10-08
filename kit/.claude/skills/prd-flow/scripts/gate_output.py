@@ -33,7 +33,10 @@ def resolve_base(root: Path, cfg: dict[str, str], base_arg: str | None) -> str:
     name = cfg["base_branch"]
     for ref in (f"origin/{name}", name):
         if verified(root, ref):
-            return git(root, "merge-base", "HEAD", ref).strip() or "HEAD"
+            merged = git(root, "merge-base", "HEAD", ref).strip()
+            if not merged:
+                warn("G0", f"no merge-base with {ref} (shallow clone or unrelated histories), results change after commit")
+            return merged or "HEAD"
     warn("G0", f"no base (neither origin/{name} nor {name} exists), results change after commit")
     return "HEAD"
 

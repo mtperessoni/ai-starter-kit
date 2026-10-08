@@ -16,6 +16,10 @@ def strip_markers(text: str, cfg: dict[str, str]) -> str:
     return text
 
 
+def names_id(added: str, rid: str) -> bool:
+    return bool(re.search(rf"(?<![\w-]){re.escape(rid)}(?!\d)", added))
+
+
 def added_lines(root: Path, base: str, rel: str) -> str:
     diff = git(root, "diff", "-U0", base, "--", rel)
     added = [x[1:] for x in diff.splitlines() if x.startswith("+") and not x.startswith("+++")]

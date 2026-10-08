@@ -46,7 +46,7 @@ from gate_core import (
     EM_DASH, ID, ROW, git, is_proposed, joined, literal_rows, load_config, read_html_rules, read_md_rules, rule_table_ids, err, warn,
 )
 from gate_interview import check_interview
-from gate_budget import added_lines, check_sections, strip_markers
+from gate_budget import added_lines, names_id, check_sections, strip_markers
 from gate_output import base_ref, changed_paths, report, start
 from gate_plan import check_change, check_final, check_plan, check_trace
 from gate_prd import changed_rows, check_html, check_index, check_pack, check_rules
@@ -100,10 +100,10 @@ def default_checks(root: Path, cfg: dict[str, str], rules, vias: set[str], base_
             warn("G9", f"{rid} marked '{marked}' with Source other than '{cfg['planned_source']}'")
         if rid in old:
             before, after = joined(strip_markers(old[rid][0], cfg)), joined(strip_markers(row[0], cfg))
-            if before not in after and rid not in added:
+            if before not in after and not names_id(added, rid):
                 err("G7", f"{rid} was reworded without an added CHANGELOG line naming {rid}", f"add a line naming {rid} to {changelog}, or revert the text change")
     for rid in sorted(set(old) - set(new) - set(rules)):
-        if rid not in added:
+        if not names_id(added, rid):
             err("G7", f"{rid} left the PRD without an added CHANGELOG line naming {rid}", f"add a line naming {rid} to {changelog}")
     if set(new) - set(old) and f"{prd_rel}/INDEX.md" not in touched:
         warn("G2", "new IDs and INDEX.md was not touched")

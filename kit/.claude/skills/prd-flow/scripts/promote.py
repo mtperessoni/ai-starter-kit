@@ -7,20 +7,18 @@ Prints at most 10 lines. What it cannot decide (the TRD Planned merge, amendment
 
 import argparse
 import re
-import shutil
 import subprocess
 import sys
 from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from gate_core import load_config  # noqa: E402
+from gate_core import load_config, parse_supersedes  # noqa: E402
 
 MAX_LINES = 10
 ID = r"[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d+"
 SPLIT = re.compile(r"(?<!\\)\|")
 SOURCE_LINE = re.compile(rf"^Source:\s*({ID})\s*(?:->|=>|[:=])?\s*(\S+)\s*$", re.M)
-SUPERSEDES = re.compile(rf"^-\s*({ID})\s*(?:\((.*)\)|:\s*(.*))\s*$")
 
 
 class PromoteError(Exception):
@@ -35,26 +33,24 @@ def run_git(root: Path, *args: str) -> subprocess.CompletedProcess:
 def parse_approved(text: str) -> tuple[dict[str, list[str]], dict[str, str], str]:
     """Approved IDs by PRD file heading, the old texts under Supersedes, and the approver."""
     files: dict[str, list[str]] = {}
-    old: dict[str, str] = {}
     approver = "unknown"
     head = re.match(r"#\s*Approved rules\s*·\s*[^·]*·\s*[^·]*·\s*(.+)", text)
     if head:
         approver = head.group(1).strip()
     section = None
+    body: list[str] = []
     for line in text.splitlines():
         h = re.match(r"#{2,3}\s+(.+?)\s*$", line)
         if h:
             section = "supersedes" if h.group(1).lower() == "supersedes" else h.group(1)
             continue
         if section == "supersedes":
-            m = SUPERSEDES.match(line.strip())
-            if m:
-                old[m.group(1)] = (m.group(2) if m.group(2) is not None else m.group(3)).strip()
+            body.append(line)
         elif section and section.endswith(".md"):
             m = re.match(rf"\|\s*({ID})\s*\|", line)
             if m:
                 files.setdefault(section, []).append(m.group(1))
-    return files, old, approver
+    return files, parse_supersedes(chr(10).join(body)), approver
 
 
 def sources_from_deliveries(text: str) -> dict[str, str]:
@@ -93,13 +89,15 @@ def edit_rows(text: str, ids: list[str], marker: re.Pattern, sources: dict[str, 
             removed[rid] = line.rstrip("\n")
             continue
         if rid in ids and marker.search(parts[2]):
+            if rid not in sources and parts[3].strip() == "planned":
+                missing.append(rid)
+                out.append(line)
+                continue
             parts[2] = marker.sub("", parts[2], count=1)
             dropped += 1
             if rid in sources:
                 parts[3] = f" {sources[rid]} "
                 set_src += 1
-            elif parts[3].strip() == "planned":
-                missing.append(rid)
             line = "|".join(parts) + ("\n" if line.endswith("\n") else "")
         out.append(line)
     return "".join(out), set_src, dropped, missing, removed
@@ -154,6 +152,12 @@ def find_change(root: Path, slug: str) -> Path | None:
     return None
 
 
+def other_prd_files(root: Path, cfg: dict, taken: set[Path]) -> list[Path]:
+    prd = root / cfg["prd_dir"]
+    skip = {"CHANGELOG.md", "INDEX.md", "README.md"}
+    return [f for f in sorted(prd.rglob("*.md")) if f.name not in skip and f not in taken] if prd.is_dir() else []
+
+
 def plan_edits(root, cfg, slug, files, old, approver, sources, change):
     """Every file write in memory first: the PRD rows and the CHANGELOG."""
     marker = re.compile(rf"\*\(approved[^)]*,\s*{re.escape(cfg['pending_marker'])}\)\*\s*")
@@ -164,26 +168,33 @@ def plan_edits(root, cfg, slug, files, old, approver, sources, change):
     for name, path in paths.items():
         if path is None:
             raise PromoteError(f"{name}: PRD file not found")
-    home = next(iter(paths.values()), None)
+    log = root / cfg["prd_dir"] / "CHANGELOG.md"
+    done = log.is_file() and re.search(rf"^## {re.escape(slug)} \(", log.read_text(encoding="utf-8"), re.M) is not None
     writes: dict[Path, str] = {}
     stats = {"src": 0, "dropped": 0, "missing": []}
     files_old: dict[str, list[tuple[str, str, str]]] = {}
     prd_dir = root / cfg["prd_dir"]
-    for name, path in paths.items():
-        new, s, d, miss, removed = edit_rows(path.read_text(encoding="utf-8"), files[name], marker, sources,
-                                             superseded if path == home else set())
-        writes[path] = new
+    targets = [(name, path, files[name]) for name, path in paths.items()]
+    if superseded:
+        targets += [(path.name, path, []) for path in other_prd_files(root, cfg, set(paths.values()))]
+    seen: set[str] = set()
+    for name, path, ids in targets:
+        new, s, d, miss, removed = edit_rows(path.read_text(encoding="utf-8"), ids, marker, sources, superseded)
+        if new != path.read_text(encoding="utf-8"):
+            writes[path] = new
         stats["src"] += s
         stats["dropped"] += d
         stats["missing"] += miss
-        items = [(i, "rewritten", f"| {i} | {old[i]} |") for i in files[name] if i in old]
+        seen |= set(removed)
+        items = [(i, "rewritten", f"| {i} | {old[i]} |") for i in ids if i in old]
         items += [(i, "superseded", removed[i]) for i in sorted(removed)]
         if items:
             files_old[path.relative_to(prd_dir).as_posix() if prd_dir in path.parents else path.name] = items
-    log = prd_dir / "CHANGELOG.md"
-    rows = decision_rows(change / "decisions.md") if change else []
-    entry = changelog_entry(slug, approver, folder, sorted(approved_ids | superseded), files_old, rows)
-    writes[log] = insert_entry(log, entry)
+    stats["unmatched"] = [] if done else sorted(superseded - seen)
+    if not done:
+        rows = decision_rows(change / "decisions.md") if change else []
+        entry = changelog_entry(slug, approver, folder, sorted(approved_ids | superseded), files_old, rows)
+        writes[log] = insert_entry(log, entry)
     return writes, stats, approved_ids, superseded, folder, log
 
 
@@ -196,6 +207,10 @@ def rebuild_html(root: Path, dry: bool) -> tuple[str, int]:
     if r.returncode == 0:
         return "html: rebuilt", 0
     return f"html: ERROR {(r.stdout or r.stderr).strip()[-120:]}", 1
+
+
+def finish(lines: list[str], done: list[str], left: list[str]) -> tuple[list[str], int]:
+    return lines + [f"done: {', '.join(done) or 'nothing'}", f"left: {', '.join(left)}; fix the cause and rerun promote"], 1
 
 
 def promote(root: Path, slug: str, dry: bool) -> tuple[list[str], int]:
@@ -211,17 +226,24 @@ def promote(root: Path, slug: str, dry: bool) -> tuple[list[str], int]:
         sources.update(sources_from_deliveries(deliveries.read_text(encoding="utf-8")))
     change = find_change(root, slug)
     writes, stats, approved_ids, superseded, folder, log = plan_edits(root, cfg, slug, files, old, approver, sources, change)
+    problems = [f"promote {slug}: ERROR {len(stats['missing'])} approved rule(s) have no Source line: {', '.join(stats['missing'])}"
+                ] if stats["missing"] else []
+    problems += [f"promote {slug}: ERROR superseded ID {rid} matches no row in any PRD file" for rid in stats["unmatched"]]
+    if problems:
+        return problems + ["nothing was changed; add the Source: lines or correct Supersedes, then rerun promote"], 1
     lines = [f"promote {slug}{' (dry-run)' if dry else ''}: {len(approved_ids)} approved, {len(superseded)} superseded",
              f"markers dropped {stats['dropped']}, sources set {stats['src']}",
              f"changelog: entry added to {log.relative_to(root).as_posix()}"]
-    code = 0
+    done = ["PRD rows and CHANGELOG"]
     if not dry:
         for path, text in writes.items():
             path.write_text(text, encoding="utf-8", newline="\n")
     if cfg.get("html_mode") == "generated":
         line, bad = rebuild_html(root, dry)
         lines.append(line)
-        code |= bad
+        if bad:
+            return finish(lines, done, ["html rebuild", "archive", "gate --final"])
+        done.append("html")
     if change:
         lines.append(f"archive: {change.relative_to(root).as_posix()} -> {folder}")
         if not dry:
@@ -229,23 +251,23 @@ def promote(root: Path, slug: str, dry: bool) -> tuple[list[str], int]:
             r = run_git(root, "mv", change.relative_to(root).as_posix(), folder)
             if r.returncode != 0:
                 lines.append(f"archive: ERROR {r.stderr.strip()}")
-                code = 1
+                return finish(lines, done, ["archive", "gate --final"])
+    elif (root / "changes" / "archive").is_dir() and any(d.name == slug or d.name.split("-", 1)[-1] == slug for d in (root / "changes" / "archive").iterdir()):
+        lines.append("archive: already archived")
     else:
         lines.append("archive: WARN no changes/NNN-<slug> folder found")
-    lines.append("state: cleared, deliveries.md kept")
-    if not dry:
-        for item in state.iterdir():
-            if item.name != "deliveries.md":
-                shutil.rmtree(item) if item.is_dir() else item.unlink()
+    lines.append("state: kept for close")
+    if dry:
+        lines.append("gate --final: skipped (dry-run)")
+        code = 0
+    else:
         gate = Path(__file__).with_name("gate.py")
         r = subprocess.run([sys.executable, str(gate), "--final"], capture_output=True, text=True, check=False,  # noqa: S603
                            cwd=root, encoding="utf-8")
         tail = (r.stdout.strip().splitlines() or [""])[-1]
         lines.append(f"gate --final: {tail} (exit {r.returncode})")
-        code |= r.returncode != 0
-    else:
-        lines.append("gate --final: skipped (dry-run)")
-    warns = [f"WARN {m}: no Source, left as planned" for m in stats["missing"]] + [f"WARN {w}" for w in warnings_for(root, cfg)]
+        code = int(r.returncode != 0)
+    warns = [f"WARN {w}" for w in warnings_for(root, cfg)]
     room = max(MAX_LINES - len(lines), 0)
     if len(warns) > room:
         keep = max(room - 1, 0)

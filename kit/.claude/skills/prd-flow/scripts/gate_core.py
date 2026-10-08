@@ -221,5 +221,17 @@ def section(text: str, title: str) -> str:
     return m.group(1) if m else ""
 
 
+SUPERSEDES = re.compile(r"^[ \t]*[-*]?[ \t]*(" + ID + r")[ \t]*(?:\((.*)\)|:[ \t]*(.*?))[ \t]*$")
+
+
+def parse_supersedes(body: str) -> dict[str, str]:
+    found: dict[str, str] = {}
+    for line in body.splitlines():
+        m = SUPERSEDES.match(line)
+        if m:
+            found[m.group(1)] = (m.group(2) if m.group(2) is not None else m.group(3)).strip()
+    return found
+
+
 def is_proposed(cell: str, cfg: dict[str, str]) -> bool:
     return f"({cfg['proposed_marker']})" in cell

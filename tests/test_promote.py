@@ -117,12 +117,34 @@ class PromoteTest(unittest.TestCase):
         self.assertIn("Ana", log)
         self.assertLess(log.index("## "), log.index("DEC-01"))
 
-    def test_the_change_folder_is_archived_and_the_state_keeps_only_deliveries(self) -> None:
+    def test_the_change_folder_is_archived_and_the_state_is_kept_for_close(self) -> None:
         self.promote()
         self.assertTrue((self.p.root / "changes/archive/001-disc/plan.md").is_file())
         self.assertFalse((self.p.root / "changes/001-disc").exists())
         left = sorted(x.name for x in (self.p.root / STATE).iterdir())
-        self.assertEqual(left, ["deliveries.md"])
+        self.assertEqual(left, ["approved-rules.md", "deliveries.md", "state.md"])
+
+    def test_a_rerun_skips_what_is_done_and_adds_no_second_changelog_entry(self) -> None:
+        self.promote()
+        r = self.promote()
+        self.assertIn("already archived", r.stdout)
+        self.assertEqual(self.text("docs/prd/CHANGELOG.md").count("## disc ("), 1)
+
+    def test_superseded_ids_are_dropped_from_every_file_not_only_the_first(self) -> None:
+        write(self.p.root, "docs/prd/shop/06-other.md", "| ID | Rule | Source | Change via |\n|---|---|---|---|\n| ORD-09 | Old rule. | src/x.py | code |\n")
+        path = self.p.root / STATE / "approved-rules.md"
+        path.write_text(APPROVED + "- ORD-09: Old rule.\n", encoding="utf-8")
+        self.promote()
+        self.assertNotIn("| ORD-09 |", self.text("docs/prd/shop/06-other.md"))
+        self.assertIn("Old rule.", self.text("docs/prd/CHANGELOG.md"))
+
+    def test_a_superseded_id_matching_no_row_is_an_error_naming_it(self) -> None:
+        path = self.p.root / STATE / "approved-rules.md"
+        path.write_text(APPROVED + "- ORD-77: Ghost.\n", encoding="utf-8")
+        r = self.promote()
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("ORD-77", r.stdout)
+        self.assertTrue((self.p.root / "changes/001-disc").is_dir())
 
     def test_the_html_is_rebuilt_when_generated(self) -> None:
         r = self.promote()
@@ -134,12 +156,16 @@ class PromoteTest(unittest.TestCase):
         r = self.promote()
         self.assertIn("gate --final:", r.stdout)
 
-    def test_a_row_without_a_source_is_a_listed_warning(self) -> None:
+    def test_a_row_without_a_source_keeps_its_marker_and_fails_listing_the_id(self) -> None:
         (self.p.root / "docs/trd/orders.md").unlink()
         (self.p.root / STATE / "deliveries.md").write_text("", encoding="utf-8")
+        before = self.text(PRD)
         r = self.promote()
-        self.assertIn("WARN", r.stdout)
+        self.assertEqual(r.returncode, 1, r.stdout)
         self.assertIn("ORD-04", r.stdout)
+        self.assertIn("Source", r.stdout)
+        self.assertEqual(self.text(PRD), before)
+        self.assertTrue((self.p.root / STATE / "approved-rules.md").is_file())
 
     def test_an_amendment_file_and_a_trd_planned_section_are_warnings(self) -> None:
         write(self.p.root, "docs/prd/shop/05a-amendment-orders.md", PRD_TEXT.replace("ORD-0", "AMD-0"))

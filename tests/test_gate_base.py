@@ -83,6 +83,18 @@ class ChangelogTest(unittest.TestCase):
         self.assertNotIn("G7 ORD-01", r.stdout)
         self.assertIn("ERROR G7 ORD-02", r.stdout)
 
+    def test_g7_matches_the_id_with_boundaries(self) -> None:
+        edit(self.p, ORDERS, "at least one item", "two items")
+        write(self.p.root, "docs/prd/CHANGELOG.md", "# CHANGELOG\n\n- ORD-011: unrelated\n- XORD-01: unrelated\n")
+        r = self.p.py(GATE)
+        self.assertIn("ERROR G7 ORD-01 ", r.stdout)
+
+    def test_unrelated_histories_warn_instead_of_silently_using_head(self) -> None:
+        run(self.p.root, "git", "checkout", "-q", "--orphan", "orphan", check=True)
+        run(self.p.root, "git", "commit", "-qm", "orphan", check=True)
+        r = self.p.py(GATE)
+        self.assertIn("WARNING G0 no merge-base", r.stdout)
+
 
 class UntrackedTest(unittest.TestCase):
     def test_g23_accepts_an_untracked_source_file(self) -> None:

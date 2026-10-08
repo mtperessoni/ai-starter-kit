@@ -47,7 +47,17 @@ def parse(text: str) -> dict[str, dict]:
     return tasks
 
 
+def prefix(path: str) -> str:
+    keep = []
+    for part in path.split("/"):
+        if re.search(r"[*?\[]", part):
+            break
+        keep.append(part)
+    return "/".join(keep)
+
+
 def shares(a: str, b: str) -> bool:
+    a, b = prefix(a), prefix(b)
     return a == b or a.startswith(b + "/") or b.startswith(a + "/")
 
 
@@ -122,7 +132,7 @@ def check_waves(path: Path) -> None:
     for tid, task in tasks.items():
         if task["promote"]:
             continue
-        for rel in sorted(set(DOC_PATH.findall(task["creates"]))):
+        for rel in sorted({p.rstrip(".,;:)") for p in DOC_PATH.findall(task["creates"])}):
             if not any(shares(rel.rstrip("/"), o) for o in task["owns"]):
                 err("P9", f"{tid} touches {rel} and does not own it")
         if len(task["deps"]) == 1 and task["deps"][0] in tasks:

@@ -1,6 +1,7 @@
 """Base resolver, gate result lines, gates.sh close and html, and the SKILL.md size ratchet."""
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -129,7 +130,37 @@ class GatesV5Test(unittest.TestCase):
         r = self.gates("close", "demo")
         self.assertLessEqual(len(r.stdout.strip().splitlines()), 15, r.stdout)
         self.assertIn("lint ok", r.stdout)
-        self.assertTrue((self.p.root / ".claude/prd-flow/state/_close/demo.log").is_file())
+
+    def test_close_on_success_clears_the_slug_state_and_its_log(self) -> None:
+        self.close_setup()
+        state = self.p.root / ".claude/prd-flow/state"
+        write(self.p.root, ".claude/prd-flow/state/_gate/last.txt", "x")
+        r = self.gates("close", "demo")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertFalse((state / "demo").exists())
+        self.assertFalse((state / "_gate").exists())
+        self.assertFalse((state / "_close/demo.log").exists())
+
+    def test_close_on_failure_deletes_nothing_and_keeps_the_log(self) -> None:
+        self.close_setup(lint="import sys; sys.exit(1)")
+        state = self.p.root / ".claude/prd-flow/state"
+        self.gates("close", "demo")
+        self.assertTrue((state / "demo/baseline-failures.txt").is_file())
+        self.assertTrue((state / "_close/demo.log").is_file())
+
+    def test_close_rejects_a_slug_with_a_path_separator_or_dotdot(self) -> None:
+        for bad in ("../x", "a/b", "a..b"):
+            r = run(self.p.root, PY, "scripts/close_gate.py", bad)
+            self.assertNotEqual(r.returncode, 0, bad)
+            self.assertIn("separator", r.stdout)
+
+    def test_close_turns_a_missing_bash_into_a_failed_line(self) -> None:
+        self.close_setup()
+        env_run = subprocess.run([PY, "scripts/close_gate.py", "demo"], cwd=self.p.root, capture_output=True, text=True,
+                                 encoding="utf-8", env={**os.environ, "GATES_BASH": str(self.p.root / "no-such-bash")}, check=False)
+        self.assertEqual(env_run.returncode, 1, env_run.stdout + env_run.stderr)
+        self.assertIn("FAILED", env_run.stdout)
+        self.assertNotIn("Traceback", env_run.stderr)
 
     def test_close_fails_when_a_step_fails(self) -> None:
         self.close_setup(lint="import sys; sys.exit(1)")
@@ -142,7 +173,7 @@ class GatesV5Test(unittest.TestCase):
         self.configure(test=f'"{PY}" -c "print(1)"', offline_args="", lint=f'"{PY}" -c "pass"')
         r = self.gates("close", "nobase")
         self.assertEqual(r.returncode, 1, r.stdout)
-        self.assertIn("baseline", r.stdout)
+        self.assertIn("baseline missing: run scripts/gates.sh baseline nobase before the first task", r.stdout)
 
 
 class SkillMdRatchetTest(unittest.TestCase):

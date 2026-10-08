@@ -3,7 +3,7 @@
 import re
 from pathlib import Path
 
-from gate_core import ID, ROW, Rules, cells, ends_with_path, err, literal_rows, section
+from gate_core import ID, ROW, Rules, cells, ends_with_path, err, literal_rows, parse_supersedes, section
 
 
 CELLS = ["Rule", "Source", "Change via", "Example"]
@@ -52,7 +52,7 @@ def check_conflicts(path: Path, rules: Rules) -> None:
     for rid in sorted(pack_ids - set(table)):
         err("Q5", f"{rid} is in the Conflicts of pack.md and has no row under '## Conflicts'")
     approved = {m.group(1) for _, line in literal_rows(text) if (m := ROW.match(line))}
-    superseded = set(re.findall(r"^[ \t]*[-*]?[ \t]*(" + ID + r")[ \t]*:", section(text, "Supersedes"), re.M))
+    superseded = set(parse_supersedes(section(text, "Supersedes")))
     for rid, row in sorted(table.items()):
         kind, note = (row[0].strip("` ").lower() if row else ""), (row[1].strip() if len(row) > 1 else "")
         if kind not in RESOLUTIONS:

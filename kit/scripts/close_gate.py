@@ -2,12 +2,15 @@
 
 Usage: python scripts/close_gate.py [slug]     (through scripts/gates.sh close [slug])
 Prints one block of at most 15 lines; the full output of every step goes to .claude/prd-flow/state/_close/<slug>.log.
-Exits 1 when any step fails.
+Exits 1 when any step fails. On success the slug's state folder, the gate and test logs of earlier runs and the close log are deleted;
+on failure nothing is deleted, so the close can be rerun.
 """
 
 import os
+import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 from kit_config import repo_root
@@ -27,9 +30,26 @@ def default_slug(root: Path) -> str:
 
 
 def gates(root: Path, *args: str) -> subprocess.CompletedProcess:
-    bash = os.environ.get("GATES_BASH") or "bash"
-    return subprocess.run([bash, "scripts/gates.sh", *args], cwd=root, capture_output=True, text=True,  # noqa: S603
-                          encoding="utf-8", errors="replace", check=False)
+    bash = os.environ.get("GATES_BASH") or shutil.which("bash") or "bash"
+    try:
+        return subprocess.run([bash, "scripts/gates.sh", *args], cwd=root, capture_output=True, text=True,  # noqa: S603
+                              encoding="utf-8", errors="replace", check=False)
+    except OSError as exc:
+        return subprocess.CompletedProcess([bash], 127, "", f"cannot run bash: {exc}")
+
+
+def valid_slug(slug: str) -> bool:
+    return bool(slug) and ".." not in slug and "/" not in slug and "\\" not in slug
+
+
+def clean_success(root: Path, slug: str, started: float, log: Path) -> None:
+    state = root / ".claude" / "prd-flow" / "state"
+    shutil.rmtree(state / slug, ignore_errors=True)
+    shutil.rmtree(state / "_gate", ignore_errors=True)
+    for item in (state / "_tests").glob("*") if (state / "_tests").is_dir() else []:
+        if item.is_file() and item.stat().st_mtime < started:
+            item.unlink(missing_ok=True)
+    log.unlink(missing_ok=True)
 
 
 def summarize(name: str, result: subprocess.CompletedProcess) -> list[str]:
@@ -46,6 +66,10 @@ def summarize(name: str, result: subprocess.CompletedProcess) -> list[str]:
 def main() -> int:
     root = repo_root()
     slug = sys.argv[1] if len(sys.argv) > 1 else default_slug(root)
+    if not valid_slug(slug):
+        print(f"close FAILED: slug '{slug}' must not contain a path separator or '..'")
+        return 2
+    started = time.time()
     log = root / ".claude" / "prd-flow" / "state" / "_close" / f"{slug}.log"
     log.parent.mkdir(parents=True, exist_ok=True)
     baseline = root / ".claude" / "prd-flow" / "state" / slug / "baseline-failures.txt"
@@ -54,7 +78,7 @@ def main() -> int:
              ("gate --final", ["docs", "--final"]), ("retro", ["retro"])]
     for name, args in steps:
         if name == "compare" and not baseline.is_file():
-            block.append(f"compare FAILED: no baseline for {slug}, run scripts/gates.sh baseline {slug} first")
+            block.append(f"compare FAILED: baseline missing: run scripts/gates.sh baseline {slug} before the first task")
             failed = True
             continue
         result = gates(root, *args)
@@ -65,7 +89,11 @@ def main() -> int:
                             encoding="utf-8", check=False).stdout
     block.append(f"tree: {len([ln for ln in status.splitlines() if ln.strip()])} changed path(s)")
     log.write_text("\n".join(chunks), encoding="utf-8")
-    block.append(f"close {'FAILED' if failed else 'ok'}, log {log.relative_to(root).as_posix()}")
+    if failed:
+        block.append(f"close FAILED, log {log.relative_to(root).as_posix()}")
+    else:
+        clean_success(root, slug, started, log)
+        block.append("close ok, state and logs cleared")
     if len(block) > MAX_LINES:
         block = block[: MAX_LINES - 1] + block[-1:]
     print("\n".join(block))

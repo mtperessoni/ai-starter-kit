@@ -208,7 +208,7 @@ html)
     python .claude/skills/prd-flow/scripts/build_prd_html.py "$@"
     ;;
 close)
-    GATES_BASH="$BASH" python scripts/close_gate.py "$@"
+    GATES_BASH="$(cygpath -w "$BASH" 2>/dev/null || printf %s "$BASH")" python scripts/close_gate.py "$@"
     ;;
 setup)
     setup_cmd="$(python -c 'import json; print(json.load(open("ai-kit.json", encoding="utf-8"))["commands"].get("setup", ""))')"

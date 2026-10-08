@@ -131,6 +131,14 @@ class WaveTest(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         self.assertIn("; fix: ", next(x for x in r.stdout.splitlines() if "ERROR P7" in x))
 
+    def test_p7_an_owned_glob_overlaps_a_file_under_its_directory(self) -> None:
+        r = self.gate(plan(task("T01", "src/**"), task("T02", "src/a.py")))
+        self.assertIn("ERROR P7", r.stdout)
+
+    def test_p9_trailing_punctuation_does_not_hide_ownership(self) -> None:
+        r = self.gate(plan(task("T01", "src/a.py, docs/trd/orders.md", extra="Creates / consumes: updates docs/trd/orders.md.\n")))
+        self.assertNotIn("P9", r.stdout)
+
     def test_serial_tasks_may_share_a_file(self) -> None:
         r = self.gate(plan(task("T01", "src/a.py"), task("T02", "src/a.py", "T01")))
         self.assertNotIn("P7", r.stdout)
