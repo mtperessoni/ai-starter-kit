@@ -5,7 +5,7 @@ Review is what catches the serious defect before the user does, and it must run.
 ## Review table
 | Moment | Who | Over what |
 |---|---|---|
-| Every wave of a C5 (a one-task wave included), and the standalone task of C2, C3, C6 | `prd-flow-reviewer`, one round | the combined wave diff and the rule IDs of the wave |
+| Every wave of a C5 (a one-task wave included), and the standalone task of C2, C3, C6, whatever the cards' `Lens:` says (a lens only adds a rubric) | `prd-flow-reviewer`, one round | the combined wave diff, the rule IDs, the `Decisions:` rows and the `Leave:` items of the wave |
 | After a fix of a Critical or High | `prd-flow-recheck`, a second round | only the fix diff and the previous finding IDs |
 | Medium and Low | none | pending items in `state.md`, no re-review |
 | The fix of round 5 | `prd-flow-recheck` | a scoped check of that fix; it is not a round 6 |

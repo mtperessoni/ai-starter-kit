@@ -49,7 +49,8 @@ def plan_pairs(cfg, only=None, arms=None):
 
 def build_command(budget_usd, claude="claude", model=None, effort=None):
     cmd = [claude, "-p", "--output-format", "stream-json", "--verbose",
-           "--dangerously-skip-permissions", "--setting-sources", "project,local"]
+           "--dangerously-skip-permissions", "--setting-sources", "project,local",
+           "--settings", json.dumps({"autoMemoryEnabled": False})]
     if model:
         cmd += ["--model", model]
     if effort:
@@ -93,6 +94,7 @@ def hermetic_env(base_env=None, source=None):
         shutil.rmtree(tmp, ignore_errors=True)
         raise
     base_env["CLAUDE_CONFIG_DIR"] = str(tmp)
+    base_env["CLAUDE_CODE_DISABLE_AUTO_MEMORY"] = "1"
     return tmp, base_env
 
 
@@ -249,7 +251,7 @@ def run_pair(pair, cfg, args, projects, results, template):
     wall_min = round((time.time() - started_at) / 60, 3)
     (results / f"{name}.run.json").write_text(json.dumps(
         {"name": name, "arm": arm, "scenario": sc, "rep": pair["rep"], "status": status,
-         "started_at": started_at, "runner_wall_min": wall_min}, indent=2), encoding="utf-8")
+         "started_at": started_at, "runner_wall_min": wall_min, "auto_memory": False}, indent=2), encoding="utf-8")
     metrics = {}
     if status != "build_failed":
         try:

@@ -139,13 +139,16 @@ def commit_log(project, seed):
     return commits
 
 
+NON_RULE_PREFIXES = {"DEC", "Q"}
+
+
 def prd_diff_ids(project, seed):
     """Rule IDs in the first cell of PRD table rows added or changed since the seed."""
     ids = []
     for line in git(project, "diff", f"{seed}..HEAD", "--", "docs/prd").splitlines():
         if line.startswith("+") and not line.startswith("+++"):
             m = re.match(r"\+\s*\|\s*([A-Z][A-Z0-9]*-\d+)\s*\|", line)
-            if m and m.group(1) not in ids:
+            if m and m.group(1).split("-")[0] not in NON_RULE_PREFIXES and m.group(1) not in ids:
                 ids.append(m.group(1))
     return ids
 

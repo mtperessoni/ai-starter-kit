@@ -90,4 +90,4 @@ The repository's list is in `repo.md`, "Protected rules". Always protected, in a
 | A registered exception to a principle | constitution, ADR | A new ADR to change the exception |
 | A safety control | constitution | Loosening it requires an ADR and the safety reviewer |
 
-With a protection involved: say which, its source and the right path, and ask whether the protection still holds (the document may be stale). Continue only with explicit confirmation, recording in `state.md` the chosen path (ADR, constitution amendment, or "the protection was stale").
+With a protection involved: say which, its source and the right path in the confrontation and in the return's `Protected:` line; the main asks whether the protection still holds (the document may be stale). It continues only with explicit confirmation, recording in `state.md` the chosen path (`Protected: <ID or invariant> · ADR`, constitution amendment, or "the protection was stale"). An ADR path is written by the `prd-flow-docs` agent at step 5, never by the main; a constitution amendment goes back to the user.

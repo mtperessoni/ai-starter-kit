@@ -468,7 +468,7 @@ class ProtocolReviewFixesTest(unittest.TestCase):
     def test_phase_two_reads_after_surveyor_of_phase_one_are_not_violations(self):
         carry = {}
         protocol.analyze([_surv()], carry)
-        ev = [_call("a", "2026-10-07T11:00:00Z", [_use("r", "Read", file_path="src/orders/x.py")])]
+        ev = [_call("a", "2026-10-07T11:00:00Z", [_use("r", "Read", file_path="docs/prd/x.md")])]
         self.assertEqual(_viol(ev), None)
         self.assertEqual(protocol.analyze(ev, carry)["main_violations"], 0)
 

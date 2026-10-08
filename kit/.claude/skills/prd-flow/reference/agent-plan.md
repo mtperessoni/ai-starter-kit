@@ -49,15 +49,19 @@ Read: docs/trd/checkout.md (Planned row), src/features/checkout/payment_call.py:
 Depends on: T01
 Creates / consumes: creates `PaymentOutcome.retry_after`; consumes `PaymentConfig.provider_timeout_seconds` (T01)
 Tests: test_<behavior> in <file>, docstring citing CHK-02, fails before the change; then scripts/gates.sh related <Owns> and scripts/gates.sh lint
+Decisions: DEC-03 (the `decisions.md` rows that bind this task, IDs only) | none
+Leave: src/features/shipping/fee.py::free_shipping uses `>` at 200.00 (out-of-scope divergence from the pack, left as it is) | none
 Commit: <type>(<scope>): <sentence>
         Rules: CHK-02            (or: Case: none (<reason in at most 8 words>))
-Model: sonnet (config, docs, test adjustment, small contract) | opus (safety decision, agent prompt, big file, serial chain; reason on this line)
-Reviewer: <agent from repo.md "Reviewers"> | none
+Model: sonnet | opus (only for a new safety decision; reason on this line)
+Lens: <extra specialized reviewer from repo.md "Reviewers"> | none
 ```
+
+`Lens:` adds a specialized reviewer to the wave review; `none` means no extra one. The wave review by `prd-flow-reviewer` always runs (execution.md E06). `Decisions:` lists the DEC rows of `changes/NNN-<slug>/decisions.md` that constrain the task (a "no new public name", a contract or a transition answer); executor and reviewer read those rows by ID. `Leave:` copies the out-of-scope divergences of `pack.md` "Divergences" that sit in or near the task's files; executor and reviewer leave them untouched, even when they look wrong.
 
 Commit trailer: a commit that touches the source folders (`ai-kit.json`) carries `Rules: <IDs>` or `Case: none (<reason>)`; `scripts/gates.sh trailers [range]` checks it. The executor's proposed message includes the trailer.
 
-The card cites IDs. Its commit and delivery: the executor ends with a `deliveries.md` block whose `Source: <ID> <path[::symbol]>` lines (one per rule ID, the code that implements it) are what `promote.py` reads to fill each rule's Source; promote requires a `Source:` line only for rules whose Change via is `code`; rules changed via config, env, prompt, data or a handoff stay planned, are listed in promote's output and are closed by their own route (repo.md "Change routing"). The executor reads the literal row from `approved-rules.md` (new rules) or the pack (unchanged rules), never from the card. "Creates / consumes" names the shared symbols: a consumer reads the producer's block in `deliveries.md` (at `.claude/prd-flow/state/<slug>/deliveries.md`), never the producer's code. `gate.py --step plan` checks: every task has Owns (error), Reviewer and Model (warning), no ID missing from the PRD (error), and the file size (warning above the `plan_budget_kb` of `repo.md`).
+The card cites IDs. Its commit and delivery: the executor ends with a `deliveries.md` block whose `Source: <ID>: <path::symbol>` lines (one line per approved code rule the task implements, rewritten rules included, never a list or a range) are what `promote.py` reads to fill each rule's Source; promote requires a `Source:` line only for rules whose Change via is `code`; rules changed via config, env, prompt, data or a handoff stay planned, are listed in promote's output and are closed by their own route (repo.md "Change routing"). The executor reads the literal row from `approved-rules.md` (new rules) or the pack (unchanged rules), never from the card. "Creates / consumes" names the shared symbols: a consumer reads the producer's block in `deliveries.md` (at `.claude/prd-flow/state/<slug>/deliveries.md`), never the producer's code. `gate.py --step plan` checks: every task has Owns (error), Lens and Model (warning), no ID missing from the PRD (error), and the file size (warning above the `plan_budget_kb` of `repo.md`).
 
 | Rule | Detail |
 |---|---|
@@ -74,10 +78,10 @@ The plan header copies these lines under `## Plan execution rules`, so whoever e
 - Inside a task, only the related tests; the full suite runs once, at the end of all tasks.
 - Any behavior outside the approved rules, safety included, stops and goes to the short C5 (R09).
 - Each commit carries the `Rules:` or `Case: none (...)` trailer.
-- Execution follows `.claude/skills/prd-flow/reference/execution.md`: `scripts/gates.sh baseline <slug>` before wave 1, waves from the table in `state.md`, each task through the `prd-flow-executor` with its card on the task's model, a block in `deliveries.md`, a commit per task by the main thread, a review per wave, and the checkpoint of E01.
+- Execution follows `.claude/skills/prd-flow/reference/execution.md`: `scripts/gates.sh baseline <slug>` before wave 1, waves from the table in `state.md`, each task through the `prd-flow-executor` with its card on the task's model, a block in `deliveries.md`, a commit per task by the main thread, a `prd-flow-reviewer` review per wave whatever `Lens:` says, and the checkpoint of E01.
 
 ## Promote is not a task
 The main runs `promote.py <slug>` after the last wave, commits its result, then runs `scripts/gates.sh close <slug>` (execution.md E20). The plan has no Promote task. What the script leaves as a listed warning (an amendment fold it cannot decide, prd-writing.md P3) and the `design.md` (L) destinations (decisions to `docs/adr/` with `/adr`, data model to the real schema or migration plus the TRD, contracts to the real artifact plus a TRD link, LT03) are the last code task's job when it owns them; otherwise they go to a `prd-flow-docs` dispatch in `fold` mode, never to the main.
 
 ## Presentation
-Show the user the tasks in a table (ID, result, owns, depends on, wave, model, reviewer) and ask for approval. Adjust until approved. Execution happens when the user asks: each agent receives only its task card, which already is the contract.
+Show the user the tasks in a table (ID, result, owns, depends on, wave, model, lens) and ask for approval. Adjust until approved. Execution happens when the user asks: each agent receives only its task card, which already is the contract.

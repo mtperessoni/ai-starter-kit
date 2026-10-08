@@ -27,7 +27,8 @@ SEVERITY_WEIGHTS = {"critical": 8, "high": 4, "medium": 2, "low": 1}
 FLOW_KEYS = ("main_calls", "main_tokens_post_exec", "main_cache_write", "cache_busts", "start_context",
              "main_only_min", "main_violations", "inline_residency", "waves", "wave_widths",
              "parallel_factor", "ceremony_ratio", "max_reruns_per_step", "rework_actions",
-             "dispatch_map", "agents_by_role", "first_pass_clean")
+             "dispatch_map", "agents_by_role", "first_pass_clean", "main_diff_reads", "main_source_reads",
+             "kit_script_reads", "agent_file_edits", "retro_rereads", "cost_by_role")
 HIGHER, LOWER = "higher", "lower"
 DIRECTION = {
     **dict.fromkeys(("tokens_total", "tokens_main", "tokens_subagents", "context_peak", "cost_usd",
@@ -55,7 +56,7 @@ ADDITIVE = {"tokens_total", "tokens_main", "tokens_subagents", "cost_usd", "task
 TRANSCRIPT_KEYS = ("cost_usd", "main_min", "agent_min", "cold_starts", "error_kinds", "gate_runs_main",
                    "gate_runs_sub", "cost_main_usd", "cost_subagents_usd", "cache_hit_rate",
                    "output_share", "gate_fail_ratio", "rereads", "docs_dispatched") + tuple(
-    k for k in FLOW_KEYS if k not in ("wave_widths", "agents_by_role", "first_pass_clean"))
+    k for k in FLOW_KEYS if k not in ("wave_widths", "agents_by_role", "first_pass_clean", "cost_by_role"))
 
 
 def _num(v):

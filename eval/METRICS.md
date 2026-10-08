@@ -17,7 +17,7 @@ The single scorecard every eval round uses to judge a change to the kit (MAINTAI
 | Error rate | tool errors over tool calls, by kind | at most 2% |
 | First pass | accepted with no review fix, no gate rerun after a fail, no re-dispatch (`first_pass`) | true |
 | Ceremony ratio | docs and state tool calls over code and test tool calls | at most 1.0 |
-| Parallel factor | agent minutes during execution over execution wall time (`parallel_factor`) | at least 1.5 on a multi-task feature (S8) |
+| Parallel factor | executor agent minutes over the time at least one executor ran (`parallel_factor`; reviews and the gaps between waves are out) | at least 1.5 inside the executor segments of a wave of width 2 or more (S8 wave 1); a serial wave is 1.0 by shape, not a miss |
 | Waves and width | waves dispatched and executors per wave, against the plan's computed waves | equal to the plan |
 | Inline residency | tokens the main read from docs, TRD or source before the surveyor | 0 |
 
@@ -47,9 +47,11 @@ The single scorecard every eval round uses to judge a change to the kit (MAINTAI
 | `main_calls`, `start_context` | unique main API calls; input tokens of the first main call |
 | `main_cache_write`, `cache_busts` | largest cache write of a main call after the first; calls above 30k |
 | `dispatch_map` | share of the required roles (surveyor, docs, executor, reviewer) dispatched; role by `subagent_type` `prd-flow-<role>`, else by description |
-| `main_violations` | main Edit or Write under `src/`, `docs/` or `tests/` (paths relative to the project root), main reads of those before the first surveyor (carried across the phases of a two-phase run), main reads of worker-only references, and main gate runs outside the allowed set: `--rules` once (plus reruns directly after a failed run of the same command), `gates.sh close`, `gates.sh context|baseline`, and one `--step plan` after the docs agent returned; `--step` runs otherwise belong to agents. Exempt: one Grep of `docs/prd/INDEX.md`, git config/rev-parse/log, reads of `repo.md` and of plan.md by range; None when no surveyor or executor ran |
-| `waves`, `wave_widths` | executors dispatched in one assistant message are one wave; a later dispatch opens a wave when no executor is outstanding. An executor ends at its completion (last child event, task notification or final result), not at the immediate result of a background launch |
-| `parallel_factor` | executor agent minutes over the wall time from the first executor start to the last executor end |
+| `main_violations` | main Edit or Write under `src/`, `docs/` or `tests/` (paths relative to the project root), main reads of those before the first surveyor (carried across the phases of a two-phase run; the request's own document under `docs/incoming/` is exempt), main reads of worker-only references, and the categories counted separately (`main_source_reads`: Read, Grep or `cat` of `src/` or `tests/` after the surveyor; `main_diff_reads`: `git diff` or `git show` without `--stat` or `--name-only` after the surveyor; `kit_script_reads`: reads of `scripts/` files, `gate.py`, `promote.py`; `agent_file_edits`: main edits of `deliveries.md`, `impact.md`, `pack.md`, `execution.md`, `review.md`, `approved-rules.md`; `retro_rereads`: reads of `retro.md`), and main gate runs outside the allowed set: `--rules` once (plus reruns directly after a failed run of the same command), `gates.sh close`, `gates.sh context|baseline`, and one `--step plan` after the docs agent returned; `--step` runs otherwise belong to agents. Exempt: one Grep of `docs/prd/INDEX.md`, git config/rev-parse/log, reads of `repo.md` and of plan.md by range; None when no surveyor or executor ran |
+| `waves`, `wave_widths` | executors dispatched in one assistant message are one wave; a later dispatch opens a wave when no executor is outstanding; a fix dispatch (description names a fix) after the first wave never opens one. An executor ends at its completion (last child event, task notification or final result), not at the immediate result of a background launch |
+| `parallel_factor` | executor agent minutes over the union of executor intervals (executor segments only) |
+| `cost_by_role`, `cost_main_usd`, `cost_subagents_usd` | each assistant message priced by its own model (`costs.py` table) and attributed to the main or to the role of the subagent that sent it, then scaled so each model matches the result's `costUSD`; `cost_main_usd` is the `main` role, `cost_subagents_usd` the rest |
+| `wall_min` | sum of `duration_ms` over every `result` event of a session (a main that ends its turn while background agents run emits several), then over the phases |
 | `ceremony_ratio` | tool calls on docs, changes, specs and `.claude` paths over calls on `src` and `tests` paths |
 | `rework_actions` | gate fails + review rounds past the first + failed test runs + re-dispatched task cards + the largest rerun count of one gate or lint command |
 | `first_pass` | accepted, no review fix round, no gate rerun after a fail, no re-dispatch |
@@ -69,6 +71,12 @@ The single scorecard every eval round uses to judge a change to the kit (MAINTAI
 
 ## Adoption
 Hard gates hold; on S5 the median of 3 reps is within +10% of the base on `cost_per_accept` and `wall_min`; every other metric outside the noise band (the spread of the reps) counts as a win or a loss, and wins must at least equal losses in each group.
+
+## Agents report
+`python eval/agents_report.py <results-folder> [--arm ARM] [--scenario S] [--out file.md]` prints, per run, one row per agent (main included): role, model, calls, input tokens (fresh, cache read, cache write), output tokens, cost, minutes, Read calls, distinct files, rereads, prompt and return length in characters, max context, then run totals and flags: prompt over 4000 characters, return over 2000, more than 25 files read, more than 3 rereads, more than 50 calls. Offline; it reads the `.jsonl` and `.p2.jsonl` transcripts only. Output tokens come from the stream events and understate real output, so compare the cost column instead.
+
+## Harness
+Auto-memory is off in every run: `--settings {"autoMemoryEnabled": false}` on the command, `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1` in the environment, and `"auto_memory": false` in each `<run>.run.json`. `traceability` ignores `DEC-nn` and `Q-nn` rows: only rule IDs count.
 
 ## Two-phase budget
 A two-phase arm splits `budget_usd` between the sessions: 70% to phase 1 and 30% to phase 2 (`run.split_budget`). A phase 2 with no state folder holding `approved-rules.md` and no `changes/` folder is skipped with a `<run>.p2.skipped.txt` reason, not a crash.

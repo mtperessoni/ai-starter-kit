@@ -25,8 +25,8 @@ def check_plan(path: Path, rules: Rules, cfg: dict[str, str]) -> None:
             continue
         if not re.search(r"^Owns:", block, re.M):
             err("P2", f"{tid} without 'Owns:'")
-        if not re.search(r"^Reviewer:", block, re.M):
-            warn("P3", f"{tid} without 'Reviewer:'")
+        if not re.search(r"^(Lens|Reviewer):", block, re.M):
+            warn("P3", f"{tid} without 'Lens:' (an extra reviewer, or none)")
         if not re.search(r"^Model:", block, re.M):
             warn("P4", f"{tid} without 'Model:'")
         for rid in sorted(set(re.findall(r"\b(" + ID + r")\b", block))):

@@ -36,6 +36,13 @@ RANGE_ARG = re.compile(r"^[\d,$]+[a-z]*$")
 SEGMENT_SPLIT = re.compile(r"&&|\|\||[;|\n]")
 BG_RESULT = re.compile(r"\b(async|background)\b", re.I)
 BUST = 30_000
+INCOMING_RE = re.compile(r"(^|[\/])docs[\/]incoming[\/]")
+KIT_SCRIPT_RE = re.compile(r"(^|[\/])scripts[\/][^\/]+\.(py|sh)$|(^|[\/])(gates?|promote)\.(py|sh)$")
+AGENT_FILE_RE = re.compile(r"(^|[\/])(deliveries|impact|pack|execution|review|approved-rules)\.md$")
+RETRO_RE = re.compile(r"(^|[\/])retro\.md$")
+DIFF_CMD = re.compile(r"\bgit\s+(?:diff|show)\b")
+STAT_FLAG = re.compile(r"--(?:stat|name-only|name-status|shortstat|numstat)\b")
+FIX_RE = re.compile(r"\bfix(?:es|ing)?\b", re.I)
 
 
 def role_of(inp):
@@ -121,6 +128,19 @@ def _span(child, launch, done):
     return [min(points), max(points)] if points else [0, 0]
 
 
+def _union_length(spans):
+    """Total length of the union of [start, end] spans: the time at least one executor was running."""
+    total, end = 0.0, None
+    for a, b in sorted(spans):
+        if end is None or a > end:
+            total += b - a
+            end = b
+        elif b > end:
+            total += b - end
+            end = b
+    return total
+
+
 def _gate_allowed(cmd, st):
     """Whether a main gate run is one the protocol permits; `st` carries the run history."""
     if RULES_CMD.search(cmd):
@@ -148,6 +168,7 @@ def analyze(events, carry=None):
                   "docs_seen": carry.get("docs", False), "exec_seen": exec_seen}
     index_grep_used = False
     reads_before = edits = worker_reads = 0
+    diff_reads = source_reads = kit_reads = agent_edits = retro_reads = 0
     residency_chars, read_ids = 0, {}
     cmd_runs, cmd_failed, gate_ids = {}, set(), {}
     gate_fail_reruns = extra = 0
@@ -206,11 +227,13 @@ def analyze(events, carry=None):
                         exec_seen = True
                         exec_ids.add(b.get("id"))
                         exec_start[b.get("id")] = ts
-                        if mid != wave_mid and (outstanding == 0 or not widths):
-                            waves += 1
-                            widths.append(0)
-                        wave_mid = mid
-                        widths[-1] += 1
+                        fix = bool(widths) and FIX_RE.search(str(inp.get("description", "")))
+                        if not fix:
+                            if mid != wave_mid and (outstanding == 0 or not widths):
+                                waves += 1
+                                widths.append(0)
+                            wave_mid = mid
+                            widths[-1] += 1
                         outstanding += 1
                         card = tuple(sorted(set(TASK_RE.findall(str(inp.get("prompt", ""))))))
                         redispatch += bool(card) and card in exec_prompts
@@ -225,15 +248,27 @@ def analyze(events, carry=None):
                     continue
                 if name in EDIT and _is_source(rel, cwd) and not STATE_RE.search(rel):
                     edits += 1
+                if name in EDIT and STATE_RE.search(rel) and AGENT_FILE_RE.search(rel):
+                    agent_edits += 1
                 if name in READ | {"Bash"}:
                     probes = [rel] if name != "Bash" else [_rel(x, cwd) for x in _command_paths(inp)]
                     if name == "Grep" and _targets_index(inp, rel) and not index_grep_used:
                         index_grep_used = True
                     elif any(WORKER_ONLY_RE.search(x) for x in probes):
                         worker_reads += 1
-                    elif not surveyor_seen and any(_is_source(x, cwd) and not STATE_RE.search(x) for x in probes):
+                    elif any(KIT_SCRIPT_RE.search(x) for x in probes):
+                        kit_reads += 1
+                    elif any(RETRO_RE.search(x) for x in probes):
+                        retro_reads += 1
+                    elif not surveyor_seen and any(_is_source(x, cwd) and not STATE_RE.search(x)
+                                                   and not INCOMING_RE.search(x) for x in probes):
                         reads_before += 1
                         read_ids[b.get("id")] = True
+                    elif surveyor_seen and any(_is_code(x, cwd) and not STATE_RE.search(x) for x in probes):
+                        source_reads += 1
+                if name == "Bash" and surveyor_seen:
+                    line = str(inp.get("command", ""))
+                    diff_reads += bool(DIFF_CMD.search(line)) and not STAT_FLAG.search(line)
                 if name == "Bash":
                     cmd = " ".join(str(inp.get("command", "")).split())
                     if GATE_CMD.search(cmd) or LINT_CMD.search(cmd):
@@ -270,13 +305,12 @@ def analyze(events, carry=None):
     for tid in [t for t in exec_ids if t in launched]:
         exec_spans[tid] = _span(spans.get(tid), exec_start.get(tid), None)
     carry.update(surveyor=surveyor_seen, executor=exec_seen, docs=gate_state["docs_seen"])
-    violations = (edits + reads_before + worker_reads + extra) if (surveyor_seen or exec_seen) else None
+    violations = (edits + reads_before + worker_reads + extra + diff_reads + source_reads + kit_reads
+                  + agent_edits + retro_reads) if (surveyor_seen or exec_seen) else None
     writes = [u.get("cache_creation_input_tokens", 0) for u, _ in main_calls.values()]
     busts = sum(1 for w in writes[1:] if _num(w) > BUST)
     first_usage = next(iter(main_calls.values()), ({}, False))[0]
-    start, end = (min(s[0] for s in exec_spans.values()), max(s[1] for s in exec_spans.values())) \
-        if exec_spans else (None, None)
-    exec_wall = end - start if start is not None else 0
+    exec_wall = _union_length(list(exec_spans.values()))
     agent_exec = sum(s[1] - s[0] for s in exec_spans.values())
     required = [roles[r] > 0 for r in REQUIRED_ROLES]
     return {
@@ -288,6 +322,8 @@ def analyze(events, carry=None):
         "cache_busts": busts,
         "start_context": _call_total(first_usage) if main_calls else None,
         "main_violations": violations,
+        "main_diff_reads": diff_reads, "main_source_reads": source_reads, "kit_script_reads": kit_reads,
+        "agent_file_edits": agent_edits, "retro_rereads": retro_reads,
         "main_edits": edits, "main_reads_before_surveyor": reads_before,
         "worker_only_reads": worker_reads, "extra_main_gate_runs": extra,
         "inline_residency": residency_chars // 4,

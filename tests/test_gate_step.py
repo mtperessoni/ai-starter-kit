@@ -47,6 +47,14 @@ class StepTest(unittest.TestCase):
         self.assertIn("ERROR G8", r.stdout)
         self.assertEqual(r.stdout.count("gate:"), 1, r.stdout)
 
+    def test_a_task_names_its_lens(self) -> None:
+        write(self.p.root, "changes/001-orders/plan.md", PLAN + "Owns: src/a.py\nModel: sonnet\n")
+        out = self.p.py(GATE, "--step", "plan", "--plan", "changes/001-orders/plan.md").stdout
+        self.assertIn("WARNING P3", out)
+        self.assertIn("Lens:", out)
+        write(self.p.root, "changes/001-orders/plan.md", PLAN + "Owns: src/a.py\nModel: sonnet\nLens: none\n")
+        self.assertNotIn("P3", self.p.py(GATE, "--step", "plan", "--plan", "changes/001-orders/plan.md").stdout)
+
     def test_plan_step_checks_the_plan_and_the_change_folder(self) -> None:
         write(self.p.root, "changes/001-orders/plan.md", PLAN)
         r = self.p.py(GATE, "--step", "plan", "--plan", "changes/001-orders/plan.md", "--change", "changes/404-none")

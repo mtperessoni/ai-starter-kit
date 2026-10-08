@@ -7,13 +7,23 @@ IDs, texts and paths in the examples are illustrative: always read the real line
 |---|---|
 | 1 | Writes the PRD files from `approved-rules.md` (rows literal, with the Example cell when present) |
 | 2 | Builds the HTML (section "HTML" below), updates CHANGELOG and INDEX |
-| 3 | Writes the `Decisions:` block of the CHANGELOG entry from `changes/NNN-<slug>/decisions.md` |
+| 3 | Writes the `Decisions:` block of the CHANGELOG entry from `changes/NNN-<slug>/decisions.md`, and the contract and transition lines (below) |
 | 4 | Runs `gate.py --step prd --rules <approved-rules.md> --applied` once: the default checks, Q4 (a row of the file not in the PRD with identical cells) and G28 |
 | 5 | Commits `docs(prd)` with `decisions.md` and the PRD together |
 
 In a fan-out, a `C5 context` agent does only step 1 on its own section files; the `plan` dispatch that merges does steps 2 to 5 once for the whole change.
 
-The step-6 skip (the single home of this rule): step 6 (the user reviews the written PRD) is skipped when `--applied` is green and the change has no non-table content (prose, new sections, an amendment file); the main shows the gate line, and the docs agent continues to the TRD and the plan. With non-table changes, step 6 shows only those.
+The step-6 skip (the single home of this rule): step 6 (the user reviews the written PRD) is skipped when `--applied` is green and the change has no non-table content (prose, new sections, an amendment file); the main shows the gate line, and the docs agent continues to the TRD and the plan. With non-table changes, step 6 shows only those. The contract and transition lines below are not non-table content: the user already confirmed them in the interview.
+
+## Contract and transition lines
+The interview answers of D08 (contract: what consumers receive) and D13 (transition: requests in flight, existing records, rollout) are decisions, not rule rows, and `interview.md` is deleted at close. When the answer is `user` or `assumed-confirmed` and no approved row already states it, the docs agent writes one line under the owning section's rule table, in product language, citing the rules it qualifies; a "nothing changes" answer is written too, because it is what the executor and the reviewer must keep:
+
+```markdown
+Contract: the receipt layout and its fields do not change (CHK-09).
+Transition: applies to every order from now on; no switch, no migration of existing orders (CHK-09).
+```
+
+The plan cites the `DEC-` row of the same answer, when there is one, in the `Decisions:` line of the task that implements the rule.
 
 ## Where to write
 | Change | Form |

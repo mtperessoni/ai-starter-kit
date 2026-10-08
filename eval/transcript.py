@@ -5,6 +5,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+import costs
 import protocol
 
 USAGE_KEYS = ("input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens")
@@ -121,6 +122,7 @@ def _usage_ratios(model_usage, main_model):
 
 def summarize(path, carry=None):
     msgs = {}  # assistant message id -> (usage, is_subagent); one id spans several events
+    meta, role_by_id, dur_total = {}, {}, None  # message id -> (model, parent); Agent call id -> role
     tool_errors, subagents, skills, started, result = 0, 0, set(), None, None
     tool_calls, test_ids, test_runs, failed_tests, rounds = 0, set(), 0, 0, 0
     details, awaiting_ts = {}, []  # Agent tool_use id -> detail
@@ -145,6 +147,8 @@ def summarize(path, carry=None):
         parent = e.get("parent_tool_use_id")
         if kind == "result":
             result = e
+            if isinstance(e.get("duration_ms"), (int, float)):
+                dur_total = (dur_total or 0) + e["duration_ms"]
         elif kind == "system" and e.get("subtype") == "init" and isinstance(e.get("model"), str):
             main_model = e["model"]
         elif kind == "assistant":
@@ -152,6 +156,7 @@ def summarize(path, carry=None):
             usage = msg.get("usage") if isinstance(msg.get("usage"), dict) else {}
             mid = msg.get("id") or f"anon-{n}"
             msgs[mid] = (usage, parent is not None)
+            meta[mid] = (msg.get("model"), parent)
             if parent is not None:
                 sub_msgs_by.setdefault(parent, {})[mid] = usage
             for b in _blocks(e):
@@ -188,6 +193,7 @@ def summarize(path, carry=None):
                          "tool_errors": 0, "return_lines": 0, "is_error": False,
                          "started_at": None, "file_changes": 0, "review": _is_review(inp)}
                     details[b.get("id")] = d
+                    role_by_id[b.get("id")] = protocol.role_of(inp)
                     awaiting_ts.append(d)
                 elif b.get("name") == "Bash" and TEST_CMD_RE.search(str(inp.get("command", ""))):
                     test_runs += 1
@@ -227,10 +233,16 @@ def summarize(path, carry=None):
         tokens = {k: sum(_num(m.get(v)) for m in model_usage.values() if isinstance(m, dict))
                   for k, v in MODEL_KEYS.items()}
     cost_main, cost_sub, cache_hit, out_share = _usage_ratios(model_usage, main_model)
+    priced = [("main" if meta[m][1] is None else role_by_id.get(meta[m][1], "other"), meta[m][0], u)
+              for m, (u, _) in msgs.items() if meta[m][0]]
+    by_role = costs.role_costs(priced, model_usage) if priced else {}
+    if by_role:
+        cost_main = by_role.get("main", 0.0)
+        cost_sub = sum(v for k, v in by_role.items() if k != "main")
     all_msgs = sum(_total(u) for u, _ in msgs.values())
     sub_msgs = sum(_total(u) for u, sub in msgs.values() if sub)
     peaks = [_total(u) - _num(u.get("output_tokens")) for u, sub in msgs.values() if not sub]
-    dur = r.get("duration_ms")
+    dur = dur_total
     for did, d in details.items():
         d["tokens"] = sum(_total(u) for u in sub_msgs_by.get(did, {}).values())
     agent_min = sum((sp[1] - sp[0]) / 60 for did, sp in spans.items() if did in details)
@@ -258,6 +270,7 @@ def summarize(path, carry=None):
         "gate_runs_main": gate_main,
         "gate_runs_sub": gate_sub,
         "cost_main_usd": cost_main,
+        "cost_by_role": by_role or None,
         "cost_subagents_usd": cost_sub,
         "cache_hit_rate": cache_hit,
         "output_share": out_share,
@@ -296,7 +309,8 @@ SUM_KEYS = ("cost_usd", "wall_min", "agent_min", "main_min", "main_only_min", "c
             "subagents", "subagent_errors", "review_rounds", "main_calls", "main_tokens_post_exec",
             "cache_busts", "waves", "rework_actions", "max_reruns_per_step", "gate_reruns_after_fail",
             "redispatches", "main_edits", "main_reads_before_surveyor", "worker_only_reads",
-            "extra_main_gate_runs", "inline_residency") + tuple(f"{k}" for k in MODEL_KEYS)
+            "extra_main_gate_runs", "inline_residency", "main_diff_reads", "main_source_reads",
+            "kit_script_reads", "agent_file_edits", "retro_rereads") + tuple(f"{k}" for k in MODEL_KEYS)
 
 
 def _add(vals):
@@ -315,6 +329,8 @@ def summarize_phases(paths):
         out[k] = _add([p.get(k) for p in parts])
     for k in ("subagent_detail", "assistant_texts", "wave_widths"):
         out[k] = [x for p in parts for x in p.get(k) or []]
+    roles = [p["cost_by_role"] for p in parts if p.get("cost_by_role")]
+    out["cost_by_role"] = {k: sum(r.get(k, 0.0) for r in roles) for k in {x for q in roles for x in q}} if roles else None
     out["skills"] = sorted({x for p in parts for x in p.get("skills") or []})
     out["error_kinds"] = {k: sum(p["error_kinds"][k] for p in parts) for k in ERROR_KINDS}
     out["agents_by_role"] = {r: sum(p["agents_by_role"][r] for p in parts) for r in protocol.ROLES}
