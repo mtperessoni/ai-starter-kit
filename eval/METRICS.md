@@ -17,6 +17,9 @@ The single scorecard every eval round uses to judge a change to the kit (MAINTAI
 | Error rate | tool errors over tool calls, by kind | at most 2% |
 | First pass | accepted with no review fix, no gate rerun after a fail, no re-dispatch (`first_pass`) | true |
 | Ceremony ratio | docs and state tool calls over code and test tool calls | at most 1.0 |
+| Parallel factor | agent minutes during execution over execution wall time (`parallel_factor`) | at least 1.5 on a multi-task feature (S8) |
+| Waves and width | waves dispatched and executors per wave, against the plan's computed waves | equal to the plan |
+| Inline residency | tokens the main read from docs, TRD or source before the surveyor | 0 |
 
 ## Hard gates (a change failing one is not adopted)
 | Gate | Definition |

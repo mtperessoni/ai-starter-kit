@@ -17,6 +17,22 @@ Cost and time follow the number of main-thread calls on the strongest model at 8
 | AG7 | **Scripts only for deterministic multi-step chores** that today cost several main calls: Promote mechanics and the closing checks. Two scripts, not a scripting layer | Promote and closing done by hand in the main |
 | AG8 | **Models by role.** Judgment (surveyor, planner) on the strongest model at high reasoning effort; typing (writers, executors, reviewer) on the fast model; the main stays the user's session but thin | Opus spent on edits, Sonnet on conflict judgment |
 
+## Orchestration techniques (review of 2026-10-08)
+The cost model behind every rule below: a token that enters the main context is paid again on every later main call (context residency). 20k tokens read inline at call 10 of 50 are resent 40 times, about 800k tokens on the strongest model; the same reading in an agent costs its cold start (about 23k) times its own calls, on the fast model, and only its 10 to 20 return lines enter the main.
+
+| ID | Technique | How | Why it saves |
+|---|---|---|---|
+| AG9 | **Spawn rule by residency.** Inline only what the main must hold anyway (the user's answers, a return, one short command). Anything that reads more than about 8k tokens or 3 files whose content the main does not need goes to an agent | A table in the main card: inline versus agent, by action | Stops both leaks seen in the data: the main reading PRD/TRD/code "to have context", and agents spawned for one-line chores |
+| AG10 | **Granularity by the critical path.** A task is at least one file and its test. Tasks are split only when the pieces can run in parallel on the critical path; sequential pieces of one area are one task. A one-rule change is one executor task | Planner rule plus `gate.py --step plan` warning on serial tasks of the same area | Today a 1-task change still spawns 5 to 6 agents; a feature keeps its parallel width |
+| AG11 | **Waves computed, not reasoned.** `gate.py --step plan` prints the wave table from `Depends on` and `Owns` (topological order, critical path first, at most 4 executors per wave) and fails when two tasks of one wave share a file in Owns | Deterministic; the main dispatches each wave in one message, background, no polling | Parallelism for features without the main reasoning over the DAG; no colliding parallel executors |
+| AG12 | **Task card in the prompt, the rest by path.** The executor prompt carries its task section (at most 25 lines: contract, Owns, read list, tests, commit line); the briefing, rules and deliveries blocks stay files it reads only if needed | Planner writes cards; main pastes the card | Saves 2 to 4 read calls per executor (each a turn), and keeps the card in the prompt cache |
+| AG13 | **Shared prompt prefix for siblings.** Every agent of one role gets the same leading text (stable briefing path and plan header, no timestamps or run IDs first); the task-specific line comes last | Prompt template in the main card | Parallel executors of one wave hit the same cached prefix |
+| AG14 | **Interfaces before parallel work.** Parallel tasks get their shared names from the plan's `Creates / consumes` (signatures, file names) and read the producer's `deliveries.md` block, never the producer's code | Planner rule, already partly there | Parallel executors do not wait or explore each other's code |
+| AG15 | **One reviewer per wave, on the combined diff.** The reviewer reads the wave diff range and the rule IDs, not the repository; a second round only after a Critical or High fix, scoped to the fix diff | Review table (A5) | One review agent per wave instead of per task |
+| AG16 | **Main context budget and checkpoint.** When the main passes about 120k tokens or a feature has more than 2 waves left, it writes `state.md` and continues in a fresh session with `/prd-flow resume <slug>`, which reads only `state.md` and the current wave | Rule E01 extended with a token threshold | Long features stop paying a growing context on every call |
+| AG17 | **No mid-run tool loading.** Tools needed by the flow are known at start; the main never calls ToolSearch during a C5 | Main card | A deferred-tool load rewrote 69k to 85k cached tokens |
+| AG18 | **Fast model for small mechanical agents.** Scoped re-review and checks that only confirm a fix may run on the cheapest model | Model column in the dispatch table | Pays strong-model prices only for judgment |
+
 ## Agent map by case
 | Case | Agents, in order | Main does |
 |---|---|---|
@@ -24,7 +40,9 @@ Cost and time follow the number of main-thread calls on the strongest model at 8
 | C3 bug, C6 refactor | executor, reviewer | classify, confirm, commit, close |
 | C4 stale PRD | writer-prd | confirm the divergence, commit |
 | C5 size M (one area) | surveyor (strong) → docs (PRD, TRD and plan in one context) → executor(s), parallel when Owns are disjoint → reviewer (one round; a second only after a Critical or High fix) | confrontation, interview, approval, commits, `promote.py` + `gates.sh close` |
-| C5 size L | surveyor (strong) → docs-prd → docs-trd+planner (strong) → executor waves → reviewer per wave → promote task | same, plus plan approval |
+| C5 size L | surveyor (strong) → docs (PRD, TRD and plan; strong for the plan part) → executor waves from `--step plan` (at most 4 in parallel, disjoint Owns) → one reviewer per wave → last task merges the TRD | same, plus plan approval, dispatch per wave, checkpoint per AG16 |
+
+Agents per change, target: one-rule change 3 to 4 (surveyor, docs, executor, reviewer); a feature with N independent tasks 3 + N executors in about ceil(N/4) waves + one reviewer per wave. Width comes from the plan's graph, never from the habit of one agent per step.
 
 Promote: `promote.py <slug>` does the mechanics (drop markers, fill Source from the TRD Planned rows, CHANGELOG literal excerpts, fold, HTML rebuild, archive, `gate --final`); the TRD Planned merge, which needs judgment, is part of the last executor's task with `docs/trd/<area>.md` in its Owns, never a hidden step.
 
@@ -47,7 +65,8 @@ Promote: `promote.py <slug>` does the mechanics (drop markers, fill Source from 
 |---|---|---|---|
 | R0 | Hermetic eval (temp config dir, pinned model and effort), new metrics (`main_calls`, `main_tokens_post_exec`, `dispatch_map`, `main_violations`, `conflict_recall`, `rework_actions`, `max_reruns_per_step`, `first_pass`, `review_weighted`), base and current head at 3 reps on S5 | a trustworthy baseline | about US$35 |
 | R1 | Correctness: A2, B1, B2 | `contradiction_left` 0, `conflict_recall` 1.0 | about US$25 |
-| R2 | Agent map, main card, Promote ownership plus `promote.py`, `gates.sh close`, AG5, AG6 | `main_calls` at most 30, `main_tokens_post_exec` at most 1.5M, `dispatch_map` 1.0 | about US$25 |
+| R2 | Agent map, main card with the spawn rule (AG9), Promote ownership plus `promote.py`, `gates.sh close`, AG5, AG6, AG17 | `main_calls` at most 30, `main_tokens_post_exec` at most 1.5M, `dispatch_map` 1.0, agents per one-rule change at most 4 | about US$25 |
+| R2b | Parallel work: granularity (AG10), computed waves and the Owns overlap check (AG11), task cards (AG12), shared prefixes (AG13), one reviewer per wave (AG15), checkpoint (AG16). Measured on a new small-fixture scenario **S8**: a feature with three tasks, two of them independent | `parallel_factor` (agent minutes during execution over execution wall) at least 1.5 on S8, wall time of S8, no overlap collisions, S5 to S7 not worse | about US$30 |
 | R3 | Context packs (AG3) and the instruction diet | reads per agent, skill bytes, `wall_min` | about US$25 |
 | R4 | Remaining script friction (B3 to B9) | `rework_actions`, error rate | about US$25 |
 
