@@ -46,6 +46,27 @@ class InterviewTest(unittest.TestCase):
         self.assertEqual(r.returncode, 1, r.stdout)
         self.assertIn("ERROR Q3", r.stdout)
 
+    def test_format_failures_print_the_interview_skeleton_once(self) -> None:
+        cases = [None, "# Interview\nfree text\n", interview([d for d in DIMENSIONS if d != "D07"]),
+                 interview(state="open"), interview(confirmed=False)]
+        for text in cases:
+            if text is not None:
+                self.put(text)
+            out = self.gate().stdout
+            self.assertEqual(out.count("HINT ## Dimensions"), 1, out)
+            self.assertIn("HINT | Dimension | State | Answer |", out)
+            self.assertIn("HINT | D15 ", out)
+            self.assertIn("HINT Confirmed: <name>", out)
+            self.assertIn("HINT Allowed states:", out)
+            self.assertLess(out.index("ERROR Q3"), out.index("HINT ## Dimensions"))
+
+    def test_hints_do_not_count_as_errors_or_warnings(self) -> None:
+        self.assertIn("1 error(s), 0 warning(s)", self.gate().stdout)
+
+    def test_a_passing_interview_prints_no_hint(self) -> None:
+        self.put(interview())
+        self.assertNotIn("HINT", self.gate().stdout)
+
     def test_a_complete_confirmed_interview_passes(self) -> None:
         self.put(interview())
         r = self.gate()
@@ -122,6 +143,39 @@ class InterviewTest(unittest.TestCase):
         out = self.gate().stdout
         self.assertIn("D16", out)
         self.assertNotIn("D17", out)
+
+
+class RulesSkeletonTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.p = Project()
+        write(self.p.root, INTERVIEW, interview())
+
+    def tearDown(self) -> None:
+        self.p.close()
+
+    def out(self, text: str) -> str:
+        write(self.p.root, RULES, text)
+        return self.p.py(GATE, "--rules", RULES).stdout
+
+    def assertSkeleton(self, out: str) -> None:
+        self.assertIn("ERROR Q2", out)
+        self.assertEqual(out.count("HINT ## <prd file>.md"), 1, out)
+        self.assertIn("HINT | ID | Rule | Source | Change via | Example |", out)
+        self.assertIn("(approved YYYY-MM-DD, pending code)", out)
+        self.assertIn("| planned | code |", out)
+        self.assertIn("## Supersedes", out)
+
+    def test_free_form_rules_print_the_skeleton(self) -> None:
+        self.assertSkeleton(self.out("# Approved\n\n- ORD-03 orders can be reopened\n"))
+
+    def test_a_row_with_a_wrong_column_count_prints_the_skeleton(self) -> None:
+        self.assertSkeleton(self.out(approved("| ORD-03 | Orders can be reopened. |")))
+
+    def test_a_wrong_change_via_prints_the_skeleton(self) -> None:
+        self.assertSkeleton(self.out(approved("| ORD-03 | Orders can be reopened. | planned | magic |")))
+
+    def test_a_valid_rules_file_prints_no_hint(self) -> None:
+        self.assertNotIn("HINT", self.out(approved(NEW_ROW)))
 
 
 class AppliedTest(unittest.TestCase):

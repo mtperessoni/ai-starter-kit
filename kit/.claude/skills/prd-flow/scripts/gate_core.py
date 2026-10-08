@@ -37,6 +37,7 @@ DEFAULTS = {
 errors: list[str] = []
 warnings: list[str] = []
 baseline: dict[tuple[str, str], list[str]] = {}
+hints: dict[str, list[str]] = {}
 rule_table_ids: set[str] = set()  # IDs of rows in tables whose header has a "Change via" column
 
 Rules = dict[str, tuple[Path, list[str]]]
@@ -52,6 +53,10 @@ def warn(code: str, msg: str) -> None:
 
 def drift(code: str, what: str, rid: str) -> None:
     baseline.setdefault((code, what), []).append(rid)
+
+
+def hint(key: str, lines: list[str]) -> None:
+    hints.setdefault(key, lines)
 
 
 def git(root: Path, *args: str) -> str:
@@ -177,7 +182,10 @@ def report(extra: str = "") -> int:
         warn(code, f"earlier drift, outside this change, {what}: {', '.join(ids)}")
     for line in [*errors, *warnings]:
         print(line)
-    print(f"gate: {len(errors)} error(s), {len(warnings)} warning(s){extra}")
+    for lines in hints.values():
+        for line in lines:
+            print(f"HINT {line}")
+    print(f"gate:{len(errors)} error(s), {len(warnings)} warning(s){extra}")
     return 1 if errors else 0
 
 
