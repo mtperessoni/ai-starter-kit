@@ -19,6 +19,7 @@ Parsed by `scripts/gate.py`. Keep the two-column table format and the key names.
 | planned_source | planned |
 | language | English |
 | planned_heading | Planned |
+| via_header | Change via |
 | pack_budget_lines | 120 |
 | plan_budget_kb | 60 |
 | proposed_marker | proposed |
@@ -40,6 +41,8 @@ Parsed by `scripts/gate.py`. Keep the two-column table format and the key names.
 `language`: language of the PRD and TRD prose, the interview and the gate output. IDs, code, commits and file names stay English. The installer sets it from the language of the existing docs.
 
 `planned_heading`: the level-2 TRD heading that lists rules not built yet; G8 checks the IDs under it and G20 fails `--final` while it exists. Set it to the project's own word (for example `Planejado`).
+
+`via_header`: the last header column of a rule table (for example `Muda via`). Only rows of tables with this column are rules: `--trace`, `--status` and G3 skip the IDs of other tables, such as open questions.
 
 `html`: the reading version (one tab per PRD). With `html_mode` `generated` it is rendered from `docs/prd/` and never edited; with `hand` it is maintained by hand and the gate checks that every rule row has the same words there. `none` only for a repository that explicitly opts out.
 

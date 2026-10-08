@@ -152,7 +152,7 @@ def main() -> int:
     root = Path(git(Path.cwd(), "rev-parse", "--show-toplevel").strip() or ".")
     prd_rel, trd_rel = cfg["prd_dir"].rstrip("/"), cfg["trd_dir"].rstrip("/")
     prd, trd = root / prd_rel, root / trd_rel
-    rules = read_md_rules(prd, cfg["prd_glob"])
+    rules = read_md_rules(prd, cfg["prd_glob"], cfg["via_header"])
     flags = [n for n in ("pack", "rules", "plan", "trace", "change", "final", "trd", "sibling") if getattr(args, n)]
     mode = f"step-{args.step}" if args.step else ("-".join(flags) if flags else "default")
     start(mode, root, capped=mode != "trd")

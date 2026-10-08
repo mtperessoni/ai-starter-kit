@@ -2,6 +2,15 @@
 
 User-visible changes to the kit, newest first. Projects receive them through `/ai-kit update`.
 
+## prd-flow gate: localized rule tables
+
+A project whose PRD is not in English passes `--trace` with the same rules it passed before.
+
+- `repo.md` Gate config `via_header` (default `Change via`): the last header column of a rule table. Only rows of those tables are rules for G3, `--trace` and `--status`; IDs in other tables (open questions, glossaries) need no test.
+- G11 accepts a bare file name or a partial path in Source when it matches the last whole path segments of a tracked file.
+
+On update: add `via_header` to the `repo.md` Gate config, filled with the header the project's PRD rule tables use; replace the prd-flow scripts.
+
 ## prd-flow v6: the main thread is a chief
 
 The main thread of prd-flow, prd-create and trd-create coordinates and executes no task. Rules: SA43 to SA47, WF64, LS29 ([rules/](rules/README.md)).
