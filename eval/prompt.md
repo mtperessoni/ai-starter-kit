@@ -8,7 +8,7 @@ Follow this repository's own instructions end to end: classify the request, docu
 
 ## How work is executed here
 
-Execute the plan the way the repository's execution rules say (`reference/execution.md` and `reference/workers.md` of the product-rules skill under `.claude/skills/`): each task goes to an `executor` subagent with a one-line prompt, the main thread commits each task, and at the end of each wave a `reviewer` subagent reviews the diff with the review ceiling, saying `review: N/5` every round and sending findings back to an executor until the review is clean or the ceiling is reached.
+Execute the plan the way the repository's execution rules say (`reference/execution.md` of the product-rules skill under `.claude/skills/`, and the worker briefings the skill names): each task goes to an `executor` subagent with a one-line prompt, the main thread commits each task, and at the end of each wave a `reviewer` subagent reviews the diff with the review ceiling, saying `review: N/5` every round and sending findings back to an executor until the review is clean or the ceiling is reached.
 
 ## Request
 

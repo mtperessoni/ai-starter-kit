@@ -66,7 +66,7 @@ class FlowConfigTest(unittest.TestCase):
         self.assertIn("/prd-gate", (EVAL / self.cfg["arms"]["GATE"]["protocol"]).read_text(encoding="utf-8"))
         self.assertIn("/prd-flow", (EVAL / self.cfg["arms"]["FLOW"]["protocol"]).read_text(encoding="utf-8"))
         self.assertEqual(sorted(self.cfg["scenarios"]), ["S5", "S6", "S7"])
-        self.assertEqual(len(run.plan_pairs(self.cfg)), 6)
+        self.assertEqual(len(run.plan_pairs(self.cfg)), 8)
 
     def test_new_scenarios_are_complete(self):
         for sc in self.cfg["scenarios"]:

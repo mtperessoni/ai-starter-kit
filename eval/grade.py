@@ -11,6 +11,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import plan_fidelity
+import six
 from plan_fidelity import is_code_path, is_test_path
 
 SKILL_NAMES = ("prd-flow", "prd-gate")
@@ -310,7 +311,8 @@ def efficiency(transcript):
             "failed_test_runs", "review_rounds", "subagent_detail", "subagent_tokens_median",
             "subagent_tool_calls_median", "subagent_errors", "assistant_texts",
             "main_min", "agent_min", "cold_starts", "error_kinds", "gate_runs_main",
-            "gate_runs_sub")
+            "gate_runs_sub", "cost_main_usd", "cost_subagents_usd", "cache_hit_rate",
+            "output_share", "gate_fail_ratio", "rereads", "docs_dispatched")
     empty = {k: None for k in keys}
     if transcript is None:
         return empty
@@ -391,6 +393,10 @@ def grade(project, scenario_dir, arm, transcript=None, started_at=None, judge_re
     min_to_code = None
     if codes and codes[0]["time"] is not None and isinstance(start, (int, float)):
         min_to_code = round((codes[0]["time"] - start) / 60, 3)
+    docs = [c for c in commits if any(f.startswith("docs/prd/") for f in c["files"])]
+    min_to_docs = None
+    if docs and docs[0]["time"] is not None and isinstance(start, (int, float)):
+        min_to_docs = round((docs[0]["time"] - start) / 60, 3)
     left = planned_left(project)
     dup = dup_count(project, files, exp.get("dup_phrases", []), seed)
     frl = fr_lines(project, files, seed)
@@ -412,7 +418,7 @@ def grade(project, scenario_dir, arm, transcript=None, started_at=None, judge_re
         "tokens_total": eff["tokens_total"], "cost_usd": eff["cost_usd"],
         "wall_min": eff["wall_min"], "turns": eff["turns"], "context_peak": eff["context_peak"],
         "subagents": eff["subagents"], "subagent_token_share": eff["subagent_token_share"],
-        "min_to_code": min_to_code, "doc_bytes": doc_bytes(project, files, seed),
+        "min_to_code": min_to_code, "min_to_docs": min_to_docs, "doc_bytes": doc_bytes(project, files, seed),
         "cost_per_accept": (eff["cost_usd"] / m["hidden_passed"]
                             if eff["cost_usd"] is not None and m["hidden_passed"] else None),
         "tool_errors": eff["tool_errors"],
@@ -430,9 +436,12 @@ def grade(project, scenario_dir, arm, transcript=None, started_at=None, judge_re
         **subagent_metrics(eff["subagent_detail"], tasks, cov, eff["wall_min"]),
         **task_counts(tasks, cov, eff["tokens_total"]),
         **{k: eff[k] for k in ("main_min", "agent_min", "cold_starts", "error_kinds",
-                               "gate_runs_main", "gate_runs_sub")},
+                               "gate_runs_main", "gate_runs_sub", "cost_main_usd",
+                               "cost_subagents_usd", "cache_hit_rate", "output_share",
+                               "gate_fail_ratio", "rereads", "docs_dispatched")},
         **blind_metrics(review_result),
     })
+    m["first_pass_rate"] = six.first_pass_rate(m["rework_commits"], m["tasks_done"])
     if not transcript:
         m["subagents_wasted"] = None
     return m

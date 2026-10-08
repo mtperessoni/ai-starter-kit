@@ -11,6 +11,7 @@ from pathlib import Path
 EVAL = Path(__file__).resolve().parents[1] / "eval"
 sys.path.insert(0, str(EVAL))
 import grade  # noqa: E402
+import six  # noqa: E402
 
 PRD_SEED = "| ID | Rule | Source | Change via |\n|---|---|---|---|\n| PRC-01 | VIP 15% | src/mod.py | code |\n"
 PRD_NEW = PRD_SEED + "| PRC-02 | cap 20% | src/mod.py | planned |\n\n## Planned\n\nFR-001 the cap of 20% applies\n"
@@ -178,6 +179,31 @@ class GradeTest(unittest.TestCase):
         self.assertAlmostEqual(m["min_to_code"], 3.0, places=1)
         self.assertEqual(m["protocol_adherence"], 1.0)
         self.assertTrue(m["completed"])
+
+    def test_min_to_docs_is_first_prd_commit(self):
+        started = self.commit_time("HEAD~1") - 120
+        m = grade.grade(self.project, self.scenario, "LT", started_at=started)
+        self.assertAlmostEqual(m["min_to_docs"], 2.0, places=1)
+
+    def test_min_to_docs_none_without_start(self):
+        self.assertIsNone(grade.grade(self.project, self.scenario, "LT")["min_to_docs"])
+
+    def test_first_pass_rate(self):
+        self.assertIsNone(grade.grade(self.project, self.scenario, "LT")["first_pass_rate"])
+        self.assertEqual(six.first_pass_rate(2, 4), 0.5)
+        self.assertEqual(six.first_pass_rate(9, 4), 0.0)
+        self.assertIsNone(six.first_pass_rate(1, 0))
+        self.assertIsNone(six.first_pass_rate(None, 3))
+
+    def test_new_transcript_fields_pass_through(self):
+        sys.modules["transcript"] = FakeTranscript(
+            skills=[], is_error=False, cost_main_usd=2.0, cost_subagents_usd=1.0, cache_hit_rate=0.5,
+            output_share=0.1, gate_fail_ratio=0.25, rereads=3, docs_dispatched=True)
+        m = grade.grade(self.project, self.scenario, "LT", transcript="t.jsonl")
+        self.assertEqual((m["cost_main_usd"], m["cost_subagents_usd"], m["cache_hit_rate"]),
+                         (2.0, 1.0, 0.5))
+        self.assertEqual((m["output_share"], m["gate_fail_ratio"], m["rereads"]), (0.1, 0.25, 3))
+        self.assertTrue(m["docs_dispatched"])
 
     def test_grade_carries_six_metric_fields(self):
         sys.modules["transcript"] = FakeTranscript(

@@ -1,11 +1,12 @@
-"""Compare rounds: recompute the six metrics offline from result folders (no claude calls, no judge).
+"""Compare rounds: recompute the eight metrics offline from result folders (no claude calls, no judge).
 
-Usage: python eval/rounds.py <results-folder>[:<arm>] ... [--out file.md]
+Usage: python eval/rounds.py <results-folder>[:<arm>] ... [--baseline folder:ARM] [--out file.md]
 """
 import argparse
 import json
 from pathlib import Path
 
+import adoption
 import report
 import six
 import transcript
@@ -61,13 +62,18 @@ def columns(specs):
 
 
 def _cell(runs, field):
-    return report.fmt(six.aggregate(runs, field)) if runs else "n/a"
+    """Mean over the reps of one scenario, with the spread (max minus min) when there are several."""
+    st = adoption.stats(runs, field) if runs else None
+    if st is None:
+        return "n/a"
+    reps = len(six.vals(runs, field))
+    return report.fmt(st[0]) + (f" (spread {report.fmt(st[1])})" if reps > 1 else "")
 
 
-def render(specs):
+def render(specs, baseline=None):
     cols = columns(specs)
     scenarios = sorted({sc for _, runs in cols for sc in runs})
-    lines = ["# Six metrics by round", ""]
+    lines = ["# Metrics M1 to M8 by round", ""]
     for mid, (title, fields) in six.METRICS.items():
         lines += [f"## {mid} {title}", "", "| Row | " + " | ".join(c[0] for c in cols) + " |",
                   "|---|" + "---|" * len(cols)]
@@ -79,15 +85,19 @@ def render(specs):
             fn = six.total if f in six.ADDITIVE else six.median
             lines.append(f"| {f} {label} | " + " | ".join(report.fmt(fn(x, f)) for x in allruns) + " |")
         lines.append("")
+    if baseline:
+        path, arm = parse_spec(baseline)
+        lines.append(adoption.render(f"{Path(path).name}:{arm}", cols)[0])
     return "\n".join(lines)
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("folders", nargs="+", help="results-folder or results-folder:ARM")
+    ap.add_argument("--baseline", help="results-folder:ARM column the others are judged against")
     ap.add_argument("--out", help="also write the tables to this markdown file")
     a = ap.parse_args(argv)
-    text = render(a.folders)
+    text = render(a.folders, a.baseline)
     if a.out:
         Path(a.out).write_text(text, encoding="utf-8")
     print(text)

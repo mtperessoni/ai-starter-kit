@@ -20,6 +20,7 @@ ENV_ERR_RE = re.compile(r"python: not found|python3?: command not found|No such 
 MISSING_RE = re.compile(r"File does not exist")
 TEST_ERR_RE = re.compile(r"FAILED|AssertionError|Traceback")
 ERROR_KINDS = ("gate_check", "environment", "missing_file", "test_failure", "other")
+DOCS_AGENT_RE = re.compile(r"writer|planner", re.I)
 UNITTEST_FAIL_RE = re.compile(r"\bFAILED \((?:failures|errors)=", re.I)
 
 
@@ -100,6 +101,22 @@ def _is_review(inp):
     return "review" in f"{inp.get('subagent_type', '')} {inp.get('description', '')}".lower()
 
 
+def _usage_ratios(model_usage, main_model):
+    """(cost_main, cost_subagents, cache_hit_rate, output_share) from the result's modelUsage; None when absent."""
+    if not isinstance(model_usage, dict) or not model_usage:
+        return None, None, None, None
+    rows = {k: v for k, v in model_usage.items() if isinstance(v, dict)}
+    cost_main = cost_sub = None
+    if main_model in rows:
+        cost_main = sum(_num(v.get("costUSD")) for k, v in rows.items() if k == main_model)
+        cost_sub = sum(_num(v.get("costUSD")) for k, v in rows.items() if k != main_model)
+    tok = {key: sum(_num(v.get(key)) for v in rows.values()) for key in MODEL_KEYS.values()}
+    total = sum(tok.values())
+    prompt = tok["inputTokens"] + tok["cacheReadInputTokens"] + tok["cacheCreationInputTokens"]
+    return (cost_main, cost_sub, tok["cacheReadInputTokens"] / prompt if prompt else None,
+            tok["outputTokens"] / total if total else None)
+
+
 def summarize(path):
     msgs = {}  # assistant message id -> (usage, is_subagent); one id spans several events
     tool_errors, subagents, skills, started, result = 0, 0, set(), None, None
@@ -109,6 +126,7 @@ def summarize(path):
     spans = {}  # parent id -> [first, last] event time
     kinds, gate_main, gate_sub = dict.fromkeys(ERROR_KINDS, 0), 0, 0
     texts = []  # main-thread assistant text blocks with their event time
+    main_model, gate_ids, gate_failed, reads, rereads, docs_dispatched = None, set(), set(), {}, 0, False
     for n, e in enumerate(_events(path)):
         kind = e.get("type")
         if e.get("timestamp"):
@@ -124,6 +142,8 @@ def summarize(path):
         parent = e.get("parent_tool_use_id")
         if kind == "result":
             result = e
+        elif kind == "system" and e.get("subtype") == "init" and isinstance(e.get("model"), str):
+            main_model = e["model"]
         elif kind == "assistant":
             msg = e.get("message") if isinstance(e.get("message"), dict) else {}
             usage = msg.get("usage") if isinstance(msg.get("usage"), dict) else {}
@@ -141,7 +161,15 @@ def summarize(path):
                     continue
                 tool_calls += 1
                 inp = b.get("input") if isinstance(b.get("input"), dict) else {}
+                if b.get("name") == "Read" and isinstance(inp.get("file_path"), str):
+                    seen = reads.setdefault(parent, set())
+                    rereads += inp["file_path"] in seen
+                    seen.add(inp["file_path"])
+                if b.get("name") in SPAWN_TOOLS and DOCS_AGENT_RE.search(
+                        f"{inp.get('description', '')} {inp.get('prompt', '')}"):
+                    docs_dispatched = True
                 if "gate.py" in json.dumps(inp):
+                    gate_ids.add(b.get("id"))
                     if parent is None:
                         gate_main += 1
                     else:
@@ -169,6 +197,9 @@ def summarize(path):
             for b in _blocks(e):
                 if b.get("type") == "tool_result":
                     tid = b.get("tool_use_id")
+                    if tid in gate_ids and (b.get("is_error") is True
+                                            or "ERROR " in _result_text(b)):
+                        gate_failed.add(tid)
                     kind_err = _error_kind(_result_text(b), b.get("is_error") is True)
                     if kind_err:
                         kinds[kind_err] += 1
@@ -192,6 +223,7 @@ def summarize(path):
     if isinstance(model_usage, dict) and model_usage:
         tokens = {k: sum(_num(m.get(v)) for m in model_usage.values() if isinstance(m, dict))
                   for k, v in MODEL_KEYS.items()}
+    cost_main, cost_sub, cache_hit, out_share = _usage_ratios(model_usage, main_model)
     all_msgs = sum(_total(u) for u, _ in msgs.values())
     sub_msgs = sum(_total(u) for u, sub in msgs.values() if sub)
     peaks = [_total(u) - _num(u.get("output_tokens")) for u, sub in msgs.values() if not sub]
@@ -213,6 +245,13 @@ def summarize(path):
         "error_kinds": kinds,
         "gate_runs_main": gate_main,
         "gate_runs_sub": gate_sub,
+        "cost_main_usd": cost_main,
+        "cost_subagents_usd": cost_sub,
+        "cache_hit_rate": cache_hit,
+        "output_share": out_share,
+        "gate_fail_ratio": len(gate_failed) / len(gate_ids) if gate_ids else None,
+        "rereads": rereads,
+        "docs_dispatched": docs_dispatched,
         "turns": r.get("num_turns"),
         "is_error": r.get("is_error"),
         "subtype": r.get("subtype"),

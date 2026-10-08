@@ -182,10 +182,6 @@ class EfficiencyTest(unittest.TestCase):
         self.assertIsNone(s["subagent_tokens_median"])
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class AssistantTextTest(unittest.TestCase):
     def test_main_thread_text_blocks_keep_their_time(self):
         a = json.loads(asst("m1", [{"type": "text", "text": "PRC-03 conflicts with the new cap"}]))
@@ -267,3 +263,72 @@ class SixMetricsTest(unittest.TestCase):
             s = transcript.summarize(p)
         self.assertIsNone(s["main_min"])
         self.assertEqual(s["error_kinds"]["other"], 0)
+
+
+def raw(e):
+    return json.dumps(e)
+
+
+def result_event(usage):
+    return raw({"type": "result", "total_cost_usd": 3.0, "modelUsage": usage})
+
+
+class OutputQualityFieldsTest(unittest.TestCase):
+    def summarize(self, lines):
+        d, p = tmp_file(lines)
+        with d:
+            return transcript.summarize(p)
+
+    def test_cost_split_by_init_model(self):
+        s = self.summarize([
+            raw({"type": "system", "subtype": "init", "model": "opus"}),
+            result_event({"opus": {"costUSD": 2.0, "inputTokens": 10, "outputTokens": 10,
+                                   "cacheReadInputTokens": 60, "cacheCreationInputTokens": 20},
+                          "haiku": {"costUSD": 0.5, "inputTokens": 0, "outputTokens": 0,
+                                    "cacheReadInputTokens": 0, "cacheCreationInputTokens": 0},
+                          "sonnet": {"costUSD": 0.25}})])
+        self.assertEqual((s["cost_main_usd"], s["cost_subagents_usd"]), (2.0, 0.75))
+        self.assertAlmostEqual(s["cache_hit_rate"], 60 / 90)
+        self.assertAlmostEqual(s["output_share"], 10 / 100)
+
+    def test_missing_data_is_none(self):
+        s = self.summarize([ev("assistant", "00:00", mid="m1")])
+        for k in ("cost_main_usd", "cost_subagents_usd", "cache_hit_rate", "output_share",
+                  "gate_fail_ratio"):
+            self.assertIsNone(s[k])
+        self.assertEqual(s["rereads"], 0)
+        self.assertFalse(s["docs_dispatched"])
+
+    def test_no_init_model_gives_none_cost_split(self):
+        s = self.summarize([result_event({"opus": {"costUSD": 2.0}})])
+        self.assertIsNone(s["cost_main_usd"])
+
+    def test_gate_fail_ratio(self):
+        def res(tid, text, err=False):
+            return ev("user", blocks=[{"type": "tool_result", "tool_use_id": tid, "content": text,
+                                       "is_error": err}])
+        s = self.summarize([
+            ev("assistant", "00:00", mid="a", blocks=[tool_use("g1", command="python gate.py x"),
+                                                     tool_use("g2", command="python gate.py y"),
+                                                     tool_use("g3", command="python gate.py z"),
+                                                     tool_use("b1", command="ls")]),
+            res("g1", "ok"), res("g2", "ERROR G1 bad"), res("g3", "boom", True), res("b1", "ERROR x")])
+        self.assertAlmostEqual(s["gate_fail_ratio"], 2 / 3)
+
+    def test_rereads_per_context(self):
+        rd = lambda i, f: tool_use(i, "Read", file_path=f)
+        s = self.summarize([
+            ev("assistant", "00:00", mid="a", blocks=[rd("1", "a"), rd("2", "a"), rd("3", "b")]),
+            ev("assistant", "00:01", mid="b", parent="S", blocks=[rd("4", "a"), rd("5", "a")]),
+            ev("assistant", "00:02", mid="c", parent="T", blocks=[rd("6", "a")])])
+        self.assertEqual(s["rereads"], 2)
+
+    def test_docs_dispatched(self):
+        agent = lambda **i: ev("assistant", "00:00", mid="a", blocks=[tool_use("A", "Agent", **i)])
+        self.assertTrue(self.summarize([agent(description="Run Planner", prompt="x")])["docs_dispatched"])
+        self.assertTrue(self.summarize([agent(description="d", prompt="the prd-WRITER task")])["docs_dispatched"])
+        self.assertFalse(self.summarize([agent(description="executor", prompt="code")])["docs_dispatched"])
+
+
+if __name__ == "__main__":
+    unittest.main()

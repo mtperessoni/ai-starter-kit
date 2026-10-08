@@ -124,23 +124,34 @@ A second fixture closer to a real service, so the flows face what makes context 
 | LG06 | Scenarios `eval/scenarios-large/L1..L8`, same layout as the small suite: L1 cross-feature rule change (M), L2 and L3 new features with data model and contract (L), L4 bug across features (S), L5 bug inside the big file (S), L6 refactor of the big file (C6, M), L7 rule gap (C5, M), L8 implement the approved `planned` rule (C2, S) |
 | LG07 | `eval/arms-large.json` points to the large fixture and scenarios; reps 2 on M and L, 1 on S; arms LT and SKU (the team's flow), plus SKF on L2 and L3 as a sensitivity check |
 
-## Six metrics
-Every round reports the same six metrics per run, computed from the transcript (T), git (G) and the metrics above, so rounds compare without ad hoc scripts. `report.py` opens its report with a "Six metrics" section (totals and medians per arm, then one row per run); `rounds.py` compares rounds.
+## Metrics M1 to M8
+Every round reports the same eight metrics per run, computed from the transcript (T), git (G) and the metrics above, so rounds compare without ad hoc scripts. The definition and the adoption rule are in `MAINTAINING.md`, "Efficiency is the goal (M07)". `report.py` opens its report with a metrics section (totals and medians per arm, then one row per run); `rounds.py` compares rounds.
 
-| ID | Metric | Fields per run |
-|---|---|---|
-| M1 | Token consumption | `tokens_total`, `tokens_main`, `tokens_subagents`, `context_peak`, `cost_usd`, `tokens_per_task` (`tokens_total` over `tasks_done`, null when 0) |
-| M2 | Tasks completed successfully | `tasks_planned`, `tasks_done` (plan tasks whose named files a code commit changed), `hidden_passed`, `hidden_total`, `completed` |
-| M3 | Total time | per arm: sum of `wall_min` over its runs |
-| M4 | Time per run | `wall_min`, `main_min` (wall minus subagent time), `agent_min` (sum of each subagent's span, first to last timestamped event), `cold_starts` (subagents spawned), `min_to_code`, `min_per_task` |
-| M5 | Error rate | `tool_calls`, `tool_errors`, `error_rate`, `error_kinds` (`gate_check`, `environment`, `missing_file`, `test_failure`, `other`), `gate_runs_main`, `gate_runs_sub` (tool calls mentioning `gate.py`, by thread) |
-| M6 | Implementation versus plan | `plan_coverage`, `plan_drift`, `tasks_per_executor`, `review_rounds`, `blind_findings_total`, `accept` |
+| ID | Metric | Fields per run | Better |
+|---|---|---|---|
+| M1 | Tokens and cost | `tokens_total`, `tokens_main`, `tokens_subagents`, `context_peak`, `cost_usd`, `cost_main_usd` and `cost_subagents_usd` (T: `modelUsage` costs split by the model of the `init` event; null when absent), `cache_hit_rate` (cache reads over input plus cache reads plus cache writes), `output_share` (output over all tokens), `tokens_per_task` | lower; cache hit rate higher |
+| M2 | Tasks completed successfully | `tasks_planned`, `tasks_done` (plan tasks whose named files a code commit changed), `hidden_passed`, `hidden_total`, `completed` | higher |
+| M3 | Total time | per arm: sum of `wall_min` over its runs | lower |
+| M4 | Time per run | `wall_min`, `main_min` (wall minus subagent time), `agent_min` (sum of each subagent's span), `cold_starts` (subagents spawned), `min_to_docs` (G: start to the first commit touching `docs/prd/`), `min_to_code`, `min_per_task` | lower |
+| M5 | Errors and waste | `tool_calls`, `tool_errors`, `error_rate`, `error_kinds`, `gate_runs_main`, `gate_runs_sub`, `gate_fail_ratio` (gate runs whose result is an error or contains `ERROR ` over all gate runs), `rereads` (Read of a file already read in the same agent context) | lower |
+| M6 | Implementation versus plan | `plan_coverage`, `plan_drift`, `tasks_per_executor`, `first_pass_rate` (max(0, 1 - `rework_commits` / `tasks_done`)), `review_rounds`, `blind_findings_total`, `accept` | coverage, first pass and accept higher; the rest lower |
+| M7 | Output quality | `prd_fidelity`, `conflict_found`, `contradiction_left`, `gap_recorded`, `traceability`, `single_source` | `contradiction_left` and `single_source` lower; the rest higher |
+| M8 | Protocol compliance | `docs_dispatched` (a subagent description or prompt matches `writer\|planner`), `protocol_adherence`, `docs_first` | true or 1.0 |
+
+Fields that cannot be derived are null (`n/a` in tables), never an error.
 
 ### Comparing rounds
 ```bash
-python eval/rounds.py results/2026-10-07-flow:GATE results/2026-10-07-flow:FLOW results/2026-10-07-flow-v2:FLOW --out compare.md
+python eval/rounds.py results/2026-10-07-flow:GATE results/2026-10-07-flow:FLOW results/2026-10-07-flow-v2:FLOW --baseline results/2026-10-07-flow:GATE --out compare.md
 ```
-Each argument is a results folder, optionally `:ARM` (all arms when omitted). It reads the `*.metrics.json` and `*.jsonl` of each folder, calls no model and no judge, and prints one markdown table per metric with a column per folder and arm, a row per field and scenario, and a total (additive fields) or median row. Runs from older rounds get the new fields derived from their transcript; `tasks_planned` and `tasks_done` come from `min_per_task` and `plan_coverage` when git is not available.
+Each argument is a results folder, optionally `:ARM` (all arms when omitted). It reads the `*.metrics.json` and `*.jsonl` of each folder, calls no model and no judge, and prints one markdown table per metric with a column per folder and arm and a row per field and scenario. Result files are named `<ARM>-<S>-r<N>`; the reps of one scenario are averaged, and the cell adds `(spread X)` (max minus min) when there are several. Total rows sum additive fields and take the median of the others. Runs from older rounds get the new fields derived from their transcript; `tasks_planned` and `tasks_done` come from `min_per_task` and `plan_coverage` when git is not available.
+
+### Adoption (M07)
+With `--baseline <folder>:<arm>`, `rounds.py` appends a section "Adoption (M07)" that judges every other column against the baseline and prints PASS, FAIL or N/A (no data) per rule and a verdict per column (`eval/adoption.py`):
+- Hard gates: M2, M7 and M8 have no loss.
+- Deciding scenario S5: `cost_usd` and `wall_min` at most 10% above the baseline.
+- `tokens_main` per run at most 3.5M.
+- For each metric, wins are at least losses. A field and scenario counts as a win or a loss only outside the noise band max(10% of the baseline mean, spread of either column); inside it is a tie. Fields without a direction (for example `tasks_planned`) are not counted.
 
 ## Efficiency analysis
 The questions the final analysis answers, each with its metrics. All come from the transcript (T), git (G), hidden tests (H) or the blind review (B).

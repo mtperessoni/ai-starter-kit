@@ -1,4 +1,4 @@
-"""Tests of eval/rounds.py: the six metrics recomputed offline from result folders."""
+"""Tests of eval/rounds.py: the eight metrics recomputed offline from result folders."""
 
 import json
 import sys
@@ -81,6 +81,64 @@ class RoundsTest(unittest.TestCase):
         out = Path(self.tmp.name) / "o.md"
         rounds.main([f"{self.a}:FLOW", "--out", str(out)])
         self.assertIn("## M1 ", out.read_text(encoding="utf-8"))
+
+
+class RepsAndAdoptionTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        base = {"status": "ok", "tasks_planned": 4, "tasks_done": 4, "hidden_passed": 4,
+                "hidden_total": 4, "completed": True, "protocol_adherence": 1.0,
+                "prd_fidelity": 1.0, "docs_dispatched": True, "rework_commits": 1, "wall_min": 10.0}
+        self.base = folder(self.tmp.name, "b", {
+            "GATE-S5-r1": {**base, "cost_usd": 4.0, "tokens_main": 1_000_000},
+            "GATE-S5-r2": {**base, "cost_usd": 6.0, "tokens_main": 1_000_000}})
+        self.good = folder(self.tmp.name, "g", {
+            "FLOW-S5-r1": {**base, "cost_usd": 4.5, "tokens_main": 1_050_000},
+            "FLOW-S5-r2": {**base, "cost_usd": 5.5, "tokens_main": 1_050_000}})
+        self.bad = folder(self.tmp.name, "x", {
+            "FLOW-S5-r1": {**base, "cost_usd": 9.0, "tokens_main": 4_000_000, "tasks_done": 1,
+                           "docs_dispatched": False}})
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_reps_are_averaged_with_spread(self):
+        text = rounds.render([f"{self.base}:GATE"])
+        self.assertIn("| cost_usd S5 | 5 (spread 2) |", text)
+
+    def test_new_groups_and_fields_listed(self):
+        text = rounds.render([f"{self.base}:GATE"])
+        for h in ("## M7 Output quality", "## M8 Protocol compliance"):
+            self.assertIn(h, text)
+        for f in ("cost_main_usd", "cache_hit_rate", "output_share", "min_to_docs", "gate_fail_ratio",
+                  "rereads", "first_pass_rate", "traceability", "docs_dispatched", "docs_first"):
+            self.assertIn(f"| {f} S5 |", text)
+
+    def test_first_pass_rate_derived(self):
+        run = rounds.load_column(self.base, "GATE")["S5"][0]
+        self.assertAlmostEqual(run["first_pass_rate"], 0.75)
+
+    def test_no_adoption_section_without_baseline(self):
+        self.assertNotIn("Adoption (M07)", rounds.render([f"{self.base}:GATE"]))
+
+    def test_adoption_pass(self):
+        text = rounds.render([f"{self.base}:GATE", f"{self.good}:FLOW"], f"{self.base}:GATE")
+        self.assertIn("## Adoption (M07)", text)
+        self.assertIn("Verdict g:FLOW: PASS", text)
+        self.assertIn("PASS S5 cost_usd within +10%", text)
+
+    def test_adoption_fail_on_cost_tokens_and_gates(self):
+        text = rounds.render([f"{self.base}:GATE", f"{self.bad}:FLOW"], f"{self.base}:GATE")
+        self.assertIn("Verdict x:FLOW: FAIL", text)
+        self.assertIn("FAIL S5 cost_usd within +10%", text)
+        self.assertIn("FAIL tokens_main per run at most 3.5M", text)
+        self.assertIn("FAIL M2 not worse (hard gate)", text)
+        self.assertIn("FAIL M8 not worse (hard gate)", text)
+
+    def test_missing_data_never_crashes(self):
+        d = folder(self.tmp.name, "e", {"FLOW-S1-r1": {"status": "ok"}})
+        text = rounds.render([f"{self.base}:GATE", f"{d}:FLOW"], f"{self.base}:GATE")
+        self.assertIn("Verdict e:FLOW", text)
 
 
 if __name__ == "__main__":
