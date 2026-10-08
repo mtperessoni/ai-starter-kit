@@ -3,7 +3,8 @@
 import re
 from pathlib import Path
 
-from gate_core import SEPARATOR, cells, expand, git, err, warn
+from gate_core import SEPARATOR, cells, errors, expand, git, err, warn, warnings
+from gate_output import park
 
 EXTENSIONS = {
     "ts", "tsx", "js", "jsx", "mjs", "cjs", "py", "md", "json", "yml", "yaml", "sql", "css", "html", "sh", "toml",
@@ -133,7 +134,15 @@ def check_file(root: Path, f: Path, cfg: dict[str, str], tracked: Tracked) -> No
             check_row(rel, header, row, tracked, g23)
 
 
-def check_trd(root: Path, cfg: dict[str, str], trd_dir: str) -> None:
+def check_trd(root: Path, cfg: dict[str, str], trd_dir: str, changed: set[str] | None = None) -> None:
     tracked = Tracked(root)
     for f in trd_files(root, trd_dir):
+        rel = f.relative_to(root).as_posix()
+        if changed is None or rel in changed:
+            check_file(root, f, cfg, tracked)
+            continue
+        e, w = len(errors), len(warnings)
         check_file(root, f, cfg, tracked)
+        found = [*errors[e:], *warnings[w:]]
+        del errors[e:], warnings[w:]
+        park(found, rel)

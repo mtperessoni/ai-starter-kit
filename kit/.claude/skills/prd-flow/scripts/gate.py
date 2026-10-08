@@ -31,6 +31,7 @@ Usage: python .claude/skills/prd-flow/scripts/gate.py [--base REF]
 --trd: backticked paths exist (G23), symbols (G24) and IDs (G25) are in the row's files, files within trd_budget_lines (G26).
 --sibling: PRD folders listed under "Shared PRDs" of repo.md equal the sibling repository's (G28).
 With html_mode generated the default run checks the HTML against build_prd_html.py (G29) instead of G5, G6 and G10.
+Modules: gate_output (capped stdout, artifact .claude/prd-flow/state/_gate/last-<mode>.txt, --step trd scoped to TRD files changed since the base).
 Exits with 1 when there is an ERROR. A WARNING does not fail.
 """
 
@@ -40,9 +41,10 @@ import sys
 from pathlib import Path
 
 from gate_core import (
-    EM_DASH, ID, ROW, git, is_proposed, joined, literal_rows, load_config, read_html_rules, read_md_rules, report, rule_table_ids, err, warn,
+    EM_DASH, ID, ROW, git, is_proposed, joined, literal_rows, load_config, read_html_rules, read_md_rules, rule_table_ids, err, warn,
 )
 from gate_interview import check_interview
+from gate_output import base_ref, changed_trd, report, start
 from gate_plan import check_change, check_final, check_plan, check_trace
 from gate_prd import changed_rows, check_html, check_index, check_pack, check_rules
 from gate_html_build import check_generated
@@ -65,8 +67,7 @@ def approved_ids(path: Path) -> set[str]:
 def default_checks(root: Path, cfg: dict[str, str], rules, vias: set[str], base_arg: str | None) -> str:
     prd_rel, trd_rel = cfg["prd_dir"].rstrip("/"), cfg["trd_dir"].rstrip("/")
     prd, trd = root / prd_rel, root / trd_rel
-    upstream = f"origin/{cfg['base_branch']}"
-    base = base_arg or git(root, "merge-base", "HEAD", upstream).strip() or "HEAD"
+    base = base_ref(root, cfg, base_arg)
     old, new, touched, plain = changed_rows(root, base, prd_rel, cfg["prd_glob"])
     check_index(prd, rules, set(new) - set(old))
     changelog = f"{prd_rel}/CHANGELOG.md"
@@ -146,6 +147,9 @@ def main() -> int:
     prd_rel, trd_rel = cfg["prd_dir"].rstrip("/"), cfg["trd_dir"].rstrip("/")
     prd, trd = root / prd_rel, root / trd_rel
     rules = read_md_rules(prd, cfg["prd_glob"])
+    flags = [n for n in ("pack", "rules", "plan", "trace", "change", "final", "trd", "sibling") if getattr(args, n)]
+    mode = f"step-{args.step}" if args.step else ("-".join(flags) if flags else "default")
+    start(mode, root, capped=mode != "trd")
 
     if args.status:
         print(chr(10).join(status_lines(rules, vias, cfg, prd, args.prd, args.state)))
@@ -172,7 +176,7 @@ def main() -> int:
                 rules_checks()
             check_sibling(root, repo_md)
         elif args.step == "trd":
-            check_trd(root, cfg, trd_rel)
+            check_trd(root, cfg, trd_rel, changed_trd(root, cfg, trd_rel, args.base))
         else:
             if args.plan:
                 check_plan(args.plan, rules, cfg)

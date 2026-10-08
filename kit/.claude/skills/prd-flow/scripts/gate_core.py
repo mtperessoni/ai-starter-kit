@@ -177,18 +177,5 @@ def section(text: str, title: str) -> str:
     return m.group(1) if m else ""
 
 
-def report(extra: str = "") -> int:
-    for (code, what), ids in baseline.items():
-        warn(code, f"earlier drift, outside this change, {what}: {', '.join(ids)}")
-    for line in [*errors, *warnings]:
-        print(line)
-    for lines in hints.values():
-        for line in lines:
-            print(f"HINT {line}")
-    print(f"gate:{len(errors)} error(s), {len(warnings)} warning(s){extra}")
-    return 1 if errors else 0
-
-
-
 def is_proposed(cell: str, cfg: dict[str, str]) -> bool:
     return f"({cfg['proposed_marker']})" in cell

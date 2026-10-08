@@ -82,7 +82,7 @@ Formats of step 4, read by the gate (written free-form, they cost a writer loop 
 | `reference/execution.md`, `reference/review.md` | whoever executes and reviews (step 10 and light route with code); the planner for the plan execution rules |
 | `reference/workers/README.md` and `reference/workers/<name>.md` | each worker, the README and only its own file |
 | `reference/impact.md`, `prd-writing.md`, `trd-planned.md`, `agent-plan.md` | workers only; `repo.md` "Rule owners" and "Shared PRDs" are read by the surveyor |
-| `scripts/gate.py` | run only: `python .claude/skills/prd-flow/scripts/gate.py [--step prd|trd|plan] [--base REF] [--pack F] [--rules F [--applied]] [--plan F] [--change DIR] [--trd] [--sibling] [--status] [--trace] [--final]` |
+| `scripts/gate.py` | run only: `python .claude/skills/prd-flow/scripts/gate.py [--step prd|trd|plan] [--base REF] [--pack F] [--rules F [--applied]] [--plan F] [--change DIR] [--trd] [--sibling] [--status] [--trace] [--final]`; stdout is capped and scoped to this change, the full report is `.claude/prd-flow/state/_gate/last-<mode>.txt` |
 
 ## Final
 Case, IDs touched, commits, plan path and out-of-scope divergences. With code: the findings of `scripts/gates.sh retro`, or one line saying the run stayed within every threshold (E20).
