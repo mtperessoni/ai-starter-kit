@@ -343,6 +343,11 @@ def summarize_phases(paths):
     out["docs_dispatched"] = any(p["docs_dispatched"] for p in parts)
     out["first_pass_clean"] = all(p["first_pass_clean"] for p in parts)
     out["main_violations"] = _add([p["main_violations"] for p in parts])
+    out["chief_violations"] = _add([p.get("chief_violations") for p in parts])
+    out["returns_total"] = sum(p.get("returns_total") or 0 for p in parts)
+    out["returns_ok"] = sum(p.get("returns_ok") or 0 for p in parts)
+    out["return_compliance"] = out["returns_ok"] / out["returns_total"] if out["returns_total"] else None
+    out["surveyor_first"] = next((p["surveyor_first"] for p in parts if p.get("surveyor_first") is not None), None)
     out["parallel_factor"] = next((p["parallel_factor"] for p in parts if p["parallel_factor"] is not None), None)
     out["ceremony_ratio"] = next((p["ceremony_ratio"] for p in parts if p["ceremony_ratio"] is not None), None)
     calls, errs = out["tool_calls"], out["tool_errors"]

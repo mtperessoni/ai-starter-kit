@@ -18,9 +18,9 @@ SPAWN = {"Agent", "Task"}
 LIMITS = {"prompt_chars": 4000, "return_chars": 2000, "files": 25, "rereads": 3, "calls": 50}
 FLAG_TEXT = {"prompt_chars": "prompt over 4000 chars", "return_chars": "return over 2000 chars",
              "files": "reads over 25 files", "rereads": "rereads over 3", "calls": "calls over 50"}
-COLS = ("role", "model", "calls", "fresh", "cache_read", "cache_write", "output", "cost", "minutes",
+COLS = ("role", "model", "calls", "fresh", "cache_read", "cache_write", "start_write", "output", "cost", "minutes",
         "reads", "files", "rereads", "prompt_chars", "return_chars", "max_context")
-SUMMED = ("calls", "fresh", "cache_read", "cache_write", "output", "cost", "minutes", "reads", "rereads",
+SUMMED = ("calls", "fresh", "cache_read", "cache_write", "start_write", "output", "cost", "minutes", "reads", "rereads",
           "prompt_chars", "return_chars")
 
 
@@ -72,6 +72,13 @@ def _new(role):
             "return_chars": 0, "t0": None, "t1": None, "minutes": 0.0}
 
 
+def _role(inp):
+    """prd-flow role when the dispatch names one, else the subagent_type itself, else the description keywords."""
+    role = protocol.role_of(inp)
+    kind = inp.get("subagent_type")
+    return kind if role == "other" and isinstance(kind, str) and kind else role
+
+
 def _agent_rows(paths):
     agents = {"main": _new("main")}
     msgs, reported = {}, {}
@@ -110,7 +117,7 @@ def _agent_rows(paths):
                         s.add(inp["file_path"])
                         a["paths"].add(inp["file_path"])
                     if b.get("name") in SPAWN and key == "main":
-                        a = _new(protocol.role_of(inp))
+                        a = _new(_role(inp))
                         a["prompt_chars"] = len(str(inp.get("prompt", "")))
                         agents[b.get("id")] = a
             elif kind == "user":
@@ -131,6 +138,7 @@ def _agent_rows(paths):
                "fresh": sum(_num(u.get("input_tokens")) for u in mine),
                "cache_read": sum(_num(u.get("cache_read_input_tokens")) for u in mine),
                "cache_write": sum(_num(u.get("cache_creation_input_tokens")) for u in mine),
+               "start_write": _num(mine[0].get("cache_creation_input_tokens")) if mine else 0,
                "output": sum(_num(u.get("output_tokens")) for u in mine), "cost": spent.get(key, 0.0),
                "minutes": minutes, "reads": a["reads"], "files": len(a["paths"]), "rereads": a["rereads"],
                "prompt_chars": a["prompt_chars"], "return_chars": a["return_chars"], "max_context": ctx}

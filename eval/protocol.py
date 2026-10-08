@@ -24,7 +24,12 @@ CODE_RE = re.compile(r"(^|[\\/])(src|tests)[\\/]")
 ROOTED_SOURCE_RE = re.compile(r"^(src|docs|tests)/")
 ROOTED_CODE_RE = re.compile(r"^(src|tests)/")
 DOC_RE = re.compile(r"(^|[\\/])(docs|changes|specs|\.claude)[\\/]|\.md$")
-WORKER_ONLY_RE = re.compile(r"reference[\\/]workers[\\/]|\.claude[\\/]agents[\\/]prd-flow-")
+WORKER_ONLY_RE = re.compile(r"reference[\\/]workers[\\/]|\.claude[\\/]agents[\\/]prd-flow-"
+                            r"|(^|[\\/])(impact|classification|agent-plan|prd-writing|trd-planned)\.md$")
+CHIEF_FREE = {"AskUserQuestion", "Skill"}
+STATE_FILE_RE = re.compile(r"(^|[\\/])state\.md$")
+REPO_FILE_RE = re.compile(r"(^|[\\/])repo\.md$")
+RETURN_FIELDS = ("Status:", "Files:", "Commit:", "Route:", "Next:")
 STATE_RE = re.compile(r"\.claude[\\/]prd-flow[\\/]state[\\/]|(^|[\\/])changes[\\/]")
 RULES_CMD = re.compile(r"--rules\b")
 CLOSE_CMD = re.compile(r"gates?\.(?:sh|py)\s+close\b")
@@ -81,6 +86,35 @@ def _result_len(b):
     if isinstance(c, str):
         return len(c)
     return sum(len(x.get("text", "")) for x in c if isinstance(x, dict)) if isinstance(c, list) else 0
+
+
+def _text_of(b):
+    c = b.get("content")
+    if isinstance(c, str):
+        return c
+    return "\n".join(x.get("text", "") for x in c if isinstance(x, dict)) if isinstance(c, list) else ""
+
+
+def return_complete(text):
+    """Whether the text ends with the five return fields of C6-02, in order, after its last Status line."""
+    lines = [x.strip() for x in str(text).splitlines() if x.strip()]
+    at = next((i for i in range(len(lines) - 1, -1, -1) if lines[i].startswith(RETURN_FIELDS[0])), None)
+    if at is None:
+        return False
+    for field in RETURN_FIELDS[1:]:
+        at = next((i for i in range(at + 1, len(lines)) if lines[i].startswith(field)), None)
+        if at is None:
+            return False
+    return True
+
+
+def chief_violation(name, rel):
+    """Whether a chief tool use is outside the C6-07 allowed set: dispatch, AskUserQuestion, state.md, repo.md."""
+    if name in SPAWN or name in CHIEF_FREE:
+        return False
+    if name in {"Read", "Write", "Edit"} and STATE_FILE_RE.search(rel):
+        return False
+    return not (name == "Read" and REPO_FILE_RE.search(rel))
 
 
 def _target(inp):
@@ -175,6 +209,7 @@ def analyze(events, carry=None):
     doc_calls = code_calls = 0
     post_exec_tokens = 0
     cwd = None
+    chief_bad, first_role, spawn_ids, returns = 0, carry.get("first_role"), set(), {}
 
     def finish(tid, when):
         nonlocal outstanding
@@ -217,6 +252,8 @@ def analyze(events, carry=None):
                 rel = _rel(tgt, cwd) if tgt else ""
                 if name in SPAWN and parent is None:
                     role = role_of(inp)
+                    first_role = first_role or role
+                    spawn_ids.add(b.get("id"))
                     roles[role] = roles.get(role, 0) + 1
                     surveyor_seen = surveyor_seen or role == "surveyor"
                     gate_state["docs_seen"] = gate_state["docs_seen"] or role == "docs"
@@ -246,6 +283,7 @@ def analyze(events, carry=None):
                         code_calls += 1
                 if parent is not None:
                     continue
+                chief_bad += chief_violation(name, rel)
                 if name in EDIT and _is_source(rel, cwd) and not STATE_RE.search(rel):
                     edits += 1
                 if name in EDIT and STATE_RE.search(rel) and AGENT_FILE_RE.search(rel):
@@ -283,6 +321,8 @@ def analyze(events, carry=None):
             results = [b for b in _blocks(e) if b.get("type") == "tool_result"]
             for b in results:
                 tid = b.get("tool_use_id")
+                if tid in spawn_ids and parent is None:
+                    returns[tid] = _text_of(b)
                 if tid in exec_ids:
                     text = json.dumps(b.get("content"), default=str)
                     if tid not in launched and (tid in bg_ids or (BG_RESULT.search(text) and len(text) < 600)):
@@ -304,9 +344,10 @@ def analyze(events, carry=None):
                     finish(tid, ts)
     for tid in [t for t in exec_ids if t in launched]:
         exec_spans[tid] = _span(spans.get(tid), exec_start.get(tid), None)
-    carry.update(surveyor=surveyor_seen, executor=exec_seen, docs=gate_state["docs_seen"])
+    carry.update(first_role=first_role, surveyor=surveyor_seen, executor=exec_seen, docs=gate_state["docs_seen"])
     violations = (edits + reads_before + worker_reads + extra + diff_reads + source_reads + kit_reads
                   + agent_edits + retro_reads) if (surveyor_seen or exec_seen) else None
+    returns_ok = sum(return_complete(t) for t in returns.values())
     writes = [u.get("cache_creation_input_tokens", 0) for u, _ in main_calls.values()]
     busts = sum(1 for w in writes[1:] if _num(w) > BUST)
     first_usage = next(iter(main_calls.values()), ({}, False))[0]
@@ -322,6 +363,10 @@ def analyze(events, carry=None):
         "cache_busts": busts,
         "start_context": _call_total(first_usage) if main_calls else None,
         "main_violations": violations,
+        "chief_violations": chief_bad if first_role else None,
+        "return_compliance": returns_ok / len(returns) if returns else None,
+        "returns_total": len(returns), "returns_ok": returns_ok,
+        "surveyor_first": first_role == "surveyor" if first_role else None,
         "main_diff_reads": diff_reads, "main_source_reads": source_reads, "kit_script_reads": kit_reads,
         "agent_file_edits": agent_edits, "retro_rereads": retro_reads,
         "main_edits": edits, "main_reads_before_surveyor": reads_before,
