@@ -2,7 +2,7 @@
 
 Usage: python .claude/skills/prd-flow/scripts/promote.py <slug> [--dry-run] [--root <repo>]
 Reads .claude/prd-flow/state/<slug>/approved-rules.md, deliveries/*.md (or an older single deliveries.md) and changes/NNN-<slug>/decisions.md.
-Prints at most 14 lines: on success the files changed and a ready commit message; on each error `owner:` and `next:` lines. What it cannot decide (the TRD Planned merge, amendment folds) is a listed warning.
+Prints at most 14 lines: on success the files changed and a ready commit message (a WARN names its `next:` dispatch); on each error `owner:` and `next:` lines. What it cannot decide (the TRD Planned merge, amendment folds) is a listed warning.
 """
 
 import argparse
@@ -25,7 +25,9 @@ ID_PIECE = re.compile(rf"({ID})|(,)|(\.\.)|(\d+)")
 
 
 class PromoteError(Exception):
-    pass
+    def __init__(self, message: str, owner: str = "executor fix", next_step: str = "executor fix with the printed line, then executor close"):
+        super().__init__(message)
+        self.owner, self.next_step = owner, next_step
 
 
 def run_git(root: Path, *args: str) -> subprocess.CompletedProcess:
@@ -218,11 +220,11 @@ def warnings_for(root: Path, cfg: dict) -> list[str]:
     prd = root / cfg["prd_dir"]
     for f in sorted(prd.rglob("*.md")) if prd.is_dir() else []:
         if "amendment" in f.name.lower():
-            found.append(f"amendment file {f.relative_to(root).as_posix()}: fold its rows into their step sections (P3)")
+            found.append(f"amendment file {f.relative_to(root).as_posix()}: fold its rows into their step sections (P3); next: docs fold")
     for f in sorted((root / cfg["trd_dir"]).rglob("*.md")):
         planned = rf"^##\s+{re.escape(cfg['planned_heading'])}\b"
         if re.search(planned, f.read_text(encoding="utf-8", errors="replace"), re.M):
-            found.append(f"TRD {f.relative_to(root).as_posix()} still has {cfg['planned_heading']}: merge it into the body")
+            found.append(f"TRD {f.relative_to(root).as_posix()} still has {cfg['planned_heading']}: merge it into the body; next: executor fix")
     return found
 
 
@@ -249,7 +251,7 @@ def plan_edits(root, cfg, slug, files, old, approver, sources, change):
     paths = {name: locate(root, cfg, name) for name in files}
     for name, path in paths.items():
         if path is None:
-            raise PromoteError(f"{name}: PRD file not found")
+            raise PromoteError(f"{name}: PRD file not found", "docs rules", "docs rules (correct the PRD file heading in approved-rules.md), then executor close")
     log = root / cfg["prd_dir"] / "CHANGELOG.md"
     log_text = log.read_text(encoding="utf-8") if log.is_file() else ""
     entry = re.search(rf"^## {re.escape(slug)} \(.*?(?=^## |\Z)", log_text, re.M | re.S)
@@ -304,7 +306,8 @@ def promote(root: Path, slug: str, dry: bool) -> tuple[list[str], int]:
     state = root / ".claude" / "prd-flow" / "state" / slug
     approved = state / "approved-rules.md"
     if not approved.is_file():
-        raise PromoteError(f"no {approved.relative_to(root).as_posix()}: nothing to promote for {slug}{chr(10)}{OWNER_FIX[0]}{chr(10)}{OWNER_FIX[1]}")
+        raise PromoteError(f"no {approved.relative_to(root).as_posix()}: nothing to promote for {slug}", "surveyor full",
+                           "surveyor full (it scaffolds approved-rules.md), then docs rules, then executor close")
     files, old, approver = parse_approved(approved.read_text(encoding="utf-8"))
     sources = sources_from_trd(root, cfg)
     delivery_files = sorted((state / "deliveries").glob("*.md")) if (state / "deliveries").is_dir() else []
@@ -388,6 +391,8 @@ def main() -> int:
         lines, code = promote(root, a.slug, a.dry_run)
     except PromoteError as exc:
         print(f"promote: ERROR {exc}")
+        print(f"owner: {exc.owner}")
+        print(f"next: {exc.next_step}")
         return 2
     print("\n".join(lines))
     return 1 if code else 0

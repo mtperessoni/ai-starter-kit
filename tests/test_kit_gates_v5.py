@@ -176,11 +176,14 @@ class GatesV5Test(unittest.TestCase):
         r = self.gates("close", "nobase")
         self.assertEqual(r.returncode, 1, r.stdout)
         self.assertIn("baseline missing: run scripts/gates.sh baseline nobase before the first task", r.stdout)
-        self.assertIn("owner: executor fix", r.stdout)
+        self.assertIn("owner: user", r.stdout)
+        self.assertNotIn("owner: executor fix", r.stdout)
+        self.assertIn("next: user chooses", r.stdout)
 
-    def stub_gates(self, lint_out: str = "", lint_rc: int = 0) -> None:
+    def stub_gates(self, lint_out: str = "", lint_rc: int = 0, trailers_out: str = "", trailers_rc: int = 0) -> None:
         write(self.p.root, "scripts/gates.sh", f"""case "$1" in
 lint) printf '%b' '{lint_out}'; exit {lint_rc} ;;
+trailers) printf '%b' '{trailers_out}'; exit {trailers_rc} ;;
 retro) echo "retro demo: 7 finding(s), wall 10 s, wait 0 s"
   echo "  F1 [medium] value 3, threshold 2, seq [1]"
   echo "  F2 [high] value 9, threshold 2, seq [2]"
@@ -221,6 +224,34 @@ esac
         self.assertEqual(len(shown), 10, r.stdout)
         self.assertIn("error line 20", shown[-1])
         self.assertNotIn("error line 10", r.stdout)
+
+    def test_a_failure_prints_a_next_line_naming_the_dispatch(self) -> None:
+        self.stub_gates(lint_out="bad\n", lint_rc=1)
+        r = self.close_direct()
+        self.assertIn("owner: executor fix", r.stdout)
+        self.assertIn("next: executor fix with the printed lines, then executor close", r.stdout)
+
+    def test_a_trailer_on_an_older_commit_needs_a_history_rewrite_and_goes_to_the_user(self) -> None:
+        self.stub_gates(trailers_out="deadbeef fix: x: touches the source folders without a trailer\n", trailers_rc=1)
+        r = self.close_direct()
+        self.assertIn("trailers FAILED", r.stdout)
+        self.assertIn("owner: user", r.stdout)
+        self.assertIn("next: user chooses", r.stdout)
+        self.assertNotIn("owner: executor fix", r.stdout)
+
+    def test_a_trailer_missing_only_on_head_is_an_executor_fix(self) -> None:
+        head = subprocess.run(["git", "-C", str(self.p.root), "rev-parse", "HEAD"], capture_output=True, text=True, check=False).stdout.strip()[:8]
+        self.stub_gates(trailers_out=f"{head} fix: x: touches the source folders without a trailer\n", trailers_rc=1)
+        r = self.close_direct()
+        self.assertIn("owner: executor fix", r.stdout)
+
+    def test_truncation_keeps_the_owner_and_next_lines_when_several_steps_fail(self) -> None:
+        out = "\n".join(f"err {i}" for i in range(1, 12)) + "\n"
+        self.stub_gates(lint_out=out, lint_rc=1, trailers_out="deadbeef a\n" + out, trailers_rc=1)
+        r = self.close_direct()
+        self.assertLessEqual(len(r.stdout.strip().splitlines()), 24, r.stdout)
+        self.assertEqual(r.stdout.count("owner:"), 2, r.stdout)
+        self.assertEqual(r.stdout.count("next:"), 2, r.stdout)
 
 
 class SkillMdRatchetTest(unittest.TestCase):
