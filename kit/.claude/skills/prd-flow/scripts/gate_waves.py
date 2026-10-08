@@ -1,6 +1,7 @@
 """--step plan: waves, critical path (printed, never counted) and P7, P8, P9 from the Owns and Depends on of each task."""
 
 import re
+from fnmatch import fnmatchcase
 from pathlib import Path
 
 from gate_core import TASK, err, notes, warn
@@ -47,18 +48,15 @@ def parse(text: str) -> dict[str, dict]:
     return tasks
 
 
-def prefix(path: str) -> str:
-    keep = []
-    for part in path.split("/"):
-        if re.search(r"[*?\[]", part):
-            break
-        keep.append(part)
-    return "/".join(keep)
-
-
 def shares(a: str, b: str) -> bool:
-    a, b = prefix(a), prefix(b)
-    return a == b or a.startswith(b + "/") or b.startswith(a + "/")
+    """Whether two owned paths or globs can cover the same file: segment by segment, `**` matches any depth."""
+    sa, sb = a.split("/"), b.split("/")
+    for x, y in zip(sa, sb, strict=False):
+        if x == "**" or y == "**":
+            return True
+        if not (fnmatchcase(y, x) or fnmatchcase(x, y)):
+            return False
+    return True
 
 
 def area(paths: list[str]) -> frozenset[str]:

@@ -80,17 +80,24 @@ def locate(root: Path, cfg: dict, name: str) -> Path | None:
 
 
 def edit_rows(text: str, ids: list[str], marker: re.Pattern, sources: dict[str, str], drop: set[str]):
-    """The new text, sources set, markers dropped, IDs left without a source, and the removed row lines by ID."""
-    out, set_src, dropped, missing, removed = [], 0, 0, [], {}
+    """The new text, sources set, markers dropped, IDs without a source (code and non-code), and the removed rows by ID."""
+    out, set_src, dropped, missing, own, removed = [], 0, 0, [], [], {}
+    via = None
     for line in text.splitlines(keepends=True):
         parts = SPLIT.split(line.rstrip("\n"))
+        cells = [c.strip().lower() for c in parts[1:-1]]
+        if not line.lstrip().startswith("|"):
+            via = None
+        elif "id" in cells:
+            via = cells.index("change via") + 1 if "change via" in cells else None
         rid = parts[1].strip() if len(parts) > 3 else ""
-        if rid in drop:
+        if rid in drop and via is not None:
             removed[rid] = line.rstrip("\n")
             continue
         if rid in ids and marker.search(parts[2]):
             if rid not in sources and parts[3].strip() == "planned":
-                missing.append(rid)
+                kind = parts[via].strip().lower() if via is not None and via < len(parts) else "code"
+                (missing if kind == "code" else own).append(rid)
                 out.append(line)
                 continue
             parts[2] = marker.sub("", parts[2], count=1)
@@ -100,7 +107,7 @@ def edit_rows(text: str, ids: list[str], marker: re.Pattern, sources: dict[str, 
                 set_src += 1
             line = "|".join(parts) + ("\n" if line.endswith("\n") else "")
         out.append(line)
-    return "".join(out), set_src, dropped, missing, removed
+    return "".join(out), set_src, dropped, missing, own, removed
 
 
 def decision_rows(path: Path) -> list[str]:
@@ -171,7 +178,7 @@ def plan_edits(root, cfg, slug, files, old, approver, sources, change):
     log = root / cfg["prd_dir"] / "CHANGELOG.md"
     done = log.is_file() and re.search(rf"^## {re.escape(slug)} \(", log.read_text(encoding="utf-8"), re.M) is not None
     writes: dict[Path, str] = {}
-    stats = {"src": 0, "dropped": 0, "missing": []}
+    stats = {"src": 0, "dropped": 0, "missing": [], "own": []}
     files_old: dict[str, list[tuple[str, str, str]]] = {}
     prd_dir = root / cfg["prd_dir"]
     targets = [(name, path, files[name]) for name, path in paths.items()]
@@ -179,12 +186,13 @@ def plan_edits(root, cfg, slug, files, old, approver, sources, change):
         targets += [(path.name, path, []) for path in other_prd_files(root, cfg, set(paths.values()))]
     seen: set[str] = set()
     for name, path, ids in targets:
-        new, s, d, miss, removed = edit_rows(path.read_text(encoding="utf-8"), ids, marker, sources, superseded)
+        new, s, d, miss, own, removed = edit_rows(path.read_text(encoding="utf-8"), ids, marker, sources, superseded)
         if new != path.read_text(encoding="utf-8"):
             writes[path] = new
         stats["src"] += s
         stats["dropped"] += d
         stats["missing"] += miss
+        stats["own"] += own
         seen |= set(removed)
         items = [(i, "rewritten", f"| {i} | {old[i]} |") for i in ids if i in old]
         items += [(i, "superseded", removed[i]) for i in sorted(removed)]
@@ -234,6 +242,8 @@ def promote(root: Path, slug: str, dry: bool) -> tuple[list[str], int]:
     lines = [f"promote {slug}{' (dry-run)' if dry else ''}: {len(approved_ids)} approved, {len(superseded)} superseded",
              f"markers dropped {stats['dropped']}, sources set {stats['src']}",
              f"changelog: entry added to {log.relative_to(root).as_posix()}"]
+    if stats["own"]:
+        lines.append(f"closed by their own route (Source stays planned): {', '.join(stats['own'])}")
     done = ["PRD rows and CHANGELOG"]
     if not dry:
         for path, text in writes.items():

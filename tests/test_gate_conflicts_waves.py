@@ -135,6 +135,12 @@ class WaveTest(unittest.TestCase):
         r = self.gate(plan(task("T01", "src/**"), task("T02", "src/a.py")))
         self.assertIn("ERROR P7", r.stdout)
 
+    def test_p7_a_wildcard_segment_is_compared_with_the_deeper_path(self) -> None:
+        r = self.gate(plan(task("T01", "src/*.py"), task("T02", "src/b/c.py")))
+        self.assertNotIn("P7", r.stdout)
+        r = self.gate(plan(task("T01", "src/**"), task("T02", "src/b/c.py")))
+        self.assertIn("ERROR P7", r.stdout)
+
     def test_p9_trailing_punctuation_does_not_hide_ownership(self) -> None:
         r = self.gate(plan(task("T01", "src/a.py, docs/trd/orders.md", extra="Creates / consumes: updates docs/trd/orders.md.\n")))
         self.assertNotIn("P9", r.stdout)

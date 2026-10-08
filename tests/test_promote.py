@@ -167,6 +167,25 @@ class PromoteTest(unittest.TestCase):
         self.assertEqual(self.text(PRD), before)
         self.assertTrue((self.p.root / STATE / "approved-rules.md").is_file())
 
+    def test_a_non_code_rule_without_a_source_is_closed_by_its_own_route(self) -> None:
+        (self.p.root / "docs/trd/orders.md").unlink()
+        (self.p.root / PRD).write_text(self.text(PRD).replace(
+            "A refund keeps the invoice. | planned | code |", "A refund keeps the invoice. | planned | config |"), encoding="utf-8")
+        (self.p.root / STATE / "deliveries.md").write_text("Source: ORD-03 src/features/orders/ship.py\n", encoding="utf-8")
+        r = self.promote()
+        self.assertNotIn("ERROR", r.stdout)
+        self.assertNotIn("have no Source", r.stdout)
+        self.assertFalse((self.p.root / "changes/001-disc").exists())
+        self.assertIn("closed by their own route", r.stdout)
+        self.assertIn("ORD-04", r.stdout)
+        self.assertIn("pending code)* A refund keeps the invoice. | planned | config |", self.text(PRD))
+
+    def test_a_table_without_a_change_via_column_keeps_its_superseded_id(self) -> None:
+        write(self.p.root, "docs/prd/shop/06-glossary.md", "| ID | Term |\n|---|---|\n| ORD-01 | Order |\n")
+        self.promote()
+        self.assertIn("| ORD-01 | Order |", self.text("docs/prd/shop/06-glossary.md"))
+        self.assertNotIn("| ORD-01 | An order", self.text(PRD))
+
     def test_an_amendment_file_and_a_trd_planned_section_are_warnings(self) -> None:
         write(self.p.root, "docs/prd/shop/05a-amendment-orders.md", PRD_TEXT.replace("ORD-0", "AMD-0"))
         r = self.promote()

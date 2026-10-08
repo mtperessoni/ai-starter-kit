@@ -135,7 +135,11 @@ def check_final(root: Path, rules: Rules, cfg: dict[str, str], trd: Path) -> Non
         if is_proposed(row[0], cfg):
             err("G30", f"{rid} is still {cfg['proposed_marker']}: confront it and approve it, or drop it")
         elif len(row) >= 2 and (row[1].strip("` ").lower() == cfg["planned_source"] or cfg["pending_marker"] in row[0]):
-            err("G19", f"{rid} is still planned or pending code")
+            via = row[2].strip("` ").lower() if len(row) >= 3 else "code"
+            if via == "code":
+                err("G19", f"{rid} is still planned or pending code")
+            else:
+                warn("G19", f"{rid} is still planned; it changes via {via} and closes by that route")
     for f in sorted(trd.rglob("*.md")):
         if re.search(r"^## " + re.escape(cfg["planned_heading"]), f.read_text(encoding="utf-8"), re.M):
             err("G20", f"{f.name} still has a '## {cfg['planned_heading']}' section")

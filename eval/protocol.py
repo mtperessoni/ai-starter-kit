@@ -9,9 +9,10 @@ REQUIRED_ROLES = ("surveyor", "docs", "executor", "reviewer")
 SPAWN = {"Agent", "Task"}
 EDIT = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 READ = {"Read", "Grep", "Glob"}
-FALLBACK = (("executor", re.compile(r"executor|implement|\bfix\b|\bT\d{2}\b", re.I)),
-            ("recheck", re.compile(r"re-?check", re.I)),
+FALLBACK = (("recheck", re.compile(r"re-?check", re.I)),
+            ("executor", re.compile(r"^\s*(fix|apply|implement|execute)\b", re.I)),
             ("reviewer", re.compile(r"review", re.I)),
+            ("executor", re.compile(r"executor|implement|\bT\d{2}\b", re.I)),
             ("surveyor", re.compile(r"survey|impact|confront", re.I)),
             ("docs", re.compile(r"writer|planner|docs|promote", re.I)))
 TYPE_RE = re.compile(r"prd-flow-(\w+)")
@@ -29,6 +30,7 @@ RULES_CMD = re.compile(r"--rules\b")
 CLOSE_CMD = re.compile(r"gates?\.(?:sh|py)\s+close\b")
 SETUP_CMD = re.compile(r"gates\.sh\s+(?:context|baseline)\b")
 STEP_PLAN_CMD = re.compile(r"--step\s+plan\b")
+PRE_EXEC_CMD = re.compile(r"gates\.sh\s+(?:related|lint|ratchet|one)\b")
 READ_CMDS = {"cat", "head", "tail", "sed", "less"}
 RANGE_ARG = re.compile(r"^[\d,$]+[a-z]*$")
 SEGMENT_SPLIT = re.compile(r"&&|\|\||[;|\n]")
@@ -78,6 +80,11 @@ def _target(inp):
     return str(inp.get("file_path") or inp.get("path") or inp.get("pattern") or "")
 
 
+def _targets_index(inp, rel):
+    """Whether a Grep aims at INDEX.md by its path or by its glob."""
+    return any(str(v or "").replace("\\", "/").endswith("INDEX.md") for v in (rel, inp.get("path"), inp.get("glob")))
+
+
 def _rel(path, cwd):
     """Path relative to the project root with forward slashes; unchanged when it lies outside it."""
     p = path.replace("\\", "/")
@@ -122,10 +129,10 @@ def _gate_allowed(cmd, st):
         return ok
     if CLOSE_CMD.search(cmd) or SETUP_CMD.search(cmd):
         return True
-    if STEP_PLAN_CMD.search(cmd) and st["docs_seen"] and not st["plan_step_used"]:
+    if STEP_PLAN_CMD.search(cmd) and st["docs_seen"] and (not st["plan_step_used"] or cmd in st["last_failed"]):
         st["plan_step_used"] = True
         return True
-    return False
+    return PRE_EXEC_CMD.search(cmd) is not None and not st["exec_seen"]
 
 
 def analyze(events, carry=None):
@@ -138,7 +145,7 @@ def analyze(events, carry=None):
     spans, exec_spans, launched, bg_ids, exec_start = {}, {}, set(), set(), {}
     surveyor_seen, exec_seen = carry.get("surveyor", False), carry.get("executor", False)
     gate_state = {"rules_seen": set(), "last_failed": set(), "plan_step_used": False,
-                  "docs_seen": carry.get("docs", False)}
+                  "docs_seen": carry.get("docs", False), "exec_seen": exec_seen}
     index_grep_used = False
     reads_before = edits = worker_reads = 0
     residency_chars, read_ids = 0, {}
@@ -154,8 +161,16 @@ def analyze(events, carry=None):
         exec_ids.discard(tid)
         exec_spans[tid] = _span(spans.get(tid), exec_start.get(tid), when)
 
-    for e in events:
+    last_child = {}
+    for n, e in enumerate(events):
+        if e.get("parent_tool_use_id"):
+            last_child[e["parent_tool_use_id"]] = n
+
+    for n, e in enumerate(events):
         kind, parent = e.get("type"), e.get("parent_tool_use_id")
+        if launched:
+            for tid in [t for t in exec_ids if t in launched and (kind == "result" or last_child.get(t, n) < n)]:
+                finish(tid, None)
         if cwd is None and isinstance(e.get("cwd"), str):
             cwd = e["cwd"]
         ts = _epoch(e["timestamp"]) if e.get("timestamp") else None
@@ -184,6 +199,7 @@ def analyze(events, carry=None):
                     roles[role] = roles.get(role, 0) + 1
                     surveyor_seen = surveyor_seen or role == "surveyor"
                     gate_state["docs_seen"] = gate_state["docs_seen"] or role == "docs"
+                    gate_state["exec_seen"] = exec_seen or role == "executor"
                     if inp.get("run_in_background") is True:
                         bg_ids.add(b.get("id"))
                     if role == "executor":
@@ -211,7 +227,7 @@ def analyze(events, carry=None):
                     edits += 1
                 if name in READ | {"Bash"}:
                     probes = [rel] if name != "Bash" else [_rel(x, cwd) for x in _command_paths(inp)]
-                    if name == "Grep" and rel.endswith("INDEX.md") and not index_grep_used:
+                    if name == "Grep" and _targets_index(inp, rel) and not index_grep_used:
                         index_grep_used = True
                     elif any(WORKER_ONLY_RE.search(x) for x in probes):
                         worker_reads += 1

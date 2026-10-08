@@ -175,18 +175,27 @@ class FinalTest(unittest.TestCase):
         r = self.p.py(GATE, "--final")
         self.assertEqual(r.returncode, 0, r.stdout)
 
-    def test_a_planned_source_is_an_error(self) -> None:
+    def test_a_planned_code_rule_is_an_error(self) -> None:
         section = self.p.root / ORDERS
-        text = section.read_text(encoding="utf-8").replace("src/features/orders/order_service.py | config", "planned | config")
+        text = section.read_text(encoding="utf-8").replace("src/features/orders/order_service.py::create_order | code", "planned | code")
         section.write_text(text, encoding="utf-8")
         r = self.p.py(GATE, "--final")
         self.assertEqual(r.returncode, 1, r.stdout)
         self.assertIn("ERROR G19", r.stdout)
+        self.assertIn("ORD-01", r.stdout)
+
+    def test_a_planned_rule_closed_by_another_route_is_a_warning(self) -> None:
+        section = self.p.root / ORDERS
+        text = section.read_text(encoding="utf-8").replace("src/features/orders/order_service.py | config", "planned | config")
+        section.write_text(text, encoding="utf-8")
+        r = self.p.py(GATE, "--final")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("WARNING G19", r.stdout)
         self.assertIn("ORD-02", r.stdout)
 
     def test_the_pending_marker_is_an_error(self) -> None:
         section = self.p.root / ORDERS
-        text = section.read_text(encoding="utf-8").replace("An unpaid order", "*(approved 2026-01-01, pending code)* An unpaid order")
+        text = section.read_text(encoding="utf-8").replace("An order is created", "*(approved 2026-01-01, pending code)* An order is created")
         section.write_text(text, encoding="utf-8")
         r = self.p.py(GATE, "--final")
         self.assertEqual(r.returncode, 1, r.stdout)

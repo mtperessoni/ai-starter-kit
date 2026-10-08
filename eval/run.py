@@ -165,7 +165,7 @@ def classify(jsonl, returncode):
 
 def state_slug(project):
     """The change to resume: the newest state folder holding approved-rules.md; when a promotion already
-    cleared the state, the newest changes/NNN-<slug> folder; None when neither exists."""
+    cleared the state, the newest changes/NNN-<slug> folder created during the run; None when neither exists."""
     root = Path(project)
     base = root / ".claude" / "prd-flow" / "state"
     approved = [p for p in base.iterdir() if p.is_dir() and not p.name.startswith("_")
@@ -173,8 +173,10 @@ def state_slug(project):
     if approved:
         return max(approved, key=lambda p: (p / "approved-rules.md").stat().st_mtime).name
     changes = root / "changes"
+    seed = grade.seed_commit(root)
+    old = set(grade.git(root, "ls-tree", "--name-only", seed, "changes/").replace("changes/", "").split()) if seed else set()
     names = sorted(p.name for p in changes.iterdir()
-                   if p.is_dir() and re.match(r"\d+-", p.name)) if changes.is_dir() else []
+                   if p.is_dir() and re.match(r"\d+-", p.name) and p.name not in old) if changes.is_dir() else []
     return re.sub(r"^\d+-", "", names[-1]) if names else None
 
 

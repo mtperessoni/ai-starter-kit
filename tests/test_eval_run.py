@@ -256,6 +256,19 @@ class ReviewFixesTest(unittest.TestCase):
         self.assertEqual(run.state_slug(root), "min-order")
         self.assertIsNone(run.state_slug(self._src()))
 
+    def test_state_slug_fallback_ignores_folders_of_the_seed_commit(self):
+        import subprocess
+        root = self._src()
+        git = lambda *a: subprocess.run(["git", "-C", str(root), *a], check=True, capture_output=True)
+        git("init", "-q")
+        (root / "changes/009-old").mkdir(parents=True)
+        (root / "changes/009-old/brief.md").write_text("x", encoding="utf-8")
+        git("add", "-A")
+        git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "seed")
+        self.assertIsNone(run.state_slug(root))
+        (root / "changes/010-new-one").mkdir()
+        self.assertEqual(run.state_slug(root), "new-one")
+
     def test_phase_budgets_split_70_30(self):
         self.assertEqual(run.split_budget(10), (7.0, 3.0))
 

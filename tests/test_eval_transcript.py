@@ -498,9 +498,15 @@ class ProtocolReviewFixesTest(unittest.TestCase):
 
     def test_role_by_type_then_description_only(self):
         self.assertEqual(protocol.role_of({"subagent_type": "prd-flow-reviewer", "description": "x"}), "reviewer")
-        self.assertEqual(protocol.role_of({"description": "Fix review findings", "prompt": "survey"}), "executor")
+        self.assertEqual(protocol.role_of({"description": "Implement T03 fixes", "prompt": "survey"}), "executor")
+        self.assertEqual(protocol.role_of({"description": "Review T03"}), "reviewer")
+        self.assertEqual(protocol.role_of({"description": "Re-check fix PRO-001"}), "recheck")
+        self.assertEqual(protocol.role_of({"description": "T04 orders"}), "executor")
         self.assertEqual(protocol.role_of({"description": "Review the wave", "prompt": "implement T01"}), "reviewer")
         self.assertEqual(protocol.role_of({"description": "x", "prompt": "review it"}), "other")
+        self.assertEqual(protocol.role_of({"description": "Fix review findings"}), "executor")
+        self.assertEqual(protocol.role_of({"description": "fix CS-001 CS-002"}), "executor")
+        self.assertEqual(protocol.role_of({"description": "Apply the review fixes of T02"}), "executor")
 
     def test_paths_are_relative_to_the_project_root(self):
         init = _ev("system", "2026-10-07T10:00:00Z", subtype="init", cwd="/home/me/src/proj")
@@ -513,6 +519,49 @@ class ProtocolReviewFixesTest(unittest.TestCase):
         ev = [_bash("a", "2026-10-07T10:00:00Z", "echo concatenate src/a.py && ls src/"),
               _bash("b", "2026-10-07T10:00:01Z", "sed -n '1,20p' src/a.py"), _surv()]
         self.assertEqual(protocol.analyze(ev)["main_reads_before_surveyor"], 1)
+
+    def test_a_background_executor_ends_at_its_last_child_event(self):
+        launch = "Async agent launched successfully.\nagentId: a1b2c3 (internal ID)\nThe agent is working in the background."
+        ev = [_call("m1", "2026-10-07T10:00:00Z", [
+            _use("E1", "Agent", subagent_type="prd-flow-executor", prompt="T01", run_in_background=True)]),
+            _done("2026-10-07T10:00:01Z", "E1", launch),
+            _call("s1", "2026-10-07T10:00:10Z", [], parent="E1"),
+            _call("s2", "2026-10-07T10:02:00Z", [], parent="E1"),
+            _call("m2", "2026-10-07T10:03:00Z", [_use("E2", "Agent", subagent_type="prd-flow-executor",
+                                                     prompt="T02", run_in_background=True)]),
+            _done("2026-10-07T10:03:01Z", "E2", launch),
+            _call("s3", "2026-10-07T10:04:00Z", [], parent="E2"),
+            _ev("user", "2026-10-07T10:09:00Z", message={"content": "<task-notification>agent a1b2c3 completed</task-notification>"})]
+        self.assertEqual(protocol.analyze(ev)["wave_widths"], [1, 1])
+
+    def test_a_background_executor_without_children_ends_at_the_result_event(self):
+        ev = [_call("m1", "2026-10-07T10:00:00Z", [
+            _use("E1", "Agent", subagent_type="prd-flow-executor", prompt="T01", run_in_background=True)]),
+            _done("2026-10-07T10:00:01Z", "E1", "Async agent launched"),
+            _ev("result", "2026-10-07T10:05:00Z"),
+            _call("m2", "2026-10-07T10:06:00Z", [_use("E2", "Agent", subagent_type="prd-flow-executor", prompt="T02")])]
+        self.assertEqual(protocol.analyze(ev)["wave_widths"], [1, 1])
+
+    def test_step_plan_rerun_after_a_failed_one_is_allowed(self):
+        docs = _call("d", "2026-10-07T10:00:30Z", [_use("D", "Agent", description="Write docs", prompt="p")])
+        cmd = "python gate.py --step plan --slug x"
+        ev = [_surv(), docs, _bash("a", "2026-10-07T10:01:00Z", cmd), _done("2026-10-07T10:01:05Z", "a", "ERROR P7 clash"),
+              _bash("b", "2026-10-07T10:01:10Z", cmd)]
+        self.assertEqual(_viol(ev), 0)
+
+    def test_gates_related_is_setup_before_the_executor_and_a_violation_after(self):
+        before = [_surv(), _bash("a", "2026-10-07T10:01:00Z", "scripts/gates.sh related src/a.py"),
+                  _bash("b", "2026-10-07T10:01:05Z", "scripts/gates.sh ratchet")]
+        self.assertEqual(_viol(before), 0)
+        execu = _call("e", "2026-10-07T10:02:00Z", [_use("E", "Agent", subagent_type="prd-flow-executor", prompt="T01")])
+        after = before + [execu, _bash("c", "2026-10-07T10:03:00Z", "scripts/gates.sh lint")]
+        self.assertEqual(_viol(after), 1)
+
+    def test_an_index_grep_by_glob_is_exempt(self):
+        ev = [_call("a", "2026-10-07T10:00:00Z", [
+            _use("g", "Grep", pattern="PRD-01", path="docs/prd", glob="INDEX.md")]), _surv()]
+        self.assertEqual(_viol(ev), 0)
+        self.assertEqual(protocol.analyze(ev)["main_reads_before_surveyor"], 0)
 
 
 if __name__ == "__main__":
