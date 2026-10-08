@@ -200,7 +200,7 @@ def summarize(run, findings, cov) -> dict:
     top_calls = sorted(det.calls(run), key=lambda c: -c["eff"])[:5]
     mt = run["transcripts"].get("main")
     return {
-        "coverage": cov, "findings": findings,
+        "coverage": cov, "findings": findings, "kpis": det.kpi_values(run),
         "totals": {"wall_s": main["wall_s"], "human_wait_s": main["human_wait_s"], "agent_work_s": main["work_s"],
                    "tokens_main": mt["tokens"] if mt else None,
                    "tokens_subagents": sum(s["tokens"] or 0 for s in subs),
@@ -230,6 +230,9 @@ def render(ctx: str, s: dict) -> str:
                    f"agent {ev['agent']}; `{ev['cmd']}`; rule {f['rule']}" + (f"; {ev['note']}" if ev["note"] else ""))
     out += ["", "## Time and tokens", "", "| Metric | Value |", "|---|---|"]
     for k, v in t.items():
+        out.append(f"| {k} | {'n/a' if v is None else v} |")
+    out += ["", "## KPIs", "", "| KPI | Value |", "|---|---|"]
+    for k, v in s.get("kpis", {}).items():
         out.append(f"| {k} | {'n/a' if v is None else v} |")
     out += ["", "## Top 5", "", "Slowest calls:"]
     out += [f"- seq {x['seq']}, {x['s']} s, {x['agent']}: `{x['cmd']}`" for x in s["top_calls"]] or ["- none"]

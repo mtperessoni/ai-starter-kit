@@ -40,9 +40,9 @@ class Log:
         return self.add("PostToolUseFailure" if err else "PostToolUse", gap=dur, agent=agent, tool=tool, tuid=tuid,
                         cls=cls, cmd=cmd, h=h, ms=int(dur * 1000), **extra, **kw)
 
-    def subagent(self, aid, minutes=1.0, tokens=1000, tools=3, tp=None):
-        self.add("SubagentStart", agent=aid, atype="general-purpose")
-        self.add("SubagentStop", gap=minutes * 60, agent=aid, atype="general-purpose", **({"tp": tp} if tp else {}))
+    def subagent(self, aid, minutes=1.0, tokens=1000, tools=3, tp=None, atype="general-purpose"):
+        self.add("SubagentStart", agent=aid, atype=atype)
+        self.add("SubagentStop", gap=minutes * 60, agent=aid, atype=atype, **({"tp": tp} if tp else {}))
         return self.add("PostToolUse", tool="Agent", tuid=f"ag{aid}", cls="agent", ms=int(minutes * 60000),
                         sub={"tokens": tokens, "ms": int(minutes * 60000), "tools": tools, "status": "completed", "id": aid})
 
@@ -408,6 +408,74 @@ class DocReadsTests(unittest.TestCase):
         paths = [f"docs/f{i}.md" for i in range(7)] * 2 + ["docs/f0.md"] * 3
         f, _ = self.reads(paths, cfg={"doc_reads": 1})
         self.assertEqual(f["doc_reads"]["evidence"]["cmd"].count("docs/f"), 5)
+
+
+class KpiTests(unittest.TestCase):
+    def run_of(self, log, cfg=None):
+        root = project(log.ev, cfg=cfg)
+        return retro.load_run(root / ".ai-kit/runs/ctx", root), root
+
+    def test_values_count_main_calls_agents_by_role_and_inline_reads(self):
+        log = Log()
+        log.call(tool="Read", cls="read", cmd="docs/a.md")
+        log.call(tool="Read", cls="read", cmd="docs/b.md")
+        log.subagent("s1", atype="prd-flow-surveyor")
+        log.call(tool="Read", cls="read", cmd="docs/c.md")
+        log.subagent("e1", atype="prd-flow-executor")
+        log.subagent("e2", atype="prd-flow-executor")
+        run, _ = self.run_of(log)
+        k = det.kpi_values(run)
+        self.assertEqual(k["main_calls"], 6)
+        self.assertEqual(k["inline_reads"], 2)
+        self.assertEqual(k["agents_by_role"], {"prd-flow-surveyor": 1, "prd-flow-executor": 2})
+
+    def test_inline_reads_is_none_without_a_surveyor(self):
+        log = Log()
+        log.call(tool="Read", cls="read", cmd="docs/a.md")
+        run, _ = self.run_of(log)
+        self.assertIsNone(det.kpi_values(run)["inline_reads"])
+
+    def test_gate_runs_are_split_by_thread(self):
+        log = Log()
+        log.call(cmd="python .claude/skills/prd-flow/scripts/gate.py --rules x")
+        log.call(cmd="scripts/gates.sh compare demo")
+        log.call(cmd="scripts/gates.sh related", agent="e1")
+        run, _ = self.run_of(log)
+        k = det.kpi_values(run)
+        self.assertEqual((k["gate_runs_main"], k["gate_runs_sub"]), (2, 1))
+
+    def test_parallel_factor_is_agent_time_over_the_window(self):
+        log = Log()
+        log.add("SubagentStart", agent="a", atype="prd-flow-executor")
+        log.add("SubagentStart", agent="b", atype="prd-flow-executor")
+        log.add("SubagentStop", gap=60, agent="a", atype="prd-flow-executor")
+        log.add("SubagentStop", gap=0, agent="b", atype="prd-flow-executor")
+        run, _ = self.run_of(log)
+        self.assertAlmostEqual(det.kpi_values(run)["parallel_factor"], 2.0, places=1)
+
+    def test_a_kpi_past_its_target_is_flagged_from_the_config(self):
+        log = Log()
+        for _ in range(4):
+            log.call()
+        root = project(log.ev, cfg={"kpi_main_calls": 3})
+        f, s = findings(root)
+        self.assertEqual(f["kpi_main_calls"]["value"], 4)
+        self.assertEqual(f["kpi_main_calls"]["threshold"], 3)
+        self.assertIn("kpis", s)
+
+    def test_inline_reads_above_target_and_low_parallelism_are_flagged(self):
+        log = Log()
+        log.call(tool="Read", cls="read", cmd="docs/a.md")
+        log.subagent("s1", atype="prd-flow-surveyor")
+        log.subagent("e1", atype="prd-flow-executor")
+        log.subagent("e2", atype="prd-flow-executor")
+        f, _ = findings(project(log.ev))
+        self.assertEqual(f["kpi_inline_reads"]["value"], 1)
+        self.assertIn("kpi_parallel_factor", f)
+
+    def test_a_run_within_every_target_has_no_kpi_finding(self):
+        f, _ = findings(project(clean_log().ev))
+        self.assertFalse([k for k in f if k.startswith("kpi_")])
 
 
 if __name__ == "__main__":

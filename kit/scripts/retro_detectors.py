@@ -9,6 +9,7 @@ DEFAULTS = {
     "subagent_tools": 50, "context_peak_tokens": 200000, "big_output_kb": 20, "loop_repeats": 3,
     "edit_repeats": 8, "error_rate": 0.15, "memory_mb": 2048, "disk_drop_mb": 1024, "dead_mb": 500,
     "max_events_mb": 5, "keep_days": 14, "doc_reads": 3,
+    "kpi_main_calls": 30, "kpi_inline_reads": 0, "kpi_gate_runs_main": 4, "kpi_parallel_factor_min": 1.5,
 }
 EDIT_TOOLS = {"edit", "write", "multiedit"}
 
@@ -261,6 +262,47 @@ def doc_reads(run, th):
     yield finding("doc_reads", len(ranked[0][1]), th["doc_reads"], ranked[0][1], "main", "; ".join(parts), sev="medium")
 
 
+GATE_CMD = ("gate.py", "gates.sh")
+
+
+def kpi_values(run):
+    """Delivery KPIs from the events of one run; a value is None when the run cannot answer it."""
+    ev = run["events"]
+    posts = [e for e in ev if e.get("ev") in ("PostToolUse", "PostToolUseFailure")]
+    roles = {}
+    starts, spans = {}, []
+    for e in ev:
+        if e.get("ev") == "SubagentStart":
+            roles[e.get("atype") or "unknown"] = roles.get(e.get("atype") or "unknown", 0) + 1
+            starts[e.get("agent")] = e["ts"]
+        elif e.get("ev") == "SubagentStop" and e.get("agent") in starts:
+            spans.append((starts[e["agent"]], e["ts"]))
+    first_survey = next((e["ts"] for e in ev if e.get("ev") == "SubagentStart" and str(e.get("atype", "")).endswith("surveyor")), None)
+    inline = None
+    if first_survey is not None:
+        inline = sum(1 for e in posts if e.get("agent", "main") == "main" and str(e.get("tool", "")).lower() == "read"
+                     and e["ts"] < first_survey)
+    gates = [e for e in ev if e.get("ev") == "PreToolUse" and any(g in (e.get("cmd") or "") for g in GATE_CMD)]
+    factor = None
+    if len(spans) >= 2:
+        window = max(b for _, b in spans) - min(a for a, _ in spans)
+        factor = round(sum(b - a for a, b in spans) / window, 2) if window > 0 else None
+    return {"main_calls": sum(1 for e in posts if e.get("agent", "main") == "main"), "agents_by_role": roles,
+            "inline_reads": inline, "gate_runs_main": sum(1 for e in gates if e.get("agent", "main") == "main"),
+            "gate_runs_sub": sum(1 for e in gates if e.get("agent", "main") != "main"), "parallel_factor": factor}
+
+
+def kpis(run, th):
+    k = kpi_values(run)
+    roles = ", ".join(f"{r} {n}" for r, n in sorted(k["agents_by_role"].items())) or "none"
+    for name in ("main_calls", "inline_reads", "gate_runs_main"):
+        if k[name] is not None and k[name] > th[f"kpi_{name}"]:
+            yield finding(f"kpi_{name}", k[name], th[f"kpi_{name}"], agent="main", sev="medium", note=f"agents: {roles}")
+    pf = k["parallel_factor"]
+    if pf is not None and pf < th["kpi_parallel_factor_min"]:
+        yield finding("kpi_parallel_factor", pf, th["kpi_parallel_factor_min"], sev="medium", note=f"agents: {roles}")
+
+
 DETECTORS = [long_call, slow_test, full_suite_mid_task, long_subagent, heavy_subagent, context_peak, auto_compaction,
              big_output, loop, error_rate, memory, disk_drop, docker_outside_gates, unbounded_background, dead_files,
-             killed_call, doc_reads]
+             killed_call, doc_reads, kpis]

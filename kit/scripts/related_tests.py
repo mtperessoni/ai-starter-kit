@@ -17,7 +17,7 @@ import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from kit_config import is_test, load, matches, rel, repo_root, stem, test_files
+from kit_config import BaseError, is_test, load, matches, rel, repo_root, resolve_base, stem, test_files
 
 IMPORT_LINE = re.compile(r"^\s*(import|from|require|use|using|include|#include|export)\b|require\(|import\(", re.M)
 COMMENT_LINE = re.compile(r"^\s*(#|//|/\*|\*|--|;|%|')")
@@ -174,12 +174,16 @@ def run(root: Path, cfg: dict, files: list[str], changed: list[str]) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("files", nargs="*")
-    parser.add_argument("--base", default="origin/main")
+    parser.add_argument("--base", default=None)
     parser.add_argument("--run", action="store_true")
     args = parser.parse_args()
     root = repo_root()
     cfg = load(root)
-    changed = args.files or changed_files(root, args.base)
+    try:
+        changed = args.files or changed_files(root, resolve_base(root, args.base))
+    except BaseError as e:
+        print(f"related: ERROR {e}", file=sys.stderr)
+        return 2
     for warning in snapshot_warnings(cfg, changed):
         print(warning)
     files = related(root, cfg, changed)

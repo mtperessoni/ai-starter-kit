@@ -1,6 +1,7 @@
 """Loads ai-kit.json and walks the repository files it describes."""
 
 import json
+import re
 import subprocess
 from fnmatch import fnmatchcase
 from pathlib import Path
@@ -14,6 +15,37 @@ def repo_root() -> Path:
         check=False,
     ).stdout.strip()
     return Path(out) if out else Path.cwd()
+
+
+class BaseError(Exception):
+    pass
+
+
+def _ref_exists(root: Path, ref: str) -> bool:
+    return subprocess.run(["git", "-C", str(root), "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"],  # noqa: S603, S607
+                          capture_output=True, check=False).returncode == 0
+
+
+def base_branch(root: Path) -> str:
+    repo = root / ".claude" / "skills" / "prd-flow" / "repo.md"
+    if repo.is_file():
+        m = re.search(r"^\|\s*base_branch\s*\|\s*([^|\s]+)\s*\|", repo.read_text(encoding="utf-8"), re.MULTILINE)
+        if m:
+            return m.group(1)
+    return "main"
+
+
+def resolve_base(root: Path, explicit: str | None = None) -> str:
+    """The comparison ref: the explicit one if it exists, else origin/<base>, else the local <base>, else BaseError."""
+    if explicit:
+        if _ref_exists(root, explicit):
+            return explicit
+        raise BaseError(f"base ref {explicit!r} does not exist: pass --base <existing ref>")
+    name = base_branch(root)
+    for ref in (f"origin/{name}", name):
+        if _ref_exists(root, ref):
+            return ref
+    raise BaseError(f"neither origin/{name} nor {name} exists: pass --base <ref>")
 
 
 def load(root: Path) -> dict:

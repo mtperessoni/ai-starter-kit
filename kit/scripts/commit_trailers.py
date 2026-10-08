@@ -1,6 +1,6 @@
 """Commit trailers: a commit that touches the source folders carries `Rules: <IDs>` or `Case: none (<reason>)`.
 
-Usage: python scripts/commit_trailers.py [<base>..<head>]   default origin/<base_branch>..HEAD (base_branch from repo.md)
+Usage: python scripts/commit_trailers.py [<base>..<head> | --base <ref>]   default <resolved base>..HEAD (origin/<base_branch>, else the local one)
 Prints the offending commits and exits 1.
 """
 
@@ -8,7 +8,7 @@ import re
 import subprocess
 import sys
 
-from kit_config import load, repo_root
+from kit_config import BaseError, load, repo_root, resolve_base
 
 RULES = re.compile(r"^Rules:\s*\S+", re.MULTILINE)
 CASE = re.compile(r"^Case:\s*none\s*\(([^()\n]+)\)\s*$", re.MULTILINE)
@@ -27,15 +27,6 @@ def git(root, *args) -> str:
 
 class GitError(Exception):
     pass
-
-
-def base_branch(root) -> str:
-    repo = root / ".claude" / "skills" / "prd-flow" / "repo.md"
-    if repo.is_file():
-        m = re.search(r"^\|\s*base_branch\s*\|\s*([^|\s]+)\s*\|", repo.read_text(encoding="utf-8"), re.MULTILINE)
-        if m:
-            return m.group(1)
-    return "main"
 
 
 def has_trailer(body: str) -> bool:
@@ -69,7 +60,15 @@ def offenders(root, rng: str, sources: list[str]) -> list[str]:
 def main() -> int:
     root = repo_root()
     cfg = load(root)
-    rng = sys.argv[1] if len(sys.argv) > 1 else f"origin/{base_branch(root)}..HEAD"
+    args = sys.argv[1:]
+    try:
+        if args[:1] == ["--base"]:
+            rng = f"{resolve_base(root, args[1] if len(args) > 1 else '')}..HEAD"
+        else:
+            rng = args[0] if args else f"{resolve_base(root)}..HEAD"
+    except BaseError as e:
+        print(f"commit trailers: ERROR {e}", file=sys.stderr)
+        return 2
     try:
         bad = offenders(root, rng, cfg["source_dirs"])
     except GitError as e:

@@ -1,0 +1,156 @@
+"""promote.py: the mechanical part of the Promote task, on a throwaway project with a real git repository."""
+
+import shutil
+import unittest
+
+from tests.test_kit_scripts import KIT, Project, run, write
+
+PROMOTE = ".claude/skills/prd-flow/scripts/promote.py"
+PRD = "docs/prd/shop/05-orders.md"
+STATE = ".claude/prd-flow/state/disc"
+
+PRD_TEXT = """\
+## 05. Step 1 · Orders
+
+An order is created from a cart.
+
+| ID | Rule | Source | Change via |
+|---|---|---|---|
+| ORD-01 | An order is created only from a cart with at least one item. | src/features/orders/order_service.py::create_order | code |
+| ORD-02 | *(approved 2026-10-04, pending code)* An unpaid order is cancelled after 20 s. | planned | config |
+| ORD-03 | *(approved 2026-10-04, pending code)* A paid order is shipped. | planned | code |
+| ORD-04 | *(approved 2026-10-04, pending code)* A refund keeps the invoice. | planned | code |
+"""
+
+APPROVED = """\
+# Approved rules · disc · 2026-10-04 · Ana
+## docs/prd/shop/05-orders.md
+| ORD-02 | *(approved 2026-10-04, pending code)* An unpaid order is cancelled after 20 s. | planned | config |
+| ORD-03 | *(approved 2026-10-04, pending code)* A paid order is shipped. | planned | code |
+| ORD-04 | *(approved 2026-10-04, pending code)* A refund keeps the invoice. | planned | code |
+## Supersedes
+- ORD-02 (An unpaid order is cancelled after 30 s.)
+- ORD-01 (An order is created only from a cart with at least one item.)
+"""
+
+DECISIONS = """\
+# Decisions · 001-disc
+
+| ID | Question | Decision | Rejected alternative | Why | Rules |
+|---|---|---|---|---|---|
+| DEC-01 | How long to wait? | 20 s | 30 s | carts expire | ORD-02 |
+"""
+
+DELIVERIES = """\
+## T01
+Source: ORD-02 src/features/orders/order_service.py::cancel_unpaid
+Source: ORD-03 src/features/orders/ship.py
+"""
+
+TRD = """\
+# orders
+
+## Planned (disc, feat/disc)
+
+| File | Changes or creates | Symbols | IDs |
+|---|---|---|---|
+| `src/features/orders/refund.py` | creates | `refund` | ORD-04 |
+"""
+
+
+class PromoteTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.p = Project()
+        r = self.p.root
+        shutil.copytree(KIT / "docs" / "templates", r / "docs" / "templates", dirs_exist_ok=True)
+        write(r, PRD, PRD_TEXT)
+        write(r, f"{STATE}/approved-rules.md", APPROVED)
+        write(r, f"{STATE}/deliveries.md", DELIVERIES)
+        write(r, f"{STATE}/state.md", "state\n")
+        write(r, "docs/trd/orders.md", TRD)
+        write(r, "changes/001-disc/decisions.md", DECISIONS)
+        write(r, "changes/001-disc/plan.md", "plan\n")
+        run(r, "git", "add", "-A", check=True)
+        run(r, "git", "commit", "-q", "-m", "approved", check=True)
+
+    def tearDown(self) -> None:
+        self.p.close()
+
+    def promote(self, *extra: str):
+        return self.p.py(PROMOTE, "disc", *extra)
+
+    def text(self, rel: str) -> str:
+        return (self.p.root / rel).read_text(encoding="utf-8")
+
+    def test_dry_run_changes_nothing_and_prints_at_most_ten_lines(self) -> None:
+        def status() -> list[str]:
+            return [ln for ln in run(self.p.root, "git", "status", "--porcelain").stdout.splitlines() if "__pycache__" not in ln]
+
+        before = status()
+        r = self.promote("--dry-run")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertLessEqual(len(r.stdout.strip().splitlines()), 10)
+        self.assertIn("dry-run", r.stdout)
+        self.assertEqual(status(), before)
+        self.assertTrue((self.p.root / "changes/001-disc").is_dir())
+
+    def test_markers_leave_and_sources_come_from_deliveries_then_the_trd(self) -> None:
+        r = self.promote()
+        out = r.stdout + r.stderr
+        self.assertLessEqual(len(r.stdout.strip().splitlines()), 10, out)
+        prd = self.text(PRD)
+        self.assertNotIn("pending code", prd)
+        self.assertIn("| ORD-02 | An unpaid order is cancelled after 20 s. | src/features/orders/order_service.py::cancel_unpaid | config |", prd)
+        self.assertIn("| src/features/orders/ship.py | code |", prd)
+        self.assertIn("| src/features/orders/refund.py | code |", prd)
+
+    def test_a_superseded_row_leaves_the_prd(self) -> None:
+        self.promote()
+        self.assertNotIn("| ORD-01 |", self.text(PRD))
+
+    def test_the_changelog_keeps_old_text_literally_and_the_decisions(self) -> None:
+        self.promote()
+        log = self.text("docs/prd/CHANGELOG.md")
+        self.assertIn("An unpaid order is cancelled after 30 s.", log)
+        self.assertIn("An order is created only from a cart with at least one item.", log)
+        self.assertIn("| DEC-01 | How long to wait? | 20 s | 30 s | carts expire | ORD-02 |", log)
+        self.assertIn("Ana", log)
+        self.assertLess(log.index("## "), log.index("DEC-01"))
+
+    def test_the_change_folder_is_archived_and_the_state_keeps_only_deliveries(self) -> None:
+        self.promote()
+        self.assertTrue((self.p.root / "changes/archive/001-disc/plan.md").is_file())
+        self.assertFalse((self.p.root / "changes/001-disc").exists())
+        left = sorted(x.name for x in (self.p.root / STATE).iterdir())
+        self.assertEqual(left, ["deliveries.md"])
+
+    def test_the_html_is_rebuilt_when_generated(self) -> None:
+        r = self.promote()
+        html = self.text("docs/prd/prd.html")
+        self.assertIn("ORD-03", html, r.stdout)
+        self.assertNotIn("ORD-01<", html)
+
+    def test_it_runs_the_final_gate_and_prints_its_last_line(self) -> None:
+        r = self.promote()
+        self.assertIn("gate --final:", r.stdout)
+
+    def test_a_row_without_a_source_is_a_listed_warning(self) -> None:
+        (self.p.root / "docs/trd/orders.md").unlink()
+        (self.p.root / STATE / "deliveries.md").write_text("", encoding="utf-8")
+        r = self.promote()
+        self.assertIn("WARN", r.stdout)
+        self.assertIn("ORD-04", r.stdout)
+
+    def test_an_amendment_file_and_a_trd_planned_section_are_warnings(self) -> None:
+        write(self.p.root, "docs/prd/shop/05a-amendment-orders.md", PRD_TEXT.replace("ORD-0", "AMD-0"))
+        r = self.promote()
+        self.assertIn("amendment", r.stdout)
+
+    def test_an_unknown_slug_is_an_error(self) -> None:
+        r = self.p.py(PROMOTE, "nope")
+        self.assertEqual(r.returncode, 2, r.stdout)
+        self.assertIn("approved-rules.md", r.stdout + r.stderr)
+
+
+if __name__ == "__main__":
+    unittest.main()
