@@ -138,12 +138,14 @@ class RepsAndAdoptionTest(unittest.TestCase):
     def test_hard_gates_judge_the_candidate_alone(self):
         flow = folder(self.tmp.name, "f", {"FLOW-S5-r1": {"status": "ok", "hidden_passed": 4, "hidden_total": 4,
                                                           "contradiction_left": 0, "conflict_recall": 0.5,
-                                                          "dispatch_map": 1.0, "main_violations": 2}})
+                                                          "dispatch_map": 1.0, "main_violations": 2,
+                                                          "review_coverage": 0.5}})
         text = rounds.render([f"{self.base}:GATE", f"{flow}:FLOW"], f"{self.base}:GATE")
         self.assertIn("FAIL Conflict recall 1.0 (hard gate)", text)
         self.assertIn("FAIL Protocol: main_violations 0 (hard gate)", text)
         self.assertIn("PASS Protocol: dispatch_map 1.0 (hard gate)", text)
         self.assertIn("PASS Behavior: hidden tests 100% (hard gate)", text)
+        self.assertIn("FAIL Protocol: review_coverage 1.0 (hard gate)", text)
 
     def test_noise_band_is_the_spread_of_the_reps(self):
         import adoption

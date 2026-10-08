@@ -367,6 +367,44 @@ def _flow_session():
     ]
 
 
+def _plan_write(review, waves=2):
+    lines = "\n".join(f"WAVE {i}: T0{i} (sonnet, lens none)" for i in range(1, waves + 1))
+    text = f"## Plan\nPlan: changes/001-x/plan.md\n{lines}\nCRITICAL PATH: T01\nReview: {review}\nExecution: x\n"
+    return _call("p", "2026-10-07T10:00:00Z", [_use("W", "Edit", file_path="/p/.claude/prd-flow/state/x/state.md",
+                                                      old_string="a", new_string=text)])
+
+
+def _reviewer(n):
+    return [_call(f"r{i}", f"2026-10-07T10:1{i}:00Z",
+                  [_use(f"R{i}", "Agent", subagent_type="prd-flow-reviewer", prompt="Wave: 1")]) for i in range(n)]
+
+
+class ReviewCoverageTest(unittest.TestCase):
+    def cov(self, review, done, waves=2, plan=True):
+        d = tempfile.TemporaryDirectory()
+        self.addCleanup(d.cleanup)
+        p = Path(d.name) / "t.jsonl"
+        evs = ([_plan_write(review, waves)] if plan else []) + _reviewer(done)
+        p.write_text("\n".join(json.dumps(e) for e in evs) + "\n", encoding="utf-8")
+        return transcript.summarize(p)["review_coverage"]
+
+    def test_per_wave_with_one_review_is_half(self):
+        self.assertEqual(self.cov("per wave", 1), 0.5)
+
+    def test_per_wave_fully_reviewed(self):
+        self.assertEqual(self.cov("per wave", 2), 1.0)
+
+    def test_serial_plan_needs_one_review(self):
+        self.assertEqual(self.cov("once after the last wave", 1), 1.0)
+        self.assertEqual(self.cov("once after the last wave", 0), 0.0)
+
+    def test_extra_reviews_cap_at_one(self):
+        self.assertEqual(self.cov("once after the last wave", 3), 1.0)
+
+    def test_no_plan_is_none(self):
+        self.assertIsNone(self.cov("", 1, plan=False))
+
+
 class FlowMetricsTest(unittest.TestCase):
     def setUp(self):
         d = tempfile.TemporaryDirectory()

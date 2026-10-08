@@ -27,7 +27,7 @@ The single scorecard every eval round uses to judge a change to the kit (MAINTAI
 | Behavior | hidden tests 100% |
 | Consistent PRD | `contradiction_left` 0 |
 | Conflict recall | the expected conflict IDs named in the surveyor's impact (`conflict_recall` 1.0) |
-| Protocol | every planned step dispatched (`dispatch_map` 1.0) and `main_violations` 0 (main edits under docs/ or src/, main reads of source before the surveyor, extra main gate runs, worker-only references read by the main; kept for the GATE arm's history) |
+| Protocol | every planned step dispatched (`dispatch_map` 1.0), every planned review done (`review_coverage` 1.0) and `main_violations` 0 (main edits under docs/ or src/, main reads of source before the surveyor, extra main gate runs, worker-only references read by the main; kept for the GATE arm's history) |
 | Chief contract (prd-flow arms, C6-07) | `chief_violations` 0, `return_compliance` 1.0, `surveyor_first` true |
 
 ## Supporting metrics (M1 to M8 of M07)
@@ -40,7 +40,7 @@ The single scorecard every eval round uses to judge a change to the kit (MAINTAI
 | M5 Errors and waste | `error_rate`, `error_kinds`, `gate_runs_main`, `gate_runs_sub`, `gate_fail_ratio`, `rereads`, `max_reruns_per_step` |
 | M6 Implementation versus plan | `plan_coverage`, `plan_drift`, `first_pass_rate`, `review_rounds`, `findings_by_severity`, `review_weighted` (blind findings weighted Critical 8, High 4, Medium 2, Low 1, per 100 changed lines) |
 | M7 Output quality | `prd_fidelity`, `conflict_found`, `conflict_recall`, `contradiction_left`, `gap_recorded`, `traceability`, `single_source` |
-| M8 Protocol | `dispatch_map`, `main_violations`, `docs_first` |
+| M8 Protocol | `dispatch_map`, `review_coverage`, `main_violations`, `docs_first` |
 
 ## Definitions of the flow fields
 | Field | Definition |
@@ -48,6 +48,7 @@ The single scorecard every eval round uses to judge a change to the kit (MAINTAI
 | `main_calls`, `start_context` | unique main API calls; input tokens of the first main call |
 | `main_cache_write`, `cache_busts` | largest cache write of a main call after the first; calls above 30k |
 | `dispatch_map` | share of the required roles (surveyor, docs, executor, reviewer) dispatched; role by `subagent_type` `prd-flow-<role>`, else by description |
+| `review_coverage` | reviewer dispatches over the reviews the plan requires, capped at 1.0: the `Review:` line written to state.md `## Plan` (`per wave` = one per `WAVE` line, otherwise one after the last wave); carried across phases; None when no plan was written; below 1.0 fails the hard gate |
 | `main_violations` | main Edit or Write under `src/`, `docs/` or `tests/` (paths relative to the project root), main reads of those before the first surveyor (carried across the phases of a two-phase run; the request's own document under `docs/incoming/` is exempt), main reads of worker-only references, and the categories counted separately (`main_source_reads`: Read, Grep or `cat` of `src/` or `tests/` after the surveyor; `main_diff_reads`: `git diff` or `git show` without `--stat` or `--name-only` after the surveyor; `kit_script_reads`: reads of `scripts/` files, `gate.py`, `promote.py`; `agent_file_edits`: main edits of `deliveries.md`, `impact.md`, `pack.md`, `execution.md`, `review.md`, `approved-rules.md`; `retro_rereads`: reads of `retro.md`), and main gate runs outside the allowed set: `--rules` once (plus reruns directly after a failed run of the same command), `gates.sh close`, `gates.sh context|baseline`, and one `--step plan` after the docs agent returned; `--step` runs otherwise belong to agents. Exempt: one Grep of `docs/prd/INDEX.md`, git config/rev-parse/log, reads of `repo.md` and of plan.md by range; None when no surveyor or executor ran |
 | `chief_violations` | every chief (main thread) tool use outside Agent or Task dispatch, AskUserQuestion, Skill (loading the skill), Read, Write or Edit of `state.md`, Read of `repo.md`; every chief Bash call counts, scripts, git and gates included; None when nothing was dispatched |
 | `return_compliance` | share of subagent returns (the last tool_result of each dispatch) that end with the five fields `Status`, `Files`, `Commit`, `Route`, `Next` in order (C6-02); `returns_total` and `returns_ok` are the counts; None with no returns |

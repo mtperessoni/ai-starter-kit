@@ -20,7 +20,7 @@ METRICS = {
                                           "blind_findings_total", "review_weighted", "accept"]),
     "M7": ("Output quality", ["prd_fidelity", "conflict_found", "contradiction_left",
                               "gap_recorded", "traceability", "single_source", "conflict_recall"]),
-    "M8": ("Protocol compliance", ["docs_dispatched", "protocol_adherence", "docs_first", "dispatch_map",
+    "M8": ("Protocol compliance", ["docs_dispatched", "protocol_adherence", "docs_first", "dispatch_map", "review_coverage",
                                   "main_violations", "chief_violations", "return_compliance", "surveyor_first",
                                   "inline_residency", "waves"]),
 }
@@ -28,7 +28,7 @@ SEVERITY_WEIGHTS = {"critical": 8, "high": 4, "medium": 2, "low": 1}
 FLOW_KEYS = ("main_calls", "main_tokens_post_exec", "main_cache_write", "cache_busts", "start_context",
              "main_only_min", "main_violations", "inline_residency", "waves", "wave_widths",
              "parallel_factor", "ceremony_ratio", "max_reruns_per_step", "rework_actions",
-             "dispatch_map", "agents_by_role", "first_pass_clean", "main_diff_reads", "main_source_reads",
+             "dispatch_map", "review_coverage", "agents_by_role", "first_pass_clean", "main_diff_reads", "main_source_reads",
              "kit_script_reads", "agent_file_edits", "retro_rereads", "cost_by_role", "chief_violations",
              "return_compliance", "surveyor_first")
 LABELS = {"wall_min": "wall_min (active turns only)", "runner_wall_min": "runner_wall_min (run clock)"}
@@ -46,7 +46,7 @@ DIRECTION = {
     **dict.fromkeys(("cache_hit_rate", "tasks_done", "hidden_passed", "completed", "plan_coverage",
                      "first_pass_rate", "accept", "prd_fidelity", "conflict_found", "gap_recorded",
                      "traceability", "docs_dispatched", "protocol_adherence", "docs_first", "first_pass",
-                     "conflict_recall", "dispatch_map", "parallel_factor", "return_compliance"), HIGHER),
+                     "conflict_recall", "dispatch_map", "review_coverage", "parallel_factor", "return_compliance"), HIGHER),
     **{f"error_kinds.{k}": LOWER for k in KINDS},
 }
 ADDITIVE = {"tokens_total", "tokens_main", "tokens_subagents", "cost_usd", "tasks_planned",

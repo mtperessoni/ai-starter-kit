@@ -70,6 +70,7 @@ def hard_gates(cand_runs):
     for label, field, test in (("Consistent PRD: contradiction_left 0", "contradiction_left", lambda x: x == 0),
                                ("Conflict recall 1.0", "conflict_recall", lambda x: x == 1.0),
                                ("Protocol: dispatch_map 1.0", "dispatch_map", lambda x: x == 1.0),
+                               ("Protocol: review_coverage 1.0", "review_coverage", lambda x: x == 1.0),
                                ("Protocol: main_violations 0", "main_violations", lambda x: x == 0),
                                ("Protocol: chief_violations 0", "chief_violations", lambda x: x == 0),
                                ("Protocol: return_compliance 1.0", "return_compliance", lambda x: x == 1.0)):

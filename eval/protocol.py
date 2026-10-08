@@ -27,6 +27,8 @@ DOC_RE = re.compile(r"(^|[\\/])(docs|changes|specs|\.claude)[\\/]|\.md$")
 WORKER_ONLY_RE = re.compile(r"reference[\\/]workers[\\/]|\.claude[\\/]agents[\\/]prd-flow-"
                             r"|(^|[\\/])(impact|classification|agent-plan|prd-writing|trd-planned)\.md$")
 CHIEF_FREE = {"AskUserQuestion", "Skill"}
+WAVE_LINE_RE = re.compile(r"^WAVE\s+\d+", re.M)
+REVIEW_LINE_RE = re.compile(r"^Review:\s*(.+)$", re.M)
 STATE_FILE_RE = re.compile(r"(^|[\\/])state\.md$")
 REPO_FILE_RE = re.compile(r"(^|[\\/])repo\.md$")
 RETURN_FIELDS = ("Status:", "Files:", "Commit:", "Route:", "Next:")
@@ -118,6 +120,24 @@ def chief_violation(name, rel):
     return not (name == "Read" and REPO_FILE_RE.search(rel))
 
 
+def plan_reviews(text, plan):
+    """Updates `plan` ({waves, per_wave}) from a state.md write that carries the WAVE or Review lines of `## Plan`."""
+    waves = len(WAVE_LINE_RE.findall(text))
+    if waves:
+        plan["waves"] = waves
+    m = REVIEW_LINE_RE.search(text)
+    if m:
+        plan["per_wave"] = "per wave" in m[1].lower()
+        plan.setdefault("waves", 1)
+
+
+def reviews_required(plan):
+    """Reviews the plan's Review line asks for, or None when no plan was written."""
+    if "per_wave" not in plan:
+        return None
+    return plan["waves"] if plan["per_wave"] else 1
+
+
 def _target(inp):
     return str(inp.get("file_path") or inp.get("path") or inp.get("pattern") or "")
 
@@ -193,6 +213,7 @@ def _gate_allowed(cmd, st):
 def analyze(events, carry=None):
     """Flow metrics from the parsed events of one session; `carry` holds the seen roles across the phases of a run."""
     carry = carry if carry is not None else {}
+    plan = carry.setdefault("plan", {})
     main_calls, order = {}, 0
     roles = dict.fromkeys(ROLES, 0)
     exec_ids, exec_prompts, redispatch = set(), set(), 0
@@ -251,6 +272,8 @@ def analyze(events, carry=None):
                 name = b.get("name")
                 tgt = _target(inp)
                 rel = _rel(tgt, cwd) if tgt else ""
+                if name in EDIT and STATE_FILE_RE.search(rel):
+                    plan_reviews(str(inp.get("new_string") or inp.get("content") or ""), plan)
                 if name in SPAWN and parent is None:
                     role = role_of(inp)
                     first_role = first_role or role
@@ -347,6 +370,7 @@ def analyze(events, carry=None):
                     finish(tid, ts)
     for tid in [t for t in exec_ids if t in launched]:
         exec_spans[tid] = _span(spans.get(tid), exec_start.get(tid), None)
+    carry["reviews"] = carry.get("reviews", 0) + roles["reviewer"]
     carry.update(first_role=first_role, surveyor=surveyor_seen, executor=exec_seen, docs=gate_state["docs_seen"])
     violations = (edits + reads_before + worker_reads + extra + diff_reads + source_reads + kit_reads
                   + agent_edits + retro_reads) if (surveyor_seen or exec_seen) else None
@@ -357,8 +381,10 @@ def analyze(events, carry=None):
     exec_wall = _union_length(list(exec_spans.values()))
     agent_exec = sum(s[1] - s[0] for s in exec_spans.values())
     required = [roles[r] > 0 for r in REQUIRED_ROLES]
+    need = reviews_required(plan)
     return {
         "agents_by_role": roles,
+        "review_coverage": min(1.0, carry["reviews"] / need) if need else None,
         "dispatch_map": sum(required) / len(required),
         "main_calls": len(main_calls),
         "main_tokens_post_exec": post_exec_tokens,
