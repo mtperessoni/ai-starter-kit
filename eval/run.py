@@ -2,6 +2,7 @@
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -66,16 +67,31 @@ def operator_config_dir(env=None):
     return Path(env.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude")
 
 
+AUTH_NAMES = {"CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_USE_BEDROCK",
+              "CLAUDE_CODE_USE_VERTEX", "AWS_REGION", "AWS_DEFAULT_REGION", "AWS_PROFILE", "CLOUD_ML_REGION",
+              "ANTHROPIC_VERTEX_PROJECT_ID", "ANTHROPIC_BASE_URL"}
+AUTH_SOURCES = ("CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_USE_BEDROCK",
+                "CLAUDE_CODE_USE_VERTEX")
+
+
 def hermetic_env(base_env=None, source=None):
     """(temp config folder, env): a fresh CLAUDE_CONFIG_DIR holding only the credentials file, so no
-    personal CLAUDE.md, skills, hooks, memory or settings load and auth still works."""
-    base_env = {k: v for k, v in (os.environ if base_env is None else base_env).items()
-                if not k.startswith(INHERITED_PREFIXES) and k not in INHERITED_NAMES}
+    personal CLAUDE.md, skills, hooks, memory or settings load and auth still works. Auth variables are kept;
+    with neither a credentials file nor an auth variable it raises before any run is paid for."""
+    full = dict(os.environ if base_env is None else base_env)
+    base_env = {k: v for k, v in full.items()
+                if k in AUTH_NAMES or not (k.startswith(INHERITED_PREFIXES) or k in INHERITED_NAMES)}
     src = Path(source) if source else operator_config_dir(base_env)
-    tmp = Path(tempfile.mkdtemp(prefix="ai-kit-claude-"))
     creds = src / ".credentials.json"
-    if creds.is_file():
-        shutil.copy2(creds, tmp / ".credentials.json")
+    if not creds.is_file() and not any(base_env.get(k) for k in AUTH_SOURCES):
+        raise RuntimeError(f"no credentials: {creds} is missing and none of {', '.join(AUTH_SOURCES)} is set")
+    tmp = Path(tempfile.mkdtemp(prefix="ai-kit-claude-"))
+    try:
+        if creds.is_file():
+            shutil.copy2(creds, tmp / ".credentials.json")
+    except OSError:
+        shutil.rmtree(tmp, ignore_errors=True)
+        raise
     base_env["CLAUDE_CONFIG_DIR"] = str(tmp)
     return tmp, base_env
 
@@ -148,10 +164,23 @@ def classify(jsonl, returncode):
 
 
 def state_slug(project):
-    """The slug of the one change in flight: the state folder phase 1 left behind."""
-    base = Path(project) / ".claude" / "prd-flow" / "state"
-    names = sorted(p.name for p in base.iterdir() if p.is_dir() and not p.name.startswith("_")) if base.is_dir() else []
-    return names[0] if names else None
+    """The change to resume: the newest state folder holding approved-rules.md; when a promotion already
+    cleared the state, the newest changes/NNN-<slug> folder; None when neither exists."""
+    root = Path(project)
+    base = root / ".claude" / "prd-flow" / "state"
+    approved = [p for p in base.iterdir() if p.is_dir() and not p.name.startswith("_")
+                and (p / "approved-rules.md").is_file()] if base.is_dir() else []
+    if approved:
+        return max(approved, key=lambda p: (p / "approved-rules.md").stat().st_mtime).name
+    changes = root / "changes"
+    names = sorted(p.name for p in changes.iterdir()
+                   if p.is_dir() and re.match(r"\d+-", p.name)) if changes.is_dir() else []
+    return re.sub(r"^\d+-", "", names[-1]) if names else None
+
+
+def split_budget(budget_usd):
+    """(phase 1, phase 2) share of the budget of a two-phase run: 70% and 30%."""
+    return round(budget_usd * 0.7, 4), round(budget_usd * 0.3, 4)
 
 
 def render_phase2(template, slug, decisions):
@@ -166,17 +195,20 @@ def run_sessions(arm_cfg, cfg, project, prompt, scenario, pair, args, results, n
     two = arm_cfg.get("two_phase")
     if two:
         prompt += "\n\n" + (HERE / "prompt-phase1.md").read_text(encoding="utf-8")
-    status = run_claude(project, prompt, pair["budget_usd"], timeout, transcript,
+    budget1, budget2 = split_budget(pair["budget_usd"]) if two else (pair["budget_usd"], 0)
+    status = run_claude(project, prompt, budget1, timeout, transcript,
                         results / f"{name}.stderr.log", model, effort, env)
     if not two or status != "ok":
         return status, [transcript]
     slug = state_slug(project)
     if slug is None:
-        return "crash", [transcript]
+        (results / f"{name}.p2.skipped.txt").write_text(
+            "phase 2 skipped: no state folder with approved-rules.md and no changes/ folder\n", encoding="utf-8")
+        return status, [transcript]
     p2 = results / f"{name}.p2.jsonl"
     prompt2 = render_phase2((HERE / "prompt-phase2.md").read_text(encoding="utf-8"), slug,
                             (scenario / "decisions.md").read_text(encoding="utf-8"))
-    status = run_claude(project, prompt2, pair["budget_usd"], timeout, p2, results / f"{name}.p2.stderr.log",
+    status = run_claude(project, prompt2, budget2, timeout, p2, results / f"{name}.p2.stderr.log",
                         arm_cfg.get("phase2_model", "sonnet"), arm_cfg.get("phase2_effort", effort), env)
     return status, [transcript, p2]
 
@@ -254,6 +286,11 @@ def main(argv=None):
     if args.dry_run:
         os.environ["EVAL_NO_JUDGE"] = "1"
         os.environ["EVAL_NO_REVIEW"] = "1"
+    else:
+        try:
+            shutil.rmtree(hermetic_env()[0], ignore_errors=True)
+        except RuntimeError as e:
+            raise SystemExit(str(e))
 
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     results = Path(args.out) if args.out else HERE / "results" / stamp

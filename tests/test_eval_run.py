@@ -198,6 +198,7 @@ class BigConfigTest(unittest.TestCase):
         root = Path(tempfile.mkdtemp())
         (root / ".claude/prd-flow/state/_close").mkdir(parents=True)
         (root / ".claude/prd-flow/state/min-order").mkdir()
+        (root / ".claude/prd-flow/state/min-order/approved-rules.md").write_text("x", encoding="utf-8")
         self.assertEqual(run.state_slug(root), "min-order")
 
     def test_s8_is_complete(self):
@@ -208,6 +209,64 @@ class BigConfigTest(unittest.TestCase):
         for name in ("request.md", "decisions.md"):
             self.assertNotIn(chr(0x2014), (folder / name).read_text(encoding="utf-8"))
         self.assertTrue(list((folder / "hidden").glob("test_*.py")))
+
+
+class ReviewFixesTest(unittest.TestCase):
+    def _src(self):
+        import tempfile
+        src = Path(tempfile.mkdtemp())
+        self.addCleanup(__import__("shutil").rmtree, src, True)
+        return src
+
+    def test_auth_variables_survive_the_env_filter(self):
+        import shutil
+        env = {"CLAUDE_CODE_OAUTH_TOKEN": "t", "CLAUDE_CODE_USE_BEDROCK": "1", "AWS_REGION": "r",
+               "CLAUDE_CODE_SESSION_ID": "x", "ANTHROPIC_API_KEY": "k"}
+        tmp, out = run.hermetic_env(env, self._src())
+        self.addCleanup(shutil.rmtree, tmp, True)
+        for k in ("CLAUDE_CODE_OAUTH_TOKEN", "CLAUDE_CODE_USE_BEDROCK", "AWS_REGION", "ANTHROPIC_API_KEY"):
+            self.assertIn(k, out)
+        self.assertNotIn("CLAUDE_CODE_SESSION_ID", out)
+
+    def test_no_credentials_and_no_auth_variable_fails_early_and_cleans(self):
+        import tempfile
+        before = set(Path(tempfile.gettempdir()).glob("ai-kit-claude-*"))
+        with self.assertRaises(RuntimeError) as ctx:
+            run.hermetic_env({"PATH": "p"}, self._src())
+        self.assertIn("credentials", str(ctx.exception))
+        self.assertEqual(set(Path(tempfile.gettempdir()).glob("ai-kit-claude-*")), before)
+
+    def test_state_slug_picks_the_newest_approved_state(self):
+        import os
+        root = self._src()
+        base = root / ".claude/prd-flow/state"
+        for name, t in (("old", 100), ("new", 200)):
+            (base / name).mkdir(parents=True)
+            f = base / name / "approved-rules.md"
+            f.write_text("x", encoding="utf-8")
+            os.utime(f, (t, t))
+        (base / "unapproved").mkdir()
+        self.assertEqual(run.state_slug(root), "new")
+
+    def test_state_slug_falls_back_to_the_newest_change_folder(self):
+        root = self._src()
+        (root / ".claude/prd-flow/state/_close").mkdir(parents=True)
+        for n in ("001-first", "002-min-order", "archive"):
+            (root / "changes" / n).mkdir(parents=True)
+        self.assertEqual(run.state_slug(root), "min-order")
+        self.assertIsNone(run.state_slug(self._src()))
+
+    def test_phase_budgets_split_70_30(self):
+        self.assertEqual(run.split_budget(10), (7.0, 3.0))
+
+
+class AdoptionGateTest(unittest.TestCase):
+    def test_run_without_hidden_result_fails_the_gate(self):
+        import adoption
+        ok = {"hidden_passed": 4, "hidden_total": 4}
+        gate = adoption.hard_gates({"S5": [ok, {"status": "crash"}]})[0]
+        self.assertFalse(gate[1])
+        self.assertIn("1 had no hidden result", gate[2])
 
 
 if __name__ == "__main__":

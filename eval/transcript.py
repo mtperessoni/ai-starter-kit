@@ -119,7 +119,7 @@ def _usage_ratios(model_usage, main_model):
             tok["outputTokens"] / total if total else None)
 
 
-def summarize(path):
+def summarize(path, carry=None):
     msgs = {}  # assistant message id -> (usage, is_subagent); one id spans several events
     tool_errors, subagents, skills, started, result = 0, 0, set(), None, None
     tool_calls, test_ids, test_runs, failed_tests, rounds = 0, set(), 0, 0, 0
@@ -239,7 +239,7 @@ def summarize(path):
     review_agents = sum(1 for d in detail if d["review"])
     for d in detail:
         d.pop("id")
-    flow = protocol.analyze(events)
+    flow = protocol.analyze(events, carry)
     review_fix_rounds = max(0, (rounds or review_agents) - 1)
     rework = (len(gate_failed) + review_fix_rounds + failed_tests + flow["redispatches"]
               + flow["max_reruns_per_step"])
@@ -306,7 +306,8 @@ def _add(vals):
 
 def summarize_phases(paths):
     """One summary over the sessions of a two-phase run: counts and costs add, the rest is recombined."""
-    parts = [summarize(p) for p in paths]
+    carry = {}
+    parts = [summarize(p, carry) for p in paths]
     if len(parts) == 1:
         return parts[0]
     out = dict(parts[0])

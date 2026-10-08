@@ -407,5 +407,113 @@ class FlowMetricsTest(unittest.TestCase):
         self.assertEqual(protocol.analyze(ev)["redispatches"], 1)
 
 
+def _surv(ts="2026-10-07T10:00:05Z"):
+    return _call("sv", ts, [_use("S", "Agent", subagent_type="prd-flow-surveyor", prompt="g")])
+
+
+def _bash(mid, ts, cmd, tid=None):
+    return _call(mid, ts, [_use(tid or mid, "Bash", command=cmd)])
+
+
+def _viol(ev):
+    return protocol.analyze(ev)["main_violations"]
+
+
+class ProtocolReviewFixesTest(unittest.TestCase):
+    def test_rules_once_and_rerun_after_failure_are_allowed(self):
+        cmd = "python scripts/gate.py --rules x"
+        ev = [_surv(), _bash("a", "2026-10-07T10:01:00Z", cmd),
+              _done("2026-10-07T10:01:05Z", "a")]
+        ev[-1]["message"]["content"][0]["is_error"] = True
+        ev += [_bash("b", "2026-10-07T10:01:10Z", cmd), _done("2026-10-07T10:01:15Z", "b"),
+               _bash("c", "2026-10-07T10:01:20Z", cmd)]
+        self.assertEqual(_viol(ev), 1)
+
+    def test_close_allowed_and_step_in_main_is_a_violation(self):
+        ev = [_surv(), _bash("a", "2026-10-07T10:01:00Z", "scripts/gates.sh close x"),
+              _bash("b", "2026-10-07T10:01:10Z", "python gate.py --step plan --slug x")]
+        self.assertEqual(_viol(ev), 1)
+
+    def test_step_plan_allowed_once_after_docs_agent(self):
+        docs = _call("d", "2026-10-07T10:00:30Z", [_use("D", "Agent", description="Write docs", prompt="p")])
+        cmd = "python gate.py --step plan --slug x"
+        ev = [_surv(), docs, _bash("a", "2026-10-07T10:01:00Z", cmd),
+              _bash("b", "2026-10-07T10:01:10Z", cmd + " ")]
+        ev[-1]["message"]["content"][0]["input"]["command"] = cmd + " --again"
+        self.assertEqual(_viol(ev), 1)
+
+    def test_exempt_main_calls_score_zero(self):
+        ev = [_call("a", "2026-10-07T10:00:00Z", [
+            _use("g", "Grep", pattern="PRD-01", path="docs/prd/INDEX.md"),
+            _use("r", "Read", file_path=".claude/skills/prd-flow/repo.md"),
+            _use("c", "Bash", command="scripts/gates.sh context my-slug"),
+            _use("b", "Bash", command="scripts/gates.sh baseline my-slug"),
+            _use("u", "Bash", command="git config user.name"),
+            _use("v", "Bash", command="git rev-parse HEAD"),
+            _use("l", "Bash", command="git log --oneline -5")]), _surv("2026-10-07T10:00:10Z")]
+        self.assertEqual(_viol(ev), 0)
+        self.assertEqual(protocol.analyze(ev)["main_reads_before_surveyor"], 0)
+
+    def test_second_index_grep_counts(self):
+        g = lambda i: _use(i, "Grep", pattern="x", path="docs/prd/INDEX.md")
+        ev = [_call("a", "2026-10-07T10:00:00Z", [g("g1"), g("g2")]), _surv()]
+        self.assertEqual(_viol(ev), 1)
+
+    def test_plan_range_read_after_docs_is_allowed(self):
+        docs = _call("d", "2026-10-07T10:00:30Z", [_use("D", "Agent", description="Write docs", prompt="p")])
+        ev = [_surv(), docs, _call("a", "2026-10-07T10:01:00Z", [
+            _use("r", "Read", file_path="changes/001-x/plan.md", offset=10, limit=20)])]
+        self.assertEqual(_viol(ev), 0)
+
+    def test_phase_two_reads_after_surveyor_of_phase_one_are_not_violations(self):
+        carry = {}
+        protocol.analyze([_surv()], carry)
+        ev = [_call("a", "2026-10-07T11:00:00Z", [_use("r", "Read", file_path="src/orders/x.py")])]
+        self.assertEqual(_viol(ev), None)
+        self.assertEqual(protocol.analyze(ev, carry)["main_violations"], 0)
+
+    def test_background_executors_span_and_one_wave(self):
+        ev = [_call("m1", "2026-10-07T10:00:00Z", [
+            _use("E1", "Agent", subagent_type="prd-flow-executor", prompt="T01", run_in_background=True),
+            _use("E2", "Agent", subagent_type="prd-flow-executor", prompt="T02", run_in_background=True)]),
+            _done("2026-10-07T10:00:01Z", "E1", "Async agent launched"),
+            _done("2026-10-07T10:00:01Z", "E2", "Async agent launched"),
+            _call("m2", "2026-10-07T10:00:05Z", [_use("E3", "Agent", subagent_type="prd-flow-executor",
+                                                     prompt="T03", run_in_background=True)]),
+            _done("2026-10-07T10:00:06Z", "E3", "Async agent launched"),
+            _call("s1", "2026-10-07T10:00:10Z", [], parent="E1"),
+            _call("s2", "2026-10-07T10:00:10Z", [], parent="E2"),
+            _call("s3", "2026-10-07T10:04:00Z", [], parent="E1"),
+            _call("s4", "2026-10-07T10:04:00Z", [], parent="E2"),
+            _ev("user", "2026-10-07T10:04:10Z", message={"content": "<task-notification>E1 done</task-notification>"}),
+            _ev("user", "2026-10-07T10:04:20Z", message={"content": "<task-notification>E2 done</task-notification>"}),
+            _ev("user", "2026-10-07T10:04:30Z", message={"content": "<task-notification>E3 done</task-notification>"})]
+        r = protocol.analyze(ev)
+        self.assertEqual(r["wave_widths"], [3])
+        self.assertGreater(r["parallel_factor"], 2.0)
+
+    def test_same_message_executors_are_one_wave_even_when_foreground_returns_interleave(self):
+        ev = _flow_session()[4:5]
+        self.assertEqual(protocol.analyze(ev)["wave_widths"], [2])
+
+    def test_role_by_type_then_description_only(self):
+        self.assertEqual(protocol.role_of({"subagent_type": "prd-flow-reviewer", "description": "x"}), "reviewer")
+        self.assertEqual(protocol.role_of({"description": "Fix review findings", "prompt": "survey"}), "executor")
+        self.assertEqual(protocol.role_of({"description": "Review the wave", "prompt": "implement T01"}), "reviewer")
+        self.assertEqual(protocol.role_of({"description": "x", "prompt": "review it"}), "other")
+
+    def test_paths_are_relative_to_the_project_root(self):
+        init = _ev("system", "2026-10-07T10:00:00Z", subtype="init", cwd="/home/me/src/proj")
+        ev = [init, _call("a", "2026-10-07T10:00:01Z", [_use("r", "Read", file_path="/home/me/src/proj/README.txt"),
+                                                         _use("r2", "Read", file_path="/home/me/src/proj/src/a.py")]),
+              _surv("2026-10-07T10:00:05Z")]
+        self.assertEqual(protocol.analyze(ev)["main_reads_before_surveyor"], 1)
+
+    def test_commands_match_whole_commands_only(self):
+        ev = [_bash("a", "2026-10-07T10:00:00Z", "echo concatenate src/a.py && ls src/"),
+              _bash("b", "2026-10-07T10:00:01Z", "sed -n '1,20p' src/a.py"), _surv()]
+        self.assertEqual(protocol.analyze(ev)["main_reads_before_surveyor"], 1)
+
+
 if __name__ == "__main__":
     unittest.main()

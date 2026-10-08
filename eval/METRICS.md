@@ -47,8 +47,8 @@ The single scorecard every eval round uses to judge a change to the kit (MAINTAI
 | `main_calls`, `start_context` | unique main API calls; input tokens of the first main call |
 | `main_cache_write`, `cache_busts` | largest cache write of a main call after the first; calls above 30k |
 | `dispatch_map` | share of the required roles (surveyor, docs, executor, reviewer) dispatched; role by `subagent_type` `prd-flow-<role>`, else by description |
-| `main_violations` | main Edit or Write under `src/`, `docs/` or `tests/`, main reads of those before the first surveyor, main reads of worker-only references, main gate runs outside `--rules`, `--step plan` and `close` plus repeats of those; None when no surveyor or executor ran |
-| `waves`, `wave_widths` | an executor dispatch opens a wave when no executor is outstanding; widths count executors per wave |
+| `main_violations` | main Edit or Write under `src/`, `docs/` or `tests/` (paths relative to the project root), main reads of those before the first surveyor (carried across the phases of a two-phase run), main reads of worker-only references, and main gate runs outside the allowed set: `--rules` once (plus reruns directly after a failed run of the same command), `gates.sh close`, `gates.sh context|baseline`, and one `--step plan` after the docs agent returned; `--step` runs otherwise belong to agents. Exempt: one Grep of `docs/prd/INDEX.md`, git config/rev-parse/log, reads of `repo.md` and of plan.md by range; None when no surveyor or executor ran |
+| `waves`, `wave_widths` | executors dispatched in one assistant message are one wave; a later dispatch opens a wave when no executor is outstanding. An executor ends at its completion (last child event, task notification or final result), not at the immediate result of a background launch |
 | `parallel_factor` | executor agent minutes over the wall time from the first executor start to the last executor end |
 | `ceremony_ratio` | tool calls on docs, changes, specs and `.claude` paths over calls on `src` and `tests` paths |
 | `rework_actions` | gate fails + review rounds past the first + failed test runs + re-dispatched task cards + the largest rerun count of one gate or lint command |
@@ -69,3 +69,6 @@ The single scorecard every eval round uses to judge a change to the kit (MAINTAI
 
 ## Adoption
 Hard gates hold; on S5 the median of 3 reps is within +10% of the base on `cost_per_accept` and `wall_min`; every other metric outside the noise band (the spread of the reps) counts as a win or a loss, and wins must at least equal losses in each group.
+
+## Two-phase budget
+A two-phase arm splits `budget_usd` between the sessions: 70% to phase 1 and 30% to phase 2 (`run.split_budget`). A phase 2 with no state folder holding `approved-rules.md` and no `changes/` folder is skipped with a `<run>.p2.skipped.txt` reason, not a crash.

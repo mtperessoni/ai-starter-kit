@@ -61,11 +61,12 @@ def _all(cand_runs, field, ok):
 def hard_gates(cand_runs):
     """[(label, ok or None, detail)] of the hard gates of eval/METRICS.md, judged on the candidate alone."""
     gates = []
-    passed = [r for runs in cand_runs.values() for r in runs
-              if six.vals([r], "hidden_passed") and six.vals([r], "hidden_total")]
-    gates.append(("Behavior: hidden tests 100% (hard gate)",
-                  all(r["hidden_passed"] == r["hidden_total"] for r in passed) if passed else None,
-                  f"{sum(1 for r in passed if r['hidden_passed'] != r['hidden_total'])} of {len(passed)} runs fail"))
+    runs = [r for rs in cand_runs.values() for r in rs]
+    has = [r for r in runs if six.vals([r], "hidden_passed") and six.vals([r], "hidden_total")]
+    missing = len(runs) - len(has)
+    bad = sum(1 for r in has if r["hidden_passed"] != r["hidden_total"])
+    gates.append(("Behavior: hidden tests 100% (hard gate)", (bad + missing == 0) if runs else None,
+                  f"{bad} of {len(has)} runs fail, {missing} had no hidden result"))
     for label, field, test in (("Consistent PRD: contradiction_left 0", "contradiction_left", lambda x: x == 0),
                                ("Conflict recall 1.0", "conflict_recall", lambda x: x == 1.0),
                                ("Protocol: dispatch_map 1.0", "dispatch_map", lambda x: x == 1.0),
