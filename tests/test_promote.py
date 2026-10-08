@@ -1,5 +1,6 @@
 """promote.py: the mechanical part of the Promote task, on a throwaway project with a real git repository."""
 
+import re
 import shutil
 import unittest
 
@@ -195,6 +196,57 @@ class PromoteTest(unittest.TestCase):
         r = self.p.py(PROMOTE, "nope")
         self.assertEqual(r.returncode, 2, r.stdout)
         self.assertIn("approved-rules.md", r.stdout + r.stderr)
+
+    def source_case(self, deliveries: str, expect: dict[str, str]) -> None:
+        (self.p.root / "docs/trd/orders.md").unlink()
+        (self.p.root / STATE / "deliveries.md").write_text(deliveries, encoding="utf-8")
+        r = self.promote()
+        self.assertNotIn("have no Source", r.stdout, r.stdout)
+        prd = self.text(PRD)
+        for rid, src in expect.items():
+            self.assertRegex(prd, rf"\| {rid} \| [^|]*\| {re.escape(src)} \|")
+
+    def test_source_with_a_colon_after_the_id_and_a_symbol(self) -> None:
+        self.source_case("Source: ORD-02: src/a.py::cancel\nSource: ORD-03: src/b.py::ship\nSource: ORD-04: src/c.py::refund\n",
+                         {"ORD-02": "src/a.py::cancel", "ORD-03": "src/b.py::ship", "ORD-04": "src/c.py::refund"})
+
+    def test_source_with_an_id_list_sets_every_id(self) -> None:
+        self.source_case("Source: ORD-02, ORD-03: src/a.py\nSource: ORD-04 src/c.py\n",
+                         {"ORD-02": "src/a.py", "ORD-03": "src/a.py", "ORD-04": "src/c.py"})
+
+    def test_source_with_an_id_range_expands_it(self) -> None:
+        self.source_case("Source: ORD-02..04: src/a.py::run\n",
+                         {"ORD-02": "src/a.py::run", "ORD-03": "src/a.py::run", "ORD-04": "src/a.py::run"})
+
+    def test_source_with_several_paths_keeps_the_first(self) -> None:
+        self.source_case("Source: ORD-02, ORD-03: src/a.py::x, src/b.py::y, ::z\nSource: ORD-04 -> src/c.py::w\n",
+                         {"ORD-02": "src/a.py::x", "ORD-03": "src/a.py::x", "ORD-04": "src/c.py::w"})
+
+    def test_the_old_one_id_form_still_works(self) -> None:
+        self.source_case("Source: ORD-02 src/a.py::cancel\nSource: ORD-03 src/b.py\nSource: ORD-04 src/c.py\n",
+                         {"ORD-02": "src/a.py::cancel", "ORD-03": "src/b.py", "ORD-04": "src/c.py"})
+
+    def test_a_step5_changelog_entry_is_completed_not_duplicated(self) -> None:
+        write(self.p.root, "docs/prd/CHANGELOG.md",
+              "# CHANGELOG\n\n## disc (2026-10-04, Ana, changes/001-disc)\n\nReason: orders.\n\n### 05-orders.md\n\n"
+              "**ORD-02** (rule text). Rewritten.\n\n    | ORD-02 | An unpaid order is cancelled after 30 s. |\n\n## older (2026-01-01, X, y)\n\nbody\n")
+        self.promote()
+        log = self.text("docs/prd/CHANGELOG.md")
+        self.assertEqual(log.count("## disc ("), 1)
+        self.assertEqual(log.count("**ORD-02**"), 1)
+        self.assertIn("An unpaid order is cancelled after 30 s.", log)
+        self.assertIn("An order is created only from a cart with at least one item.", log)
+        self.assertIn("src/features/orders/order_service.py::cancel_unpaid", log)
+        self.assertEqual(log.count("DEC-01"), 1)
+        self.assertIn("## older", log)
+        self.assertLess(log.index("## disc ("), log.index("## older"))
+
+    def test_a_rerun_after_completion_changes_nothing(self) -> None:
+        write(self.p.root, "docs/prd/CHANGELOG.md", "# CHANGELOG\n\n## disc (2026-10-04, Ana, changes/001-disc)\n\nReason: orders.\n")
+        self.promote()
+        before = self.text("docs/prd/CHANGELOG.md")
+        self.promote()
+        self.assertEqual(self.text("docs/prd/CHANGELOG.md"), before)
 
 
 if __name__ == "__main__":

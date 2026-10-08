@@ -18,7 +18,8 @@ from gate_core import is_code_route, load_config, parse_supersedes  # noqa: E402
 MAX_LINES = 10
 ID = r"[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d+"
 SPLIT = re.compile(r"(?<!\\)\|")
-SOURCE_LINE = re.compile(rf"^Source:\s*({ID})\s*(?:->|=>|[:=])?\s*(\S+)\s*$", re.M)
+SOURCE_LINE = re.compile(rf"^Source:\s*({ID}(?:\s*(?:,|\.\.)\s*(?:{ID}|\d+))*)\s*(?:->|=>|[:=])?\s*(\S.*?)\s*$", re.M)
+ID_PIECE = re.compile(rf"({ID})|(,)|(\.\.)|(\d+)")
 
 
 class PromoteError(Exception):
@@ -53,8 +54,35 @@ def parse_approved(text: str) -> tuple[dict[str, list[str]], dict[str, str], str
     return files, parse_supersedes(chr(10).join(body)), approver
 
 
+def expand_ids(spec: str) -> list[str]:
+    """`A-01`, `A-01, A-02` and `A-01..03` or `A-01..A-03` as the list of IDs."""
+    ids: list[str] = []
+    range_open = False
+    for m in ID_PIECE.finditer(spec):
+        if m.group(3):
+            range_open = True
+        elif m.group(1) or m.group(4):
+            token = m.group(1) or m.group(4)
+            if range_open and ids:
+                start = re.match(r"(.*?)(\d+)$", ids[-1])
+                end = int(re.search(r"(\d+)$", token).group(1))
+                if start and int(start.group(2)) < end:
+                    width = len(start.group(2))
+                    ids += [f"{start.group(1)}{n:0{width}d}" for n in range(int(start.group(2)) + 1, end + 1)]
+                range_open = False
+            elif m.group(1):
+                ids.append(token)
+    return ids
+
+
 def sources_from_deliveries(text: str) -> dict[str, str]:
-    return {m.group(1): m.group(2) for m in SOURCE_LINE.finditer(text)}
+    found: dict[str, str] = {}
+    for m in SOURCE_LINE.finditer(text):
+        path = re.split(r"[,\s]", m.group(2).strip().strip("`"), maxsplit=1)[0].strip("`")
+        if path and not path.startswith("::"):
+            for rid in expand_ids(m.group(1)):
+                found[rid] = path
+    return found
 
 
 def sources_from_trd(root: Path, cfg: dict) -> dict[str, str]:
@@ -116,16 +144,61 @@ def decision_rows(path: Path) -> list[str]:
     return [ln for ln in path.read_text(encoding="utf-8").splitlines() if re.match(r"\|\s*DEC-\d+", ln)]
 
 
-def changelog_entry(slug, approver, folder, ids, files_old, rows) -> str:
+PROMOTED = "Promoted: sources set."
+OLD_BLOCK = re.compile(r"\*\*(\S+?)\*\*")
+
+
+def entry_pieces(ids, files_old, rows, sources) -> tuple[list[str], dict[str, list[list[str]]]]:
+    """The Decisions and Sources lines, and the old-text blocks by PRD file (one list of lines per rule)."""
+    head = []
+    if rows:
+        head += ["Decisions:", "| ID | Question | Decision | Rejected alternative | Why | Rules |", "|---|---|---|---|---|---|", *rows, ""]
+    given = [f"{rid}: {sources[rid]}" for rid in ids if rid in sources]
+    head += [f"Sources: {'; '.join(given)}." if given else "Sources: none set.", PROMOTED, ""]
+    blocks = {name: [[f"**{rid}** ({'whole row' if kind == 'superseded' else 'rule text'}). {kind.capitalize()}.", "", f"    {literal}", ""]
+                     for rid, kind, literal in items] for name, items in files_old.items()}
+    return head, blocks
+
+
+def changelog_entry(slug, approver, folder, ids, files_old, rows, sources=None) -> str:
     out = [f"## {slug} ({date.today().isoformat()}, {approver}, {folder})", "",
            f"Reason: promoted from the approved rules of {slug}. IDs: {', '.join(ids)}.", ""]
-    if rows:
-        out += ["Decisions:", "| ID | Question | Decision | Rejected alternative | Why | Rules |", "|---|---|---|---|---|---|", *rows, ""]
-    for name, items in files_old.items():
-        out += [f"### {name}", ""]
-        for rid, kind, literal in items:
-            out += [f"**{rid}** ({'whole row' if kind == 'superseded' else 'rule text'}). {kind.capitalize()}.", "", f"    {literal}", ""]
+    head, blocks = entry_pieces(ids, files_old, rows, sources or {})
+    out += head
+    for name, items in blocks.items():
+        out += [f"### {name}", ""] + [ln for item in items for ln in item]
     return "\n".join(out) + "\n"
+
+
+def complete_entry(text: str, slug: str, ids, files_old, rows, sources) -> str | None:
+    """The CHANGELOG text with the step 5 entry of slug completed, or None when there is none or promote already did it."""
+    m = re.search(rf"^## {re.escape(slug)} \(.*?(?=^## |\Z)", text, re.M | re.S)
+    if not m or PROMOTED in m.group(0):
+        return None
+    section = m.group(0).rstrip("\n") + "\n"
+    head, blocks = entry_pieces(ids, files_old, rows, sources)
+    if "DEC-" in section:
+        head = [ln for ln in head if not ln.startswith(("Decisions:", "| ID |", "|---", "| DEC-"))]
+    for name, items in blocks.items():
+        kept = []
+        for item in items:
+            first = OLD_BLOCK.match(item[0])
+            if first and first.group(1) not in section:
+                kept += item
+        if not kept:
+            continue
+        heading = re.search(rf"^### {re.escape(name)}[ \t]*$", section, re.M)
+        if heading:
+            nxt = re.search(r"^### ", section[heading.end():], re.M)
+            at = heading.end() + nxt.start() if nxt else len(section)
+            section = section[:at].rstrip("\n") + "\n\n" + "\n".join(kept).rstrip("\n") + "\n\n" + section[at:]
+        else:
+            section = section.rstrip("\n") + f"\n\n### {name}\n\n" + "\n".join(kept).rstrip("\n") + "\n"
+    first = re.search(r"^### ", section, re.M)
+    at = first.start() if first else len(section)
+    section = section[:at].rstrip("\n") + "\n\n" + "\n".join(head).rstrip("\n") + "\n\n" + section[at:]
+    rest = text[m.end():].lstrip("\n")
+    return text[:m.start()] + section.rstrip("\n") + "\n" + ("\n" + rest if rest else "")
 
 
 def insert_entry(path: Path, entry: str) -> str:
@@ -176,7 +249,9 @@ def plan_edits(root, cfg, slug, files, old, approver, sources, change):
         if path is None:
             raise PromoteError(f"{name}: PRD file not found")
     log = root / cfg["prd_dir"] / "CHANGELOG.md"
-    done = log.is_file() and re.search(rf"^## {re.escape(slug)} \(", log.read_text(encoding="utf-8"), re.M) is not None
+    log_text = log.read_text(encoding="utf-8") if log.is_file() else ""
+    entry = re.search(rf"^## {re.escape(slug)} \(.*?(?=^## |\Z)", log_text, re.M | re.S)
+    done = entry is not None and PROMOTED in entry.group(0)
     writes: dict[Path, str] = {}
     stats = {"src": 0, "dropped": 0, "missing": [], "own": []}
     files_old: dict[str, list[tuple[str, str, str]]] = {}
@@ -201,8 +276,9 @@ def plan_edits(root, cfg, slug, files, old, approver, sources, change):
     stats["unmatched"] = [] if done else sorted(superseded - seen)
     if not done:
         rows = decision_rows(change / "decisions.md") if change else []
-        entry = changelog_entry(slug, approver, folder, sorted(approved_ids | superseded), files_old, rows)
-        writes[log] = insert_entry(log, entry)
+        all_ids = sorted(approved_ids | superseded)
+        writes[log] = complete_entry(log_text, slug, all_ids, files_old, rows, sources) or insert_entry(
+            log, changelog_entry(slug, approver, folder, all_ids, files_old, rows, sources))
     return writes, stats, approved_ids, superseded, folder, log
 
 

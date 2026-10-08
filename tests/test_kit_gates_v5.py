@@ -1,6 +1,7 @@
 """Base resolver, gate result lines, gates.sh close and html, and the SKILL.md size ratchet."""
 
 import json
+import re
 import os
 import shutil
 import subprocess
@@ -174,6 +175,50 @@ class GatesV5Test(unittest.TestCase):
         r = self.gates("close", "nobase")
         self.assertEqual(r.returncode, 1, r.stdout)
         self.assertIn("baseline missing: run scripts/gates.sh baseline nobase before the first task", r.stdout)
+
+    def stub_gates(self, lint_out: str = "", lint_rc: int = 0) -> None:
+        write(self.p.root, "scripts/gates.sh", f"""case "$1" in
+lint) printf '%b' '{lint_out}'; exit {lint_rc} ;;
+retro) echo "retro demo: 7 finding(s), wall 10 s, wait 0 s"
+  echo "  F1 [medium] value 3, threshold 2, seq [1]"
+  echo "  F2 [high] value 9, threshold 2, seq [2]"
+  echo "  F3 [low] value 3, threshold 2, seq [3]"
+  echo "  F4 [medium] value 3, threshold 2, seq [4]"
+  echo "  F5 [high] value 8, threshold 2, seq [5]"
+  echo "  F6 [medium] value 3, threshold 2, seq [6]"
+  echo "  F7 [critical] value 30, threshold 2, seq [7]"
+  echo "  report: .ai-kit/runs/demo/retro.md" ;;
+*) echo "$1 ok" ;;
+esac
+""")
+        write(self.p.root, ".claude/prd-flow/state/demo/baseline-failures.txt", "")
+
+    def close_direct(self):
+        env = {**os.environ, "GATES_BASH": BASH}
+        return subprocess.run([PY, "scripts/close_gate.py", "demo"], cwd=self.p.root, capture_output=True, text=True,
+                              encoding="utf-8", env=env, check=False)
+
+    def test_close_prints_at_most_five_retro_findings_highest_severity_first(self) -> None:
+        self.stub_gates()
+        r = self.close_direct()
+        lines = r.stdout.splitlines()
+        found = [ln for ln in lines if re.match(r"\s+F\d \[", ln)]
+        self.assertEqual(len(found), 5, r.stdout)
+        self.assertIn("F7 [critical]", found[0])
+        self.assertIn("[high]", found[1])
+        self.assertNotIn("F3", r.stdout)
+        self.assertIn("retro demo: 7 finding(s)", r.stdout)
+        self.assertEqual(r.returncode, 0, r.stdout)
+
+    def test_a_failing_close_prints_the_last_ten_error_lines_of_the_failed_check(self) -> None:
+        out = "\n".join(f"error line {i}" for i in range(1, 21)) + "\n"
+        self.stub_gates(lint_out=out, lint_rc=1)
+        r = self.close_direct()
+        self.assertEqual(r.returncode, 1, r.stdout)
+        shown = [ln for ln in r.stdout.splitlines() if "error line" in ln]
+        self.assertEqual(len(shown), 10, r.stdout)
+        self.assertIn("error line 20", shown[-1])
+        self.assertNotIn("error line 10", r.stdout)
 
 
 class SkillMdRatchetTest(unittest.TestCase):

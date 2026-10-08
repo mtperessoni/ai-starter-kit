@@ -1,12 +1,13 @@
 """Closing ceremony in one call: the full suite against the baseline, lint, trailers, the final gate, retro.
 
 Usage: python scripts/close_gate.py [slug]     (through scripts/gates.sh close [slug])
-Prints one block of at most 15 lines; the full output of every step goes to .claude/prd-flow/state/_close/<slug>.log.
+Prints one block of at most 24 lines (the retro findings, at most 5, highest severity first; a failing check's last lines, at most 10); the full output of every step goes to .claude/prd-flow/state/_close/<slug>.log.
 Exits 1 when any step fails. On success the slug's state folder, the gate and test logs of earlier runs and the close log are deleted;
 on failure nothing is deleted, so the close can be rerun.
 """
 
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -15,8 +16,11 @@ from pathlib import Path
 
 from kit_config import repo_root
 
-MAX_LINES = 15
-DETAIL_LINES = 2
+MAX_LINES = 24
+DETAIL_LINES = 10
+RETRO_FINDINGS = 5
+SEVERITY = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+FINDING = re.compile(r"^\s+\S+ \[(\w+)\]")
 
 
 def default_slug(root: Path) -> str:
@@ -55,12 +59,17 @@ def clean_success(root: Path, slug: str, started: float, log: Path) -> None:
 def summarize(name: str, result: subprocess.CompletedProcess) -> list[str]:
     lines = [ln for ln in (result.stdout + result.stderr).splitlines() if ln.strip()]
     last = lines[-1] if lines else ""
-    ok = result.returncode == 0
-    status = "ok" if ok else f"FAILED (exit {result.returncode})"
-    head = last if last.startswith(name) and ok else f"{name} {status}" + (f": {last}" if last else "")
-    if ok:
-        return [head]
-    return [head] + [f"  {ln}" for ln in lines[-1 - DETAIL_LINES:-1]]
+    if result.returncode == 0:
+        return [last if last.startswith(name) else f"{name} ok" + (f": {last}" if last else "")]
+    return [f"{name} FAILED (exit {result.returncode})"] + [f"  {ln}" for ln in lines[-DETAIL_LINES:]]
+
+
+def retro_block(result: subprocess.CompletedProcess) -> list[str]:
+    lines = [ln for ln in result.stdout.splitlines() if ln.strip()]
+    found = [(SEVERITY.get(m.group(1), 9), i, ln) for i, ln in enumerate(lines) if (m := FINDING.match(ln))]
+    head = [ln for ln in lines if ln.startswith("retro")][:1] or summarize("retro", result)
+    top = [ln for _, _, ln in sorted(found)[:RETRO_FINDINGS]]
+    return head + top if found or head else summarize("retro", result)
 
 
 def main() -> int:
@@ -83,7 +92,7 @@ def main() -> int:
             continue
         result = gates(root, *args)
         chunks.append(f"$ gates.sh {' '.join(args)}\n{result.stdout}{result.stderr}")
-        block += summarize(name, result)
+        block += retro_block(result) if name == "retro" and result.returncode == 0 else summarize(name, result)
         failed = failed or (result.returncode != 0 and name != "retro")
     status = subprocess.run(["git", "-C", str(root), "status", "--short"], capture_output=True, text=True,  # noqa: S603, S607
                             encoding="utf-8", check=False).stdout

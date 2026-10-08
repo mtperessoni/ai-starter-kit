@@ -35,7 +35,7 @@ usage: scripts/gates.sh <target> [args]
   ratchet          structure ratchet (docs/code-structure.md)
   docs [args]      the prd-flow docs gate
   html [args]      rebuild the PRD HTML (the skill's build_prd_html.py); --check only verifies
-  close [slug]     the closing ceremony in one block of at most 15 lines: compare against the baseline, lint,
+  close [slug]     the closing ceremony in one block (retro findings and failure lines included): compare against the baseline, lint,
                    trailers, docs --final, retro; full log in .claude/prd-flow/state/_close/<slug>.log; exit 1 on a failure
   trailers [range] commits touching the source folders carry Rules: or Case: none (default origin/<base>..HEAD)
   context <name>   name the run context (.ai-kit/runs/current) for the telemetry
