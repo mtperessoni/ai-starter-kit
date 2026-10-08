@@ -92,6 +92,9 @@ class Project:
         write(self.root, "docs/prd/prd.html", HTML)
         write(self.root, "docs/trd/invariants.md", "| ID | Rule | Proof |\n|---|---|---|\n| I-01 | No em dash | gate |\n")
         run(self.root, "git", "init", "-q", "-b", "main", check=True)
+        # a detached auto gc or maintenance writes into .git while cleanup removes it (Directory not empty in CI)
+        run(self.root, "git", "config", "gc.auto", "0", check=True)
+        run(self.root, "git", "config", "maintenance.auto", "false", check=True)
         run(self.root, "git", "add", "-A", check=True)
         run(self.root, "git", "commit", "-q", "-m", "init", check=True)
 
