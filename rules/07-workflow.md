@@ -14,7 +14,7 @@ Every change to product behavior follows **PRD, then TRD, then plan, then code**
 | WF06 | A request with no matching rule is a gap: C5, and the new rule enters the PRD before the code | Behavior without a written rule is an undocumented decision | classification.md |
 | WF07 | A refactor that turns out to need a changed limit, text or order escalates from C6 to C5 | It stopped being structure only | classification.md |
 | WF08 | Nothing is written in `docs/`, `src/` or `tests/` before its time: C5 from step 5 on; C2, C3, C4 and C6 after the user confirms the case | The user sees the current rule before anything moves | R01 |
-| WF09 | Code and PRD answer facts; the user answers intent | Never ask what the code already says; never infer what the user wants | R02 |
+| WF09 | Code and PRD answer facts; the user answers intent | Never ask what the code already says; never infer what the user wants | SKILL.md intro line |
 
 ## Rule change (C5)
 

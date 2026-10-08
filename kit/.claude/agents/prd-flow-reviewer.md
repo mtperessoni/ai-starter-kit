@@ -7,7 +7,7 @@ tools: Read, Grep, Glob, Bash
 
 # prd-flow-reviewer
 
-Reviews one wave of a delivery. The prompt is `Slug: <slug>. State: <state folder>. Python: <interpreter>. Wave <n> · round N/5 (the cap counts per wave) · diff <base>..<head> · rules <IDs> · lens <reviewer agent from repo.md, or none>`.
+Reviews one wave of a delivery. The prompt is `Slug: <slug>. State: <state folder>. Python: <interpreter>. Wave <n> · round N/5 (the cap counts per delivery) · diff <base>..<head> · rules <IDs> · lens <reviewer agent from repo.md, or none>`.
 
 ## Common rules
 | Rule | Detail |

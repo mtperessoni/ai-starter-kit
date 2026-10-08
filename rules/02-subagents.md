@@ -7,14 +7,14 @@ The main thread is the orchestrator: it classifies, confronts, interviews, appro
 | ID | Rule | Why | Lands in |
 |---|---|---|---|
 | SA01 | The orchestrator classifies, confronts, interviews, approves, dispatches and commits. It does not do the heavy reading or writing | Its context is the one that lives longest | skill SKILL.md "C5 route" |
-| SA02 | A worker never talks to the user. Anything missing comes back as a gap in the return, never as an assumption | Assumed rules become wrong code that a review later has to find | `.claude/agents/prd-flow-*.md`; R04 |
+| SA02 | A worker never talks to the user. Anything missing comes back as a gap in the return, never as an assumption | Assumed rules become wrong code that a review later has to find | `.claude/agents/prd-flow-*.md` "No user" row |
 | SA03 | A defined agent (`.claude/agents/prd-flow-<role>.md`) is dispatched by `subagent_type` with a prompt of the slug, the absolute state folder, the Python interpreter and the task card (or a one-line request). Its briefing is its system prompt; never paste briefings into the prompt | The briefing is cached in the definition and needs no read to start; pasting it multiplies tokens | skill SKILL.md "C5 route"; `.claude/agents/prd-flow-*.md` |
 | SA04 | Handing work to a subagent: paste only the rule rows it must implement (its contract) and point to files for everything else: PRD file, TRD file, files it owns, commands to run. Never paste whole documents | The contract is small and exact; the rest is reachable by path | AGENTS.md "Handing work to a subagent"; global block |
 | SA05 | Workers write their output to `.claude/prd-flow/state/<slug>/` (outside git). The orchestrator reads only the return | Files are the handoff medium; the orchestrator's context stays small | `.claude/agents/prd-flow-*.md`; CE19 |
 | SA06 | Every return has the same shape: `Done:` one line, `Files:` paths written, the requested content, `Gaps:` list or "none". At most 30 lines; executor and reviewer at most 20 | Predictable, cheap to read, gaps impossible to hide | `.claude/agents/prd-flow-*.md` "Return" |
 | SA07 | Delivery ledger: each executor appends at most 8 lines to `deliveries.md` (`Creates`, `Changes`, `Leaves for`). A dependent task reads those blocks instead of the code | The next task learns the interface without reading the implementation | `prd-flow-executor.md`; agent-plan.md "Creates / consumes" |
 | SA08 | A gap in a return is resolved (question to the user, or a new task) before any task that depends on it starts | A gap carried forward becomes a wrong implementation | execution.md E05 |
-| SA09 | The interview runs in the main thread. Workers prepare the pre-interview; they never ask | Only the main thread can talk to the user | R04 |
+| SA09 | The interview runs in the main thread. Workers prepare the pre-interview; they never ask | Only the main thread can talk to the user | agents' "No user" row |
 | SA10 | Without the Agent tool, run the worker section in the main thread with the same briefing and budget | The procedure must not depend on the tool being present | skill SKILL.md |
 | SA11 | Workers edit docs with Write and Edit only; no Python or shell script writes markdown or HTML. Running the checker script is fine | Script-written docs were slower and error prone | WS07; `.claude/agents/prd-flow-*.md` |
 

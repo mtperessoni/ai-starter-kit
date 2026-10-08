@@ -57,7 +57,7 @@ Reviewer: <agent from repo.md "Reviewers"> | none
 
 Commit trailer: a commit that touches the source folders (`ai-kit.json`) carries `Rules: <IDs>` or `Case: none (<reason>)`; `scripts/gates.sh trailers [range]` checks it. The executor's proposed message includes the trailer.
 
-The card cites IDs. Its commit and delivery: the executor ends with a `deliveries.md` block whose `Source: <ID> <path[::symbol]>` lines (one per rule ID, the code that implements it) are what `promote.py` reads to fill each rule's Source; a rule with no such line is left as planned and listed. The executor reads the literal row from `approved-rules.md` (new rules) or the pack (unchanged rules), never from the card. "Creates / consumes" names the shared symbols: a consumer reads the producer's block in `deliveries.md` (at `.claude/prd-flow/state/<slug>/deliveries.md`), never the producer's code. `gate.py --step plan` checks: every task has Owns (error), Reviewer and Model (warning), no ID missing from the PRD (error), and the file size (warning above the `plan_budget_kb` of `repo.md`).
+The card cites IDs. Its commit and delivery: the executor ends with a `deliveries.md` block whose `Source: <ID> <path[::symbol]>` lines (one per rule ID, the code that implements it) are what `promote.py` reads to fill each rule's Source; promote requires a `Source:` line only for rules whose Change via is `code`; rules changed via config, env, prompt, data or a handoff stay planned, are listed in promote's output and are closed by their own route (repo.md "Change routing"). The executor reads the literal row from `approved-rules.md` (new rules) or the pack (unchanged rules), never from the card. "Creates / consumes" names the shared symbols: a consumer reads the producer's block in `deliveries.md` (at `.claude/prd-flow/state/<slug>/deliveries.md`), never the producer's code. `gate.py --step plan` checks: every task has Owns (error), Reviewer and Model (warning), no ID missing from the PRD (error), and the file size (warning above the `plan_budget_kb` of `repo.md`).
 
 | Rule | Detail |
 |---|---|
@@ -69,7 +69,7 @@ The card cites IDs. Its commit and delivery: the executor ends with a `deliverie
 
 ## Plan execution rules
 The plan header copies these lines under `## Plan execution rules`, so whoever executes does not depend on the skill:
-- Review with a ceiling (`.claude/skills/prd-flow/reference/review.md`): at most 5 rounds per wave; from round 2 only the previous findings; Critical is fixed, High is fixed if it fits the approved rules, else asked, Medium and Low become pending; an open Critical at round 5, or a round that finds more than the previous one, stops that wave and talks to the user.
+- Review with a ceiling (`.claude/skills/prd-flow/reference/review.md`): at most 5 rounds per delivery (every wave is reviewed; a round is counted only when blocking findings go back for a fix); from round 2 only the previous findings; Critical is fixed, High is fixed if it fits the approved rules, else asked, Medium and Low become pending; an open Critical at round 5, or a round that finds more than the previous one, stops the delivery and talks to the user.
 - Every agent stops at its ceiling (review.md V08, the single home of the numbers) and reports.
 - Inside a task, only the related tests; the full suite runs once, at the end of all tasks.
 - Any behavior outside the approved rules, safety included, stops and goes to the short C5 (R09).

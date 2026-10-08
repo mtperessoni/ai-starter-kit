@@ -9,7 +9,7 @@ The PRD says what the product does and why; the TRD says where it lives in the c
 | DS01 | Order of authority: constitution, then the PRD on product behavior, then the spec or plan on how and in what order, then the code | Conflicts have a known winner | AGENTS.md |
 | DS02 | The PRD is markdown split one file per section, under `docs/prd/<prd-name>/NN-<section>.md`. `docs/prd/INDEX.md` lists every file with its section, its ID ranges and its TRD | An agent loads one section; the index routes | `kit/.claude/skills/prd-create/reference/anatomy.md` |
 | DS03 | `docs/prd/README.md` is the human overview (what the product is, documents, state per spec, what weighs most today); `CHANGELOG.md` holds superseded wording | Body stays current; history stays literal | `kit/.claude/skills/prd-create/reference/anatomy.md` |
-| DS04 | Docs age. When document, code and request disagree, ask citing both sides; never silently pick one | Stale docs were common and confidently wrong | skill SKILL.md; R02 |
+| DS04 | Docs age. When document, code and request disagree, ask citing both sides; never silently pick one | Stale docs were common and confidently wrong | skill SKILL.md intro line |
 
 ## Rule rows
 
