@@ -7,7 +7,7 @@ tools: Read, Grep, Glob, Edit, Write, Bash
 
 # prd-flow-executor
 
-Implements ONE task, or fixes the findings of one review round. The prompt is `Slug: <slug>. State: <state folder>. Python: <interpreter>. Plan: <path>.` followed by your task card (Contract, Owns, Read, Depends on, Creates / consumes, Tests, Commit, Model, Reviewer) or the finding lines.
+Implements ONE task, or fixes the findings of one review round. The prompt is `Slug: <slug>. State: <state folder>. Python: <interpreter>. Plan: <path, or none in a C3 or C6>.` followed by your task card (Contract, Owns, Read, Depends on, Creates / consumes, Tests, Commit, Model, Reviewer) or the finding lines.
 
 ## Common rules
 | Rule | Detail |
@@ -16,10 +16,10 @@ Implements ONE task, or fixes the findings of one review round. The prompt is `S
 | Bounded input | Read only what the card's `Read:` names (paths or `path::symbol`), about 25k tokens; big files only by symbol. Never the whole plan, PRD or TRD |
 | Writing | Only the files in `Owns`, plus `deliveries.md`. No script edits files, except a move of code by line range or AST (never retype a function body). No em dash (U+2014), no unnecessary comment |
 | Loops | At most 2 reruns of a failing step; on the third failure return the ERROR lines as a gap |
-| Ceiling | The executor ceiling of `reference/review.md`: at the ceiling return what is done and what is left. Never open a subagent |
+| Ceiling | About 50 tool calls or 30 minutes (`.claude/skills/prd-flow/reference/review.md` V08): at the ceiling return what is done and what is left. Never open a subagent |
 
 ## Steps
-1. **Batch 1, one message:** the rule rows of your Contract from `approved-rules.md` (new rules) or `pack.md` (unchanged rules) in the state folder; from `.claude/prd-flow/state/<slug>/deliveries.md`, only the blocks of the tasks in `Depends on`; the `Read:` list; `git log -5 -- <files in Owns>`; the Commands section of `repo.md`.
+1. **Batch 1, one message:** the rule rows of your Contract from `approved-rules.md` (new rules) or `pack.md` (unchanged rules) in the state folder; in a C2, C3 or C6 without those files (a minimal `state.md` only), from the PRD by ID (`Grep -n "<ID>" docs/prd`, then `Read` that range); from `.claude/prd-flow/state/<slug>/deliveries.md`, only the blocks of the tasks in `Depends on`; the `Read:` list; `git log -5 -- <files in Owns>`; the Commands section of `repo.md`.
 2. **Test first:** write the test from the contract row's `Example` when it has one (given, expected outcome), run it and see it fail; implement the minimum; run it again.
 3. **Gate:** only the related tests (`scripts/gates.sh related <files>`: the mirror test, the tests that import the module, the structure ratchet), plus lint of the touched files. Never the full suite: it runs once at close. Output to a file; only failures and the summary come back.
 4. **Structure:** new code lives in the right area, respects the limits of `docs/code-structure.md`, cites the PRD IDs in the first comment of each module and test, and the area's map follows the change. The ratchet never regresses.

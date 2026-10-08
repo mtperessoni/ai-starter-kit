@@ -1,17 +1,17 @@
-# Classification (F0) and divergence (F2)
+# Classification and divergence
 
-IDs, texts and paths in the examples are illustrative: always read the real line. Phases: F1 context, F2 PRD versus code check, F5 PRD, F6 TRD, F7 plan.
+IDs, texts and paths in the examples are illustrative: always read the real line. Step numbers are the C5 route of SKILL.md (2 context and the PRD versus code check, 5 PRD, 7 TRD, 8 plan); the other cases do context and check in the light route.
 
 ## Cases
 | Case | When | Signals in the request | Route |
 |---|---|---|---|
 | C0 no PRD | No `docs/prd/INDEX.md`. Only that | "create the PRD", "document the product", first use in the repository | Hand over to `/prd-create`, then `/trd-create` |
-| C1 query | Wants to know how something works or why | "how", "why", "what happens if", "what is the rule for" | F1, then answer with IDs and Source, saying per rule cited "verified in code" (one Grep found the Source symbol with a caller outside tests) or "not verified". For the state of rules (`proposed`, `approved`, `superseded`, `implemented`) run `gate.py --status`. No edits |
-| C2 implement within the rule | The rule exists, is approved, and the code does not meet it yet | "implement the amendment", a row marked `pending code`, "the spec still lacks X" | F1, F2, F6 if the area changes, F7 |
-| C3 bug | The code does something different from the PRD and the user confirms the PRD is right | "it is broken", "it should do what the PRD says" | F1, F2, fix; the PRD changes only if the Source moves |
-| C4 stale PRD | The code is right and the PRD says something else, confirmed by the user | drift found in F2, removed env var, cited file that no longer exists | F1, F2, F5 without interview; old text literally to the CHANGELOG |
-| C5 rule change | Changed rule, new rule, gap in the PRD, or a fix to a defect the PRD documents as current behavior | "change", "it should", "from now on", "add", "fix" something the PRD describes as today's behavior | Full flow F1 to F7. Includes a new product, module or incoming spec document in a repository with PRDs: size L, new PRD variant (below) |
-| C6 refactor | Structure changes and behavior does not | "rename", "extract", "move", "split", "clean up" | Area TRD + invariants; F6 if files, entry points or tests move |
+| C1 query | Wants to know how something works or why | "how", "why", "what happens if", "what is the rule for" | Light route context, then answer with IDs and Source, saying per rule cited "verified in code" (one Grep found the Source symbol with a caller outside tests) or "not verified". For the state of rules (`proposed`, `approved`, `superseded`, `implemented`) run `gate.py --status`. No edits |
+| C2 implement within the rule | The rule exists, is approved, and the code does not meet it yet | "implement the amendment", a row marked `pending code`, "the spec still lacks X" | Light route context and check; TRD (step 7) if the area changes; plan (step 8) when over one task |
+| C3 bug | The code does something different from the PRD and the user confirms the PRD is right | "it is broken", "it should do what the PRD says" | Light route context and check, fix; the PRD changes only if the Source moves |
+| C4 stale PRD | The code is right and the PRD says something else, confirmed by the user | drift found in the PRD versus code check, removed env var, cited file that no longer exists | Light route context and check, then the PRD (docs `C4`) without interview; old text literally to the CHANGELOG |
+| C5 rule change | Changed rule, new rule, gap in the PRD, or a fix to a defect the PRD documents as current behavior | "change", "it should", "from now on", "add", "fix" something the PRD describes as today's behavior | Full C5 route, steps 1 to 10. Includes a new product, module or incoming spec document in a repository with PRDs: size L, new PRD variant (below) |
+| C6 refactor | Structure changes and behavior does not | "rename", "extract", "move", "split", "clean up" | Area TRD + invariants; TRD update (step 7) if files, entry points or tests move |
 
 ## Size (LT04)
 Stated in the case line: `C5 · size L · <one line>`. It decides which files the change folder holds (`agent-plan.md`, "Where the plan lives") and how wide the surveyor sweeps (`impact.md`, "Sweep by size").
@@ -45,7 +45,7 @@ When the repository already has PRDs and the request is a new product context (a
 ## Behavior of a real session
 To explain what the system did in a real session or request, ask for its id and, with authorization to read the evidence, consult what was recorded before concluding (sources in `repo.md`, "Evidence of real sessions"). Without the id, say which code paths explain the behavior and which evidence would tell them apart, instead of asserting one.
 
-## PRD versus code divergence (F2)
+## PRD versus code divergence
 Always show it like this and ask:
 
 ```

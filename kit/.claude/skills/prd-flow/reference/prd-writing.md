@@ -1,4 +1,4 @@
-# Writing the PRD (F5)
+# Writing the PRD (C5 step 5)
 
 IDs, texts and paths in the examples are illustrative: always read the real line.
 
@@ -11,7 +11,9 @@ IDs, texts and paths in the examples are illustrative: always read the real line
 | 4 | Runs `gate.py --step prd --rules <approved-rules.md> --applied` once: the default checks, Q4 (a row of the file not in the PRD with identical cells) and G28 |
 | 5 | Commits `docs(prd)` with `decisions.md` and the PRD together |
 
-Step 6 (the user reviews the written PRD) is skipped when `--applied` is green and the change has no non-table content (prose, new sections, an amendment file); the main shows the gate line, and the docs agent continues to the TRD and the plan. With non-table changes, step 6 shows only those.
+In a fan-out, a `C5 context` agent does only step 1 on its own section files; the `plan` dispatch that merges does steps 2 to 5 once for the whole change.
+
+The step-6 skip (the single home of this rule): step 6 (the user reviews the written PRD) is skipped when `--applied` is green and the change has no non-table content (prose, new sections, an amendment file); the main shows the gate line, and the docs agent continues to the TRD and the plan. With non-table changes, step 6 shows only those.
 
 ## Where to write
 | Change | Form |
@@ -61,7 +63,7 @@ Decisions:
     | CHK-02 | <old row, literal> |
 ```
 
-In C5 the entry is created in F5 with the reason, the IDs and the Decisions block (rows copied from `decisions.md`); the literal excerpts are added at promotion, when they leave the body. In C4 the excerpts go in already in F5. The Decisions block is what impact K12 shows later as `Decided <date>: <why>; rejected: <alternative> (<why>)`.
+In C5 the entry is created at step 5 with the reason, the IDs and the Decisions block (rows copied from `decisions.md`); the literal excerpts are added at promotion, when they leave the body. In C4 the excerpts go in already in the same docs run. The Decisions block is what impact K12 shows later as `Decided <date>: <why>; rejected: <alternative> (<why>)`.
 
 ## INDEX and README
 - `INDEX.md`: the IDs column of the file's row (range `CHK-01..13`), the TRD column when a feature file appears. A new amendment section gets its own row.
@@ -74,7 +76,7 @@ The main runs `promote.py <slug>` (`--dry-run` to preview) after the last wave; 
 |---|---|
 | P1 | Old text (superseded and rewritten rows) literally to the CHANGELOG; superseded rows leave; markers leave; Source gets the real file (from the `Source:` lines of `deliveries.md`, or the TRD Planned file column) |
 | P2 | The `decisions.md` rows are in the CHANGELOG entry under `Decisions:` (copied, not summarized) |
-| P3 | Fold amendments (the single home of this rule): each amendment row moves to the step section that owns the behavior (ID unchanged, markers removed, Source filled); an amendment file whose rows all moved is deleted after its prose is merged into the step prose; the `[!IMPORTANT]` pointers go; INDEX follows; the CHANGELOG entry says "folded into <files>". A fold the script cannot decide is listed as a warning and done by hand |
+| P3 | Fold amendments (the single home of this rule): each amendment row moves to the step section that owns the behavior (ID unchanged, markers removed, Source filled); an amendment file whose rows all moved is deleted after its prose is merged into the step prose; the `[!IMPORTANT]` pointers go; INDEX follows; the CHANGELOG entry says "folded into <files>". A fold the script cannot decide is listed as a warning and goes to a `prd-flow-docs` dispatch in `fold` mode |
 | P4 | Rebuild the HTML when `html_mode` is `generated` (section "HTML"); with `hand` it is the same edit by hand |
 
 ## HTML (only when `repo.md` sets `html` to a path)

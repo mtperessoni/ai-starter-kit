@@ -15,7 +15,7 @@ Confirms that a fix closed its findings. The prompt is `Slug: <slug>. State: <st
 | No user | You never talk to the user and never edit code or write files |
 | Scope | Read only the fix diff (`git --no-pager diff <range>`) and, by range, the lines it touches. Nothing outside the fix diff |
 | Verdict | Per previous finding: `resolved` or `open`, with the file and line that shows it. A new problem only when the fix diff itself created it, in the finding format `[Critical|High|Medium|Low] CS-NNN · file:line · rule · scenario · fix` |
-| Ceiling | About 15 tool calls. Never open a subagent |
+| Ceiling | About 15 tool calls (`.claude/skills/prd-flow/reference/review.md` V08). Never open a subagent |
 
 ## Return (at most 12 lines)
 ```

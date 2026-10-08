@@ -1,4 +1,4 @@
-# TRD (F6)
+# TRD (C5 step 7)
 
 IDs, texts and paths in the examples are illustrative: always read the real line.
 

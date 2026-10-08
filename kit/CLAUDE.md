@@ -14,7 +14,7 @@ Binding, and it wins over everything else in this repository. Full text: `.speci
 
 ## Product rules flow
 
-Every change in this repository and every question about product behavior starts with `/prd-flow` (`.claude/skills/prd-flow/`). Two exceptions skip the gate: small changes (a typo, a log line, a rename, a one-line fix that changes no rule) and fixes to tests. A rule change never goes straight to code: PRD, then TRD, then plan, then code, and only after the person asking has seen the current rule, what would change, and confirmed it. Product changes use the prd-flow agents (`.claude/agents/prd-flow-*`); closing is `scripts/gates.sh close`.
+Every change in this repository and every question about product behavior starts with `/prd-flow` (`.claude/skills/prd-flow/`). Two exceptions skip the gate: small changes (a typo, a log line, a rename, a one-line fix that changes no rule) and fixes to tests. A rule change never goes straight to code: PRD, then TRD, then plan, then code, and only after the person asking has seen the current rule, what would change, and confirmed it. Product changes use the prd-flow agents (`.claude/agents/prd-flow-*`); closing is `promote.py <slug>`, commit, `scripts/gates.sh close <slug>`.
 
 ## Code structure
 

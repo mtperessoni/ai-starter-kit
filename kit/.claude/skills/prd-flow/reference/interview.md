@@ -2,7 +2,7 @@
 
 Read by the main thread, at step 4 and in the short C5. IDs, texts and paths in the examples are illustrative: always read the real line.
 
-The surveyor already wrote the scaffolds in the formats below: `interview.md` with every dimension prefilled, `approved-rules.md` with the rows to change and the `## Conflicts` table, and `changes/NNN-<slug>/decisions.md`. This conversation only edits them: states, answers, rule text, conflict resolutions and `DEC-` rows. Then it runs `<python> .claude/skills/prd-flow/scripts/gate.py --rules .claude/prd-flow/state/<slug>/approved-rules.md` once, fixes its own files (at most 2 reruns) and writes the last gate line into `state.md`.
+The surveyor already wrote the scaffolds in the formats below: `interview.md` with every dimension prefilled, `approved-rules.md` with the rows to change, the new rules (next free ID per prefix, proposal text), the `## Conflicts` table and the `## Supersedes` lines, and `changes/NNN-<slug>/decisions.md`; in the short C5 it appended dated sections instead. This conversation only edits them: states, answers, rule text, conflict resolutions and `DEC-` rows. Then it runs `<python> .claude/skills/prd-flow/scripts/gate.py --rules .claude/prd-flow/state/<slug>/approved-rules.md` once, at most 2 reruns after fixing its own files, then a gap, and writes the last gate line into `state.md`.
 
 Ask only the dimensions left `open`; `doc` ones and the `assumed` ones the user confirmed at step 3 enter the read-back as facts. The interview starts right after the confrontation, before anything else is read.
 

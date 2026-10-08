@@ -159,3 +159,9 @@ The kit's model is one PRD per product context or feature that runs on its own (
 | | C1 Promote, C2 close, C3 scaffolds | `promote.py`, `gates.sh close`, surveyor scaffolds | this plan |
 | | EV1 hermetic, EV2 base and reps, EV3 blind metrics, EV4 interview | R0 work, `eval/METRICS.md`, GP3 | this plan (GP3 scripted user later) |
 | Orchestration review | AG9 to AG19, PX1 to PX5, CX1 to CX8, MP1 to MP7, GP1 to GP6 | sections 4 to 6b, 9 | this plan |
+| Flow review, round 1 | GP2 budget by size | deferred: the model cannot read its own token use mid-run, so a budget in `state.md` cannot be enforced; the retro of `gates.sh close` flags the overrun after the fact | deferred |
+| | AG8 and D2 effort per agent | gap: the platform pins effort per session, not per agent; SKILL.md says planning sessions (steps 1 to 9) run at high effort, and the agents inherit the session's effort | gap recorded |
+| | CX2 pack validity | the resume rule of SKILL.md: before step 5, a failing `git diff --quiet <pack Base> -- <pack paths>` dispatches a new surveyor | done |
+| | PX5 isolation | `reference/execution.md` E22 | done |
+| | Cleanup of `_gate`, `_tests`, `_close` | `reference/execution.md` E20: `gates.sh close` clears them with the slug's state after a passing close | done in the docs; the script side belongs to `close_gate.py` |
+| | MP4 executor affinity by area | stated in `reference/agent-plan.md` | done |
