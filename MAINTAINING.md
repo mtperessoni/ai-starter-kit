@@ -30,6 +30,26 @@ The skills are interactive, so the evaluation is a set of headless runs, one per
 3. Grade each answer against written expectations (the right case, the right IDs, no edit before confirmation, the gate green).
 4. Keep the candidate only when it is at least as good on quality and not worse on cost. In the source repository this is how the worker route was measured (-48% time, -53% cost) for about US$18 of runs.
 
+### Efficiency is the goal (M07)
+A change to a skill, template or script is better only when it does at least one of these without worsening the others: fewer tokens, less wall time, better outputs, fewer errors. Every round is graded on the metrics below, computed by `eval/run.py` per run and compared across rounds with `python eval/rounds.py <folder>:<arm> ...` (never with ad hoc scripts).
+
+| ID | Metric | Fields | Better |
+|---|---|---|---|
+| M1 | Tokens and cost | `tokens_total`, `tokens_main`, `tokens_subagents`, `cost_usd`, `cost_main_usd`, `cost_subagents_usd`, `context_peak`, `cache_hit_rate`, `output_share`, `tokens_per_task` | lower (cache hit rate higher) |
+| M2 | Tasks completed successfully | `tasks_done` over `tasks_planned`, `hidden_passed` over `hidden_total`, `completed` | higher |
+| M3 | Total time | sum of `wall_min` per arm | lower |
+| M4 | Time per run | `wall_min`, `main_min`, `agent_min`, `cold_starts`, `min_to_docs`, `min_to_code`, `min_per_task` | lower |
+| M5 | Errors and waste | `error_rate`, `error_kinds`, `gate_runs_main`, `gate_runs_sub`, `gate_fail_ratio`, `rereads` | lower |
+| M6 | Implementation versus plan | `plan_coverage`, `plan_drift`, `first_pass_rate`, `review_rounds`, `blind_findings_total`, `accept` | coverage, first pass and accept higher; the rest lower |
+| M7 | Output quality | `prd_fidelity`, `conflict_found`, `contradiction_left`, `gap_recorded`, `traceability`, `single_source` | per field direction in `eval/README.md` |
+| M8 | Protocol compliance | `docs_dispatched`, `protocol_adherence`, `docs_first` | true or 1.0 |
+
+Rules of a round:
+- **Like for like.** A cheaper run that did less (no code, a skipped review or TRD) is not a win: compare `cost_per_accept` and `tokens_per_task`, and read M2 and M8 before M1.
+- **Repetitions.** The scenario that decides (today S5) runs at least 2 reps; a single run swung a round by US$2 to 3 when the model chose another route (LS27). Report the spread.
+- **Adoption.** Against the base arm: M2, M7 and M8 not worse (hard gates); on the deciding scenario `cost_usd` and `wall_min` within +10%; `tokens_main` per run at most 3.5M; every metric outside the noise band is a win or a tie in at least as many cases as it is a loss. A failed rule becomes the work list of the next round, recorded as a lesson in `rules/09-lessons.md` with the numbers.
+- **Cause before fix.** A regression is explained from the transcripts (which agent, which turns, which error kind) before anything is changed; the fix cites the metric it should move and the next round checks it.
+
 The scenarios live in `eval/scenarios/`: S1 to S4 cover the basic cases; S5 (a conflict phrased in other words in another section), S6 (an incoming spec document that conflicts with a live rule) and S7 (a dimension the decisions record does not answer) cover the confrontation and gap handling. `eval/arms-flow.json` runs S5 to S7 on the small fixture with the previous skill (arm GATE) and the current one (arm FLOW), one repetition each, so cost and time are compared on the same runs; the metrics `conflict_found`, `contradiction_left` and `gap_recorded` grade them. Generated HTML is no longer a candidate: it is adopted, with its build and a quality check against a real PRD.
 
 ## Releasing
