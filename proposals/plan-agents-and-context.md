@@ -30,6 +30,18 @@ Cost and time follow the number of main-thread calls on the strongest model at 8
 | AG9 | **Spawn rule by residency:** inline only what the main must hold (the user's answers, a return, a short command); more than about 8k tokens or 3 files the main does not need go to an agent |
 | AG17 | **No mid-run tool loading:** the main never calls ToolSearch during a C5 |
 | AG18 | **Cheapest model for mechanical checks:** a scoped re-review that only confirms a fix, the closing checks |
+| AG19 | **Roles as defined subagents.** Each role is `.claude/agents/prd-flow-<role>.md`: its briefing is the system prompt (cached, no reads to start), its model is pinned, its tools are the minimum (surveyor and reviewer read only; executor without web tools). The main dispatches by `subagent_type`, with a prompt of the slug, the state folder and the task card only |
+
+### Models by role
+| Role | Model and effort | Tools | Why |
+|---|---|---|---|
+| Main (planning session) | the user's session, strongest model | all | confrontation and interview are judgment with the user |
+| Main (execution session, D5 arm) | fast model | all | dispatch, commit, close |
+| surveyor | strongest, high | Read, Grep, Glob, Bash (read only) | conflict judgment: the S5 miss came from here |
+| docs (PRD, TRD and plan) | strongest, high | Read, Grep, Glob, Edit, Write, Bash | the plan decides waves and granularity |
+| executor | fast | Read, Grep, Glob, Edit, Write, Bash | typing against a card |
+| reviewer | fast | Read, Grep, Glob, Bash (read only) | findings on a diff |
+| re-check (scoped) | cheapest | Read, Grep, Bash (read only) | confirms a fix |
 
 ## 5. Choosing what to parallelize
 | ID | Technique | Rule |
@@ -62,6 +74,19 @@ Artifacts make sense when they replace rereading, not when they add reading. Eac
 | CX6 | **Execution session on the fast model** | After the plan is approved, execution can continue in a fresh session on the fast model: the main only dispatches, commits and closes there (decision D5) |
 | CX7 | **Doc size budgets** | A PRD section file gets a line budget like the TRD (`prd_section_budget_lines`, warned by the gate), so packs stay bounded as the product grows |
 | CX8 | **Artifact cleanup** | Promote keeps only what is durable (CHANGELOG, decisions); state packs and gate logs of a closed change are deleted |
+
+## 6b. Many PRDs and TRDs, one per system context
+The kit's model is one PRD per product context or feature that runs on its own (`prd-create` anatomy "How many PRDs"), each split into section files, and one TRD file per code area. Every rule of this plan must hold when a repository has many of them.
+
+| ID | Rule |
+|---|---|
+| MP1 | **INDEX is the router.** `docs/prd/INDEX.md` has one section per PRD; the main greps it (never reads it whole) and the surveyor picks candidate sections across every PRD for K11 and K14, because a conflict can live in another context's PRD |
+| MP2 | **Packs and approved rules span PRDs by file.** `pack.md` and `approved-rules.md` group rows under `## <prd folder>/<file>.md`; the gate checks each file; nothing assumes one PRD |
+| MP3 | **Docs fan-out by context.** A change that touches two or more PRDs or TRD areas, each with more than about 5 rows, gets one docs agent per context in parallel (disjoint files), and one planner merge; otherwise one docs agent |
+| MP4 | **Executor affinity by area.** Waves group tasks by TRD area (PX2); parallel width comes from independent areas |
+| MP5 | **A new context is a new PRD.** A request for a new product context in a repository that has PRDs is C5 size L, new-PRD variant: the docs agent lays out the folder with the prd-create anatomy and adds its INDEX section and HTML tab |
+| MP6 | **Budgets per context.** Section files, TRD files and packs have line budgets (CX7), so the cost of a change stays proportional to the contexts it touches, not to the size of the product |
+| MP7 | **Shared contexts across repositories** stay checked by `--sibling` (G28) for the PRDs listed in "Shared PRDs" |
 
 ## 7. Agent map by case
 | Case | Agents, in order | Main does |
@@ -109,3 +134,28 @@ Artifacts make sense when they replace rereading, not when they add reading. Eac
 | D4 | TRD merge at the end | **The last executor task**, TRD file in its Owns; `promote.py` does the rest |
 | D5 | Execution session on the fast model after plan approval (CX6) | **Yes, as a measured arm in R2b**; adopted only if quality holds |
 | D6 | Add R2b to the approved budget | **Yes: R0 to R2b**, about US$115 |
+| D7 | Delivery mode (2026-10-08) | **Build everything in this plan, then one big evaluation** on every metric of `eval/METRICS.md`: arms prd-gate, prd-flow head, and prd-flow head with the fast-model execution session; S5 at 3 reps, S6, S7 and S8 at 1. Per-change attribution comes from the dispatch map, the main violations and the per-agent metrics instead of separate rounds. If the targets are not met, a full audit follows before any further change |
+
+## Appendix: traceability of every finding of the conversation
+| Source | IDs | Where it is handled | Status |
+|---|---|---|---|
+| First review | A01 to A15, B01 to B13, C01, C02 | PR #10 | done |
+| Cost rounds | LS24 docs inline | AG1, AG2, AG9, AG19, `main_violations` | this plan |
+| | LS25 free-form state files | gate HINT (done `641e905`); surveyor writes the scaffolds in the gate's format (C3) | this plan |
+| | LS26 cold-start premise | reverted: Promote no longer folded blindly (D4 with explicit Owns plus `promote.py`), no SendMessage resume (AG6) | this plan |
+| | LS27 rule argued away | numbers move to `rules/`; compliance enforced by AG19 and measured by `dispatch_map` | this plan |
+| | Gate output flooding | scoped, capped, artifact | done `0e70861` |
+| My audit | C1 turns, C2 main, C3 ceremony, C4 bloat, C5 cold starts, C6 formats, C7 bundled rounds | AG2, AG9, section 7, section 8 diet, AG19, AG12, Q5 and scaffolds, `eval/METRICS.md` | this plan |
+| | S1 scripts | `promote.py`, `gates.sh close` (no other scripting layer, by the maintainer) | this plan |
+| | S2 to S6 | section 7, section 8, AG12 and CX2, AG8 and AG19, D7 | this plan |
+| Second audit | A1 Promote owner | D4, `promote.py`, plan check that every task with docs work owns those files | this plan |
+| | A2 conflict | K14, Q5, rewrite format, surveyor strongest | this plan |
+| | A3 reads before the surveyor | AG2 | this plan |
+| | A4 SendMessage | AG6, AG17 | this plan |
+| | A5 review policy | AG15, one table | this plan |
+| | A6 size table, A7 deliveries path, A8 main load, A10 who runs `--rules`, A11 step 6, A12 diff reads | section 8, D1, AG2 | this plan |
+| | A9 loops | AG5 | this plan |
+| | B1 to B9 | section 8 | this plan |
+| | C1 Promote, C2 close, C3 scaffolds | `promote.py`, `gates.sh close`, surveyor scaffolds | this plan |
+| | EV1 hermetic, EV2 base and reps, EV3 blind metrics, EV4 interview | R0 work, `eval/METRICS.md`, GP3 | this plan (GP3 scripted user later) |
+| Orchestration review | AG9 to AG19, PX1 to PX5, CX1 to CX8, MP1 to MP7, GP1 to GP6 | sections 4 to 6b, 9 | this plan |
