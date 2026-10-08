@@ -15,6 +15,7 @@ Brings kit improvements into a project that already has the kit, without overwri
 | U6b | Read `CHANGELOG.md` of the kit: for each entry between `old` and `new`, in order, execute its `On update:` line (create folders, add `ai-kit.json` keys, seed allowlists, propose new sections) and list each in the plan table of U7 |
 | U6c | Telemetry: copy `telemetry_hook.py`, `run_probe.py` and `retro.py` (kit-owned, U3 rules); merge the kit's hooks into `.claude/settings.json` keeping the project's own; add the `telemetry` section and the `.ai-kit/runs/` gitignore line; run the hook once on the sample payload of `install.md`. `.ai-kit/runs/` is never touched |
 | U6d | Migration from `prd-gate`, when `.claude/skills/prd-gate/` exists. List first, then ask; apply only after yes. See the table below |
+| U6e | Migration from the prd-flow workers, when `.claude/skills/prd-flow/reference/workers/` exists. List first, then ask; apply only after yes. See the second table below |
 | U7 | Plan table (K03): replace, merge, propose, skip; wait for yes |
 | U8 | Apply, run the Verify list of `install.md`, update the manifest (version, date, hashes) |
 | U9 | Commit `chore: update ai-starter-kit to <new>` with the kit log lines in the body; report |
@@ -34,3 +35,16 @@ Shows this list, asks, and never overwrites a project-owned file blindly: when t
 | `settings.json` | Allow entries for `gate.py` and `build_prd_html.py` under the new path; the old `prd-gate` entries are removed |
 | Contracts | When "Consumers in sibling repositories" lists a consumer and `ai-kit.json` `contracts` is empty, propose snapshots |
 | Manifest | Paths rewritten to the new folder, hashes recomputed |
+
+## Migration from prd-flow workers to agents
+List first, then ask; apply only after yes. A kit-owned file edited since install (hash versus manifest) is shown and kept aside, not deleted.
+
+| Change | How |
+|---|---|
+| `.claude/skills/prd-flow/reference/workers/` | Removed (kit-owned) |
+| Agents | The five `prd-flow-{surveyor,docs,executor,reviewer,recheck}.md` added to `.claude/agents/`; a project agent with the same name is shown as a diff and never overwritten silently |
+| Scripts | `.claude/skills/prd-flow/scripts/promote.py` and `scripts/close_gate.py` added (kit-owned); `scripts/gates.sh` replaced (new targets `close [slug]` and `html`) |
+| `repo.md` key | `prd_section_budget_lines` added with its default `200` |
+| `ai-kit.json` keys | `limits.skill_md_bytes` `6144` and `allowlist.skill_md_bytes` added; the allowlist is computed from the project's current `SKILL.md` sizes (every `.claude/skills/*/SKILL.md` over 6144 bytes, at its current size) so the ratchet stays green; then `python scripts/ratchet.py` to confirm |
+| `settings.json` | Allow entry `Bash(python .claude/skills/prd-flow/scripts/promote.py:*)` added |
+| References | Mentions of `reference/workers` in project files are rewritten to the matching agent, each as a shown diff |
