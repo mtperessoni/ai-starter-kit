@@ -4,6 +4,7 @@ import argparse
 import json
 import sys
 import tempfile
+from datetime import datetime
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -17,13 +18,24 @@ import run  # noqa: E402
 SKIP = report.INFRA | {"crash_no_project"}
 
 
-def find_project(name, projects=None):
-    """`<projects>/<name>`, else the newest `<temp>/ai-kit-eval/*/<name>`; None when absent."""
+def build_stamp(project):
+    """Epoch of the `<stamp>` folder run.py builds into (`%Y%m%d-%H%M%S`, local time), else its mtime."""
+    try:
+        return datetime.strptime(project.parent.name, "%Y%m%d-%H%M%S").timestamp()
+    except ValueError:
+        return project.stat().st_mtime
+
+
+def find_project(name, projects=None, started_at=None):
+    """`<projects>/<name>`, else the newest `<temp>/ai-kit-eval/*/<name>` built before the run
+    started (a later round reuses the same names); None when absent."""
     if projects:
         p = Path(projects) / name
         return p if p.is_dir() else None
     found = [p for p in (Path(tempfile.gettempdir()) / "ai-kit-eval").glob(f"*/{name}") if p.is_dir()]
-    return max(found, key=lambda p: p.stat().st_mtime) if found else None
+    if started_at is not None:
+        found = [p for p in found if build_stamp(p) <= started_at]
+    return max(found, key=build_stamp) if found else None
 
 
 def load_json(path):
@@ -41,7 +53,7 @@ def regrade_one(name, results, cfg, projects=None, rejudge=False, rereview=False
     jsonl = results / f"{name}.jsonl"
     if not meta or not jsonl.is_file() or meta.get("status") in SKIP:
         return None
-    project = find_project(name, projects)
+    project = find_project(name, projects, meta.get("started_at"))
     if project is None:
         return None
     _, _, scenarios = run.suite_paths(cfg)
@@ -55,7 +67,9 @@ def regrade_one(name, results, cfg, projects=None, rejudge=False, rereview=False
     if rereview:
         rr = review.review(project, scenario, seed)
         (results / f"{name}.review.json").write_text(json.dumps(rr, indent=2), encoding="utf-8")
-    metrics = grade.grade(project, scenario, arm=meta["arm"], transcript=jsonl,
+    p2 = results / f"{name}.p2.jsonl"
+    transcript = [jsonl, p2] if p2.is_file() else jsonl
+    metrics = grade.grade(project, scenario, arm=meta["arm"], transcript=transcript,
                           started_at=meta.get("started_at"), judge_result=jr, review_result=rr)
     wall = meta.get("runner_wall_min")
     if metrics.get("wall_min") is None and wall is not None:
@@ -67,6 +81,8 @@ def regrade(results, config=None, projects=None, rejudge=False, rereview=False):
     cfg = run.load_config(config)
     done, skipped = [], []
     for jsonl in sorted(Path(results).glob("*.jsonl")):
+        if jsonl.name.endswith(".p2.jsonl"):
+            continue  # phase 2 of a two-phase run, graded with its phase 1
         name = jsonl.stem
         try:
             metrics = regrade_one(name, results, cfg, projects, rejudge, rereview)
