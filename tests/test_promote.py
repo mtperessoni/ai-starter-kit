@@ -132,6 +132,31 @@ class PromoteTest(unittest.TestCase):
         self.assertIn("owner: executor fix", r.stdout)
         self.assertIn("next: executor fix", r.stdout)
 
+    def test_a_missing_approved_rules_file_names_the_docs_scaffold_as_owner(self) -> None:
+        (self.p.root / STATE / "approved-rules.md").unlink()
+        r = self.promote()
+        self.assertEqual(r.returncode, 2, r.stdout)
+        self.assertIn("owner: surveyor full", r.stdout)
+        self.assertNotIn("owner: executor fix", r.stdout)
+        self.assertIn("next: ", r.stdout)
+
+    def test_a_missing_prd_file_prints_an_owner_and_next(self) -> None:
+        shutil.rmtree(self.p.root / "docs/prd/shop")
+        r = self.promote()
+        self.assertEqual(r.returncode, 2, r.stdout)
+        self.assertIn("owner: ", r.stdout)
+        self.assertIn("next: ", r.stdout)
+
+    def test_a_warning_on_success_names_its_dispatch(self) -> None:
+        write(self.p.root, "docs/prd/shop/09-orders-amendment.md", "# amendment" + chr(10))
+        (self.p.root / "docs/trd/orders.md").unlink()
+        (self.p.root / STATE / "deliveries.md").write_text("Source: ORD-02, ORD-03, ORD-04: src/a.py" + chr(10), encoding="utf-8")
+        r = self.promote()
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("WARN amendment file", r.stdout)
+        self.assertIn("next: docs fold", r.stdout)
+        self.assertLessEqual(len(r.stdout.strip().splitlines()), 14, r.stdout)
+
     def test_a_superseded_mismatch_names_docs_fold_as_owner(self) -> None:
         path = self.p.root / STATE / "approved-rules.md"
         path.write_text(APPROVED + "- ORD-77: Ghost." + chr(10), encoding="utf-8")
