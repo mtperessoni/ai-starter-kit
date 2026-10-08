@@ -12,9 +12,9 @@ Read only by whoever executes. The main thread dispatches, commits and decides; 
 | ID | Step |
 |---|---|
 | E03 | Baseline: the failures of the last recorded full run go to `state/<slug>/baseline-failures.txt` (with none recorded, the full suite runs once before code). At the end (E18), only new failures count |
-| E04 | Per wave: tasks with disjoint Owns run in parallel; a big file has a serial chain. Each task goes to the `executor` with a one-line prompt (*"task T07 of plan `<path>`"*), on the model the plan marks |
+| E04 | Per wave: tasks with disjoint Owns run in parallel, dispatched in one message; a big file has a serial chain. Each task goes to the `executor` with a one-line prompt (*"task T07 of plan `<path>`"*), on the model the plan marks |
 | E05 | Each return: check the diff of the listed files and commit only those, with the message the executor proposed. A gap that is a rule or contract divergence goes to the short C5 (R09, E08 to E10); only a missing technical detail becomes a question to the user or a new task, resolved before the task that depends on it. The proposed message carries the `Rules:` or `Case: none (...)` trailer |
-| E06 | End of the wave: review by the `reviewer` with the ceiling of `reference/review.md` (at most 5 rounds; fixes by the `executor` with the finding IDs) |
+| E06 | End of the wave: review by the `reviewer` with the ceiling of `reference/review.md` (at most 5 rounds; fixes by the `executor` with the finding IDs). It runs for every wave, a one-task wave included: it is what catches the serious defect before the user does |
 | E07 | To continue an agent's work, resume it (SendMessage); do not open another one, which would reread everything. An agent the user interrupted is not resumed: first save what it left with `git --no-pager diff` into a patch in `state/<slug>/` |
 
 ## Rule change in the middle of execution (short C5, R09)

@@ -57,7 +57,7 @@ Commit trailer: a commit that touches the source folders (`ai-kit.json`) carries
 
 The literal rule goes only in the task that owns it; the others cite the ID. "Creates / consumes" tells the executor which blocks of `deliveries.md` to read. `gate.py --plan` checks: every task has Owns (error), Reviewer and Model (warning), no ID missing from the PRD (error), and the file size (warning above the `plan_budget_kb` of `repo.md`).
 
-Parallel tasks have disjoint "Owns". Order by dependency and mark what runs together. In "Owns", include the tests outside the area the change will break (search who imports the changed symbols); a task that discovers this midway stops and comes back, and each stop costs a resume.
+Split work into tasks only when the pieces run in parallel (disjoint "Owns") or a big file needs its own serial chain; otherwise one task per area. Each task is an agent with a cold start of about a minute, so serial tasks that could be one only add time (LS26). Parallel tasks have disjoint "Owns". Order by dependency and mark what runs together. In "Owns", include the tests outside the area the change will break (search who imports the changed symbols); a task that discovers this midway stops and comes back, and each stop costs a resume.
 
 ## Plan execution rules
 The plan header copies these lines under `## Plan execution rules`, so whoever executes does not depend on the skill:
@@ -79,6 +79,8 @@ The plan header copies these lines under `## Plan execution rules`, so whoever e
 - Archive: `git mv changes/NNN-<slug> changes/archive/NNN-<slug>` (LT06)
 - prd-flow gate green (`gate.py --final` clean when it is the last open change, LT10), full suite and lint green
 ```
+
+A plan of at most 3 code tasks, with no `design.md` and no amendment file to fold, puts these steps at the end of its last code task instead of a separate task: a separate Promote agent paid a cold start and rereads for a few edits (LS26).
 
 ## Presentation
 Show the user the tasks in a table (ID, result, owns, depends on, model, reviewer) and ask for approval. Adjust until approved. Execution happens when the user asks: each agent receives only its task, which already is the contract.
