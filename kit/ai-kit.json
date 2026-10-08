@@ -91,8 +91,8 @@
     "long_feature_maps": {},
     "crowded_dirs": {},
     "skill_md_bytes": {
-      ".claude/skills/prd-create/SKILL.md": 8540,
-      ".claude/skills/trd-create/SKILL.md": 8321
+      ".claude/skills/prd-create/SKILL.md": 8531,
+      ".claude/skills/trd-create/SKILL.md": 8285
     },
     "generated_without_marker": [],
     "invariant_gaps": 0

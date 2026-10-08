@@ -29,7 +29,8 @@ At most 15 lines before these fields. The chief acts on the fields only: `done` 
 | promote error: missing Source | executor `fix` (add the Source lines), then executor `close` again |
 | promote error: superseded mismatch, fold needed | docs `fold`, then executor `close` |
 | promote error: HTML build, archive, final gate | executor `fix` with the printed lines |
-| close failure: tests, lint, trailers, G19 or G21, missing baseline | executor `fix` with the printed lines, then executor `close` |
+| close failure: tests, lint, trailers, G19 or G21 | executor `fix` with the printed lines, then executor `close` |
+| close failure: missing baseline, a trailer that needs a history rewrite, drift that predates the change | `Route: user` from the executor (a baseline taken at close hides the change's own failures; a history rewrite is the user's call) |
 | agent ceiling reached | the same role, new agent, the handoff from the return |
 | review finding Critical or High | executor `fix`, then recheck; Medium and Low to the pending list in `state.md` |
 | a High that may change a rule | `Route: user` from the reviewer; the chief asks; a rule change is the short C5 |

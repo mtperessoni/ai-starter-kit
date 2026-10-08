@@ -5,17 +5,17 @@ description: Mandatory gate for every task that touches product behavior. Loads 
 
 # prd-flow
 
-You are the chief: coordinate, never execute a task. Your context is the most expensive of the run and grows with everything you touch, so agents read, write, run and verify. A rule change goes PRD, then TRD, then plan, then code. Prose in the `language` of `repo.md`; IDs in English.
+You are the chief: coordinate, never execute a task. Your context is the run's most expensive; agents read, write, run and verify. A rule change goes PRD, then TRD, then plan, then code. Prose in the `language` of `repo.md`; IDs in English.
 
 ## Chief card
 - Do: classify from the surveyor's return, ask the user, dispatch, route by return fields, keep `## Chief` of `state.md`, report.
 - Tools, a closed list: Agent dispatch; AskUserQuestion; Read, Write, Edit of `state.md`; Read of `repo.md` once (interpreter, language).
-- Forbidden, everything else: Bash (scripts, gates, tests, git); reading PRD, TRD, source, diffs, plan, pack, impact, deliveries or any reference beyond this card; writing anything but `## Chief`; fixing, verifying or redoing an agent's work; reading to prepare a question (the surveyor prepares them); ToolSearch, TodoWrite, resuming an agent.
-- Dispatch `subagent_type` `prd-flow-<role>` (without it: `general-purpose` told to follow `.claude/agents/prd-flow-<role>.md`). Prompt: `Slug: <slug>. State: <absolute folder>. Python: <interpreter>. Mode: <mode>. <task line or handoff>`, task line last. Never paste a briefing.
+- Forbidden, everything else: Bash of any kind; reading PRD, TRD, source, diffs, plan, pack, impact, deliveries or any reference beyond this card; writing anything but `## Chief`; fixing, verifying or redoing an agent's work; reading to prepare a question (the surveyor prepares them); ToolSearch, TodoWrite, resuming an agent.
+- Dispatch `subagent_type` `prd-flow-<role>` (without it: `general-purpose` told to follow `.claude/agents/prd-flow-<role>.md`). Prompt: `Slug: <slug>. State: <absolute folder>. Python: <interpreter>. Mode: <mode>. <task line or handoff>`, task line last. Never paste a briefing. Task lines: executor `Plan: <path> · Task: <ID>` or `Card: <state>/card.md`; reviewer `Round N/5. Wave: <n>. Commits: <hashes>`; recheck `Round N/5. Commits: <hashes>. Findings:` <lines>; docs `rules` `Answers:` <the user's words>, then `Confirmed: "<words>"`.
 - To the user: context at most 6 lines, a round at most 25.
 
 ## Cases
-Every case starts with the surveyor: `query` for C1 (its return is the answer), `light` for C2, C3, C4, C6, `full` for C5, `short` mid-execution. Case unclear: `light` with `Case: unclear`; the surveyor decides. New behavior in C2, C3 or C6 re-enters as C5.
+Every case starts with the surveyor: `query` for C1, `light` for C2, C3, C4, C6, `full` for C5, `short` mid-execution. Case unclear: `light` with `Case: unclear`; the surveyor decides. New behavior in C2, C3 or C6 re-enters as C5.
 
 | Case | When | Route after the surveyor |
 |---|---|---|
@@ -29,8 +29,8 @@ Every case starts with the surveyor: `query` for C1 (its return is the answer), 
 
 ## C5 route
 1. Surveyor `full` with the request and your case and size (or `unclear`); it creates the state folder and records the approver.
-2. Show its confrontation; ask: change · keep (C2, C3) · adjust (surveyor `full` again with `Adjust: <the user's words>`).
-3. Ask its prepared questions, at most 4 a round; pass the answers verbatim to docs `rules`; show its read-back. Repeat until the user says it is clear and a named rule owner agreed.
+2. Show the confrontation from `## Survey` of `state.md`; ask: change · keep (C2, C3) · adjust (surveyor `full` again with `Adjust: <the user's words>`).
+3. Ask the question rounds of `## Survey`, at most 4 a round; pass the answers verbatim to docs `rules`; show its read-back. Repeat until the user says it is clear and a named rule owner agreed.
 4. Docs `prd`. When its return proves the gate green and no change outside the tables, go on; else ask its question first.
 5. Docs `trd-plan`; ask approval of the returned wave table; an adjustment is docs `trd-plan` with the user's words.
 6. Per wave of the returned table: every executor `task` in one message; then reviewer with the wave's commit hashes; recheck after a fix.
@@ -41,24 +41,23 @@ Every agent ends with `Status: done|gap|blocked`, `Files:`, `Commit:`, `Route: n
 - `done` with `Route: none`: run `Next`.
 - `Route: user`: one AskUserQuestion with that text, then `Next` with the answer.
 - `Route: <role> <mode>`: dispatch it, the handoff as the task line.
-- `gap` without a Route, or a field missing: the same role once with "return the Route field"; again: ask the user.
+- `gap` without a Route, or a field missing: the same role once with "return the five fields"; then ask.
 
 | Failure | Dispatch |
 |---|---|
-| gate red after 2 reruns | the agent's Route: same role fresh with the error lines, or user |
+| gate red after 2 reruns | the agent's Route |
 | promote: missing Source | executor `fix`, then executor `close` |
 | promote: fold needed | docs `fold`, then executor `close` |
 | promote: HTML, archive, final gate | executor `fix` with the printed lines |
-| close: any failing step | executor `fix`, then executor `close` |
-| agent ceiling | same role, new agent, the return's handoff |
-| finding Critical or High | executor `fix`, then recheck; Medium, Low to pending |
+| close: any failing step | executor `fix`, then `close`; missing baseline, trailer needing a history rewrite: its `Route: user` |
+| agent ceiling | same role, new agent, its handoff |
+| Critical or High finding | executor `fix`, recheck; Medium, Low pending |
 | High that may change a rule | the reviewer's `Route: user`; a change is the short C5 |
-| invalid return | re-dispatch once, then ask |
 
-Review: at most 5 rounds per delivery; a round counts when Critical or High go to a fix. Say `review: N/5` every round. At round 5 with an open Critical, or a round with more Critical plus High than the previous: stop and ask (an extra round, accept with a mitigation, change the rule). Brake: two ceilings, or a wave twice as slow as the previous: stop and report what is left.
+Review: at most 5 rounds per delivery; a round counts when Critical or High go to a fix. Say `review: N/5` every round. At round 5 with an open Critical, or a round with more Critical plus High than the previous: stop and ask (an extra round, accept with a mitigation, change the rule). Brake: two ceilings, or a wave twice as slow as the last: stop, report what is left.
 
 ## State
-`.claude/prd-flow/state/<slug>/state.md`, one writer per section: `## Chief` (you: case, size, slug, phase, the user's decisions one line each, `review: N/5`, pending Medium and Low, `Next:`), `## Survey` (surveyor), `## Plan` (docs), `## Close` (executor `close`). Update `## Chief` after each return in one Edit. `/prd-flow resume <slug>`: read only `state.md`, then run its `Next:`.
+`.claude/prd-flow/state/<slug>/state.md`, one writer per section: `## Chief` (you: case, size, phase, the user's decisions one line each, `review: N/5`, pending Medium and Low, `Next:`), `## Survey` (surveyor), `## Plan` (docs), `## Close` (executor `close`). Update `## Chief` after each return in one Edit. `/prd-flow resume <slug>`: read only `state.md`, then run its `Next:`. Close deletes the state folder: report from the `close` return.
 
 ## Rules
 | ID | Rule |
@@ -68,4 +67,4 @@ Review: at most 5 rounds per delivery; a round counts when Critical or High go t
 | R07 | Questions in product language with an example; IDs only in the read-back |
 | R09 | Behavior no approved rule covers: the agent routes it to surveyor `short`; more than one rule or a new dimension: full C5 |
 
-Final: case, IDs, commits, plan path, out-of-scope divergences, pending Medium and Low, the retro findings from the `close` return or "every threshold held".
+Final: case, IDs, commits, plan path, out-of-scope divergences, pending Medium and Low, the `close` retro findings or "every threshold held".
