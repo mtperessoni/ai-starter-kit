@@ -117,6 +117,17 @@ class TrdEdgeTest(unittest.TestCase):
         finally:
             p.close()
 
+    def test_a_git_ignored_path_and_a_glob_folder_are_not_missing(self) -> None:
+        p = Project()
+        try:
+            write(p.root, ".gitignore", ".claude/prd-flow/state/\n")
+            write(p.root, "docs/trd/orders.md", "# Orders\n\nLogs go to `.claude/prd-flow/state/_tests`; tests live in `src/features/*/tests/`.\n")
+            commit(p)
+            r = p.py(GATE, "--trd")
+            self.assertNotIn("ERROR G23", r.stdout)
+        finally:
+            p.close()
+
 
 class SiblingTest(unittest.TestCase):
     def setUp(self) -> None:
