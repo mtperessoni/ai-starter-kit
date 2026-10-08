@@ -103,6 +103,9 @@ The surveyor created `changes/NNN-<slug>/decisions.md` from `docs/templates/chan
 ## Rule owner
 When the confrontation named an owner (`repo.md` "Rule owners") and the approver is not the owner, the surveyor includes the question "did the owner agree?" and the interview does not close until the user states the owner agreed. Docs `rules` records the owner in `decisions.md`; the CHANGELOG entry then says `decided by <owner>, written by <approver>`.
 
+## Folded path
+When every answer of the last round was a prepared option and `## Survey` has no round left (the chief decides from facts it holds), the chief skips the separate read-back and dispatches docs `prd-plan` with `Answers:` and `Folded: yes`. Docs does the `rules` work, writes `Confirmed:` with the chosen option labels as the user's words, runs `gate.py --rules`, then writes PRD, TRD and plan in the same dispatch. The prepared options already carry the current rule and the proposed text, so the user has seen both before any PRD write. The read-back and the wave table are confirmed together in one round; a correction is one docs `trd-plan` `adjust:` that reverts the PRD and prose commits. Free text, Other, an open dimension or a round left: the path above (read-back, "it is clear", `prd-plan`).
+
 ## Exit criteria
 1. Every dimension in a closing state, `n/a` with a reason; `interview.md` passes Q3.
 2. Every row with ID (or section and number, for a table without IDs), text, Source (`planned`) and Change via.
