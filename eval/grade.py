@@ -305,12 +305,29 @@ def protocol_adherence(arm, case, skills):
     return sum(1 for s in need if have & set((s,) if isinstance(s, str) else s)) / len(need)
 
 
-def conflict_recall(project, ids):
-    """Share of the expected conflict IDs named in a surveyor impact.md; None when none are expected."""
+def impact_writes(transcript):
+    """Text written to impact.md or pack.md during the run; a passing close deletes the state folder."""
+    found = []
+    for line in Path(transcript).read_text(encoding="utf-8", errors="replace").splitlines() if transcript and Path(transcript).exists() else []:
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        content = (event.get("message") or {}).get("content") if isinstance(event.get("message"), dict) else None
+        for block in content if isinstance(content, list) else []:
+            inp = block.get("input") if isinstance(block, dict) and block.get("type") == "tool_use" else None
+            if isinstance(inp, dict) and re.search(r"(impact|pack)\.md$", str(inp.get("file_path", ""))):
+                found += [str(inp.get(k, "")) for k in ("content", "new_string")]
+    return "\n".join(found)
+
+
+def conflict_recall(project, ids, transcript=None):
+    """Share of the expected conflict IDs named in the surveyor's impact or pack; None when none are expected."""
     if not ids:
         return None
     text = "\n".join(read_text(p) or "" for prefix in STATE_PREFIXES
                      for p in sorted((Path(project) / prefix).rglob("impact.md")))
+    text += "\n" + impact_writes(transcript)
     return sum(1 for i in ids if re.search(rf"(?<![A-Z0-9-]){re.escape(i)}(?!\d)", text)) / len(ids)
 
 
@@ -394,7 +411,7 @@ def grade(project, scenario_dir, arm, transcript=None, started_at=None, judge_re
                                "gate_fail_ratio", "rereads", "docs_dispatched")},
         **blind_metrics(review_result),
     })
-    m["conflict_recall"] = conflict_recall(project, exp.get("conflict_ids") or [])
+    m["conflict_recall"] = conflict_recall(project, exp.get("conflict_ids") or [], transcript)
     m["review_weighted"] = review_weighted(review_result, changed_code_lines(project, seed))
     m["first_pass"] = (bool(m["accept"] == 1.0 and eff["first_pass_clean"])
                        if transcript and eff["first_pass_clean"] is not None else None)

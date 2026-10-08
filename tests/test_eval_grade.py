@@ -494,6 +494,19 @@ class FlowGradeTest(unittest.TestCase):
         self.assertEqual(grade.conflict_recall(root, ["SHP-01", "SHP-02"]), 0.5)
         self.assertIsNone(grade.conflict_recall(root, []))
 
+    def test_conflict_recall_reads_impact_writes_from_the_transcript_after_close(self):
+        import tempfile
+        root = Path(tempfile.mkdtemp())
+        tr = root / "run.jsonl"
+        write = {"type": "tool_use", "id": "w1", "name": "Write",
+                 "input": {"file_path": "C:/p/.claude/prd-flow/state/s/impact.md", "content": "Conflicts: SHP-02"}}
+        edit = {"type": "tool_use", "id": "e1", "name": "Edit",
+                "input": {"file_path": "C:/p/.claude/prd-flow/state/s/pack.md", "old_string": "x", "new_string": "Conflicts: SHP-01"}}
+        other = {"type": "tool_use", "id": "o1", "name": "Write", "input": {"file_path": "C:/p/src/a.py", "content": "SHP-03"}}
+        lines = [{"type": "assistant", "parent_tool_use_id": "agent1", "message": {"id": "m1", "content": [write, edit, other]}}]
+        tr.write_text("\n".join(json.dumps(x) for x in lines), encoding="utf-8")
+        self.assertEqual(grade.conflict_recall(root, ["SHP-01", "SHP-02", "SHP-03"], tr), 2 / 3)
+
 
 if __name__ == "__main__":
     unittest.main()
