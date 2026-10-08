@@ -23,7 +23,7 @@ class StepTest(unittest.TestCase):
 
     def em_dash_in_the_prd(self) -> None:
         path = self.p.root / ORDERS
-        path.write_text(path.read_text(encoding="utf-8") + "\nA line with an em dash — here.\n", encoding="utf-8", newline="\n")
+        path.write_text(path.read_text(encoding="utf-8") + "\nA line with an em dash \u2014 here.\n", encoding="utf-8", newline="\n")
 
     def test_prd_step_runs_the_default_checks_and_the_rules_checks_in_one_report(self) -> None:
         self.em_dash_in_the_prd()

@@ -362,6 +362,11 @@ class SkillMdRatchetTest(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         self.assertIn("remove the entry", r.stdout)
 
+    def test_crlf_line_endings_count_as_lf(self) -> None:
+        self.allow({".claude/skills/big/SKILL.md": 7000})
+        self.skill.write_bytes(b"x\r\n" * 3500)
+        self.assertNotIn("big/SKILL.md", self.p.py("scripts/ratchet.py").stdout)
+
     def test_the_limit_comes_from_the_config(self) -> None:
         self.skill.write_text("x" * 6000, encoding="utf-8")
         path = self.p.root / "ai-kit.json"

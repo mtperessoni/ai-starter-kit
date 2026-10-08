@@ -100,7 +100,7 @@ def long_skills(root, limit: int) -> dict:
     """Every .claude/skills/*/SKILL.md over its byte limit: the main thread loads it whole at the start."""
     found = {}
     for p in sorted((root / ".claude" / "skills").glob("*/SKILL.md")):
-        size = p.stat().st_size
+        size = len(p.read_bytes().replace(b"\r\n", b"\n"))  # same size on a Windows checkout and in CI
         if size > limit:
             found[rel(p, root)] = size
     return found

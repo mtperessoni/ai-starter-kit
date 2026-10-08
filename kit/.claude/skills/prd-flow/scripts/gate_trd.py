@@ -43,7 +43,7 @@ def path_of(token: str, tracked: Tracked) -> str:
     tok = token.split("::")[0].strip()
     while tok.startswith(("./", ".../", "../")):
         tok = tok.split("/", 1)[1]
-    if not tok or tok.startswith(("/", "~", "http", "@")) or re.search(r"[\s<>{}()$|,;:=?#]", tok.replace("[", "").replace("]", "")):
+    if not tok or "..." in tok or tok.startswith(("/", "~", "http", "@")) or re.search(r"[\s<>{}()$|,;:=?#]", tok.replace("[", "").replace("]", "")):
         return ""
     ext = EXT.search(tok.rstrip("/"))
     has_ext = bool(ext) and ext.group(1).lower() in EXTENSIONS and not tok.endswith("/")
