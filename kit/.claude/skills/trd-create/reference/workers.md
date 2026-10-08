@@ -2,7 +2,9 @@
 
 Read only the section with your name. You do not talk to the user: anything missing becomes a **gap** in the return. Parallel batches when reads are independent; code only by symbol (`Grep -n`, then `Read` with offset and limit); big files from `.claude/skills/prd-flow/repo.md` never whole. Write with Write and Edit only. Names only, never line numbers or default values. Everything in English, no em dash (U+2014). State: `.claude/prd-flow/state/trd-create/`.
 
-Return, at most 30 lines:
+Stay inside the folders, globs and read budget of your assignment; do not explore beyond it, and do not call ToolSearch.
+
+Return, at most 20 lines:
 ```
 Done: <one line>
 Files: <paths written>

@@ -12,7 +12,7 @@ The PRD says what the product does and why, rule by rule, in product language, w
 |---|---|
 | P01 | **Documents what is, not what should be.** From code, every rule describes today's behavior, defects included. A behavior that looks wrong is written as it is, flagged with a `> [!CAUTION]` "(checked in code)" callout and an open question with the adopted default. Fixing it later is a C5 in prd-flow |
 | P02 | **Every rule row is complete:** permanent ID, text in product language, Source (file and symbol, never a line or a default value; `planned` when there is no code), Change via (from `repo.md`) |
-| P03 | **One context per file.** A section file holds one step of the journey or one cross-cutting concern, stays under about 300 lines, and is split by subsection (`NN-MM-<slug>.md`) when larger. The INDEX lists every file with its ID ranges |
+| P03 | **One context per file.** A section file holds one step of the journey or one cross-cutting concern, stays within `prd_section_budget_lines` (`repo.md`, default 200), and is split by subsection (`NN-MM-<slug>.md`) when larger. The INDEX has one section per PRD and lists every file with its ID ranges; agents Grep it, never read it whole |
 | P04 | **Explain before the table.** Each section opens with what it is, how it works and a concrete example, in product language, then the rule table. A reader who never saw the code understands it |
 | P05 | **Facts from code and documents, intent from the user.** Never ask what the code answers; never invent intent. Unknown intent becomes an open question with the adopted default |
 | P06 | **The HTML is generated from the markdown**: `build_prd_html.py` renders it, so every rule row carries the same words; the gate checks it (G29). Nobody edits the HTML; agents never read it |
@@ -49,10 +49,21 @@ Who runs which:
 | 8 | this conversation | Read-back in at most 25 lines: rules per section, the 5 heaviest problems, the open questions to decide now; in M3 and M4, the count of `*(proposed)*` rules, which go to `/prd-flow`. Commit `docs(prd): <scope> PRD from <source>` | commit |
 | 9 | this conversation | Next: `/trd-create` (the code map); `/prd-flow` for every change and to approve every proposed rule | handoff |
 
-Worker: Agent `general-purpose`, `model: "sonnet"`, prompt *"Read `.claude/skills/prd-create/reference/workers.md`, section `<name>`, and run it for slug `<slug>`. Assignment: <areas or files>."* Never paste briefings or documents into the prompt. Waves of at most 4 parallel workers on disjoint files. A gap in a return is resolved before the step that depends on it.
+Worker: Agent `general-purpose`, prompt *"Read `.claude/skills/prd-create/reference/workers.md`, section `<name>`, and run it for slug `<slug>`. Assignment: <areas or files>."* Never paste briefings or documents into the prompt.
+
+| Rule | Value |
+|---|---|
+| Input | Bounded: the exact folders or documents the worker maps or reads, plus a read budget (mapper about 40k tokens, writer about 30k); Grep first, then Read by range |
+| Output | Files in state or `docs/`; the return is at most 20 lines (Done, Files, Gaps) and this conversation never reopens them |
+| Reruns | At most 2 per step; the third failure comes back as a gap |
+| Model | By role: the outline, the area list and cross-PRD consistency run on the strongest model (this conversation); `mapper`, `doc-reader` and the writers on `sonnet` |
+| Waves | At most 4 workers, disjoint files; areas that read the same large files go to one mapper |
+| Tools | No ToolSearch mid-run; load what is needed before step 1 |
+
+A gap in a return is resolved before the step that depends on it.
 
 ## Context economy
-Same budgets as prd-flow: independent reads in one message; code only by symbol; this conversation never reopens worker files; worker returns at most 30 lines; at most 4 questions per round; ceilings of about 40 tool calls per mapper and 50 per writer.
+Same budgets as prd-flow: independent reads in one message; code only by symbol; at most 4 questions per round; ceilings of about 40 tool calls per mapper and 50 per writer.
 
 ## State
 `.claude/prd-flow/state/prd-create-<scope>/` (outside git): `state.md`, `outline.md`, `areas/*.md`, `interview.md`, `writing.md`. Resume with `/prd-create resume <scope>`: read `state.md` and the current step only.

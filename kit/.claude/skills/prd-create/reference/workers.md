@@ -2,7 +2,9 @@
 
 Read only the section with your name. You do not talk to the user: anything missing becomes a **gap** in the return, never an assumption. Parallel batches when reads are independent; code only by symbol (`Grep -n`, then `Read` with offset and limit); big files listed in `.claude/skills/prd-flow/repo.md` never whole; the HTML never read. Write docs with Write and Edit only, never through a script; the only scripts you run are the gate and, for the `html-writer`, the HTML builder. Everything you write is in English, product language, no em dash (U+2014). State: `.claude/prd-flow/state/<slug>/`. Format rules: `reference/anatomy.md`.
 
-Return, at most 30 lines:
+Stay inside the folders, documents and read budget of your assignment; do not explore beyond it, and do not call ToolSearch.
+
+Return, at most 20 lines:
 ```
 Done: <one line>
 Files: <paths written>

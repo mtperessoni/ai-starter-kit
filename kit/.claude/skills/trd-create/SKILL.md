@@ -42,10 +42,19 @@ The TRD says **where** behavior lives; the PRD says **what** it is. The TRD neve
 | 7 | this conversation | N4: the readiness plan (`reference/readiness.md`); then offer N5 with its cost (`reference/restructure.md`). Present as a table for approval | plan |
 | 8 | this conversation | Read-back in at most 20 lines: areas mapped, unwired entry points, hotspots over the limits, the ratchet allowlist size, the invariant gaps and the contract snapshots proposed. Commits `docs(trd): map <scope>` and, separately, `docs: add CLAUDE.md maps` | commits |
 
-Worker: Agent `general-purpose`, `model: "sonnet"`, prompt *"Read `.claude/skills/trd-create/reference/workers.md`, section `<name>`, and run it for slug `trd-create`. Assignment: <areas>."* Never paste briefings into the prompt. Each worker writes only its own files.
+Worker: Agent `general-purpose`, prompt *"Read `.claude/skills/trd-create/reference/workers.md`, section `<name>`, and run it for slug `trd-create`. Assignment: <areas>."* Never paste briefings into the prompt. Each worker writes only its own files.
+
+| Rule | Value |
+|---|---|
+| Input | Bounded: the exact area folders or globs and its PRD sections, plus a read budget (about 30k tokens); Grep first, then Read by range |
+| Output | Its own files; the return is at most 20 lines (Done, Files, Gaps) and this conversation never reopens them |
+| Reruns | At most 2 per step; the third failure comes back as a gap |
+| Model | By role: the area list (step 2) and cross-area consistency on the strongest model (this conversation); `feature-mapper`, `infra-mapper` and the writers on `sonnet` |
+| Waves | At most 4 mappers, disjoint files; areas that read the same large files go to one mapper |
+| Tools | No ToolSearch mid-run; load what is needed before step 1 |
 
 ## Context economy
-Same as prd-flow: independent reads in one message; code only by symbol; big files only by symbol; returns at most 30 lines; ceiling about 50 tool calls per worker.
+Same as prd-flow: independent reads in one message; code only by symbol; big files only by symbol; ceiling about 50 tool calls per worker.
 
 ## Files
 | File | Who reads it |
