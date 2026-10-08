@@ -8,9 +8,10 @@ description: Mandatory gate for every task that touches product behavior. Loads 
 A rule change goes PRD, then TRD, then plan, then code. When document, code and request disagree, ask citing both sides: code and PRD answer facts, the user intent. Values: `repo.md`; prose in its `language`, IDs and code in English. `ref/` is `.claude/skills/prd-flow/reference/`.
 
 ## Main card
-- Read `repo.md` once, `ref/interview.md`, `ref/classification.md`; executing, `ref/execution.md` E01 to E10 and `ref/review.md` V07. Others: agents only.- Your files: `state.md`, `interview.md`, `approved-rules.md`, `decisions.md` (answers, rule text, resolutions). Allowed: `scripts/gates.sh context|baseline|close <slug>`, `git config user.name`, `git rev-parse HEAD`, `git diff --stat`, `git commit <files>`, `promote.py <slug>`, `gate.py --rules` (one run, at most 2 reruns after fixing your files), `gate.py --step plan` once in a fresh session, `Grep "^### T"` in the plan and each card by range.
-- Forbidden: PRD, TRD or source reads before the surveyor; edits under `docs/` or source; diff content; agents' files; debugging the gate.
-- Dispatch `subagent_type` `prd-flow-<role>`, prompt `Slug: <slug>. State: <absolute state folder>. Python: <interpreter>. <step or task card>`. Without it: `general-purpose` told to follow `.claude/agents/prd-flow-<role>.md`. Never paste a briefing.
+- Read `repo.md` once, `ref/interview.md`, `ref/classification.md`; executing, `ref/execution.md` E01 to E10 and `ref/review.md` V07. Others: agents only.
+- Your files: `state.md`, `interview.md`, `approved-rules.md`, `decisions.md` (answers, rule text, resolutions). Allowed: `scripts/gates.sh context|baseline|close <slug>`, `git config user.name`, `git rev-parse HEAD`, `git diff --stat`, `git commit <files>`, `promote.py <slug>`, `gate.py --rules` (one run, at most 2 reruns after fixing your files), `gate.py --step plan` once in a fresh session, `Grep "^### T"` in the plan and each card by range.
+- Forbidden: PRD, TRD or source reads before the surveyor (one Grep of `docs/prd/INDEX.md` only); holding over about 8k tokens or 3 files you do not need (dispatch them); edits under `docs/` or source; diff content; agents' files; debugging the gate; `changes/archive/`, legacy `specs/`.
+- Dispatch `subagent_type` `prd-flow-<role>`, prompt `Slug: <slug>. State: <absolute state folder>. Python: <interpreter>. <step or task card>`, task line last. Without it: `general-purpose` told to follow `.claude/agents/prd-flow-<role>.md`. Never paste a briefing.
 - At most 2 reruns per step; the third failure is a gap, resolved first. No ToolSearch, no agent resume: a new one.
 - You update `state.md`: phase, plan path, waves, `review: N/5` for the delivery, pending Medium and Low, one cost line per wave. Checkpoint, fresh session: `ref/execution.md` E01, E02.
 - No TodoWrite. To the user: context at most 6 lines, a round at most 25.
@@ -53,7 +54,7 @@ Step 10:
 ## State
 `.claude/prd-flow/state/<slug>/` (outside git); plan and `decisions.md` in `changes/NNN-<slug>/`, never truth. Scripts: `<python> .claude/skills/prd-flow/scripts/<name>`.
 
-`/prd-flow resume <slug>` reads `state.md`, then its phase file: `impact.md`; `interview.md`, `approved-rules.md`; `writing.md`; the wave table, `deliveries.md`. Before step 5, a failing `git diff --quiet <pack Base> -- <pack paths>` means a new surveyor.
+`/prd-flow resume <slug>` reads `state.md`, then its phase file: confrontation `impact.md`; interview `interview.md`, `approved-rules.md`; docs `writing.md`; execution the wave table, `deliveries.md`. Before step 5, a failing `git diff --quiet <pack Base> -- <pack paths>` means a new surveyor.
 
 ## Rules
 | ID | Rule |
