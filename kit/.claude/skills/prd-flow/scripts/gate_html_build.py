@@ -5,7 +5,7 @@ from pathlib import Path
 
 from gate_core import err
 
-HINT = "run python .claude/skills/prd-flow/scripts/build_prd_html.py"
+HINT = "fix: run python .claude/skills/prd-flow/scripts/build_prd_html.py"
 
 
 def check_generated(root: Path, cfg: dict[str, str]) -> None:

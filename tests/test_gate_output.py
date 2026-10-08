@@ -50,7 +50,7 @@ class OutputTest(unittest.TestCase):
         r = self.p.py(GATE, "--step", "trd")
         lines = r.stdout.splitlines()
         self.assertEqual(sum(1 for x in lines if x.startswith("ERROR G23")), 15, r.stdout)
-        self.assertIn("... 5 more, see " + ARTIFACT, lines)
+        self.assertIn("... 5 more errors, see " + ARTIFACT, lines)
         self.assertTrue(lines[-1].startswith("gate:20 error(s)"), r.stdout)
         full = (self.p.root / ARTIFACT).read_text(encoding="utf-8")
         self.assertEqual(sum(1 for x in full.splitlines() if x.startswith("ERROR G23")), 20)

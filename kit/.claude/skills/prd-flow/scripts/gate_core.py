@@ -32,18 +32,60 @@ DEFAULTS = {
     "html_mode": "hand",
     "html_template": "docs/templates/prd.html",
     "trd_budget_lines": "250",
+    "prd_section_budget_lines": "200",
 }
 
 errors: list[str] = []
 warnings: list[str] = []
 baseline: dict[tuple[str, str], list[str]] = {}
 hints: dict[str, list[str]] = {}
+notes: list[str] = []  # plain report lines (wave table), never counted
 rule_table_ids: set[str] = set()  # IDs of rows in tables whose header has a "Change via" column
 
 Rules = dict[str, tuple[Path, list[str]]]
 
 
-def err(code: str, msg: str) -> None:
+FIXES = {
+    "G0": "pass --base with an existing ref (git branch -a lists them)",
+    "G1": "rename one of the two rows to a new ID",
+    "G2": "add or correct the row in docs/prd/INDEX.md",
+    "G3": "fill the Source and Change via cells of the row",
+    "G4": "replace the em dash with a comma, colon or period",
+    "G5": "rebuild or edit the HTML so it lists the same rules as the markdown",
+    "G6": "make the HTML text equal the markdown text",
+    "G7": "add a line naming the ID to the PRD CHANGELOG, or revert the text change",
+    "G8": "cite an ID that exists in the PRD, or add the rule first",
+    "G10": "add the row to the HTML",
+    "G11": "point Source at a file that exists",
+    "G12": "add a test that cites the ID in its header, or list it in allowlist.untested_rules",
+    "G14": "remove the ID from allowlist.untested_rules in ai-kit.json",
+    "G15": "cite an ID that exists in the PRD",
+    "G16": "add the ID to the Contract of a task in plan.md",
+    "G17": "remove the rule row from brief.md and cite its ID",
+    "G19": "finish the rule through promote.py, then rerun --final",
+    "G20": "remove the Planned section from the TRD file",
+    "G21": "promote the change and archive its folder",
+    "G22": "create the folder or file, or correct the path",
+    "G23": "correct the path in the TRD, or git add the file if it is new",
+    "G28": "copy the file between the repositories so both match",
+    "G29": "run python .claude/skills/prd-flow/scripts/build_prd_html.py",
+    "G30": "approve the rule or drop it",
+    "P1": "write the plan as '### TNN' tasks with valid Depends on",
+    "P2": "add the Owns: line to the task",
+    "P5": "cite an ID that exists in the PRD",
+    "P7": "make one of the two tasks depend on the other or give them disjoint Owns",
+    "P9": "add the path to the Owns: line of the task",
+    "Q1": "rewrite the pack section so it matches the PRD literally",
+    "Q2": "fix the row in approved-rules.md",
+    "Q3": "rewrite interview.md in the skeleton shown",
+    "Q4": "edit the PRD row to equal the approved row",
+    "Q5": "add or correct the row of the ID under '## Conflicts' of approved-rules.md",
+}
+
+
+def err(code: str, msg: str, fix: str | None = None) -> None:
+    if "; fix: " not in msg:
+        msg = f"{msg}; fix: {fix or FIXES.get(code, 'correct it and rerun the gate')}"
     errors.append(f"ERROR {code} {msg}")
 
 
@@ -159,6 +201,8 @@ def literal_rows(text: str) -> list[tuple[str, str]]:
         m = re.match(r"^#{2,3} (\S+\.md)\s*$", line)
         if m:
             current = m.group(1)
+        elif line.startswith("## "):
+            current = ""
         elif is_table_line(line.strip()) and current:
             row = ROW.match(line.strip())
             if row:

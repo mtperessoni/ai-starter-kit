@@ -44,15 +44,17 @@ from gate_core import (
     EM_DASH, ID, ROW, git, is_proposed, joined, literal_rows, load_config, read_html_rules, read_md_rules, rule_table_ids, err, warn,
 )
 from gate_interview import check_interview
-from gate_output import base_ref, changed_trd, report, start
+from gate_budget import added_lines, check_sections, strip_markers
+from gate_output import base_ref, changed_paths, report, start
 from gate_plan import check_change, check_final, check_plan, check_trace
 from gate_prd import changed_rows, check_html, check_index, check_pack, check_rules
 from gate_html_build import check_generated
 from gate_remote import warn_remote_change, warn_remote_ids
-from gate_rules import check_applied
+from gate_rules import check_applied, check_conflicts
 from gate_sibling import check_sibling
 from gate_status import STATES, status_lines
 from gate_trd import check_trd
+from gate_waves import check_waves
 
 
 def approved_ids(path: Path) -> set[str]:
@@ -64,13 +66,15 @@ def approved_ids(path: Path) -> set[str]:
     return ids
 
 
-def default_checks(root: Path, cfg: dict[str, str], rules, vias: set[str], base_arg: str | None) -> str:
+def default_checks(root: Path, cfg: dict[str, str], rules, vias: set[str], base_arg: str | None, scoped: bool = False) -> str:
     prd_rel, trd_rel = cfg["prd_dir"].rstrip("/"), cfg["trd_dir"].rstrip("/")
     prd, trd = root / prd_rel, root / trd_rel
     base = base_ref(root, cfg, base_arg)
     old, new, touched, plain = changed_rows(root, base, prd_rel, cfg["prd_glob"])
     check_index(prd, rules, set(new) - set(old))
     changelog = f"{prd_rel}/CHANGELOG.md"
+    added = added_lines(root, base, changelog)
+    check_sections(root, cfg, prd, changed_paths(root, cfg, base_arg) if scoped else None)
     html_on = cfg["html"].lower() not in {"", "none", "no", "off"}
     generated = html_on and cfg["html_mode"].lower() == "generated"
 
@@ -93,12 +97,12 @@ def default_checks(root: Path, cfg: dict[str, str], rules, vias: set[str], base_
         if (cfg["pending_marker"] in row[0] or is_proposed(row[0], cfg)) and len(row) >= 2 and cfg["planned_source"] not in row[1].lower():
             warn("G9", f"{rid} marked '{marked}' with Source other than '{cfg['planned_source']}'")
         if rid in old:
-            before, after = joined(old[rid][0]), joined(row[0])
-            if before not in after and changelog not in touched:
-                err("G7", f"{rid} was reworded without a CHANGELOG entry")
+            before, after = joined(strip_markers(old[rid][0], cfg)), joined(strip_markers(row[0], cfg))
+            if before not in after and rid not in added:
+                err("G7", f"{rid} was reworded without an added CHANGELOG line naming {rid}", f"add a line naming {rid} to {changelog}, or revert the text change")
     for rid in sorted(set(old) - set(new) - set(rules)):
-        if changelog not in touched:
-            err("G7", f"{rid} left the PRD without a CHANGELOG entry")
+        if rid not in added:
+            err("G7", f"{rid} left the PRD without an added CHANGELOG line naming {rid}", f"add a line naming {rid} to {changelog}")
     if set(new) - set(old) and f"{prd_rel}/INDEX.md" not in touched:
         warn("G2", "new IDs and INDEX.md was not touched")
 
@@ -159,6 +163,7 @@ def main() -> int:
 
     def rules_checks() -> None:
         check_rules(args.rules, rules, cfg, vias)
+        check_conflicts(args.rules, rules)
         check_interview(args.rules, prd, rules)
         if args.applied:
             check_applied(args.rules, rules, cfg)
@@ -170,16 +175,18 @@ def main() -> int:
         warn_remote_change(root, folder)
 
     if args.step:
-        suffix = default_checks(root, cfg, rules, vias, args.base) if args.step in ("prd", "trd") else ""
+        suffix = default_checks(root, cfg, rules, vias, args.base, True) if args.step in ("prd", "trd") else ""
         if args.step == "prd":
             if args.rules:
                 rules_checks()
             check_sibling(root, repo_md)
         elif args.step == "trd":
-            check_trd(root, cfg, trd_rel, changed_trd(root, cfg, trd_rel, args.base))
+            diff = changed_paths(root, cfg, args.base)
+            check_trd(root, cfg, trd_rel, {n for n in diff if n.startswith(trd_rel + "/")}, diff)
         else:
             if args.plan:
                 check_plan(args.plan, rules, cfg)
+                check_waves(args.plan)
             if args.change:
                 change_checks()
         return report(suffix)

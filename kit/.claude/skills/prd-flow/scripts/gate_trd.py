@@ -19,7 +19,7 @@ MAX_ROW_FILES = 20
 class Tracked:
     def __init__(self, root: Path) -> None:
         self.root = root
-        self.files = [f for f in git(root, "-c", "core.quotepath=false", "ls-files", "-z").split("\0") if f]
+        self.files = [f for f in git(root, "-c", "core.quotepath=false", "ls-files", "-co", "--exclude-standard", "-z").split("\0") if f]
         self.tops = {f.split("/")[0] for f in self.files if "/" in f}
         self.texts: dict[str, str] = {}
 
@@ -134,7 +134,15 @@ def check_file(root: Path, f: Path, cfg: dict[str, str], tracked: Tracked) -> No
             check_row(rel, header, row, tracked, g23)
 
 
-def check_trd(root: Path, cfg: dict[str, str], trd_dir: str, changed: set[str] | None = None) -> None:
+def cites_diff(line: str, diff: set[str]) -> bool:
+    m = re.search(r"`([^`]+)` matches no tracked file", line)
+    if not m or not line.startswith("ERROR"):
+        return False
+    cited = m.group(1).rstrip("/")
+    return any(d == cited or d.startswith(cited + "/") or d.endswith("/" + cited) for d in diff)
+
+
+def check_trd(root: Path, cfg: dict[str, str], trd_dir: str, changed: set[str] | None = None, diff: set[str] | None = None) -> None:
     tracked = Tracked(root)
     for f in trd_files(root, trd_dir):
         rel = f.relative_to(root).as_posix()
@@ -144,5 +152,7 @@ def check_trd(root: Path, cfg: dict[str, str], trd_dir: str, changed: set[str] |
         e, w = len(errors), len(warnings)
         check_file(root, f, cfg, tracked)
         found = [*errors[e:], *warnings[w:]]
+        kept = [x for x in errors[e:] if cites_diff(x, diff or set())]
         del errors[e:], warnings[w:]
-        park(found, rel)
+        errors.extend(kept)
+        park([x for x in found if x not in kept], rel)
