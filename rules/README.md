@@ -37,8 +37,8 @@ Read only the file of the domain you need. IDs are stable: a new rule takes the 
 | `.claude/skills/prd-flow/` | WF, SA, RV, TS rules as operating procedure, plus `repo.md` (formerly `prd-gate`; WF35, IN14) |
 | `.claude/skills/adr/` | DS23, DS27, DS28 |
 | `.claude/agents/<risk>-reviewer.md` | RV12 to RV16 |
-| `scripts/` and `ai-kit.json` | AR rules marked "ratchet", TS02 to TS08, TS22, TS28 to TS31, TS35, TS43 to TS52 (`docker_hygiene.py`, `clean_task_outputs.py`, `baseline.py`, `config_get.py`, the `docker` section, `tests.baseline_deselect`, `tests.always`) |
-| `.claude/settings.json`, `.ai-kit/runs/` | TM03, TM12: the telemetry hooks (project-owned, merged) and the git-ignored run artifacts; SA51, SA53: the PreToolUse guard hook (`scripts/agent_guard_hook.py`) |
+| `scripts/` and `ai-kit.json` | AR rules marked "ratchet", TS02 to TS08, TS22, TS28 to TS31, TS35, TS43 to TS53 (`docker_hygiene.py`, `clean_task_outputs.py`, `baseline.py`, `config_get.py`, the `docker` section, `tests.baseline_deselect`, `tests.always`) |
+| `.claude/settings.json`, `.ai-kit/runs/` | TM03, TM12: the telemetry hooks (project-owned, merged) and the git-ignored run artifacts (SA51 and SA53 are behavior guidance in the agent files, no guard hook) |
 | `scripts/telemetry_hook.py`, `run_probe.py`, `retro.py` and the `telemetry` section of `ai-kit.json` | TM01 to TM11, TM13 to TM16 |
 | `.claude/skills/prd-flow/scripts/gate.py` and its `gate_*.py` modules, `state_record.py` | WF31 to WF33 (`--trace`, `--change`, `--final`); WF43, WF44 (`--rules`, `--applied`); WF68 to WF74 (`--questions`, `--plan` alignment, `--snapshot`, `--final --change`); DS34, DS37, DS39 (`--status`, `--trd`, `--sibling`); DS46 (`--docs`); CE29 (the state record) |
 | `.claude/skills/prd-flow/reference/dispatch.md` | WF65, WF67, WF71, SA48, SA50, SA54, SA55 (labels DP01 to DP13); trd-planned.md TP06, TP07 map to WF69, WF70 |

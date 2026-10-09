@@ -51,7 +51,6 @@ All must pass, or be reported:
 - `python .claude/skills/prd-flow/scripts/gate.py` only reports that `docs/prd/INDEX.md` does not exist yet (expected until prd-create)
 - When the `docker` section exists: `scripts/gates.sh guard` passes or names what to remove, and `scripts/gates.sh sweep` runs; `docker image ls --filter label=<namespace>.repo=<repo>` lists the images the repository built after one `scripts/gates.sh build`
 - Telemetry: pipe one sample PreToolUse payload (`{"hook_event_name":"PreToolUse","session_id":"s1","tool_name":"Bash","tool_input":{"command":"echo ok"}}`) into `python scripts/telemetry_hook.py`; it prints nothing, exits 0 and one line appears in `.ai-kit/runs/default/events.jsonl` (delete that run folder after); `scripts/gates.sh retro` runs without error. Then run the hook commands registered in `.claude/settings.json` from another directory with `CLAUDE_PROJECT_DIR` set to the project: they exit 0 (the launcher resolves the script from that variable)
-- Guard hook: pipe `{"hook_event_name":"PreToolUse","tool_name":"Bash","agent_type":"prd-flow-executor","tool_input":{"command":"git stash"}}` into the guard hook command of `.claude/settings.json`; it blocks (exit 2, with the reason on stderr), and the same payload without `agent_type` exits 0 with no output
 - A search for U+2014 over the files written (the Grep tool with the pattern `\x{2014}`) finds no em dash
 
 ## Report
