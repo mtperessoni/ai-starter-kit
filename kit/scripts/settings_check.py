@@ -21,7 +21,8 @@ WRITTEN = (
     "changes/001-slug/plan.md",
     ".claude/prd-flow/state/slug/state.md",
 )
-GATE_TARGETS = ("related", "one", "verify", "baseline", "compare", "close", "reap", "docs", "ratchet", "lint", "move", "settings-check")
+GATE_TARGETS = ("related", "one", "verify", "baseline", "compare", "close", "reap", "docs", "ratchet", "lint", "move", "settings-check",
+                "python", "fix-files", "lint-files", "rerun", "trailers")
 GATE_COMMANDS = tuple(f"{launcher}scripts/gates.sh {target}" for launcher in ("", "bash ") for target in GATE_TARGETS)
 RULE = re.compile(r"^(\w+)(?:\((.*)\))?$")
 
