@@ -37,6 +37,14 @@ Why it matters: about 4% of payments take more than 20 s.
 Example: provider answers at 45 s, then (A) shows "try again" with the cart intact.
 Interacts with: 2
 
+**2. A payment in flight during the deploy** · rule CHK-13
+Today: no rule; a payment started before a deploy takes the new timeout.
+Why it matters: a deploy in the middle of a payment could cut it short.
+- A) Keep the timeout it started with (Recommended): no payment cut early; both timeouts live for a few minutes
+- B) Take the new timeout at once: one timeout only; a payment may end early
+Example: a payment starts with 30 s, the deploy lands at second 10, then (A) still waits until second 30.
+Interacts with: 1
+
 ## How to answer
 `ok` accepts every recommendation and assumption. Otherwise: `1B`, `A2: <correction>`, `scope: <correction>`. If a scenario is wrong, say its number.
 ```

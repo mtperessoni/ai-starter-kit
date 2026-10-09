@@ -49,7 +49,7 @@ Every conflict K01, K11 or K14 finds is recorded with the same IDs in:
 | `pack.md` | The header line `Conflicts: <IDs>`, or `Conflicts: none`; each ID with why it conflicts and the proposed resolution (`rewrite`, `supersede`, or `compatible: <why>`) |
 
 ## The sheet
-The surveyor writes `sheet.md` per `interview.md` "Format of `sheet.md`" and "Sheet rules". Mechanism decisions (rollback, switch, configuration key, environment variable, table, endpoint) are surveyed and asked in the sheet, never left to the docs agent. Protected rule and owner items come first; the trade-offs below feed the decisions.
+The surveyor writes `sheet.md` per `interview.md` "Format of `sheet.md`" and "Sheet rules". Mechanism decisions (rollback, switch, configuration key, environment variable, table, endpoint) are surveyed and asked in the sheet, never left to the docs agent. Protected rule and owner items come first.
 
 Blind spots: before writing the sheet, check failure paths, requests in flight during the deploy, consumers of the data, tenant variation and safety; ask only where a real alternative exists.
 
