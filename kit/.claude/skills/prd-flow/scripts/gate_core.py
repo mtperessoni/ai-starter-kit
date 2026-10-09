@@ -9,7 +9,6 @@ ID = r"[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d+[a-z]?"
 ROW = re.compile(r"^\|\s*(" + ID + r")(?:\s*·\s*\w+)?\s*\|(.*)\|\s*$")
 PIPE = re.compile(r"(?<!\\)\|")
 SEPARATOR = re.compile(r"^\|[\s|:-]+$")
-HTML_ROW = re.compile(r"<tr[^>]*>\s*<td>(" + ID + r")</td>\s*<td[^>]*>(.*?)</td>", re.S)
 RANGE = re.compile(r"([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*)-(\d+)(?:\.\.(\d+))?")
 EM_DASH = chr(0x2014)
 PACK_SECTIONS = ["Rules", "TRD", "Invariants", "Principles", "Divergences", "Pre-interview"]
@@ -20,6 +19,7 @@ DEFAULTS = {
     "prd_glob": "*/*.md",
     "trd_dir": "docs/trd",
     "html": "docs/prd/prd.html",
+    "trd_html": "docs/trd/trd.html",
     "forbid_em_dash": "yes",
     "change_via": "code, config, env, prompt, data, backend, frontend",
     "pending_marker": "pending code",
@@ -52,11 +52,9 @@ FIXES = {
     "G2": "add or correct the row in docs/prd/INDEX.md",
     "G3": "fill the Source and Change via cells of the row",
     "G4": "replace the em dash with a comma, colon or period",
-    "G5": "rebuild or edit the HTML so it lists the same rules as the markdown",
-    "G6": "make the HTML text equal the markdown text",
+    "G5": "run /docs-html after migrating to html_mode generated with /ai-kit update",
     "G7": "add a line naming the ID to the PRD CHANGELOG, or revert the text change",
     "G8": "cite an ID that exists in the PRD, or add the rule first",
-    "G10": "add the row to the HTML",
     "G11": "point Source at a file that exists",
     "G12": "add a test that cites the ID in its header, or list it in allowlist.untested_rules",
     "G14": "remove the ID from allowlist.untested_rules in ai-kit.json",
@@ -69,8 +67,9 @@ FIXES = {
     "G22": "create the folder or file, or correct the path",
     "G23": "correct the path in the TRD, or git add the file if it is new",
     "G28": "copy the file between the repositories so both match",
-    "G29": "run python .claude/skills/prd-flow/scripts/build_prd_html.py",
+    "G29": "run /docs-html",
     "G30": "approve the rule or drop it",
+    "G32": "run /docs-html",
     "P1": "write the plan as '### TNN' tasks with valid Depends on",
     "P2": "add the Owns: line to the task",
     "P5": "cite an ID that exists in the PRD",
@@ -171,15 +170,6 @@ def read_md_rules(prd: Path, pattern: str, via_header: str = DEFAULTS["via_heade
                 err("G1", f"duplicate ID {rid}: {rules[rid][0].name} and {f.name}")
             rules[rid] = (f, cells(m.group(2)))
     return rules
-
-
-def read_html_rules(page: Path) -> dict[str, str]:
-    found: dict[str, str] = {}
-    for m in HTML_ROW.finditer(page.read_text(encoding="utf-8")):
-        if m.group(1) in found:
-            err("G1", f"duplicate ID in the HTML: {m.group(1)}")
-        found[m.group(1)] = m.group(2)
-    return found
 
 
 def expand(spec: str) -> set[str]:

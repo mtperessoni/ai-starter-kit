@@ -43,7 +43,7 @@ jobs:
       - name: Structure ratchet
         run: ./scripts/gates.sh ratchet
 
-      - name: Docs gate (PRD, TRD, HTML parity)
+      - name: Docs gate (PRD, TRD)
         run: ./scripts/gates.sh docs --base origin/${{ github.base_ref || 'main' }}
 
       - name: TRD paths exist (G23)

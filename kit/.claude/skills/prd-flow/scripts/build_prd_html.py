@@ -284,12 +284,15 @@ class Page:
         name = re.sub(r"\s+PRDs?$", "", title).strip()
         return name or self.root.resolve().name
 
+    @staticmethod
+    def button(key: str, icon: str, title: str, sub: str, on: bool) -> str:
+        return (f'<button role="tab" data-tab="{attr(key)}" aria-selected="{str(on).lower()}"><span class="ic">'
+                f'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" '
+                f'stroke-linejoin="round">{icon}</svg></span><span><span class="t">{title}</span><span class="s">{sub}</span>'
+                f'</span><span class="n" data-n="{attr(key)}"></span></button>')
+
     def tabs(self) -> str:
-        def button(key: str, icon: str, title: str, sub: str, on: bool) -> str:
-            return (f'<button role="tab" data-tab="{attr(key)}" aria-selected="{str(on).lower()}"><span class="ic">'
-                    f'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" '
-                    f'stroke-linejoin="round">{icon}</svg></span><span><span class="t">{title}</span><span class="s">{sub}</span>'
-                    f'</span><span class="n" data-n="{attr(key)}"></span></button>')
+        button = self.button
         out = [button("overview", ICON_OVERVIEW, "Overview", "Journey, findings, how to change", True)]
         out += [button(p.key, ICON_PRD, f"PRD {esc(p.number)} · {esc(p.name)}", esc(p.scope[:1].upper() + p.scope[1:]), False)
                 for p in self.prds]
@@ -305,8 +308,26 @@ class Page:
                   f"{esc(v.capitalize())}</button>" for v in names]
         return "\n      ".join(chips)
 
+    def stamp_sources(self) -> list[str]:
+        return [self.cfg["prd_dir"]]
+
+    def labels(self) -> dict[str, str]:
+        return {
+            "DOC_LABEL": "PRDs", "SUBTITLE": "PRDs and product rules", "FILTER_TITLE": "Filter rules",
+            "SEARCH_PLACEHOLDER": "ID, term, limit…", "BUILDER": "build_prd_html.py",
+        }
+
+    def attrs(self) -> dict[str, str]:
+        return {"VIAS_ATTR": "", "FILTER_ATTR": ""}
+
+    def source_dir(self) -> str:
+        return self.cfg["prd_dir"]
+
+    def required_slots(self) -> set[str]:
+        return set()
+
     def stamp(self) -> tuple[str, str]:
-        spec = [self.cfg["prd_dir"]]
+        spec = self.stamp_sources()
         try:
             spec.append(":(exclude)" + self.out.resolve().relative_to(self.root.resolve()).as_posix())
         except ValueError:
@@ -321,15 +342,23 @@ class Page:
         return (out[0], out[1]) if len(out) == 2 else ("uncommitted", "not committed")
 
     def render(self) -> str:
+        panels = "\n\n".join([self.overview()] + [self.prd_panel(p) for p in self.prds] + [self.decisions()])
+        return self.fill(panels)
+
+    def fill(self, panels: str) -> str:
         template_path = Path(self.cfg["html_template"])
         template = read(template_path if template_path.is_absolute() else self.root / template_path)
-        panels = "\n\n".join([self.overview()] + [self.prd_panel(p) for p in self.prds] + [self.decisions()])
         commit, date = self.stamp()
         values = {
             "PROJECT": esc(self.project()), "TABS": self.tabs(), "VIAS": self.vias(panels), "PANELS": panels,
             "REPO": esc(self.root.resolve().name), "COMMIT": esc(commit), "DATE": esc(date),
-            "PRD_DIR": esc(self.cfg["prd_dir"].rstrip("/") + "/"),
+            "PRD_DIR": esc(self.source_dir().rstrip("/") + "/"),
+            **{k: esc(v) for k, v in self.labels().items()}, **self.attrs(),
         }
+        absent = sorted(k for k in self.required_slots() if "{{" + k + "}}" not in template)
+        if absent:
+            raise ValueError(f"template {template_path} predates this page (slots absent: {absent}); "
+                             "copy the kit's docs/templates/prd.html")
         missing = sorted(set(SLOT.findall(template)) - set(values))
         if missing or "{{PANELS}}" not in template:
             raise ValueError(f"template {template_path} predates the generated build (slots: {missing or 'PANELS absent'}); "

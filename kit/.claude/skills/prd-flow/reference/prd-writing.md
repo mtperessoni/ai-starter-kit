@@ -6,7 +6,7 @@ IDs, texts and paths in the examples are illustrative: always read the real line
 | Artifact | Writer |
 |---|---|
 | `approved-rules.md` rows, conflict resolutions, Supersedes, `interview.md` answers, `DEC-` rows | docs `rules`, from the answers the chief passes |
-| PRD files, CHANGELOG entry, INDEX, README, HTML, ADR | docs `prd-plan` (`short` for a dated section, `c4` for a stale PRD, `context` for one context of a fan-out) |
+| PRD files, CHANGELOG entry, INDEX, README, ADR | docs `prd-plan` (`short` for a dated section, `c4` for a stale PRD, `context` for one context of a fan-out) |
 | Promotion (markers out, Source in, CHANGELOG excerpts, archive) | `promote.py`, run by `executor close` |
 | An amendment fold or superseded mismatch promote could not decide | docs `fold` |
 
@@ -14,7 +14,7 @@ IDs, texts and paths in the examples are illustrative: always read the real line
 | Step | What the docs agent does |
 |---|---|
 | 1 | Writes the PRD files from `approved-rules.md` (rows literal, with the Example cell when present) |
-| 2 | Builds the HTML (section "HTML" below), updates CHANGELOG and INDEX |
+| 2 | Updates CHANGELOG and INDEX (never the HTML, section "HTML" below) |
 | 3 | Writes the `Decisions:` block of the CHANGELOG entry from `changes/NNN-<slug>/decisions.md`, and the contract and transition lines (below) |
 | 4 | Runs `gate.py --step prd --rules <approved-rules.md> --applied` once: the default checks, Q4 (a row of the file not in the PRD with identical cells) and G28 |
 | 5 | Commits `docs(prd)` with `decisions.md` and the PRD together |
@@ -48,7 +48,7 @@ Table format: `| ID | Rule | Source | Change via |` with an optional fifth colum
 | Situation | How it looks |
 |---|---|
 | New ID | Next free number of the prefix. Never renumber or reuse |
-| Example column | One line `<given> → <expected outcome>` in product language, for example `Provider silent for 20 s → "try again" shown, cart kept` (illustrative). Required for a rule with a number, a branch or a failure path; the D15 answer lands here. Four-column tables stay valid. The HTML renders it |
+| Example column | One line `<given> → <expected outcome>` in product language, for example `Provider silent for 20 s → "try again" shown, cart kept` (illustrative). Required for a rule with a number, a branch or a failure path; the D15 answer lands here. Four-column tables stay valid |
 | Proposed (comes only from documents, not proven by code) | `*(proposed)*` (the `proposed_marker` of `repo.md`) at the start of the text; Source `planned`. Input of C5, never C2. Greenfield M2 rules come from the interview and are approved, not proposed |
 | Approved, no code yet | `*(approved YYYY-MM-DD, pending code)*` at the start of the text; Source `planned`. Approving a proposed rule replaces its `*(proposed)*` marker with this one |
 | Rule the new one supersedes | Keeps its text and gets `*(superseded: <link to the new rule>, valid until deploy)*` at the start |
@@ -97,13 +97,8 @@ In a rule change the entry is created by docs `prd-plan` with the reason, the ID
 | P1 | Old text (superseded and rewritten rows) literally to the CHANGELOG; superseded rows leave; markers leave; Source gets the real file (from the `Source:` lines of `deliveries/<task>.md`, or the TRD Planned file column) |
 | P2 | The `decisions.md` rows are in the CHANGELOG entry under `Decisions:` (copied, not summarized) |
 | P3 | Fold amendments (the single home of this rule): each amendment row moves to the step section that owns the behavior (ID unchanged, markers removed, Source filled); an amendment file whose rows all moved is deleted after its prose is merged into the step prose; the `[!IMPORTANT]` pointers go; INDEX follows; the CHANGELOG entry says "folded into <files>". A fold the script cannot decide is listed as a warning; `executor close` routes it to docs `fold` |
-| P4 | Rebuild the HTML when `html_mode` is `generated` (section "HTML"); with `hand` it is the same edit by hand |
-
-## HTML (only when `repo.md` sets `html` to a path)
-| `html_mode` | Procedure |
-|---|---|
-| `generated` | Run `<python> .claude/skills/prd-flow/scripts/build_prd_html.py` after every PRD edit and commit the result with the markdown. Never edit the HTML by hand; G29 fails when it is out of date (`--check`) |
-| `hand` | Kept briefly for repositories not yet migrated (`/ai-kit update` offers the migration). The HTML is maintained by hand, so every markdown edit goes into it in the same commit. Rule row: `<tr data-via="config"><td>CHK-02</td><td>text</td><td>source</td></tr>` (risks and problems also carry `data-sev="high\|medium\|low"`). Locate by ID (`Grep ">CHK-02<"`) and replace exactly that line; markers become `<i>(...)</i>`, links `<a href="#<anchor>">`, backticks `<code>`. The rule text has the same words as the markdown (the gate compares word by word). Never rewrite the whole file nor touch scripts, styles, tabs or filters |
+## HTML
+Never part of this flow (the single home of this rule, DS45): no agent and no script of prd-flow builds, edits or reads the PRD or TRD page. The default gate only warns when a page is stale (G29 PRD, G32 TRD) or when `html_mode` is still `hand` (G5); those warnings are expected after a docs commit and are not routed. The pages are rebuilt by the `/docs-html` skill, when the user runs it; executor `close` ends its return with "`/docs-html` refreshes the reading pages" when the change touched `docs/prd/` or `docs/trd/`.
 
 ## Gate and commit
-`<python> .claude/skills/prd-flow/scripts/gate.py`: ERROR blocks the commit; a WARNING about "earlier drift" belongs to the base, not to this change, and goes into the return as an out-of-scope divergence. The docs agent commits `docs(prd): <sentence in the git log style>`, markdown (and HTML) together, no push.
+`<python> .claude/skills/prd-flow/scripts/gate.py`: ERROR blocks the commit; a WARNING about "earlier drift" belongs to the base, not to this change, and goes into the return as an out-of-scope divergence. The docs agent commits `docs(prd): <sentence in the git log style>`, markdown only, no push.

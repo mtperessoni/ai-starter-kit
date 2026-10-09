@@ -56,10 +56,11 @@ Order of authority: constitution, PRD, TRD, code. An active plan governs only th
 | Skill | What it does |
 |---|---|
 | `/ai-kit` | Global. `install` detects the stack, copies and adapts the kit, configures the linter with a day-one baseline, verifies every command by running it. `update` brings kit improvements without overwriting the project's edits. `doctor` reports drift |
-| `/prd-create` | Writes the PRDs: one folder per independent flow, one small file per section, rule rows with source and change via, glossary with code names, journey, configuration, risks, open questions, and the HTML reading version |
+| `/prd-create` | Writes the PRDs: one folder per independent flow, one small file per section, rule rows with source and change via, glossary with code names, journey, configuration, risks, open questions; markdown only |
 | `/trd-create` | Writes the technical map in any layout: one file per product area, invariants with their proof, the testing guide, the end-to-end flow, and a `CLAUDE.md` of at most 20 lines in every feature folder or declared map folder. In an existing codebase it writes the incremental readiness plan, and offers the move to feature folders as an option |
 | `/prd-flow` | The gate for every change (formerly prd-gate). Classifies the request, loads only the rule and the map it needs, checks the doc against the code, and for a rule change runs survey, confront, interview, PRD (confirmed by the person), TRD, plan, then subagents implement. A behavior found missing during execution goes back through a short rule change before code |
 | `/adr` | Records architecture decisions with at least two honest negatives and two real alternatives |
+| `/docs-html` | Rebuilds the human reading pages of the PRD and the TRD from the markdown and checks them. The only skill that touches HTML: the change flow never waits on it |
 
 ## Quick start
 
@@ -77,6 +78,7 @@ cd ai-starter-kit
 /ai-kit install         # detects the stack, shows the plan, adapts, verifies, commits on a branch
 /prd-create             # the PRD, from the code (or by interview in a new project)
 /trd-create             # the code map and the feature CLAUDE.md files
+/docs-html              # the PRD and TRD reading pages, whenever people want them
 
 # 3. From then on
 /prd-flow <any change or question about behavior>
@@ -92,12 +94,12 @@ AGENTS.md                       commands, critical constraints, finding things, 
 ai-kit.json                     stack commands, structure limits, ratchet allowlist
 .ai-kit/manifest.json           kit version and the files it owns
 .specify/memory/constitution.md binding principles: the project's own plus the kit's process principles
-.claude/skills/                 prd-create, trd-create, prd-flow (with repo.md, the project adapter), adr
+.claude/skills/                 prd-create, trd-create, prd-flow (with repo.md, the project adapter), adr, docs-html
 .claude/agents/                 the prd-flow roles (surveyor, docs, executor, reviewer, recheck) as defined
                                 subagents, plus one findings-only reviewer per risk class of the domain
 docs/prd/                       INDEX.md, README.md, CHANGELOG.md, prd.html (generated), one folder per PRD
 .github/CODEOWNERS              PRD files owned by the rule owners listed in repo.md
-docs/trd/                       README.md, one file per feature, infra.md, invariants.md, testing.md
+docs/trd/                       README.md, one file per feature, infra.md, invariants.md, testing.md, trd.html (generated)
 docs/code-structure.md          AR01 to AR28: where and how code lives, and this repository's layout
 docs/ai-readiness.md            the readiness checklist by category, used by trd-create and doctor
 docs/flow.md, docs/adr/         the one end-to-end diagram; decision records
@@ -152,8 +154,8 @@ The kit itself is stack-free. `/ai-kit install` reads the matching [recipe](stac
 **Does a `CLAUDE.md` in every folder help? Is it loaded by Claude Code?**
 Yes, lazily. Root and parent `CLAUDE.md` files load at session start; a subfolder's `CLAUDE.md` loads only when Claude reads, writes or edits a file in that folder, and reloads after `/compact`. The kit puts one short map (at most 20 lines) in each feature folder, not in every folder, and never `@`-imports them from the root, which would load them eagerly.
 
-**Why keep both markdown and HTML for the PRD?**
-People read the HTML (tabs per PRD, filters by where a rule changes, diagrams). Agents read only the markdown, one section at a time. The HTML is generated from the markdown by `build_prd_html.py` (nobody edits it), and the gate fails when it is out of date. A project that keeps a hand-made HTML stays on the old checks until `/ai-kit update` migrates it, after showing a rendered preview.
+**Why keep both markdown and HTML for the PRD and the TRD?**
+People read the HTML (tabs per PRD or per area, filters by where a rule changes, diagrams). Agents read only the markdown, one section at a time. The pages are generated from the markdown by `/docs-html` (nobody edits them) and never built inside a change: prd-flow only writes markdown, and the gate merely warns when a page is stale. A project that keeps a hand-made HTML gets one warning until `/ai-kit update` migrates it, after showing a rendered preview.
 
 **Can a project have several PRDs and TRDs?**
 Yes. One PRD folder per independent flow, one TRD file per feature folder, nested by package in a monorepo.

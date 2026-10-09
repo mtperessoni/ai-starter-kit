@@ -41,7 +41,8 @@ Read only the file of the domain you need. IDs are stable: a new rule takes the 
 | `.claude/settings.json`, `.ai-kit/runs/` | TM03, TM12: the telemetry hooks (project-owned, merged) and the git-ignored run artifacts |
 | `scripts/telemetry_hook.py`, `run_probe.py`, `retro.py` and the `telemetry` section of `ai-kit.json` | TM01 to TM11, TM13 |
 | `.claude/skills/prd-flow/scripts/gate.py` and its `gate_*.py` modules | WF31 to WF33 (`--trace`, `--change`, `--final`); WF43, WF44 (`--rules`, `--applied`); DS34, DS37, DS39 (`--status`, `--trd`, `--sibling`) |
-| `.claude/skills/prd-flow/scripts/build_prd_html.py` | DS42: the generated `prd.html` and its G29 check |
+| `.claude/skills/prd-flow/scripts/build_prd_html.py`, `build_trd_html.py` | DS42: the generated `prd.html` and `trd.html`, checked by G29 and G32 |
+| `.claude/skills/docs-html/` | DS45: the only place that builds the pages |
 | `.github/CODEOWNERS` | WF48, DS43 |
 | `scripts/commit_trailers.py` | WF49 (`gates.sh trailers`) |
 | `.github/workflows/` | TS20, TS23 to TS26, RV17, CX10 |

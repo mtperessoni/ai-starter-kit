@@ -34,7 +34,7 @@ usage: scripts/gates.sh <target> [args]
   imports          the import check (catches cycles); same one-line result
   ratchet          structure ratchet (docs/code-structure.md)
   docs [args]      the prd-flow docs gate
-  html [args]      rebuild the PRD HTML (the skill's build_prd_html.py); --check only verifies
+  html [args]      rebuild the PRD and TRD HTML pages (build_prd_html.py, build_trd_html.py); --check verifies both
   close [slug]     the closing ceremony in one block (retro findings and failure lines included): compare against the baseline, lint,
                    trailers, docs --final, retro; full log in .claude/prd-flow/state/_close/<slug>.log; exit 1 on a failure
   trailers [range] commits touching the source folders carry Rules: or Case: none (default origin/<base>..HEAD)
@@ -205,7 +205,10 @@ docs)
     python .claude/skills/prd-flow/scripts/gate.py "$@"
     ;;
 html)
-    python .claude/skills/prd-flow/scripts/build_prd_html.py "$@"
+    html_rc=0
+    python .claude/skills/prd-flow/scripts/build_prd_html.py "$@" || html_rc=1
+    python .claude/skills/prd-flow/scripts/build_trd_html.py "$@" || html_rc=1
+    exit "$html_rc"
     ;;
 close)
     GATES_BASH="$(cygpath -w "$BASH" 2>/dev/null || printf %s "$BASH")" python scripts/close_gate.py "$@"

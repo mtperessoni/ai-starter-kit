@@ -159,7 +159,7 @@ class FixAndCapTest(unittest.TestCase):
     def test_errors_and_warnings_have_separate_caps_and_more_lines(self) -> None:
         rows = "".join(f"| `src/nowhere/m{i}.py` | gone |\n" for i in range(20))
         write(self.p.root, "docs/trd/many.md", "# T\n\n| File | Role |\n|---|---|\n" + rows)
-        for i in range(14):
+        for i in range(13):
             write(self.p.root, f"docs/trd/big{i}.md", "# big\n" + "line\n" * 300)
         r = self.p.py(GATE, "--step", "trd")
         lines = r.stdout.splitlines()

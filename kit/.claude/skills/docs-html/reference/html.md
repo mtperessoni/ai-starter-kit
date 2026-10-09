@@ -1,20 +1,21 @@
-# HTML reading version (html-writer)
+# HTML reading pages (docs-html)
 
-People read `docs/prd/prd.html` (path in `repo.md` `html`); agents never do. The page is generated from the markdown by `.claude/skills/prd-flow/scripts/build_prd_html.py`: the html-writer runs the build, it never writes or edits the HTML. A wrong page is fixed in the markdown or in the build, never in the page.
+People read `docs/prd/prd.html` and `docs/trd/trd.html` (paths in `repo.md` `html` and `trd_html`); agents never do. Both pages are generated from the markdown by `.claude/skills/prd-flow/scripts/build_prd_html.py` and `build_trd_html.py`, run only by the docs-html skill (DH01). A wrong page is fixed in the markdown or in the build, never in the page.
 
 ## Run and check
 | Step | Command |
 |---|---|
-| Build after any change under `docs/prd/` | `python .claude/skills/prd-flow/scripts/build_prd_html.py` |
-| Check the page is current (what G29 runs) | `python .claude/skills/prd-flow/scripts/build_prd_html.py --check` (exit 1 when it differs from a fresh render) |
+| Build both pages | `scripts/gates.sh html` |
+| Check both are current | `scripts/gates.sh html --check`, or `gate.py --html` (G29, G32 and G4 over the pages) |
+| One page only | `python .claude/skills/prd-flow/scripts/build_prd_html.py` or `build_trd_html.py`, each with `--check` |
 | Preview elsewhere without touching the repository | `--root <repo> --out <file> [--template <file>]` |
 
-Commit the page in the same `docs(prd)` commit as the markdown. The sidebar and footer name the last commit touching `docs/prd/` and its date (never the clock); `--check` ignores those `data-stamp` values, since a page committed with its markdown can only name the commit before its own.
+The pages are committed on their own (DH04), after the markdown they render. The sidebar and footer name the last commit touching the source folder (`docs/prd/`, or `docs/trd/` and `docs/flow.md`) and its date (never the clock); `--check` ignores those `data-stamp` values, so a page built after its markdown was committed stays current until the markdown changes again.
 
 ## What the build guarantees
 | ID | Guarantee |
 |---|---|
-| H01 | Template: `html_template` (default `docs/templates/prd.html`) with the slots `{{PROJECT}}`, `{{TABS}}`, `{{VIAS}}`, `{{PANELS}}`, `{{REPO}}`, `{{COMMIT}}`, `{{DATE}}`, `{{PRD_DIR}}`; its `<style>` and `<script>` are kept as they are. A template without `{{PANELS}}` predates the build: copy the kit's template |
+| H01 | Template: `html_template` (default `docs/templates/prd.html`) with the slots `{{PROJECT}}`, `{{TABS}}`, `{{VIAS}}`, `{{PANELS}}`, `{{REPO}}`, `{{COMMIT}}`, `{{DATE}}`, `{{PRD_DIR}}`, and the page labels `{{DOC_LABEL}}`, `{{SUBTITLE}}`, `{{FILTER_TITLE}}`, `{{SEARCH_PLACEHOLDER}}`, `{{BUILDER}}`, `{{VIAS_ATTR}}`, `{{FILTER_ATTR}}` (the PRD values reproduce the earlier page byte for byte; the TRD page hides the filter and the "Where it changes" chips); its `<style>` and `<script>` are kept as they are. A template without `{{PANELS}}` predates the build, and one without the label slots predates the TRD page: copy the kit's template |
 | H02 | Deterministic: two builds of the same markdown give the same bytes; stdlib only |
 | H03 | Tabs: `overview` first, one per PRD in `INDEX.md` order (`data-tab` and `data-panel` equal to the PRD folder), `decisions` last. Tab title `PRD N · Name` and subtitle from the `## PRD N · Name (scope)` heading of INDEX |
 | H04 | One `<section id="<letter>-<file slug>">` per section file, in INDEX order, with `<h2><span class="num">NN</span>Title</h2>` from the file's `## NN. Title`; the panel's `toc` lists every section. Each PRD has its own letter (`a-`, `b-`) |
@@ -30,12 +31,14 @@ Commit the page in the same `docs(prd)` commit as the markdown. The sidebar and 
 | H14 | Decisions tab from README `## Open decisions`, one section per `###`, rows like `Q3 Should…` split into an ID column; then every PRD's `NN-open-questions.md` table, ranked by the highest severity of the risks and problems each question blocks. Question rows are rule rows for the filter and the counters, never gate rows |
 | H15 | Phone (390 px) and desktop, light and dark: no horizontal page scroll; on narrow screens tables become stacked cards with column labels |
 
-## Markdown the build reads
-The anatomy in `anatomy.md` as written: `## NN. Title` per file, `###` subsections, paragraphs, `-` and `1.` lists (nested by indentation), pipe tables with a separator row (`\|` for a literal pipe), GitHub callouts, fenced code and mermaid, inline code, bold, italics, markers and relative links. Raw HTML in the markdown is escaped, not rendered.
+## What the TRD build guarantees
+| ID | Guarantee |
+|---|---|
+| T01 | Same template, parser, text rules and layout guarantees as the PRD page (H02, H05, H06, H09, H10, H12, H15); no rule rows and no "Where it changes" filter |
+| T02 | Tabs: `overview` from `docs/trd/README.md` first; one per area in the order of the README area table links (an area that is a folder, `<area>/README.md` plus parts, is one tab with a section per file); then `infra.md`, `invariants.md`, `testing.md` when present; then `docs/flow.md` as the Flow tab (mermaid kept); any other markdown in `docs/trd/` last, sorted by path |
+| T03 | The stamp names the last commit touching `docs/trd/` or `docs/flow.md`; a template without the TRD slots fails with "copy the kit's docs/templates/prd.html" |
 
-## Steps
-1. Write or change the markdown; never touch `prd.html`.
-2. Run the build, then `--check` (or the gate, which runs G29 when `html_mode` is `generated`).
-3. Open the page once after a large change: every new section in the toc, callouts and tables readable on a phone width.
+## Markdown the builds read
+The PRD anatomy in `.claude/skills/prd-create/reference/anatomy.md` and the TRD layout of `docs/templates/trd-readme.md` and `trd-feature.md`, as written: `## NN. Title` per file, `###` subsections, paragraphs, `-` and `1.` lists (nested by indentation), pipe tables with a separator row (`\|` for a literal pipe), GitHub callouts, fenced code and mermaid, inline code, bold, italics, markers and relative links. Raw HTML in the markdown is escaped, not rendered.
 
-A repository whose `repo.md` still says `html_mode: hand` (or has no `html_mode`) keeps the hand-written page and the gate's G5, G6 and G10 checks until `/ai-kit update` migrates it.
+A repository whose `repo.md` still says `html_mode: hand` (or has no `html_mode`) is not built here (DH02): the default gate warns once (G5) and `/ai-kit update` migrates it.
