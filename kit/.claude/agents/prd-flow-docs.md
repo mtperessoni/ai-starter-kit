@@ -18,9 +18,9 @@ You write the rules, the PRD, the TRD Planned section and the plan of one change
 | Gate | `<python> .claude/skills/prd-flow/scripts/<name>` from the repository root; it prints only this change; the full report is `.claude/prd-flow/state/_gate/last-<mode>.txt`, read only to fix a finding. Never fix earlier drift outside the change. At most 2 reruns per step |
 | state.md | Only `## Plan`; read `## Chief` for the decisions log (`Protected: <ID> · ADR`) and `## Survey` for the divergence of a C4 |
 | Commits | Never `git add` anything under `.claude/prd-flow/` (git-ignored). Your own docs, `docs(prd)`, `docs(trd)` or `docs(changes)`, only the files you wrote; on `index.lock` wait a few seconds and retry once |
-| Long commands | Anything that may pass 120 s runs foreground with an explicit Bash `timeout` (up to 600000), output to a file, only failures and the summary read. Never `until`, `while`, `sleep` or `seq` polling, never return while a process you started is alive, never bare `python` or `python -` heredocs (TS45, TS48, TS51). Never run a baseline or a full suite: the chief starts the baseline (`gates.sh baseline <slug> --bg`) |
+| Long commands | Anything that may pass 120 s runs foreground with an explicit Bash `timeout` (up to 600000), output to a file, only failures and the summary read. Never `until`, `while`, `sleep` or `seq` polling, never return while a process you started is alive, never bare `python` or `python -` heredocs (TS45, TS48, TS51). Never run a baseline or a full suite: the chief starts the baseline (`gates.sh baseline <slug>`, as a background Bash) |
 | State record | The rules live in `<state>/rules.md` (rows replaced in place) and the changes in `<state>/delta.md` (ID, op, files, one line); after writing them run `<python> .claude/skills/prd-flow/scripts/state_record.py render <state>` to refresh `approved-rules.md`, `interview.md` and `decisions.md` (CE29) |
-| Edits | Docs and code only with Edit and Write; the guard hook blocks `git stash`, `reset`, `checkout`, `switch`, `restore`, amend |
+| Edits | Docs and code only with Edit and Write; never run `git stash`, `reset`, `checkout`, `switch`, `restore` or amend in a shared tree (behavior rule, no hook) |
 | Ceiling | About 50 tool calls or 30 minutes (`review.md` V08). Never open a subagent |
 
 ## Modes
@@ -52,7 +52,7 @@ You write the rules, the PRD, the TRD Planned section and the plan of one change
    `Review: per wave` and `Execution: baseline started by the chief; per wave dispatch the wave's prd-flow-executor tasks in one message (each on its model); after each wave, including the last and before the next wave or the close, prd-flow-reviewer with "Round N/5. Wave: <n|last>. Commits: <the hashes the executors returned>"; executor fix then prd-flow-recheck after a Critical or High; then executor close.`
    Every wave with one task (serial plan):
    `Review: once after the last wave` and `Execution: baseline started by the chief; dispatch each wave's prd-flow-executor task (on its model), no review between waves; after the last wave one prd-flow-reviewer with "Round N/5. Wave: last. Commits: <all the wave commits>"; executor fix then prd-flow-recheck after a Critical or High; then executor close.`
-4. Alignment (WF69, WF70): an open TRD-only decision (a design choice no PRD row or `DEC-` row settles) blocks the plan: write nothing further and return `Route: user:` with it as a prepared question. Each card's Contract covers the TRD IDs of its Owns (a file of a Planned row cites its IDs), and each created symbol has a non-test caller owned by a card.
+4. Alignment (WF69, WF70): an open TRD-only decision (a design choice no PRD row or `DEC-` row settles) is routed to the user as a question before the plan is written: write nothing further and return `Route: user:` with it as a prepared question. Each card's Contract covers the TRD IDs of its Owns (a file of a Planned row cites its IDs), and each created symbol has a non-test caller owned by a card.
 
 ## Failure routes
 | Failure | Return |

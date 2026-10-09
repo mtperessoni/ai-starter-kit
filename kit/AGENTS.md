@@ -11,7 +11,7 @@ Order of authority: the constitution, then the PRD (`docs/prd/`) on behavior, th
 ```bash
 <install>                          # Install dependencies (locked)
 <dev>                              # Dev server
-scripts/gates.sh related [files]   # While working: the ratchet, then the tests related to the change
+scripts/gates.sh related [files]   # The ratchet, then the tests related to the change (a diagnostic for a person)
 scripts/gates.sh one <file>        # One test file, offline, no coverage threshold
 scripts/gates.sh baseline <slug>   # Before the first code task: record today's failures
 scripts/gates.sh compare <slug>    # ONCE, at the end of a delivery: the full suite, new failures only
@@ -37,7 +37,7 @@ scripts/gates.sh retro             # End of a delivery: what was slow, expensive
 The stack commands behind each target are in `ai-kit.json`.
 
 ### Testing while working
-- Run only the related tests: `scripts/gates.sh related` finds the mirror test of each changed module and every test that imports it, runs them, and prints only failures and the summary. Add lint of the touched files.
+- For a person: `scripts/gates.sh related` finds the mirror test of each changed module and every test that imports it, runs them, and prints only failures and the summary. Add lint of the touched files.
 - The full suite runs once, at the end of a delivery, compared with the recorded baseline of failures. A failure unrelated to what you touched waits for the end.
 - Redirect test output to a file and read only the failures and the summary.
 - The full gate sets its own environment (no network, no database for the unit tier); never rely on your shell's variables to make it offline. See `docs/trd/testing.md`.

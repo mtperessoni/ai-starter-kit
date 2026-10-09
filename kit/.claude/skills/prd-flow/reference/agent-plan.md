@@ -91,7 +91,7 @@ The reviewer and the recheck build it from their findings (each finding carries 
 The plan header copies these lines under `## Plan execution rules`, so whoever executes does not depend on the skill:
 - Review with a ceiling (`.claude/skills/prd-flow/reference/review.md`): at most 5 rounds per delivery; every wave is reviewed (a serial plan once, after the last wave); from round 2 only the previous findings against the fix commit; Critical is fixed, High is fixed when it fits the approved rules, else the user decides; Medium and Low become pending; an open Critical at round 5, or a round that finds more than the previous one, stops the delivery and goes to the user.
 - Every agent stops at its ceiling (review.md V08) and returns the handoff for a new agent of the same role.
-- Inside a task, only the related tests; the full suite runs once, in `executor close`.
+- Inside a task, only the task's own new test; related tests run once in the wave verification (`gates.sh verify`); the full suite runs once, in `executor close`.
 - Any behavior outside the approved rules, safety included, stops the task and routes to the surveyor in `short` mode (R09).
 - Each executor commits its own work with the `Rules:` or `Case: none (...)` trailer and writes `deliveries/<task>.md`.
 - Per wave: the wave's executors in one message, each on its card's model; `prd-flow-reviewer` on the wave's commits whatever `Lens:` says; a fix through `executor fix`, then `prd-flow-recheck`. After the last wave, `executor close`.

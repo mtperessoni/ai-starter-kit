@@ -397,3 +397,46 @@ class LauncherTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             r = self.run_launcher(Path(tmp))
             self.assertEqual((r.returncode, r.stdout), (0, ""))
+
+    def test_failing_interpreters_on_path_exit_zero(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            proj = Path(tmp)
+            (proj / "scripts").mkdir()
+            (proj / "scripts" / "telemetry_hook.py").write_text("", encoding="utf8")
+            (proj / "ai-kit.json").write_text("{}", encoding="utf8")
+            bindir = proj / "bin"
+            bindir.mkdir()
+            for name in ("python3", "python"):
+                stub = bindir / name
+                stub.write_text("#!/bin/sh\nexit 49\n", encoding="utf8")
+                stub.chmod(0o755)
+            import shutil
+            bash = shutil.which("bash")
+            if not bash:
+                self.skipTest("bash not available")
+            env = dict(os.environ, CLAUDE_PROJECT_DIR=proj.as_posix(), PATH=bindir.as_posix() + os.pathsep + os.environ["PATH"])
+            r = subprocess.run([bash, "-c", self.launcher()], capture_output=True, text=True, env=env, timeout=30)
+            self.assertEqual((r.returncode, r.stdout), (0, ""))
+
+    def test_a_failing_stub_is_skipped_for_the_next_interpreter(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            proj = Path(tmp)
+            (proj / "scripts").mkdir()
+            (proj / "scripts" / "telemetry_hook.py").write_text("", encoding="utf8")
+            (proj / "ai-kit.json").write_text("{}", encoding="utf8")
+            bindir = proj / "bin"
+            bindir.mkdir()
+            bad = bindir / "python3"
+            bad.write_text("#!/bin/sh\nexit 49\n", encoding="utf8")
+            bad.chmod(0o755)
+            good = bindir / "python"
+            good.write_text("#!/bin/sh\n[ \"$1\" = -c ] && exit 0\necho ran > " + (proj / "marker").as_posix() + "\n", encoding="utf8")
+            good.chmod(0o755)
+            import shutil
+            bash = shutil.which("bash")
+            if not bash:
+                self.skipTest("bash not available")
+            env = dict(os.environ, CLAUDE_PROJECT_DIR=proj.as_posix(), PATH=bindir.as_posix() + os.pathsep + os.environ["PATH"])
+            r = subprocess.run([bash, "-c", self.launcher()], capture_output=True, text=True, env=env, timeout=30)
+            self.assertEqual(r.returncode, 0)
+            self.assertTrue((proj / "marker").is_file())

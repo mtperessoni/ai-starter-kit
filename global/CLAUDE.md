@@ -12,7 +12,7 @@
 - Verification is per batch: an executor runs only its own new test; the chief runs one `gates.sh verify <slug>` per wave, with the reviewer, and fixes in one batch. Gates are reminders, run once per phase.
 
 ## Tests
-- While working, run only the related tests: the mirror test of the touched module and the tests that import or use it. The full suite runs once, at the end of a delivery, compared against a recorded baseline of failures.
+- Executors run only their own new test; the related tests (the mirror test of each touched module and the tests that import it) run once per wave in the verification. The full suite runs once, at the end of a delivery, compared against a recorded baseline of failures.
 - Test output goes to a file; only failures and the summary come back into context.
 - Write the failing test first.
 - A token-saving proxy such as `rtk` swallows test-runner output: run test runners and linters through `rtk proxy <cmd>` or the runner's own binary.

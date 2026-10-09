@@ -61,9 +61,10 @@ Always through `scripts/gates.sh`; the stack commands behind each target are in 
 
 | Purpose | Command |
 |---|---|
-| Related tests of a change (while working) | `scripts/gates.sh related [files]` (ratchet, then mirror tests and importers; only failures and the summary are printed, the log goes to `.claude/prd-flow/state/_tests/`) |
+| Related tests of a change (a diagnostic for a person; agents use `verify`) | `scripts/gates.sh related [files]` (ratchet, then mirror tests and importers; only failures and the summary are printed, the log goes to `.claude/prd-flow/state/_tests/`) |
 | One test file, no coverage | `scripts/gates.sh one <file>` |
-| Baseline before the first code task | `scripts/gates.sh baseline <slug>` |
+| Wave verification (chief, once per wave) | `scripts/gates.sh verify <slug>` |
+| Baseline, started by the chief after the plan commit (background Bash) | `scripts/gates.sh baseline <slug>` |
 | Full suite, once at the end, against the baseline | `scripts/gates.sh compare <slug>` |
 | Lint, verify only | `scripts/gates.sh lint` |
 | Lint, repair | `scripts/gates.sh fix`, then `lint` |

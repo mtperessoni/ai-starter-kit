@@ -189,7 +189,7 @@ python eval/run.py --config eval/arms-flow.json                                 
 What decides: the hard gates (accept, suite, gate, completed, F1, R4) must hold for FLOW, then the Source-of-truth fidelity tally (`conflict_found` and `gap_recorded` higher, `contradiction_left` lower) and cost and time on the same runs; `report.md` names FLOW as the candidate and GATE as the base. Three scenarios with one rep are a smoke signal, not a statistic: a tie is read as "no regression".
 
 ## Run-speed round (W6, plan run-speed)
-Base arm BASE = main at 3524bd2, candidate arm CAND = `feat/run-speed`, both two-phase; S5 at 2 reps, S8, S9 and S10 at 1 (`eval/arms-run-speed.json`). Predictions are written before the run in `eval/predictions/run-speed.md`. The new fields (`baseline_runs`, `poll_calls`, `bg_alive_at_return`, `question_rounds`, `rejected_answers`, `bash_code_edits`, `git_unsafe_calls`) are defined in `METRICS.md` "Run-speed fields".
+Base arm BASE = main at 3524bd2, candidate arm CAND = `feat/run-speed`, both two-phase; S5 at 2 reps, S8, S9 and S10 at 1 (`eval/arms-run-speed.json`). Predictions are written before the run in `eval/predictions/run-speed.md`. The new fields (`baseline_runs`, `poll_calls`, `bg_alive_at_return`, `question_rounds`, `rejected_answers`, `bash_code_edits`, `git_unsafe_calls`, `verify_runs`, `agent_test_runs`) are defined in `METRICS.md` "Run-speed fields".
 
 | Scenario | What it tests | Expected |
 |---|---|---|

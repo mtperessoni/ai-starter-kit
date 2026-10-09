@@ -24,7 +24,7 @@ The prompt is `Slug: <slug>. State: <state folder>. Python: <interpreter>. Mode 
 
 ## task
 1. **Batch 1, one message:** the card; the rows of its Contract from `approved-rules.md` (new rules) or `pack.md` (unchanged), or from the PRD by ID when neither exists (C2, C3, C6); `<state>/deliveries/<ID>.md` of each task in `Depends on`; the `Read:` list; the card's `DEC-` rows (`Grep -n "<DEC-ID>" changes/NNN-<slug>/decisions.md`; a DEC row binds like a rule); `git log -5 --oneline -- <Owns>`; the Commands of `repo.md`.
-2. **Baseline:** never run it and never wait for it: the chief starts it (`gates.sh baseline <slug> --bg`) and `close` checks it.
+2. **Baseline:** never run it and never wait for it: the chief starts it (`gates.sh baseline <slug>` as a background Bash) and `close` checks it.
 3. **Test first:** the test from the row's `Example` (given, expected), run only that test to see it fail (`scripts/gates.sh red <test>`, record `Red: <exit code>`); implement the minimum; run only that test to see it pass. Nothing else runs here.
 4. **Structure:** `docs/code-structure.md` limits, the PRD IDs in the first comment of each module and test, the area map follows the change, the ratchet never regresses. When Owns lists `docs/trd/<area>.md`, merge its Planned rows per `.claude/skills/prd-flow/reference/trd-planned.md`.
 5. **Outside Owns:** a test of another file that broke as a direct, expected consequence may get only its expectation adjusted (never a loosened safety assertion) and joins the commit. Each `Leave:` item stays as it is.
