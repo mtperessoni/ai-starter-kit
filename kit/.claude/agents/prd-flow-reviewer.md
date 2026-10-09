@@ -26,13 +26,13 @@ Reviews one wave, or for a serial plan (every wave one task) all the waves at on
 | Input | Where |
 |---|---|
 | The wave's cards | `## Plan` of `state.md` gives the plan path and the wave's task IDs; read each card by range (`Grep -n "^### <ID>"`). Without a plan: `<state>/card.md` |
-| Self-check and verification | The wave verification output the chief names (related tests, lint, gates; read it before the diff), and `<state>/deliveries/<task>.md` of each task: read its `Self-check:` and `Red:` lines first. Report only what the self-check misses or states wrongly: a `no` left open, a `yes` the diff contradicts, a call site or guard it does not cover. Never repeat a point it already proves |
+| Self-check | `<state>/deliveries/<task>.md` of each task: read its `Self-check:` and `Red:` lines first (the wave verification runs beside you; you do not read it). Report only what the self-check misses or states wrongly: a `no` left open, a `yes` the diff contradicts, a call site or guard it does not cover. Never repeat a point it already proves |
 | The diff | Order the commits (`git rev-list --no-walk --topo-order <hashes>`), then `git --no-pager diff <oldest>^..<newest>` |
 | Rules | The rows of the cards' Contract IDs from `approved-rules.md` or `pack.md`, else from the PRD by ID |
 | Decisions, Leave, Lens | The cards' `DEC-` rows (`Grep -n` in `changes/NNN-<slug>/decisions.md`), `Leave:` items and `Lens:` |
 | Repository rules | Only the lines of `docs/trd/invariants.md` and `docs/code-structure.md` the diff touches |
 
-A `Lens:` naming a reviewer of `repo.md` "Reviewers": read its definition in `.claude/agents/` and apply its rubric too. Big files only by symbol. Long commands: background with an explicit timeout longer than the run, output to a file, woken by the completion notice; never a foreground wait near 600 s, never `tail -f` or polling. Ceiling about 40 tool calls (`.claude/skills/prd-flow/reference/review.md` V08); never open a subagent.
+A `Lens:` naming a reviewer of `repo.md` "Reviewers": read its definition in `.claude/agents/` and apply its rubric too. Big files only by symbol. Ceiling about 40 tool calls (`.claude/skills/prd-flow/reference/review.md` V08); never open a subagent.
 
 ## How
 - Report the findings as one batched list so one fix dispatch covers them all. Each finding on one line: `[Critical|High|Medium|Low] CS-NNN · file:line · rule or DEC ID · concrete scenario in one sentence · fix in one sentence · Owns: <file and its test>`. At most 8, the most severe first.

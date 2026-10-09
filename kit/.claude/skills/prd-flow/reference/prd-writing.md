@@ -45,7 +45,7 @@ Table format: `| ID | Rule | Source | Change via |` with an optional fifth colum
 |---|---|
 | New ID | Next free number of the prefix. Never renumber or reuse |
 | Example column | One line `<given> → <expected outcome>` in product language, for example `Provider silent for 20 s → "try again" shown, cart kept` (illustrative). Required for a rule with a number, a branch or a failure path; the sheet's `Example:` line lands here. Four-column tables stay valid |
-| Proposed (comes only from documents, not proven by code) | `*(proposed)*` (the `proposed_marker` of `repo.md`) at the start of the text; Source `planned`. Input of C5, never C2. Greenfield M2 rules come from the interview and are approved, not proposed |
+| Proposed (comes only from documents, not proven by code) | `*(proposed)*` (the `proposed_marker` of `repo.md`) at the start of the text; Source `planned`. Input of C5, never C2. Greenfield M2 rules come from the decision sheet and are approved, not proposed |
 | Approved, no code yet | `*(approved YYYY-MM-DD, pending code)*` at the start of the text; Source `planned`. Approving a proposed rule replaces its `*(proposed)*` marker with this one |
 | Rule the new one supersedes | Keeps its text and gets `*(superseded: <link to the new rule>, valid until deploy)*` at the start |
 | Rule rewritten (same rule, new text) | Keeps its ID; the rewritten row carries the approved marker; the old text goes literally to the CHANGELOG at promotion. An ID is never reused for a different rule |
@@ -62,7 +62,7 @@ Style: English, product language; a technical term only in backticks and explain
 New entry at the top:
 
 ```markdown
-## <Name of the change> (YYYY-MM-DD, <approver>, <change folder or branch>)
+## <slug> (YYYY-MM-DD, <approver>, <change folder or branch>)
 
 Reason: <one sentence>. IDs: CHK-02, CHK-13.
 Owner: decided by <owner>, written by <approver>   (only when "Rule owners" of repo.md applies)

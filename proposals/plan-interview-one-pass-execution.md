@@ -21,7 +21,8 @@ Implements every item of [`plan-interview-one-pass.md`](plan-interview-one-pass.
 | `pack.md` | surveyor `full` | As today (`impact.md` "Format of `pack.md`") |
 | `sheet.md` | surveyor `full` | The decision sheet, format below. The surveyor writes nothing else in the state folder besides `state.md` `## Survey` (a 10-line summary: case, size, owner, protected rules, sheet path, `Python:` line) |
 | `answers.md` | docs `apply` | `## Reply 1` (the user's message verbatim), `## Reply 2` only after the follow-up, then `## Resolution`: a table `\| Item \| Answer \| From \|` with one row per sheet item (`1`..`N`, `A1`..`An`, `scope`); `Answer` is the chosen option letter, `accepted` (assumption kept), the correction words, `default` (taken through `ok`) or `open Q-<ID>`; `From` is `Reply 1`, `Reply 2` or `ok` |
-| `sheet-2.md` | docs `apply` | The follow-up sheet: same format, only the unclear items and new decisions; at most one |
+| `sheet-2.md` | docs `apply` | The follow-up sheet: same format, only the unclear items and new decisions; at most one, hard stop: after `Answers 2` docs writes no sheet; a TRD-only decision found while writing goes in it when unused, else a `Q-` row with the recommended default; a gate-red "rule unclear" is fixed once, then a `Q-` row, never `Route: user: sheet-2.md` |
+| `sheet-short-<k>.md` | surveyor `short` | k = 1, 2, ...; never overwrites `sheet.md`; items keyed `s<k>.<n>`, `s<k>.A<n>`, `s<k>.scope` in `## Resolution` (beside `2.<n>`); the gate reads every `sheet-short-*.md` |
 | `rules.md` | docs `apply` | The approved rule rows, written once from sheet plus answers (no `Confirmed:` line, no Dimensions table). `delta.md` is no longer written |
 | `decisions.md` | docs `apply` | The only home of DEC rows (rendered by `state_record.py` as today, or written directly if the renderer is reduced) |
 | `approved-rules.md` | `state_record.py render` | As today, from `rules.md` |
@@ -56,22 +57,22 @@ Entry points: `gate.py --sheet <slug>` (S1 to S6), `gate.py --rules <slug>` keep
 ### Chief flow of a C5 (SKILL.md is the only home; dispatch.md holds the prompts)
 | Step | What |
 |---|---|
-| 0 | Where the change lives is the first check: the chief names the repository (or repositories, one slug, one sheet, rows grouped by repo via `.ai-kit/repos.json`) before any survey. A second slug in the same working tree is refused: a worktree per slug |
+| 0 | Where the change lives is the first check: the chief names the repository (or repositories, one slug, one sheet, rows grouped by repo via `.ai-kit/repos.json`) before any survey; when it is unclear the surveyor returns `Route: user: <which repository>`. A second slug in the same working tree: the chief tells the user to start it in its own worktree and stops |
 | 1 | Surveyor `full`. The prompt adds `Decided in conversation: "<user's verbatim words>"` (every decision the user already stated in this conversation) and `Preferences: "<verbatim>"` (the user's feedback memories that bear on the request); each becomes an Assumed line, never a decision |
 | 2 | The chief reads `sheet.md` and prints it as its message, verbatim, and ends the turn. No AskUserQuestion, no round 0, no separate change question ("keep today's rule" is an option of decision 1 when relevant) |
 | 3 | The user's reply goes verbatim to docs `apply` (`Answers: <verbatim>`) |
-| 4 | Docs `apply` returns either done (rule diff as written plus the wave table) or `Route: user: sheet-2.md`: the chief prints `sheet-2.md` and ends the turn; the reply goes to the same docs agent (SendMessage) as `Answers 2:`; after it, open items become `Q-` rows |
-| 5 | The chief prints the rule diff as written (today, then new) plus the wave table: one approval. A correction is docs `adjust: <words>` in place |
-| 6 | Execution as today |
+| 4 | Docs `apply` returns either done or `Route: user: sheet-2.md`: the chief prints `sheet-2.md` and ends the turn; the reply goes to the same docs agent (SendMessage) as `Answers 2:`; after it, open items become `Q-` rows (one follow-up, hard stop) |
+| 5 | Docs returns `Route: none`, `Next: print the rule diff and the wave table, wait for the user's reply`; the chief prints the rule diff as written (today, then new) plus the wave table and the user's chat reply is the approval (no AskUserQuestion). A correction is docs `adjust: <words>` in place. A short C5 (mid-execution) ends at its sheet reply, which is its approval |
+| 6 | Execution as today; reap is its own Bash call at wave end and verify goes in the next message; the reviewer and recheck do not read the verify output (it runs concurrently), the chief routes verify failures with the findings into one fix; after the last fix the chief restarts `compare` |
 | Explain | When the user does not understand an item, the chief may read the PRD rows the sheet cites and explain with today's rule and an example; never the same question in new words (replaces "Forbidden: preparing a question") |
 
 ### Docs modes
-`apply` (sheet plus answers to answers.md, rules.md, decisions.md, PRD, TRD Planned, plan; checks the combination of the answers per `Interacts with:` before writing; never adds a mechanism outside the sheet or the answers), `adjust: <words>` (in-place correction), `c4`, `fold`, `context` (fan-out) stay. `rules`, `prd-plan`, `trd-plan` and the folded path are removed.
+`apply` (also `apply merge` after a `context` fan-out, and `Case short` for a `sheet-short-<k>.md`; sheet plus answers to answers.md, rules.md, decisions.md, PRD, TRD Planned, plan; checks the combination of the answers per `Interacts with:` before writing; never adds a mechanism outside the sheet or the answers), `adjust: <words>` (in-place correction), `c4`, `fold`, `context` (fan-out) stay. `rules`, `prd-plan`, `trd-plan` and the folded path are removed.
 
 ### Commands and harness rules
 | Rule | Value |
 |---|---|
-| Interpreter | The only interpreter any runtime file or prompt names is the output of `scripts/gates.sh python` (it resolves `ai-kit.json` `commands.python`). No `a \|\| b` fallback chains in instructions |
+| Interpreter | The only interpreter any runtime file or prompt names is the output of `scripts/gates.sh python` (it resolves `ai-kit.json` `commands.python`). The chief may run it (closed Bash list) and puts it on every `Python:` line; the surveyor preflight runs `<python> scripts/next_change_number.py <slug>`. No `a \|\| b` fallback chains in instructions |
 | Commit | Write the message with Write to `<state>/msg-<task>.txt`, then `git add <paths>` and `git commit -F <state>/msg-<task>.txt` as separate calls. Never `-F -`, never a heredoc or a here-string |
 | One command per call | Never chain an edit, a format, a test or a commit with `&&` in one call |
 | Long commands | Background with an explicit timeout longer than the run, woken by the completion notice, output to a file; never a foreground wait near 600 s, never `tail -f` or polling |
@@ -84,8 +85,8 @@ Entry points: `gate.py --sheet <slug>` (S1 to S6), `gate.py --rules <slug>` keep
 | Return | Every agent returns at most 20 lines: `Status`, `Files:`, `Commit:`, `Route:`, `Next:` (the five fields; kit/CLAUDE.md, AGENTS.md and global/CLAUDE.md say the same) |
 | Medium findings | Home `reference/review.md`: Critical and High go to a fix and count a round; Medium and Low ride in the same batched fix and do not count a round on their own; reviewer and recheck link to it |
 | Full suite | Home `reference/execution.md`: the chief starts `compare` during the last review; close never runs the suite inline, it reuses the compare result; close order lint, trailers, docs, then the compare result |
-| Baseline | Home `reference/dispatch.md` DP06: only the chief, background; started for C2, C3, C5, C6; C4 close does not require it |
-| Fresh session | Only past about 120k tokens in the chief, as an offer (BC6) |
+| Baseline | Home `reference/dispatch.md` DP06: only the chief, background; started for C2, C3, C5, C6; the executor close runs `gates.sh close <slug> --case <C>` and with C4 skips compare and baseline |
+| Fresh session | Only past about 120k tokens in the chief, as an offer (BC6); home `SKILL.md` "State"; execution.md E02 and the ">2 waves" trigger are deleted, E01 links the home |
 | Rule IDs in runtime files | Runtime files (`kit/.claude/**`, `kit/CLAUDE.md`, `kit/AGENTS.md`, `kit/scripts/*`, `global/CLAUDE.md`) cite only IDs or headings defined in files the agent loads; IDs of `rules/` stay in `rules/` (BD1, M11) |
 
 ### Homes (M10): one rule, one file; others link by heading

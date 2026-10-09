@@ -47,7 +47,7 @@ Parsed by `scripts/gate.py`. Keep the two-column table format and the key names.
 
 `trd_budget_lines`: lines a TRD file may have before G26 warns; an area over it splits into parts (`reference/trd-planned.md`).
 
-`language`: language of the PRD and TRD prose, the interview and the gate output. IDs, code, commits and file names stay English. The installer sets it from the language of the existing docs.
+`language`: language of the PRD and TRD prose, the decision sheet and the gate output. IDs, code, commits and file names stay English. The installer sets it from the language of the existing docs.
 
 `planned_heading`: the level-2 TRD heading that lists rules not built yet; G8 checks the IDs under it and G20 fails `--final` while it exists. Set it to the project's own word (for example `Planejado`).
 

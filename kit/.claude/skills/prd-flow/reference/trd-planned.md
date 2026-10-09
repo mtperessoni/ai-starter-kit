@@ -37,7 +37,7 @@ Must not break: <what of the "Must not break" section the change touches>.
 | TP03 | Contracts live only in `design.md`; Planned links to it |
 | TP04 | Plan tasks point to the Planned row by file instead of describing it again (`reference/agent-plan.md`) |
 | TP05 | Every cited ID must exist in the PRD, and the module will cite the IDs it implements |
-| TP06 | An open TRD-only decision (a design choice no PRD row or `DEC-` row settles) is an item of `sheet-2.md` before the plan is written: the docs agent writes no plan until it is answered |
+| TP06 | An open TRD-only decision (a design choice no PRD row or `DEC-` row settles) found while writing goes into the single follow-up `sheet-2.md` when it is not used yet (the docs agent writes no plan until it is answered), else it becomes a `Q-` row with the recommended default; never a second sheet |
 | TP07 | Each plan card's Contract covers the TRD IDs of the Planned rows of its Owns files, and each created symbol has a non-test caller owned by a card |
 
 ## Size and split

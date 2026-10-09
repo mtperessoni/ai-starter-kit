@@ -47,8 +47,8 @@ Preflight (`full`, in the same batch):
 | Access | The files the flow writes (`docs/prd/CHANGELOG.md`, the PRD, the TRD, the state folder) are readable and writable under the settings; a deny is `Route: user` about tooling, never a product question |
 | Setup | `scripts/gates.sh setup` is current; the base lint and type check status is noted in `## Survey` |
 | Data | A new state, enum or column value: read the database constraints and migrations before writing the sheet |
-| Number | Reserve the change number with `python scripts/next_change_number.py <slug>` |
-| Repositories | A change in several repositories is one slug and one sheet, rows grouped by repository (`.ai-kit/repos.json`) |
+| Number | Reserve the change number with `<python> scripts/next_change_number.py <slug>` with the prompt's `Python:` interpreter |
+| Repositories | A change in several repositories is one slug and one sheet, rows grouped by repository (`.ai-kit/repos.json`). When the repository is unclear, return `Route: user: <which repository>` before any survey |
 | Checked | Every `Checked:` line cites the file read |
 
 ## Modes
@@ -57,7 +57,7 @@ Preflight (`full`, in the same batch):
 | `query` (C1) | Answers from the rows and the code; `gate.py --status` for rule states. A diagnosis stays a diagnosis: cause and options, no change | nothing |
 | `light` (C2, C3, C4, C6) | Verdict per rule; a divergence becomes the `Route: user:` question of `classification.md` with options PRD right (C3), code right (C4), neither (C5). For code work, the card: read `agent-plan.md` "Format of a task" and write `<state>/card.md`, Owns with the tests that import the changed symbols (`Grep` the module path), Read exact, Leave the out-of-scope divergences. C4 writes no card. C2 over one task (pieces in disjoint areas, or the TRD must change): no card, `Next:` docs `short` | `## Survey` (approver from `git config user.name`), `card.md` |
 | `full` (C5) | Sweep, conflicts and protected rules per `impact.md` (by size), including its "The sheet" blind-spot line; `pack.md` and `gate.py --pack <pack>`; `gate.py --snapshot <slug>` once; contexts (`fan-out: yes` when two or more PRD folders or TRD areas have more than about 5 rows each); then `sheet.md` per `reference/interview.md` "Format of `sheet.md`" and "Sheet rules", checked once with `gate.py --sheet <slug>`. Each `Decided in conversation:` and `Preferences:` item becomes an Assumed line, never a decision; a recommendation cites the stated preference it follows or says "no stated preference". `Adjust:` re-surveys only the touched rows and rewrites the affected sheet items | `pack.md`, `sheet.md`, `## Survey` |
-| `short` | `impact.md` short sweep on the touched rules; a sheet of only the touched rules in `sheet.md`; the touched rows in `pack.md`; a `### Short <YYYY-MM-DD>` block in `## Survey` saying, per running or committed task of `## Plan`, `stands` or `redo: <why>` (a task stands when its Owns do not implement the touched rules). More than one rule: say so and recommend a full C5 | as left |
+| `short` | `impact.md` short sweep on the touched rules; a sheet of only the touched rules in `<state>/sheet-short-<k>.md` (k = 1, 2, ...; never overwrite `sheet.md`; items `s<k>.<n>`, `s<k>.A<n>`, `s<k>.scope`, per `interview.md`); the touched rows in `pack.md`; a `### Short <YYYY-MM-DD>` block in `## Survey` saying, per running or committed task of `## Plan`, `stands` or `redo: <why>` (a task stands when its Owns do not implement the touched rules). More than one rule: say so and recommend a full C5 | as left |
 
 ## Failure routes
 | Failure | Return |
@@ -68,7 +68,7 @@ Preflight (`full`, in the same batch):
 | Ceiling | `Status: gap` · `Route: surveyor <mode>: <done, left, files>` |
 
 ## Return
-At most 15 lines and under 2,000 characters (both before the five fields), then the five fields and nothing after. `query`: the answer, each rule with its ID and `verified in code` or `not verified: <verdict>`. `light`: case, the rule lines with verdicts, `Card:`. `full` and `short`: case, size, one line on conflicts, protected rules and contexts, the sheet path; `Next:` "print `sheet.md` verbatim as the message and end the turn; the reply goes to docs `apply`". `light` divergence: `Next:` "PRD right: executor task with card.md; code right: docs `c4`; neither: surveyor `full`".
+At most 15 lines and under 2,000 characters (both before the five fields), then the five fields and nothing after. `query`: the answer, each rule with its ID and `verified in code` or `not verified: <verdict>`. `light`: case, the rule lines with verdicts, `Card:`. `full` and `short`: case, size, one line on conflicts, protected rules and contexts, the sheet path; `Next:` "print the sheet (`sheet.md`, or `sheet-short-<k>.md` for `short`) verbatim as the message and end the turn; the reply goes to docs `apply`". `light` divergence: `Next:` "PRD right: executor task with card.md; code right: docs `c4`; neither: surveyor `full`".
 ```
 Status: done | gap | blocked
 Files: <paths written, or none>

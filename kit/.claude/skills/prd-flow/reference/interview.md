@@ -56,17 +56,16 @@ Interacts with: 1
 | Item | Title, `rule <ID>[, <ID>]` (a mechanism decision says `mechanism` instead), `Today:`, `Why it matters:`, at least two options with their consequence, exactly one `(Recommended)`, `Example:`; `Interacts with:` is optional |
 
 ## Sheet rules
+Limits and shape checks (counts, one topic per rule, plain words in titles and options, numbers in options) live in "Sheet lint" below, the one home; a decision beyond the limit means the sheet recommends splitting the change.
+
 | Rule | Detail |
 |---|---|
 | Diff first | Every rule the change touches is a diff row with the literal text; conflicts of the sweep (K01, K11, K14) are rows (`rewrites` or `supersedes`), never separate questions |
-| Assumed | At most 8 lines. Whatever the chief passes as `Decided in conversation:` or `Preferences:` is an assumed line, never a decision |
-| Decisions | Real alternatives only, at most 8; more means the sheet recommends splitting the change |
+| Assumed | Whatever the chief passes as `Decided in conversation:` or `Preferences:` is an assumed line, never a decision |
+| Decisions | Real alternatives only |
 | Mechanism | A rollback, switch, configuration key, environment variable, table or endpoint the change needs is always a decision of the sheet; docs never adds one |
-| Context | IDs and code names are allowed in context lines (`Today:`, `Why it matters:`, `Example:`); titles and options use plain words |
 | Order | Protected rule and rule owner items first |
-| One topic | Two items never decide the same rule and scope |
 | Recommendation | Cites the stated preference of the user it follows, or says "no stated preference" |
-| Numbers | A rule that depends on a number or a category names it in the option |
 | Owner | When the confrontation named an owner and the approver is not the owner, an item asks whether the owner agreed; docs records `decided by <owner>, written by <approver>` |
 
 ## Answers
@@ -79,14 +78,15 @@ Interacts with: 1
 
 | Rule | Detail |
 |---|---|
-| Follow-up | An unclear answer or one that opens a new decision gets one `sheet-2.md` with only those items; after its reply an item still open becomes a `Q-` row with the recommended default, visibly open |
+| Follow-up | One `sheet-2.md` at most, hard stop: an unclear answer or one that opens a new decision gets it with only those items; after its reply docs never writes another sheet, and an item still open (a TRD-only decision or a gate-red unclear rule included) becomes a `Q-` row with the recommended default, visibly open |
+| Short sheet | Surveyor `short` writes `sheet-short-<k>.md` (k = 1, 2, ...), never over `sheet.md`; the gate reads every `sheet-short-*.md`; a short C5 ends at the sheet reply |
 | Not understood | Answer with today's rule and an example; never the same question in new words |
 | Combinations | Docs checks the combination of answers per `Interacts with:` before writing |
 
 ## Records
 | File | Content |
 |---|---|
-| `answers.md` | `## Reply 1` (the user's message verbatim), `## Reply 2` only after the follow-up, then `## Resolution`: `\| Item \| Answer \| From \|`, one row per sheet item (`1`..`N`, `A1`..`An`, `scope`; items of `sheet-2.md` are `2.<n>`); Answer is the option letter, `accepted`, the correction words, `default` or `open Q-<ID>`; From is `Reply 1`, `Reply 2` or `ok` |
+| `answers.md` | `## Reply 1` (the user's message verbatim), `## Reply 2` only after the follow-up, then `## Resolution`: `\| Item \| Answer \| From \|`, one row per sheet item (`1`..`N`, `A1`..`An`, `scope`; items of `sheet-2.md` are `2.<n>`; items of `sheet-short-<k>.md` are `s<k>.<n>`, `s<k>.A<n>`, `s<k>.scope`); Answer is the option letter, `accepted`, the correction words, `default` or `open Q-<ID>`; From is `Reply 1`, `Reply 2` or `ok` |
 | `rules.md` | The approved rows, written once from sheet plus answers, replaced in place (one row per ID) |
 | `approved-rules.md` | Rendered from `rules.md` with `<python> .claude/skills/prd-flow/scripts/state_record.py render <state> [<change>]`, never edited by hand; `gate.py --rules` and `--applied` read it |
 | `decisions.md` | `changes/NNN-<slug>/decisions.md`, from `docs/templates/change-decisions.md`: `\| ID \| Question \| Decision \| Rejected alternative \| Why \| Rules \|`, one `DEC-NN` row per answer that chose between real options; the only home of DEC rows; promotion copies them once into the CHANGELOG entry |
