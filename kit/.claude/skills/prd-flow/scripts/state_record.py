@@ -1,9 +1,8 @@
-"""The state record of one change: rules.md and delta.md, and the legacy views rendered from them.
+"""The state record of one change: rules.md, and the views rendered from it.
 
-rules.md: `# Rules · <slug> · <date> · <approver>`, an optional `Scope:` line, one `## <prd file>.md` section per PRD file
-with its current rows (replaced in place), `## Supersedes`, `## Conflicts`, `## Rounds`, `## Decisions` and one or more
-`## Dimensions` sections with their `Confirmed:` lines. delta.md: one `| ID | op | files | note |` row per ID and op.
-approved-rules.md, interview.md and decisions.md are views of rules.md; without rules.md the legacy files are read as they are.
+rules.md: `# Rules · <slug> · <date> · <approver>`, one `## <prd file>.md` section per PRD file with its current rows
+(replaced in place), `## Supersedes`, `## Conflicts`, `## Rounds` and `## Decisions`.
+approved-rules.md and decisions.md are views of rules.md; without rules.md the legacy approved-rules.md is read as it is.
 
 Usage: python state_record.py render <state dir> [<change dir>]
 """
@@ -13,11 +12,9 @@ import sys
 from pathlib import Path
 
 RULES = "rules.md"
-DELTA = "delta.md"
-SPECIAL = re.compile(r"^(Rounds|Decisions|Dimensions)\b", re.I)
+SPECIAL = re.compile(r"^(Rounds|Decisions)\b", re.I)
 HEAD = re.compile(r"^#\s*(?:Rules|Approved rules)\s*·\s*(.*)$")
 ID_CELL = re.compile(r"^\|\s*([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d+[a-z]?)\b")
-DELTA_HEAD = "| ID | op | files | note |\n|---|---|---|---|\n"
 
 
 def read(path: Path) -> str | None:
@@ -66,14 +63,6 @@ def approved_view(text: str) -> str:
     return join([f"# Approved rules · {title_parts(head)}", *body], kept)
 
 
-def interview_view(text: str) -> str:
-    head, sections = split(text)
-    slug = title_parts(head).split("·")[0].strip()
-    scope = [ln for ln in head[1:] if ln.startswith("Scope:")]
-    kept = [(h, b) for h, b in sections if h[3:].strip().lower().startswith("dimensions")]
-    return join([f"# Interview · {slug}", *scope], kept)
-
-
 def decision_view(text: str) -> str | None:
     rows = [ln for ln in decision_lines(text)]
     if not rows:
@@ -93,11 +82,6 @@ def approved_text(state: Path) -> str | None:
     return approved_view(rules) if rules is not None else read(state / "approved-rules.md")
 
 
-def interview_text(state: Path) -> str | None:
-    rules = read(state / RULES)
-    return interview_view(rules) if rules is not None else read(state / "interview.md")
-
-
 def decision_rows(state: Path, change: Path | None) -> list[str]:
     rules = read(state / RULES)
     if rules is not None:
@@ -107,11 +91,11 @@ def decision_rows(state: Path, change: Path | None) -> list[str]:
 
 
 def render_views(state: Path, change: Path | None = None) -> list[Path]:
-    """Write approved-rules.md, interview.md and decisions.md from rules.md; the files written, none without rules.md."""
+    """Write approved-rules.md and decisions.md from rules.md; the files written, none without rules.md."""
     rules = read(state / RULES)
     if rules is None:
         return []
-    out = [(state / "approved-rules.md", approved_view(rules)), (state / "interview.md", interview_view(rules))]
+    out = [(state / "approved-rules.md", approved_view(rules))]
     decisions = decision_view(rules)
     if change is not None and change.is_dir() and decisions:
         out.append((change / "decisions.md", decisions))
@@ -183,23 +167,6 @@ def add_round(state: Path, number: int, day: str, summary: str) -> None:
     else:
         sections.append(("## Rounds", ["| Round | Date | Summary |", "|---|---|---|", row]))
     write(state / RULES, join(head, sections))
-
-
-def append_delta(state: Path, rid: str, op: str, files: str, note: str) -> None:
-    """One row per (ID, op): a second call for the same pair replaces the first."""
-    text = read(state / DELTA) or DELTA_HEAD
-    row = f"| {rid} | {op} | {files} | {note} |"
-    lines, done = [], False
-    for ln in text.splitlines():
-        cells = [c.strip() for c in ln.strip("|").split("|")]
-        if len(cells) >= 2 and cells[0] == rid and cells[1] == op:
-            lines.append(row)
-            done = True
-        else:
-            lines.append(ln)
-    if not done:
-        lines.append(row)
-    write(state / DELTA, "\n".join(lines).rstrip("\n") + "\n")
 
 
 def main(argv: list[str]) -> int:

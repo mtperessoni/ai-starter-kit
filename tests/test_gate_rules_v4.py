@@ -1,4 +1,4 @@
-"""gate.py Q3 (interview), Q4 (--applied), G30 (proposed at --final), --status and G27 (remote branches)."""
+"""gate.py Q2 (rules skeleton), Q4 (--applied), G30 (proposed at --final), --status and G27 (remote branches)."""
 
 import tempfile
 import unittest
@@ -9,146 +9,17 @@ from tests.test_kit_scripts import Project, run, write
 GATE = ".claude/skills/prd-flow/scripts/gate.py"
 ORDERS = "docs/prd/shop/05-orders.md"
 RULES = "state/orders/approved-rules.md"
-INTERVIEW = "state/orders/interview.md"
 NEW_ROW = "| ORD-03 | Orders can be reopened. | planned | code |"
 ORD1 = "| ORD-01 | An order is created only from a cart with at least one item. | src/features/orders/order_service.py::create_order | code |"
-DIMENSIONS = [f"D{n:02d}" for n in range(1, 16)]
-CONFIRMED = 'Confirmed: Ana · 2026-10-07 · "go"'
-FOLLOW_UP = "\n## Dimensions (2026-10-08)\n| Dimension | State | Answer |\n|---|---|---|\n| D05 failures | user | y |\n"
 
 
 def approved(row: str) -> str:
     return f"# Approved\n\n## shop/05-orders.md\n| ID | Rule | Source | Change via |\n|---|---|---|---|\n{row}\n"
 
 
-def interview(dims: list[str] | None = None, state: str = "doc", answer: str = "x", confirmed: bool = True) -> str:
-    rows = "\n".join(f"| {d} thing | {state} | {answer} |" for d in (DIMENSIONS if dims is None else dims))
-    tail = f"\n{CONFIRMED}\n" if confirmed else "\n"
-    return f"# Interview\n\n## Dimensions\n| Dimension | State | Answer |\n|---|---|---|\n{rows}\n{tail}"
-
-
-class InterviewTest(unittest.TestCase):
-    def setUp(self) -> None:
-        self.p = Project()
-        write(self.p.root, RULES, approved(NEW_ROW))
-
-    def tearDown(self) -> None:
-        self.p.close()
-
-    def gate(self):
-        return self.p.py(GATE, "--rules", RULES)
-
-    def put(self, text: str) -> None:
-        write(self.p.root, INTERVIEW, text)
-
-    def test_a_missing_interview_is_q3(self) -> None:
-        r = self.gate()
-        self.assertEqual(r.returncode, 1, r.stdout)
-        self.assertIn("ERROR Q3", r.stdout)
-
-    def test_format_failures_print_the_interview_skeleton_once(self) -> None:
-        cases = [None, "# Interview\nfree text\n", interview([d for d in DIMENSIONS if d != "D07"]),
-                 interview(state="open"), interview(confirmed=False)]
-        for text in cases:
-            if text is not None:
-                self.put(text)
-            out = self.gate().stdout
-            self.assertEqual(out.count("HINT ## Dimensions"), 1, out)
-            self.assertIn("HINT | Dimension | State | Answer |", out)
-            self.assertIn("HINT | D15 ", out)
-            self.assertIn("HINT Confirmed: <name>", out)
-            self.assertIn("HINT Allowed states:", out)
-            self.assertLess(out.index("ERROR Q3"), out.index("HINT ## Dimensions"))
-
-    def test_hints_do_not_count_as_errors_or_warnings(self) -> None:
-        self.assertIn("1 error(s), 0 warning(s)", self.gate().stdout)
-
-    def test_a_passing_interview_prints_no_hint(self) -> None:
-        self.put(interview())
-        self.assertNotIn("HINT", self.gate().stdout)
-
-    def test_a_complete_confirmed_interview_passes(self) -> None:
-        self.put(interview())
-        r = self.gate()
-        self.assertEqual(r.returncode, 0, r.stdout)
-        self.assertNotIn("Q3", r.stdout)
-
-    def test_a_missing_dimension_is_q3(self) -> None:
-        self.put(interview([d for d in DIMENSIONS if d != "D07"]))
-        r = self.gate()
-        self.assertIn("ERROR Q3", r.stdout)
-        self.assertIn("D07", r.stdout)
-
-    def test_a_state_outside_the_set_is_q3(self) -> None:
-        self.put(interview(state="open"))
-        self.assertIn("ERROR Q3", self.gate().stdout)
-
-    def test_a_question_needs_an_existing_q_id(self) -> None:
-        self.put(interview(state="question", answer="Q-99"))
-        self.assertIn("ERROR Q3", self.gate().stdout)
-        write(self.p.root, RULES, approved(NEW_ROW) + "\nQ-99 pending decision\n")
-        self.assertNotIn("ERROR Q3", self.gate().stdout)
-
-    def test_a_question_without_a_q_id_is_q3(self) -> None:
-        self.put(interview(state="question", answer="later"))
-        self.assertIn("ERROR Q3", self.gate().stdout)
-
-    def test_a_table_without_confirmed_is_q3(self) -> None:
-        self.put(interview(confirmed=False))
-        self.assertIn("ERROR Q3", self.gate().stdout)
-
-    def test_a_follow_up_table_needs_a_confirmed_line(self) -> None:
-        self.put(interview() + FOLLOW_UP)
-        self.assertIn("ERROR Q3", self.gate().stdout)
-        self.put(interview() + FOLLOW_UP + f"\n{CONFIRMED}\n")
-        self.assertNotIn("ERROR Q3", self.gate().stdout)
-
-    def test_a_follow_up_table_needs_a_reopened_dimension(self) -> None:
-        self.put(interview() + f"\n## Dimensions (2026-10-08)\n| Dimension | State | Answer |\n|---|---|---|\n\n{CONFIRMED}\n")
-        self.assertIn("ERROR Q3", self.gate().stdout)
-
-    def test_a_confirmed_line_in_a_later_section_does_not_count(self) -> None:
-        self.put(interview(confirmed=False) + f"\n## Notes\n{CONFIRMED}\n")
-        self.assertIn("ERROR Q3", self.gate().stdout)
-
-    def test_a_short_c5_outside_a_c5_needs_only_its_listed_dimensions(self) -> None:
-        scope = "Scope: short C5 outside a C5\n\n"
-        text = scope + interview(["D05"], confirmed=True).replace("## Dimensions", "## Dimensions (2026-10-08)")
-        self.put(text)
-        self.assertNotIn("ERROR Q3", self.gate().stdout)
-        self.put(scope + interview([], confirmed=True).replace("## Dimensions", "## Dimensions (2026-10-08)"))
-        self.assertIn("ERROR Q3", self.gate().stdout)
-
-    def test_the_scope_line_counts_only_before_a_dated_first_block(self) -> None:
-        scope = "Scope: short C5 outside a C5\n\n"
-        self.put(scope + interview(["D05"], confirmed=True))
-        self.assertIn("ERROR Q3", self.gate().stdout)
-        dated = interview(["D05"], confirmed=True).replace("## Dimensions", "## Dimensions (2026-10-08)")
-        self.put(dated + "\n" + scope)
-        self.assertIn("ERROR Q3", self.gate().stdout)
-
-    def test_a_dated_first_block_without_the_scope_line_needs_every_dimension(self) -> None:
-        self.put(interview(["D05"], confirmed=True).replace("## Dimensions", "## Dimensions (2026-10-08)"))
-        out = self.gate().stdout
-        self.assertIn("ERROR Q3", out)
-        self.assertIn("D01", out)
-
-    def test_an_extra_dimension_is_required_and_a_placeholder_is_not(self) -> None:
-        self.put(interview())
-        self.assertNotIn("D16", self.gate().stdout)
-        repo = self.p.root / ".claude/skills/prd-flow/repo.md"
-        text = repo.read_text(encoding="utf-8")
-        self.assertIn("| D16 | `<", text)
-        repo.write_text(text.replace("| D16 | `<", "| D16 | Pricing | cost? |\n| D17 | `<", 1), encoding="utf-8")
-        out = self.gate().stdout
-        self.assertIn("D16", out)
-        self.assertNotIn("D17", out)
-
-
 class RulesSkeletonTest(unittest.TestCase):
     def setUp(self) -> None:
         self.p = Project()
-        write(self.p.root, INTERVIEW, interview())
 
     def tearDown(self) -> None:
         self.p.close()
@@ -181,7 +52,6 @@ class RulesSkeletonTest(unittest.TestCase):
 class AppliedTest(unittest.TestCase):
     def setUp(self) -> None:
         self.p = Project()
-        write(self.p.root, INTERVIEW, interview())
 
     def tearDown(self) -> None:
         self.p.close()
@@ -301,7 +171,6 @@ class RemoteTest(unittest.TestCase):
         run(self.p.root, "git", "commit", "-q", "-m", "feat", check=True)
         run(self.p.root, "git", "push", "-q", "origin", "feat", check=True)
         run(self.p.root, "git", "checkout", "-q", "main", check=True)
-        write(self.p.root, INTERVIEW, interview())
 
     def test_a_new_id_used_on_a_remote_branch_warns_g27(self) -> None:
         self.push_branch(ORDERS, (self.p.root / ORDERS).read_text(encoding="utf-8") + NEW_ROW + "\n")
@@ -334,7 +203,6 @@ class RemoteTest(unittest.TestCase):
         run(self.p.root, "git", "add", "-A", check=True)
         run(self.p.root, "git", "commit", "-q", "-m", "feat", check=True)
         run(self.p.root, "git", "push", "-q", "-u", "origin", "feat", check=True)
-        write(self.p.root, INTERVIEW, interview())
         write(self.p.root, RULES, approved(NEW_ROW))
         self.assertNotIn("G27", self.p.py(GATE, "--rules", RULES).stdout)
 

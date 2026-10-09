@@ -11,7 +11,7 @@ Usage: python .claude/skills/prd-flow/scripts/gate.py [--base REF]
        python .claude/skills/prd-flow/scripts/gate.py --rules <approved-rules.md> --applied
        python .claude/skills/prd-flow/scripts/gate.py --status [--prd <folder>] [--state <state>]
        python .claude/skills/prd-flow/scripts/gate.py --plan <plan.md>
-       python .claude/skills/prd-flow/scripts/gate.py --questions <survey.md>
+       python .claude/skills/prd-flow/scripts/gate.py --sheet <slug>
        python .claude/skills/prd-flow/scripts/gate.py --trace
        python .claude/skills/prd-flow/scripts/gate.py --change <changes/NNN-slug>
        python .claude/skills/prd-flow/scripts/gate.py --final [--change <slug>]
@@ -25,12 +25,12 @@ Usage: python .claude/skills/prd-flow/scripts/gate.py [--base REF]
        python .claude/skills/prd-flow/scripts/gate.py --step plan --plan <plan.md> [--change <changes/NNN-slug>]
 --step: one run per agent step, one report. prd: default run, --rules and --applied when given, --sibling.
         trd: default run and --trd. plan: --plan and --change, plus the computed WAVE table and CRITICAL PATH (Owns overlap in a wave fails).
---questions: the prepared questions of a Survey: each option cites a row ID or the rule text (Q6), holds one decision (Q7), plain words from repo.md plain_words (Q8), a "scenario is wrong" option (Q9); warnings unless question_lint is error.
+--sheet: sheet.md (and sheet-2.md) of the slug: decisions complete (S1), pack rules in the diff (S2), no repeated topic or over 8 items (S3), plain_words (S4 warn), numbers named (S5 warn), interactions exist (S6); S0 is the structure. --questions is the old name.
 --plan: P11 to P16 (Contract covers the TRD Planned IDs of the Owns, Reached from, at most 8 Owns files, a test path) warn unless plan_strict is yes; P12 (open TRD-only decision) always fails.
 --rules and --applied read rules.md through state_record (approved-rules.md only as the legacy file).
 --rules also runs Q5 (every conflict of the pack is resolved under '## Conflicts', a rewrite keeps its ID).
 G31: a PRD section file over prd_section_budget_lines (warning).
---rules: rows against the PRD (Q2), the interview.md beside the file (Q3), and G27 for IDs used on remote branches.
+--rules: rows against the PRD (Q2), every sheet item answered in answers.md and no unasked mechanism (Q3), and G27 for IDs used on remote branches.
 --applied: with --rules, every approved row exists in the PRD file named by its heading, identical (Q4).
 --status: ID, state, file, Source and Change via of each rule; states proposed, approved, superseded, implemented.
 --trace: every PRD rule not planned is cited by a test file (test_patterns of ai-kit.json);
@@ -56,7 +56,7 @@ from pathlib import Path
 from gate_core import (
     EM_DASH, ID, ROW, git, is_proposed, joined, literal_rows, load_config, read_md_rules, rule_table_ids, err, warn,
 )
-from gate_interview import check_interview, check_questions
+from gate_interview import check_answers, check_sheet
 from state_record import approved_text
 from gate_budget import added_lines, names_id, check_sections, strip_markers
 from gate_output import base_ref, changed_paths, report, start
@@ -170,7 +170,7 @@ def main() -> int:
     parser.add_argument("--pack", type=Path, help="check a pack.md from the state folder")
     parser.add_argument("--rules", type=Path, help="check an approved-rules.md from the state folder")
     parser.add_argument("--plan", type=Path, help="check a plan for agents")
-    parser.add_argument("--questions", type=Path, help="lint the prepared questions of a Survey file (Q6 to Q9)")
+    parser.add_argument("--sheet", "--questions", dest="sheet", metavar="SLUG", help="lint sheet.md and sheet-2.md of a change (S0 to S6); --questions is the old name")
     parser.add_argument("--trace", action="store_true", help="every non-planned PRD rule is cited by a test file")
     parser.add_argument("--change", type=Path, help="check a change folder (brief.md, design.md, plan.md)")
     parser.add_argument("--final", action="store_true", help="nothing planned, pending or open is left")
@@ -192,7 +192,7 @@ def main() -> int:
     prd_rel, trd_rel = cfg["prd_dir"].rstrip("/"), cfg["trd_dir"].rstrip("/")
     prd, trd = root / prd_rel, root / trd_rel
     rules = read_md_rules(prd, cfg["prd_glob"], cfg["via_header"])
-    flags = [n for n in ("pack", "rules", "plan", "questions", "trace", "change", "final", "trd", "sibling", "html", "snapshot", "docs") if getattr(args, n)]
+    flags = [n for n in ("pack", "rules", "plan", "sheet", "trace", "change", "final", "trd", "sibling", "html", "snapshot", "docs") if getattr(args, n)]
     mode = f"step-{args.step}" if args.step else ("-".join(flags) if flags else "default")
     start(mode, root, capped=mode != "trd")
 
@@ -211,7 +211,7 @@ def main() -> int:
             return
         check_rules(args.rules, rules, cfg, vias, text)
         check_conflicts(args.rules, rules, text)
-        check_interview(args.rules, prd, rules)
+        check_answers(args.rules.parent, cfg)
         if args.applied:
             check_applied(args.rules, rules, cfg, text)
         warn_remote_ids(root, prd_rel, approved_ids(text) - set(rules))
@@ -221,8 +221,9 @@ def main() -> int:
         check_change(folder, rules)
         warn_remote_change(root, folder)
 
-    if args.questions:
-        check_questions(args.questions.read_text(encoding="utf-8"), cfg)
+    if args.sheet:
+        given = Path(args.sheet)
+        check_sheet(given if given.is_file() else state_dir(root, slug_of(args.sheet)), cfg)
         return report()
 
     if args.snapshot:
