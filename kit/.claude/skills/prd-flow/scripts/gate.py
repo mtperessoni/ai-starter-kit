@@ -13,7 +13,9 @@ Usage: python .claude/skills/prd-flow/scripts/gate.py [--base REF]
        python .claude/skills/prd-flow/scripts/gate.py --plan <plan.md>
        python .claude/skills/prd-flow/scripts/gate.py --trace
        python .claude/skills/prd-flow/scripts/gate.py --change <changes/NNN-slug>
-       python .claude/skills/prd-flow/scripts/gate.py --final
+       python .claude/skills/prd-flow/scripts/gate.py --final [--change <slug>]
+       python .claude/skills/prd-flow/scripts/gate.py --snapshot <slug>
+       python .claude/skills/prd-flow/scripts/gate.py --docs <slug> [--fresh]
        python .claude/skills/prd-flow/scripts/gate.py --trd
        python .claude/skills/prd-flow/scripts/gate.py --sibling
        python .claude/skills/prd-flow/scripts/gate.py --html
@@ -31,6 +33,9 @@ G31: a PRD section file over prd_section_budget_lines (warning).
          untested rules are held to allowlist.untested_rules, which only shrinks.
 --change: brief.md of a change folder against the PRD and its plan.md.
 --final: nothing planned, pending, proposed (G30) or open is left (CI, on pushes to the base branch).
+--final --change <slug>: G19 to G21 only for the slug's approved rows, its '## Planned (<slug>' heading and its folder; the rest is a warning (gate_scope).
+--snapshot <slug>: records the older G19 to G21 drift (final-snapshot.json in the slug state) so a scoped final reports it as pre-existing.
+--docs <slug>: default prd checks, --rules --applied when approved-rules.md exists, trd and plan in one run; cached by input mtimes (--fresh reruns).
 --trd: backticked paths exist (G23), symbols (G24) and IDs (G25) are in the row's files, files within trd_budget_lines (G26).
 --sibling: PRD folders listed under "Shared PRDs" of repo.md equal the sibling repository's (G28).
 The default run and --step never fail on the HTML: html_mode generated warns G29 (PRD) and G32 (TRD) when a page is missing or out of date, hand warns G5.
@@ -50,7 +55,9 @@ from gate_core import (
 from gate_interview import check_interview
 from gate_budget import added_lines, names_id, check_sections, strip_markers
 from gate_output import base_ref, changed_paths, report, start
-from gate_plan import check_change, check_final, check_plan, check_trace
+from gate_plan import check_change, check_final, check_plan, check_trace, snapshot_drift
+from gate_scope import cache_load, cache_replay, cache_store, find_plan, inputs_key, slug_of, state_dir
+from gate_core import notes
 from gate_prd import changed_rows, check_index, check_pack, check_rules
 from gate_html_build import check_html_flow, check_html_strict
 from gate_remote import warn_remote_change, warn_remote_ids
@@ -118,6 +125,39 @@ def default_checks(root: Path, cfg: dict[str, str], rules, vias: set[str], base_
     return f", base {base[:10]}, {len(rules)} rules"
 
 
+def docs_checks(root: Path, cfg, rules, vias, args, repo_md: Path, rules_checks, change_checks) -> str:
+    slug = slug_of(args.docs)
+    state = state_dir(root, slug)
+    approved = state / "approved-rules.md"
+    plan = find_plan(root, slug)
+    prd_rel, trd_rel = cfg["prd_dir"].rstrip("/"), cfg["trd_dir"].rstrip("/")
+    base = base_ref(root, cfg, args.base)
+    head = git(root, "rev-parse", "HEAD").strip()
+    watched = [prd_rel, trd_rel, state.relative_to(root).as_posix(), f"changes/{slug}", "ai-kit.json", repo_md.relative_to(root).as_posix()]
+    key = inputs_key(root, watched, f"{base}|{head}|{args.docs}|{args.base}")
+    cache = state.parent / "_gate" / f"docs-{slug}.json"
+    if not args.fresh:
+        hit = cache_load(cache, key)
+        if hit:
+            return cache_replay(hit)
+    suffix = default_checks(root, cfg, rules, vias, args.base, True)
+    if approved.exists():
+        args.rules, args.applied = approved, True
+        rules_checks()
+    check_sibling(root, repo_md)
+    diff = changed_paths(root, cfg, args.base)
+    check_trd(root, cfg, trd_rel, {n for n in diff if n.startswith(trd_rel + "/")}, diff)
+    if plan:
+        check_plan(plan, rules, cfg)
+        check_waves(plan)
+    folder = root / "changes"
+    if folder.is_dir() and any(d.is_dir() and d.name.endswith(slug) for d in folder.iterdir()):
+        args.change = next(d for d in sorted(folder.iterdir()) if d.is_dir() and d.name.endswith(slug))
+        change_checks()
+    cache_store(cache, key, suffix)
+    return suffix
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base", default=None, help="comparison ref; default: merge-base with origin/<base_branch>")
@@ -131,6 +171,9 @@ def main() -> int:
     parser.add_argument("--trd", action="store_true", help="check the TRD paths, symbols, IDs and size against the tracked files")
     parser.add_argument("--html", action="store_true", help="strict check of the generated PRD and TRD pages (docs-html skill)")
     parser.add_argument("--sibling", action="store_true", help="check the shared PRD folders against the sibling repositories")
+    parser.add_argument("--snapshot", metavar="SLUG", help="record the older planned and open-folder drift of the final gate for this change")
+    parser.add_argument("--docs", metavar="SLUG", help="rules, prd, trd and plan checks of one change in one run, cached by input mtimes")
+    parser.add_argument("--fresh", action="store_true", help="with --docs: ignore the cache")
     parser.add_argument("--status", action="store_true", help="print the state of every rule")
     parser.add_argument("--prd", help="with --status: only this PRD folder")
     parser.add_argument("--state", choices=STATES, help="with --status: only this state")
@@ -142,7 +185,7 @@ def main() -> int:
     prd_rel, trd_rel = cfg["prd_dir"].rstrip("/"), cfg["trd_dir"].rstrip("/")
     prd, trd = root / prd_rel, root / trd_rel
     rules = read_md_rules(prd, cfg["prd_glob"], cfg["via_header"])
-    flags = [n for n in ("pack", "rules", "plan", "trace", "change", "final", "trd", "sibling", "html") if getattr(args, n)]
+    flags = [n for n in ("pack", "rules", "plan", "trace", "change", "final", "trd", "sibling", "html", "snapshot", "docs") if getattr(args, n)]
     mode = f"step-{args.step}" if args.step else ("-".join(flags) if flags else "default")
     start(mode, root, capped=mode != "trd")
 
@@ -164,6 +207,14 @@ def main() -> int:
         folder = args.change if args.change.is_absolute() else root / args.change
         check_change(folder, rules)
         warn_remote_change(root, folder)
+
+    if args.snapshot:
+        path = snapshot_drift(root, rules, cfg, trd, slug_of(args.snapshot))
+        notes.append(f"snapshot: older final-gate drift recorded in {path.relative_to(root).as_posix()}")
+        return report()
+
+    if args.docs:
+        return report(docs_checks(root, cfg, rules, vias, args, repo_md, rules_checks, change_checks))
 
     if args.step:
         suffix = default_checks(root, cfg, rules, vias, args.base, True) if args.step in ("prd", "trd") else ""
@@ -194,10 +245,10 @@ def main() -> int:
     if args.trace or args.change or args.final:
         if args.trace:
             check_trace(root, rules, cfg, vias)
-        if args.change:
+        if args.change and not args.final:
             change_checks()
         if args.final:
-            check_final(root, rules, cfg, trd)
+            check_final(root, rules, cfg, trd, str(args.change) if args.change else None)
         return report()
 
     if args.pack or args.rules or args.plan:

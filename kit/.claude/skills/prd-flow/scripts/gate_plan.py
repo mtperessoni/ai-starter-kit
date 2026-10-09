@@ -7,6 +7,7 @@ from pathlib import Path
 from gate_core import (
     ID, ROW, TASK, Rules, cells, err, expand, git, is_code_route, is_proposed, is_table_line, rule_table_ids, warn,
 )
+from gate_scope import approved_scope, heading_of_change, is_change_folder, read_snapshot, slug_of, write_snapshot
 
 
 def check_plan(path: Path, rules: Rules, cfg: dict[str, str]) -> None:
@@ -150,22 +151,64 @@ def check_change(folder: Path, rules: Rules) -> None:
         warn("G18", "design.md exists and brief.md does not state size L")
 
 
-def check_final(root: Path, rules: Rules, cfg: dict[str, str], trd: Path) -> None:
+def final_drift(root: Path, rules: Rules, cfg: dict[str, str], trd: Path) -> list[dict]:
+    found: list[dict] = []
     for rid, (_, row) in sorted(rules.items()):
-        if is_proposed(row[0], cfg):
-            err("G30", f"{rid} is still {cfg['proposed_marker']}: confront it and approve it, or drop it")
-        elif len(row) >= 2 and (row[1].strip("` ").lower() == cfg["planned_source"] or cfg["pending_marker"] in row[0]):
+        if is_proposed(row[0], cfg) or len(row) < 2:
+            continue
+        if row[1].strip("` ").lower() == cfg["planned_source"] or cfg["pending_marker"] in row[0]:
             via = row[2].strip("` ").lower() if len(row) >= 3 else "code"
-            if is_code_route(via):
-                err("G19", f"{rid} is still planned or pending code")
-            else:
-                warn("G19", f"{rid} is still planned; it changes via {via} and closes by that route")
+            found.append({"code": "G19", "key": f"G19:{rid}", "ids": {rid}, "heading": "", "code_route": is_code_route(via), "via": via})
     for f in sorted(trd.rglob("*.md")):
-        if re.search(r"^## " + re.escape(cfg["planned_heading"]), f.read_text(encoding="utf-8"), re.M):
-            err("G20", f"{f.name} still has a '## {cfg['planned_heading']}' section")
+        text = f.read_text(encoding="utf-8")
+        for m in re.finditer(r"^## " + re.escape(cfg["planned_heading"]) + r".*?(?=^## |\Z)", text, re.S | re.M):
+            heading = m.group(0).splitlines()[0]
+            ids = set(re.findall(ID, m.group(0)))
+            found.append({"code": "G20", "key": f"G20:{f.name}:{heading}", "ids": ids, "heading": heading, "name": f.name})
     changes = root / "changes"
     if changes.is_dir():
         for d in sorted(changes.iterdir()):
             if d.is_dir() and d.name != "archive":
-                err("G21", f"changes/{d.name} is still open: promote it and archive it")
+                found.append({"code": "G21", "key": f"G21:{d.name}", "ids": set(), "heading": "", "name": d.name})
+    return found
 
+
+def snapshot_drift(root: Path, rules: Rules, cfg: dict[str, str], trd: Path, slug: str) -> Path:
+    keys = {d["key"] for d in final_drift(root, rules, cfg, trd)}
+    return write_snapshot(root, slug, keys)
+
+
+def final_message(d: dict, cfg: dict[str, str]) -> str:
+    if d["code"] == "G19":
+        return f"{next(iter(d['ids']))} is still planned or pending code"
+    if d["code"] == "G20":
+        return f"{d['name']} still has a '## {cfg['planned_heading']}' section"
+    return f"changes/{d['name']} is still open: promote it and archive it"
+
+
+def check_final(root: Path, rules: Rules, cfg: dict[str, str], trd: Path, change: str | None = None) -> None:
+    for rid, (_, row) in sorted(rules.items()):
+        if is_proposed(row[0], cfg):
+            err("G30", f"{rid} is still {cfg['proposed_marker']}: confront it and approve it, or drop it")
+    slug = slug_of(change) if change else None
+    mine = approved_scope(root, slug) if slug else set()
+    older = read_snapshot(root, slug) if slug else set()
+    for d in final_drift(root, rules, cfg, trd):
+        message = final_message(d, cfg)
+        if d["code"] == "G19" and not d["code_route"]:
+            warn("G19", f"{next(iter(d['ids']))} is still planned; it changes via {d['via']} and closes by that route")
+            continue
+        if slug is None:
+            err(d["code"], message)
+            continue
+        if d["code"] == "G19":
+            ours = bool(d["ids"] & mine)
+        elif d["code"] == "G20":
+            ours = heading_of_change(d["heading"], slug) or bool(d["ids"] & mine and "(" not in d["heading"])
+        else:
+            ours = is_change_folder(d["name"], slug)
+        if ours:
+            err(d["code"], message)
+        else:
+            tag = "pre-existing, outside this change" if d["key"] in older else f"another change, not {slug}"
+            warn(d["code"], f"{message} ({tag})")
