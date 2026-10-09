@@ -131,6 +131,27 @@ class OverlayOption(unittest.TestCase):
         self.assertIsNone(args.overlay)
 
 
+class NoSkillOption(unittest.TestCase):
+    def test_no_skill_defaults_off(self):
+        self.assertFalse(load_build().parse_args(["--ref", "r", "--out", "o"]).no_skill)
+        self.assertTrue(load_build().parse_args(["--ref", "r", "--out", "o", "--no-skill"]).no_skill)
+
+    def test_no_skill_build_drops_skill_and_agents_keeps_docs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "project"
+            done = run([PY, str(BUILD), "--ref", "HEAD", "--out", str(out), "--no-skill"], ROOT)
+            self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+            self.assertFalse((out / ".claude" / "skills" / "prd-flow").exists())
+            agents = out / ".claude" / "agents"
+            self.assertEqual(list(agents.glob("prd-flow-*")) if agents.is_dir() else [], [])
+            self.assertTrue((out / "docs" / "prd").is_dir())
+            self.assertTrue((out / "src" / "orders").is_dir())
+            self.assertTrue((out / "scripts" / "gates.sh").is_file())
+            manifest = (out / ".ai-kit" / "manifest.json").read_text(encoding="utf-8")
+            self.assertNotIn("skills/prd-flow", manifest)
+            self.assertEqual(run(["git", "status", "--porcelain"], out).stdout.strip(), "")
+
+
 class CustomFixtureOption(unittest.TestCase):
     def test_fixture_and_fill_options_are_used(self):
         import shutil

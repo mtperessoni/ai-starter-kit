@@ -1,0 +1,1 @@
+Product behavior is defined by the PRD in `docs/prd`; it is the source of truth. Implement the request test first (write the failing test, then the code), update the PRD rule row that owns the behavior and add the change to `docs/prd/CHANGELOG.md`. No skill or agent workflow is installed: do the work yourself.

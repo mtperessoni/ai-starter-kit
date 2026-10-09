@@ -129,10 +129,17 @@ def under(rel: str, prefixes: tuple[str, ...]) -> bool:
     return any(rel == p or (p.endswith("/") and rel.startswith(p)) for p in prefixes)
 
 
-def install_kit(kit: Path, out: Path) -> dict[str, dict[str, str]]:
+def is_skill_file(rel: str) -> bool:
+    return (any(under(rel, (f".claude/skills/{n}/",)) for n in SKILL_NAMES)
+            or (rel.startswith(".claude/agents/prd-flow-") and rel.endswith(".md")))
+
+
+def install_kit(kit: Path, out: Path, no_skill: bool = False) -> dict[str, dict[str, str]]:
     files: dict[str, dict[str, str]] = {}
     for src in sorted(p for p in kit.rglob("*") if p.is_file()):
         rel = src.relative_to(kit).as_posix()
+        if no_skill and is_skill_file(rel):
+            continue
         if rel == "gitignore.kit":
             append_missing_lines(out / ".gitignore", src.read_text(encoding="utf-8"))
             continue
@@ -221,12 +228,12 @@ def regenerate_html(out: Path) -> None:
         raise SystemExit("build_prd_html.py failed on the arm:\n" + done.stdout + done.stderr)
 
 
-def build_siblings(ref: str, out: Path, siblings: dict[str, Path]) -> None:
+def build_siblings(ref: str, out: Path, siblings: dict[str, Path], no_skill: bool = False) -> None:
     """Builds each sibling repository next to `out` as `<out>-<alias>` and lists them in `.ai-kit/repos.json`."""
     repos = []
     for alias, fixture in siblings.items():
         path = out.parent / f"{out.name}-{alias}"
-        build(ref, path, False, fixture)
+        build(ref, path, False, fixture, no_skill=no_skill)
         repos.append({"alias": alias, "path": str(path.resolve())})
     target = out / ".ai-kit" / "repos.json"
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -234,7 +241,7 @@ def build_siblings(ref: str, out: Path, siblings: dict[str, Path]) -> None:
 
 
 def build(ref: str, out: Path, spec_kit: bool, fixture: Path = FIXTURE, fill: Path | None = None,
-          overlay: Path | None = None, siblings: dict[str, Path] | None = None) -> None:
+          overlay: Path | None = None, siblings: dict[str, Path] | None = None, no_skill: bool = False) -> None:
     ref = resolve_ref(ref)
     if out.exists() and any(out.iterdir()):
         raise SystemExit(f"{out} is not empty")
@@ -245,23 +252,24 @@ def build(ref: str, out: Path, spec_kit: bool, fixture: Path = FIXTURE, fill: Pa
     if spec_kit:
         add_spec_kit(out, fixture)
     with tempfile.TemporaryDirectory() as tmp:
-        files = install_kit(extract_kit(ref, Path(tmp)), out)
+        files = install_kit(extract_kit(ref, Path(tmp)), out, no_skill)
     apply_fill(out, fill or fixture / "fill.json")
     leftovers = find_leftovers(out)
     if leftovers:
         raise SystemExit("placeholders left:\n" + "\n".join(leftovers))
     write_manifest(out, ref, files)
     if siblings:
-        build_siblings(ref, out, siblings)
-    regenerate_html(out)
-    gate_path = next((f".claude/skills/{n}/scripts/gate.py" for n in SKILL_NAMES
-                      if (out / ".claude" / "skills" / n / "scripts" / "gate.py").is_file()),
-                     ".claude/skills/prd-flow/scripts/gate.py")
-    gate = subprocess.run(
-        [sys.executable, gate_path], cwd=out, capture_output=True, text=True, encoding="utf-8",
-    )
-    if gate.returncode:
-        raise SystemExit("the arm's gate.py fails on the seed:\n" + gate.stdout + gate.stderr)
+        build_siblings(ref, out, siblings, no_skill)
+    if not no_skill:
+        regenerate_html(out)
+        gate_path = next((f".claude/skills/{n}/scripts/gate.py" for n in SKILL_NAMES
+                          if (out / ".claude" / "skills" / n / "scripts" / "gate.py").is_file()),
+                         ".claude/skills/prd-flow/scripts/gate.py")
+        gate = subprocess.run(
+            [sys.executable, gate_path], cwd=out, capture_output=True, text=True, encoding="utf-8",
+        )
+        if gate.returncode:
+            raise SystemExit("the arm's gate.py fails on the seed:\n" + gate.stdout + gate.stderr)
     seed_commit(out)
 
 
@@ -270,6 +278,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--ref", required=True)
     parser.add_argument("--out", required=True, type=Path)
     parser.add_argument("--spec-kit", action="store_true")
+    parser.add_argument("--no-skill", action="store_true",
+                        help="leave out the prd-flow skill and its prd-flow-* agents (and what needs them)")
     parser.add_argument("--fixture", type=Path, default=FIXTURE, help="fixture folder (default eval/fixture)")
     parser.add_argument("--fill", type=Path, help="fill file (default <fixture>/fill.json)")
     parser.add_argument("--overlay", type=Path, help="folder copied over the project before the seed commit")
@@ -284,7 +294,7 @@ def main() -> int:
     args = parse_args()
     build(args.ref, args.out.resolve(), args.spec_kit, args.fixture.resolve(), args.fill.resolve(),
           args.overlay.resolve() if args.overlay else None,
-          {a: Path(p).resolve() for a, p in (s.split("=", 1) for s in args.sibling)})
+          {a: Path(p).resolve() for a, p in (s.split("=", 1) for s in args.sibling)}, args.no_skill)
     print(f"built {args.out} from {args.ref}{' with spec-kit ' + SPEC_KIT_TAG if args.spec_kit else ''}")
     return 0
 

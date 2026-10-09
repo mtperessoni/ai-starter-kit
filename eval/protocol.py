@@ -27,7 +27,7 @@ ROOTED_SOURCE_RE = re.compile(r"^(src|docs|tests)/")
 ROOTED_CODE_RE = re.compile(r"^(src|tests)/")
 DOC_RE = re.compile(r"(^|[\\/])(docs|changes|specs|\.claude)[\\/]|\.md$")
 WORKER_ONLY_RE = re.compile(r"reference[\\/]workers[\\/]|\.claude[\\/]agents[\\/]prd-flow-"
-                            r"|(^|[\\/])(impact|classification|agent-plan|prd-writing|trd-planned)\.md$")
+                            r"|(^|[\\/])(dispatch|survey|sheet|write|run)\.md$")
 CHIEF_FREE = {"AskUserQuestion", "Skill"}
 WAVE_LINE_RE = re.compile(r"^WAVE\s+\d+", re.M)
 REVIEW_LINE_RE = re.compile(r"^Review:\s*(.+)$", re.M)

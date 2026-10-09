@@ -116,6 +116,19 @@ Gate targets are read per scenario from `expect_metrics` in each `expected.json`
 | A regression is explained from the transcripts before it is fixed; the fix names the metric it should move | Fixes built on unchecked premises (LS26) became the largest regressions |
 
 ## Adoption
+
+LITE round (`arms-lite.json`: base FLOW, candidates LITE and PLAIN, scenarios S5, S7, S12, 2 reps on S5). LITE replaces FLOW when the hidden tests passed and the conflicts caught are not worse than FLOW's and both wall time (`runner_wall_min`) and total tokens drop. If PLAIN (same fixture, no skill installed, `arms/plain.md`) matches LITE on hidden tests and conflicts caught, record it as a finding: the skill can shrink further.
+
+Lite round metrics, state in `eval/run.py` today:
+| Metric | Status |
+|---|---|
+| `agents_over_150k` | computed (`interview_metrics.py`) |
+| `stuck_minutes` | computed (`interview_metrics.py`) |
+| `agents_dispatched` | missing: count of Agent spawns in the transcript (the per-agent detail exists, only the count is not a field) |
+| `docs_output_tokens / code_output_tokens` | missing: `interview_to_code_tokens` is the nearest (surveyor plus docs total tokens over executor total tokens), not output tokens |
+| `task_output_left_bytes` | missing: bytes left in background task output files at the end of the run |
+
+Round rule before the lite round:
 Hard gates hold; on S5 the median of 3 reps is within +10% of the base on `cost_per_accept` and `runner_wall_min`; every other metric outside the noise band (the spread of the reps) counts as a win or a loss, and wins must at least equal losses in each group.
 
 ## Agents report

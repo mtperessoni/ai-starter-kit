@@ -16,6 +16,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import grade  # noqa: E402
+import interview_metrics  # noqa: E402
 import judge  # noqa: E402
 import report  # noqa: E402
 import review  # noqa: E402
@@ -122,7 +123,36 @@ def build_args(arm_cfg, out, fixture=None, fill=None, overlay=None, siblings=Non
         cmd += ["--fill", str(fill)]
     if overlay and Path(overlay).is_dir():
         cmd += ["--overlay", str(overlay)]
+    if arm_cfg.get("no_skill"):
+        cmd += ["--no-skill"]
     return cmd + ["--spec-kit"] if arm_cfg["spec_kit"] else cmd
+
+
+def project_slug(path):
+    return re.sub(r"[^A-Za-z0-9]", "-", str(Path(path).resolve()))
+
+
+def task_output_left_bytes(project, root=None):
+    """Bytes of *.output task files left under <temp>/claude/<project slug>/ once the run ended; 0 when none."""
+    base = Path(root) if root else Path(tempfile.gettempdir()) / "claude"
+    return sum(p.stat().st_size for p in (base / project_slug(project)).glob("**/*.output") if p.is_file())
+
+
+def load_events(transcripts):
+    """The stream-json events of one transcript path or a list of them; unparsable lines are skipped."""
+    paths = transcripts if isinstance(transcripts, (list, tuple)) else [transcripts]
+    events = []
+    for p in paths:
+        if p is None or not Path(p).is_file():
+            continue
+        for line in Path(p).read_text(encoding="utf-8", errors="replace").splitlines():
+            try:
+                e = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(e, dict):
+                events.append(e)
+    return events
 
 
 def kill_tree(proc):
@@ -273,6 +303,9 @@ def run_pair(pair, cfg, args, projects, results, template):
     if metrics.get("wall_min") is None and not args.dry_run:
         metrics["wall_min"] = wall_min  # a killed run has no result event
     metrics = dict(metrics, status=status, runner_wall_min=wall_min)
+    if status != "build_failed" and not args.dry_run:
+        metrics.update(interview_metrics.run_metrics(load_events(transcript)))
+        metrics["task_output_left_bytes"] = task_output_left_bytes(project)
     (results / f"{name}.metrics.json").write_text(json.dumps(metrics, indent=2), encoding="utf-8")
     return name, status
 

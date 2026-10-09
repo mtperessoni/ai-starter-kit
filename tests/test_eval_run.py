@@ -282,5 +282,52 @@ class AdoptionGateTest(unittest.TestCase):
         self.assertIn("1 had no hidden result", gate[2])
 
 
+class NoSkillAndRunMetricsTest(unittest.TestCase):
+    def test_build_args_append_no_skill_only_when_configured(self):
+        self.assertIn("--no-skill", run.build_args({"ref": "HEAD", "spec_kit": False, "no_skill": True}, "o"))
+        self.assertNotIn("--no-skill", run.build_args({"ref": "HEAD", "spec_kit": False}, "o"))
+
+    def test_lite_config_plain_arm_is_no_skill(self):
+        cfg = json.loads((EVAL / "arms-lite.json").read_text(encoding="utf-8"))
+        self.assertTrue(cfg["arms"]["PLAIN"]["no_skill"])
+
+    def test_task_output_left_bytes(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp) / "proj"
+            project.mkdir()
+            self.assertEqual(run.task_output_left_bytes(project, Path(tmp) / "claude"), 0)
+            tasks = Path(tmp) / "claude" / run.project_slug(project) / "sess" / "tasks"
+            tasks.mkdir(parents=True)
+            (tasks / "a.output").write_bytes(b"x" * 10)
+            (tasks / "b.output").write_bytes(b"y" * 5)
+            (tasks / "c.txt").write_bytes(b"z" * 99)
+            self.assertEqual(run.task_output_left_bytes(project, Path(tmp) / "claude"), 15)
+
+    def test_run_metrics_from_transcript_files(self):
+        import tempfile
+        import interview_metrics as im
+        events = [
+            {"type": "assistant", "cwd": "/p", "message": {"id": "m1", "usage": {"output_tokens": 100}, "content": [
+                {"type": "tool_use", "id": "a1", "name": "Agent", "input": {"description": "x"}},
+                {"type": "tool_use", "id": "e1", "name": "Edit", "input": {"file_path": "/p/docs/prd/a.md"}}]}},
+            {"type": "assistant", "cwd": "/p", "message": {"id": "m2", "usage": {"output_tokens": 300}, "content": [
+                {"type": "tool_use", "id": "e2", "name": "Write", "input": {"file_path": "/p/src/a.py"}},
+                {"type": "tool_use", "id": "e3", "name": "Write", "input": {"file_path": "/p/changes/001-x/plan.md"}}]}},
+            {"type": "assistant", "cwd": "/p", "message": {"id": "m3", "usage": {"output_tokens": 50}, "content": [
+                {"type": "text", "text": "no edits"}]}},
+        ]
+        got = im.run_metrics(events)
+        self.assertEqual(got["agents_dispatched"], 1)
+        self.assertEqual((got["docs_output_tokens"], got["code_output_tokens"]), (100, 300))
+        self.assertAlmostEqual(got["docs_to_code_ratio"], 100 / 300)
+        self.assertIsNone(im.run_metrics([])["docs_to_code_ratio"])
+        with tempfile.TemporaryDirectory() as tmp:
+            f = Path(tmp) / "t.jsonl"
+            f.write_text("\n".join(json.dumps(e) for e in events) + "\nnot json\n", encoding="utf-8")
+            self.assertEqual(run.load_events([f])[0]["message"]["id"], "m1")
+            self.assertEqual(len(run.load_events([f])), 3)
+
+
 if __name__ == "__main__":
     unittest.main()

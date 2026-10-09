@@ -70,7 +70,7 @@ class ChiefViolationsTest(unittest.TestCase):
         self.assertIsNone(self.count(chief(use("b", "Bash", command="ls"))))
 
     def test_worker_only_blind_spot_names(self):
-        for name in ("impact.md", "classification.md", "agent-plan.md", "prd-writing.md", "trd-planned.md"):
+        for name in ("dispatch.md", "survey.md", "sheet.md", "write.md", "run.md"):
             a = protocol.analyze([spawn("s", "surveyor"), chief(use("r", "Read", file_path=f"/p/x/{name}"))])
             self.assertEqual(a["worker_only_reads"], 1, name)
 
