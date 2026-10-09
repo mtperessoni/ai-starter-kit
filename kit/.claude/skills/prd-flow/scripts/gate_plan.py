@@ -62,7 +62,7 @@ def check_cards(cards: dict[str, str], sections: list[str], rules: Rules, cfg: d
     flag = err if strict_plan(cfg) else warn
     mapped = planned_file_ids(sections)
     for line in open_decisions(sections, rules):
-        err("P12", f"the TRD Planned section holds an open decision without a PRD row: {line}", "decide it in the interview and write the PRD row, then rerun")
+        flag("P12", f"the TRD Planned section holds an open decision without a PRD row: {line}; decide it in the interview and write the PRD row, then rerun")
     for tid, block in cards.items():
         files = [p for p in owned(block) if p]
         covered = block_contract(block)

@@ -20,6 +20,7 @@ POLLING = re.compile(r"\b(?:until|while|for)\b[^\n]*\bsleep\s+\d")
 EDIT_CMD = re.compile(r"\bsed\s+(?:-\w+\s+)*-i|\bperl\s+(?:-\w+\s+)*-\w*i|\bcat\s*>|\bgit\s+apply\b|\bpatch\s|\bapply_patch\b"
                       r"|\bwrite_text\(|\bopen\([^)]*['\"]w")
 CD_TARGET = re.compile(r"(?:\bcd\s+(?:/d\s+)?|\bgit\s+-C\s+)(\"[^\"]+\"|'[^']+'|[^\s;&|]+)")
+ABS_PATH = re.compile(r"(?<![\w./:-])(?:[A-Za-z]:[\\/]|/[A-Za-z]/)[^\s'\";&|()<>]+")
 MSYS_DRIVE = re.compile(r"^/([A-Za-z])(?:/|$)")
 FIELD = {"mode": re.compile(r"\bmode\s*[:=]\s*`?([\w-]+)", re.I),
          "task": re.compile(r"\btask\s*[:=]?\s*`?([A-Za-z]*\d[\w.-]*)", re.I),
@@ -68,22 +69,8 @@ def classify(cmd):
     return "shell"
 
 
-def tool_target(p):
-    """Directory a tool call works in: the command's cd or -C target, or the parent of its file path."""
-    ti = p.get("tool_input")
-    if not isinstance(ti, dict):
-        return None
-    base = p.get("cwd") or os.getcwd()
-    raw = None
-    if str(p.get("tool_name", "")).lower() == "bash":
-        m = CD_TARGET.search(str(ti.get("command", "")))
-        raw = m.group(1).strip("\"'") if m else None
-    else:
-        f = ti.get("file_path") or ti.get("path")
-        if f:
-            raw = os.path.dirname(str(f)) or "."
-    if not raw:
-        return None
+def norm_path(raw, base):
+    raw = raw.strip("\"'")
     if os.name == "nt":
         m = MSYS_DRIVE.match(raw)
         if m:
@@ -92,20 +79,45 @@ def tool_target(p):
     return os.path.normpath(raw if os.path.isabs(raw) else os.path.join(base, raw))
 
 
+def tool_targets(p):
+    """Directories a tool call works in, in order: the command's cd or -C target, the parent of its file path, then every absolute path
+    its Bash command names (Windows drive paths and Git Bash /c/ paths included)."""
+    ti = p.get("tool_input")
+    if not isinstance(ti, dict):
+        return []
+    base = p.get("cwd") or os.getcwd()
+    raws = []
+    if str(p.get("tool_name", "")).lower() == "bash":
+        command = str(ti.get("command", ""))
+        m = CD_TARGET.search(command)
+        if m:
+            raws.append(m.group(1))
+        raws += [m.group(0) for m in ABS_PATH.finditer(command)]
+    else:
+        f = ti.get("file_path") or ti.get("path")
+        if f:
+            raws.append(os.path.dirname(str(f)) or ".")
+    return [norm_path(raw, base) for raw in raws if raw]
+
+
+def kit_root(start):
+    here = start
+    while True:
+        if os.path.isfile(os.path.join(here, "ai-kit.json")):
+            return here
+        parent = os.path.dirname(here)
+        if parent == here:
+            return None
+        here = parent
+
+
 def repo_root(p):
-    """The kit root of the call's target; the session root when the target has none."""
-    session = find_root(p.get("cwd"))
-    target = tool_target(p)
-    if target:
-        here = target
-        while True:
-            if os.path.isfile(os.path.join(here, "ai-kit.json")):
-                return here
-            parent = os.path.dirname(here)
-            if parent == here:
-                break
-            here = parent
-    return session
+    """The kit root of the call's first target that has one; the session root when none does."""
+    for target in tool_targets(p):
+        found = kit_root(target)
+        if found:
+            return found
+    return find_root(p.get("cwd"))
 
 
 def find_back(path, match):

@@ -1,6 +1,7 @@
 """Records the baseline failures of the offline suite at a commit, in a throwaway git worktree (TS43).
 
-Usage: python scripts/baseline.py <slug> [--bg] [--commit REF] [--wait SECONDS]     (through scripts/gates.sh baseline)
+Usage: python scripts/baseline.py <slug> [--commit REF] [--wait SECONDS]     (through scripts/gates.sh baseline)
+A normal foreground command: the chief launches it as a background Bash (run_in_background) and gets a completion event. --bg (detached, no event) is kept for compatibility and not recommended.
 The result is cached by commit plus lockfile, test command and deselect list hash under .claude/prd-flow/state/_baseline/, so a second slug at
 the same commit costs nothing. A lock file per commit makes a concurrent run wait for the first one. A watchdog kills a run whose log has not grown
 for tests.baseline_idle_seconds. Writes .claude/prd-flow/state/<slug>/baseline-failures.txt, baseline.log and baseline.status.

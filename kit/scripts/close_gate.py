@@ -5,7 +5,7 @@ Prints one block of at most 24 lines, every failure with `owner:` and `next:` li
 Refuses uncommitted tracked changes under docs/ and changes/ (promote's output, exit 1, after the baseline check); any other modified tracked file is a note line only.
 Prints "already closed" (exit 0) only when the state is gone, changes/archive/<NNN>-<slug> exists and git log has "docs(prd): promote <slug>".
 The compare step reuses a fresh full run (state/<slug>/final.stamp, written after the run, equals HEAD plus the content of every tracked change and untracked file): nothing runs, or only its new failing ids (gates.sh rerun) when tests.rerun_ids is true, whose failure_regex then yields ids the runner accepts; otherwise the full suite runs once.
-A baseline still running in the background (baseline.status) is reported as such, not as missing.
+A baseline still running (baseline.status, started by the chief as a background Bash) is reported as such, not as missing; close reads the status once and never waits.
 Exits 1 when any step fails. On success the slug's state folder, the gate and test logs of earlier runs and the close log are deleted;
 on failure nothing is deleted, so the close can be rerun.
 """
@@ -195,7 +195,7 @@ def main() -> int:
         if name == "compare" and not baseline.is_file():
             if baseline_running(root, slug):
                 block += [f"compare FAILED: the baseline is still running in the background (state/{slug}/baseline.status)",
-                          "owner: chief", "next: wait until baseline.status reads ok, then rerun close"]
+                          "owner: chief", "next: do not poll: the background baseline Bash raises a completion event; rerun close after it"]
             else:
                 block.append(f"compare FAILED: baseline missing: run scripts/gates.sh baseline {slug} before the first task")
                 block += USER_BASELINE

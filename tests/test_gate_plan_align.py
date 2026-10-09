@@ -59,11 +59,14 @@ class PlanAlignTest(unittest.TestCase):
     def test_a_contract_covering_the_trd_ids_passes(self) -> None:
         self.assertNotIn("P11", self.run_plan(card("T01")))
 
-    def test_an_open_trd_decision_fails_the_plan(self) -> None:
+    def test_an_open_trd_decision_warns_and_fails_when_strict(self) -> None:
         write(self.p.root, "docs/trd/orders.md", TRD + "\nE-3: should retries be capped? decision open\n")
         out = self.run_plan(card("T01"))
-        self.assertIn("ERROR P12", out)
+        self.assertIn("WARNING P12", out)
+        self.assertNotIn("ERROR P12", out)
         self.assertIn("E-3", out)
+        self.strict()
+        self.assertIn("ERROR P12", self.run_plan(card("T01")))
 
     def test_a_decision_line_that_cites_a_prd_row_is_not_open(self) -> None:
         write(self.p.root, "docs/trd/orders.md", TRD + "\nDecision: retries are capped, see ORD-02\n")
@@ -115,12 +118,18 @@ class SharedFileWaveTest(unittest.TestCase):
         write(self.p.root, PLAN_PATH, HEAD + body)
         return self.p.py(GATE, "--step", "plan", "--plan", PLAN_PATH).stdout
 
-    def test_two_tasks_touching_ai_kit_json_in_one_wave_fail(self) -> None:
+    def strict(self) -> None:
+        repo = self.p.root / ".claude/skills/prd-flow/repo.md"
+        repo.write_text(repo.read_text(encoding="utf-8").replace("| html_mode | generated |", "| html_mode | generated |\n| plan_strict | yes |"), encoding="utf-8")
+
+    def test_two_tasks_touching_ai_kit_json_in_one_wave_warn_and_fail_when_strict(self) -> None:
         a = card("T01", owns="ai-kit.json, src/a.py, src/tests/test_a.py")
         b = card("T02", owns="src/b.py, src/tests/test_b.py", extra="Creates / consumes: creates an entry in ai-kit.json\n")
         out = self.run_plan(a + b)
-        self.assertIn("ERROR P17 T01 and T02", out)
+        self.assertIn("WARNING P17 T01 and T02", out)
         self.assertIn("ai-kit.json", out)
+        self.strict()
+        self.assertIn("ERROR P17 T01 and T02", self.run_plan(a + b))
 
     def test_a_single_task_wave_or_serial_tasks_are_fine(self) -> None:
         a = card("T01", owns="ai-kit.json, src/a.py, src/tests/test_a.py")
@@ -133,10 +142,10 @@ class SharedFileWaveTest(unittest.TestCase):
         repo.write_text(repo.read_text(encoding="utf-8").replace("| html_mode | generated |", "| html_mode | generated |\n| shared_files | src/settings.py |"), encoding="utf-8")
         a = card("T01", owns="src/settings.py, src/a.py, src/tests/test_a.py")
         b = card("T02", owns="src/b.py, src/tests/test_b.py", extra="Creates / consumes: changes src/settings.py\n")
-        self.assertIn("ERROR P17", self.run_plan(a + b))
+        self.assertIn("WARNING P17", self.run_plan(a + b))
         c = card("T01", owns="scripts/structure_allowlist.json, src/a.py, src/tests/test_a.py")
         d = card("T02", owns="src/b.py, src/tests/test_b.py", extra="Creates / consumes: changes scripts/structure_allowlist.json\n")
-        self.assertIn("ERROR P17", self.run_plan(c + d))
+        self.assertIn("WARNING P17", self.run_plan(c + d))
 
 
 if __name__ == "__main__":

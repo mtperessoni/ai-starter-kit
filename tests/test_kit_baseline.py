@@ -276,6 +276,17 @@ class CloseReuseTest(GatesBase):
         self.assertIn("compare ok", r.stdout)
         self.assertIn("reused", r.stdout)
 
+    def test_close_reports_a_running_baseline_and_never_waits_for_it(self) -> None:
+        self.prepare(self.env)
+        folder = self.p.root / ".claude" / "prd-flow" / "state" / "demo"
+        (folder / "baseline-failures.txt").unlink()
+        (folder / "baseline.status").write_text("running" + chr(10), encoding="utf-8")
+        r = self.close(self.env)
+        self.assertIn("still running", r.stdout)
+        self.assertIn("completion", r.stdout)
+        self.assertNotIn("wait until", r.stdout)
+        self.assertEqual(r.returncode, 1)
+
     def test_close_without_a_fresh_full_run_runs_the_suite_once(self) -> None:
         self.prepare(self.env)
         before = len(self.runs())

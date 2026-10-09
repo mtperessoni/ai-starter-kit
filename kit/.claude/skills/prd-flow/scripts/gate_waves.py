@@ -121,6 +121,7 @@ def make_waves(tasks: dict[str, dict], down: dict[str, int], critical: list[str]
 
 
 def check_waves(path: Path, cfg: dict[str, str] | None = None) -> None:
+    flag = err if (cfg or {}).get("plan_strict", "no").strip().lower() in {"yes", "true", "on"} else warn
     extra = [e.strip() for e in (cfg or {}).get("shared_files", "").split(",") if e.strip()]
     tasks = parse(path.read_text(encoding="utf-8"))
     if not tasks:
@@ -148,7 +149,7 @@ def check_waves(path: Path, cfg: dict[str, str] | None = None) -> None:
                     err("P7", f"{a} and {b} are in WAVE {n} and both own {clash[0][0]}")
         if len(wave) > 1:
             for a, b, x in shared_clashes(wave, tasks, extra):
-                err("P17", f"{a} and {b} are in WAVE {n} and both touch the shared file {x}", "give the shared file one owner per wave: one task edits it, the other depends on that task")
+                flag("P17", f"{a} and {b} are in WAVE {n} and both touch the shared file {x}; give the shared file one owner per wave: one task edits it, the other depends on that task")
     notes.append(f"CRITICAL PATH: {' > '.join(critical)}")
     for tid, task in tasks.items():
         if task["promote"]:

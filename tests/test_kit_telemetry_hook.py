@@ -282,9 +282,25 @@ class RunSpeedTelemetryTest(HookCase):
         e = json.loads((other / ".ai-kit" / "runs" / "t" / "events.jsonl").read_text(encoding="utf8").splitlines()[-1])
         self.assertEqual(Path(e["repo"]).resolve(), other)
 
+    def test_an_absolute_path_in_a_command_without_cd_routes(self):
+        other = self.other_repo().resolve()
+        self.send("PreToolUse", "Bash", {"command": f"{other.as_posix()}/.venv/bin/python -m pytest {other.as_posix()}/tests/a.py"}, read=False)
+        lines = (other / ".ai-kit" / "runs" / "t" / "events.jsonl").read_text(encoding="utf8").splitlines()
+        self.assertEqual(len(lines), 1)
+        self.assertFalse((self.proj / ".ai-kit" / "runs" / "t" / "events.jsonl").exists())
+
+    @unittest.skipUnless(os.name == "nt", "drive paths exist on Windows only")
+    def test_backslash_and_git_bash_drive_paths_in_a_command_route(self):
+        other = self.other_repo().resolve()
+        msys = "/" + other.drive[0].lower() + other.as_posix()[2:]
+        self.send("PreToolUse", "Bash", {"command": f"type {other}{os.sep}README.md"}, read=False)
+        self.send("PreToolUse", "Bash", {"command": f"cat {msys}/README.md"}, tool_use_id="t2", read=False)
+        lines = (other / ".ai-kit" / "runs" / "t" / "events.jsonl").read_text(encoding="utf8").splitlines()
+        self.assertEqual(len(lines), 2)
+
     def test_dash_c_of_other_tools_does_not_route(self):
         other = self.other_repo()
-        for cmd in (f"grep -C 3 foo {other.as_posix()}", f"grep -rn -C {other.as_posix()} x"):
+        for cmd in ("grep -C 3 foo src", "grep -rn -C 3 x"):
             self.send("PreToolUse", "Bash", {"command": cmd}, read=False)
         self.assertFalse((other / ".ai-kit").exists())
         self.assertEqual(len(self.events("t")), 2)
@@ -346,3 +362,38 @@ class RunSpeedTelemetryTest(HookCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LauncherTest(unittest.TestCase):
+    def launcher(self):
+        settings = json.loads((ROOT / "kit" / ".claude" / "settings.json").read_text(encoding="utf8"))
+        commands = {h["command"] for entries in settings["hooks"].values() for e in entries for h in e["hooks"]}
+        self.assertEqual(len(commands), 1)
+        self.assertNotIn("agent_guard_hook", next(iter(commands)))
+        return next(iter(commands))
+
+    def run_launcher(self, proj, extra_path=None):
+        import shutil
+        bash = shutil.which("bash")
+        if not bash:
+            self.skipTest("bash not available")
+        env = dict(os.environ, CLAUDE_PROJECT_DIR=proj.as_posix())
+        return subprocess.run([bash, "-c", self.launcher()], capture_output=True, text=True, env=env, timeout=30)
+
+    def test_commands_python_from_ai_kit_json_runs_the_hook(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            proj = Path(tmp)
+            (proj / "scripts").mkdir()
+            (proj / "scripts" / "telemetry_hook.py").write_text("", encoding="utf8")
+            fake = proj / "fakepy"
+            fake.write_text("#!/bin/sh\necho ran > " + (proj / "marker").as_posix() + "\n", encoding="utf8")
+            fake.chmod(0o755)
+            (proj / "ai-kit.json").write_text(json.dumps({"commands": {"python": fake.as_posix()}}), encoding="utf8")
+            r = self.run_launcher(proj)
+            self.assertEqual(r.returncode, 0)
+            self.assertTrue((proj / "marker").is_file())
+
+    def test_a_missing_hook_script_exits_zero(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            r = self.run_launcher(Path(tmp))
+            self.assertEqual((r.returncode, r.stdout), (0, ""))

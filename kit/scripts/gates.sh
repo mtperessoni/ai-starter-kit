@@ -31,9 +31,15 @@ usage: scripts/gates.sh <target> [args]
   clean-outputs    delete Claude Code task outputs older than 2 days or over 200 MB (any over 500 MB, in any project)
   baseline <slug> [--bg] [--commit REF]
                    the offline failures at a commit (default HEAD), run in a throwaway worktree, cached by commit plus lockfile,
-                   with a lock and a no-progress watchdog; tests.baseline_deselect is skipped; --bg returns at once
+                   with a lock and a no-progress watchdog; tests.baseline_deselect is skipped; run it as a background Bash (completion event);
+                   --bg (detached, no event) is kept for compatibility, not recommended
   compare <slug>   run offline and print only failures that are not in the baseline
   rerun <slug> <id>...  rerun only those failing ids against the baseline (the close step does it for a fresh full run)
+  verify <slug> [--since REF]
+                   one verification per wave or batch: related tests of every file changed since the ref (default: the last verification,
+                   else the plan commit, else the base branch), the structure tests and the docs gate; log, short summary and
+                   verify.stamp; a rerun with nothing changed reruns only what failed
+  python           print the resolved interpreter (the one every target uses)
   lint             verify lint, format and types, as CI does; one line: lint ok, or lint FAILED (exit N), log <path>
   fix              repair lint and format; same one-line result (then run lint)
   imports          the import check (catches cycles); same one-line result
@@ -239,6 +245,13 @@ clean-outputs)
 baseline)
     [ $# -ge 1 ] || { echo "usage: gates.sh baseline <slug> [--bg] [--commit REF]" >&2; exit 2; }
     GATES_BASH="$(cygpath -w "$BASH" 2>/dev/null || printf %s "$BASH")" "$PY" scripts/baseline.py "$@"
+    ;;
+verify)
+    [ $# -ge 1 ] || { echo "usage: gates.sh verify <slug> [--since REF]" >&2; exit 2; }
+    GATES_BASH="$(cygpath -w "$BASH" 2>/dev/null || printf %s "$BASH")" "$PY" scripts/verify.py "$@"
+    ;;
+python)
+    echo "$PY"
     ;;
 compare)
     slug="${1:?usage: gates.sh compare <slug>}"
