@@ -109,6 +109,7 @@ QUESTION = re.compile(r"^(Q\d+)\s*·\s*(?:D\d+\s*·\s*)?(.*)$")
 OPTION = re.compile(r"^\s+-\s+(.*)$")
 WRONG_SCENARIO = re.compile(r"(?i)scenario\b.*\b(wrong|incorrect)\b|\b(wrong|incorrect)\b.*\bscenario|document is stale")
 TWO_DECISIONS = re.compile(r"(?i)\band also\b|\bas well as\b|;|\s\+\s")
+ROW_TAG = re.compile(r"\s*\[row:\s*(?:" + ID + r"|none)\s*\]")
 QUOTED = re.compile(r'"[^"]+"|`[^`]+`')
 
 
@@ -129,7 +130,7 @@ def check_questions(text: str, cfg: dict[str, str]) -> None:
     flag = err if cfg.get("question_lint", "warn").strip().lower() == "error" else warn
     words = [w.strip().lower() for w in cfg.get("plain_words", "").split(",") if w.strip()]
     for qid, question, options in prepared_questions(text):
-        shown = " ".join([question, *options]).lower()
+        shown = ROW_TAG.sub("", " ".join([question, *options])).lower()
         for word in words:
             if re.search(r"(?<![\w-])" + re.escape(word) + r"(?![\w-])", shown):
                 flag("Q8", f"{qid} uses the jargon word '{word}': say it in the product's plain words")
@@ -138,8 +139,8 @@ def check_questions(text: str, cfg: dict[str, str]) -> None:
         for option in options:
             if WRONG_SCENARIO.search(option):
                 continue
-            label = option.split(": ", 1)[0]
-            if not (re.search(r"\b" + ID + r"\b", option) or QUOTED.search(option)):
+            label = ROW_TAG.sub("", option).split(": ", 1)[0]
+            if not (ROW_TAG.search(option) or QUOTED.search(option) or re.search(r"\b" + ID + r"\b", option)):
                 flag("Q6", f"{qid} option '{label[:50]}' cites neither a row ID nor the rule text")
             if TWO_DECISIONS.search(label):
                 flag("Q7", f"{qid} option '{label[:50]}' holds more than one decision: split it into two questions")

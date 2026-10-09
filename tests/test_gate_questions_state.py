@@ -41,6 +41,12 @@ class QuestionLintTest(unittest.TestCase):
         out = self.lint(GOOD.replace('"Try again" after 20 s, cart kept (Recommended): fewer stuck carts, per ORD-01', "Try again after 20 s (Recommended): fewer stuck carts"))
         self.assertIn("WARNING Q6 Q1", out)
 
+    def test_the_row_tag_of_the_prepared_format_cites_the_row(self) -> None:
+        nl = chr(10)
+        tagged = 'Q1 · D05 · "What does the customer see?"' + nl + "  - Try again after 20 s (Recommended): fewer stuck carts [row: CHK-02]" + nl + "  - Keep today's 30 s: no change [row: none]" + nl + "  - The scenario is wrong, explain it differently [row: none]" + nl
+        self.assertIn("0 error(s), 0 warning(s)", self.lint(tagged))
+        self.assertIn("WARNING Q6 Q1", self.lint(tagged.replace(" [row: CHK-02]", "")))
+
     def test_an_option_with_two_decisions_warns(self) -> None:
         out = self.lint(GOOD.replace("Wait up to 60 s:", "Wait up to 60 s and also keep the cart for a day:"))
         self.assertIn("WARNING Q7 Q1", out)
