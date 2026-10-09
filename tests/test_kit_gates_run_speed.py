@@ -111,17 +111,98 @@ class CloseRerunIdsTest(RunSpeedBase):
         return subprocess.run([PY, "scripts/close_gate.py", "demo"], cwd=self.p.root, capture_output=True, text=True, encoding="utf-8",
                               env={**env, "GATES_BASH": BASH}, check=False)
 
-    def test_a_new_failure_without_runnable_ids_runs_the_full_suite_and_fails(self) -> None:
+    def test_a_new_failure_without_runnable_ids_fails_from_the_compare_result_without_a_run(self) -> None:
         self.prepare(False)
         env = {**self.env, "RUN_FAIL": "Some title"}
         self.gates("compare", "demo", env=env)
         before = len(self.runs())
         r = self.close(env)
-        runs = self.runs()
-        self.assertEqual(runs[-1]["argv"], [], r.stdout)
-        self.assertGreater(len(runs), before)
+        self.assertEqual(len(self.runs()), before, r.stdout)
         self.assertNotEqual(r.returncode, 0, r.stdout)
+        self.assertIn("NEW Some", r.stdout)
         self.assertNotIn("all passed", r.stdout)
+
+
+NO_SUMMARY_RUNNER = """\
+import json, os, sys
+with open(os.environ["RUN_LOG"], "a", encoding="utf-8") as log:
+    log.write(json.dumps({"cwd": os.getcwd(), "argv": sys.argv[1:]}) + "\\n")
+print(os.environ.get("RUN_TEXT", "collecting ..."))
+sys.exit(int(os.environ.get("RUN_EXIT", "0")))
+"""
+
+
+class OnePassGatesTest(RunSpeedBase):
+    def seed(self, slug: str = "demo") -> None:
+        folder = self.p.root / ".claude/prd-flow/state" / slug
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / "baseline-failures.txt").write_text("", encoding="utf-8")
+
+    def test_compare_fails_when_the_run_ends_without_its_summary_line(self) -> None:
+        self.runner.write_text(NO_SUMMARY_RUNNER, encoding="utf-8")
+        self.seed()
+        r = self.gates("compare", "demo")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("suite ended without its summary line", r.stdout)
+        self.assertFalse((self.p.root / ".claude/prd-flow/state/_compare").exists())
+
+    def test_baseline_fails_when_the_run_ends_without_its_summary_line(self) -> None:
+        self.runner.write_text(NO_SUMMARY_RUNNER, encoding="utf-8")
+        r = self.gates("baseline", "s1")
+        self.assertNotEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("suite ended without its summary line", r.stdout + r.stderr)
+        self.assertFalse(self.state("s1", "baseline-failures.txt").exists())
+        r = self.gates("baseline", "s2")
+        self.assertNotEqual(r.returncode, 0, "a failed baseline must not be cached")
+
+    def test_a_nonzero_runner_exit_without_any_failure_line_is_not_a_pass(self) -> None:
+        self.runner.write_text(NO_SUMMARY_RUNNER, encoding="utf-8")
+        self.seed()
+        r = self.gates("compare", "demo", env={**self.env, "RUN_TEXT": "1 passed", "RUN_EXIT": "5"})
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("exited 5 without a failure line", r.stdout)
+
+    def test_a_timeout_or_killed_outcome_counts_as_a_new_failure(self) -> None:
+        write(self.p.root, "baseline.txt", "")
+        for text in ("+++++ Timeout +++++\n1 passed\n", "Fatal Python error: x\n1 passed\n", "ERROR collecting tests/a.py\n1 error\n"):
+            write(self.p.root, "final.log", text)
+            r = self.p.py("scripts/new_failures.py", "baseline.txt", "final.log")
+            self.assertEqual(r.returncode, 1, text + r.stdout)
+            self.assertIn("NEW", r.stdout)
+
+    def test_gates_exports_utf8_and_drops_no_exit_code(self) -> None:
+        text = (KIT / "scripts/gates.sh").read_text(encoding="utf-8")
+        self.assertIn("export PYTHONUTF8=1", text)
+        block = text.split("compare)", 1)[1].split("\n    ;;", 1)[0]
+        self.assertNotIn("|| true", block)
+
+    def test_fast_flags_reach_baseline_and_compare_only_when_declared(self) -> None:
+        self.seed()
+        self.configure(tests={"fast_flags": "--no-cov -n 2"})
+        self.gates("baseline", "s1")
+        self.gates("compare", "demo")
+        self.assertEqual([run["argv"] for run in self.runs()], [["--no-cov", "-n", "2"]] * 2)
+
+    def test_a_docs_only_commit_reuses_the_compare_result_and_a_source_change_does_not(self) -> None:
+        self.seed()
+        self.gates("compare", "demo")
+        write(self.p.root, "docs/prd/x.md", "docs only\n")
+        run(self.p.root, "git", "add", "-A", check=True)
+        run(self.p.root, "git", "commit", "-q", "-m", "docs(prd): promote demo", check=True)
+        r = self.gates("compare", "demo")
+        self.assertIn("reused", r.stdout)
+        self.assertEqual(len(self.runs()), 1)
+        write(self.p.root, "src/features/orders/order_service.py", "x = 9\n")
+        self.gates("compare", "demo")
+        self.assertEqual(len(self.runs()), 2)
+
+    def test_the_compare_result_is_shared_across_slugs(self) -> None:
+        self.seed("a")
+        self.seed("b")
+        self.gates("compare", "a")
+        r = self.gates("compare", "b")
+        self.assertIn("reused", r.stdout)
+        self.assertEqual(len(self.runs()), 1)
 
 
 class BaselineStatusTest(RunSpeedBase):

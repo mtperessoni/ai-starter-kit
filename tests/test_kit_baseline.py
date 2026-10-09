@@ -287,11 +287,13 @@ class CloseReuseTest(GatesBase):
         self.assertNotIn("wait until", r.stdout)
         self.assertEqual(r.returncode, 1)
 
-    def test_close_without_a_fresh_full_run_runs_the_suite_once(self) -> None:
+    def test_close_without_a_compare_result_never_runs_the_suite(self) -> None:
         self.prepare(self.env)
         before = len(self.runs())
         r = self.close(self.env)
-        self.assertEqual(len(self.runs()), before + 1, r.stdout)
+        self.assertEqual(len(self.runs()), before, r.stdout)
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("no compare result", r.stdout)
 
     def test_close_reruns_only_the_new_failing_ids_of_the_last_full_run(self) -> None:
         self.prepare(self.env)
@@ -311,8 +313,9 @@ class CloseReuseTest(GatesBase):
         self.gates("compare", "demo")
         write(self.p.root, "src/features/orders/order_service.py", '"""ORD-01."""\nx = 2\n')
         before = len(self.runs())
-        self.close(self.env)
-        self.assertGreater(len(self.runs()), before)
+        r = self.close(self.env)
+        self.assertEqual(len(self.runs()), before, r.stdout)
+        self.assertIn("no compare result", r.stdout)
 
 
 class CleanOutputsTest(unittest.TestCase):

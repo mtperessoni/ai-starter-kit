@@ -1,9 +1,10 @@
 """gates.sh verify (one verification per batch) and gates.sh python."""
 
 import json
+import re
 
 from tests.test_kit_baseline import GatesBase
-from tests.test_kit_gates_run_speed import RUNNER
+from tests.test_kit_gates_run_speed import RUNNER, script_module
 from tests.test_kit_scripts import write
 
 
@@ -83,6 +84,14 @@ class VerifyTest(GatesBase):
         r = self.gates("verify", "demo")
         self.assertIn("nothing changed", r.stdout)
         self.assertIn("stuck agents: a9", r.stdout)
+
+    def test_a_failed_step_prints_the_failed_ids_with_their_first_assertion_line_not_the_slowest_tests(self) -> None:
+        verify = script_module("verify")
+        pattern = re.compile(r"^(?:FAILED|ERROR)\s+(\S+)")
+        lines = ["= slowest 3 durations =", "0.90s call tests/test_a.py::test_slow", "FAILED tests/test_a.py::test_one",
+                 "E   assert 1 == 2", "FAILED tests/test_b.py::test_two - AssertionError: boom", "2 failed in 1s"]
+        self.assertEqual(verify.failure_details(lines, pattern),
+                         ["FAILED tests/test_a.py::test_one: E   assert 1 == 2", "FAILED tests/test_b.py::test_two: AssertionError: boom"])
 
     def test_a_bad_slug_is_a_usage_error(self) -> None:
         r = self.gates("verify", "../x")

@@ -8,6 +8,7 @@ import subprocess
 import sys
 import unittest
 
+from tests.test_kit_gates_run_speed import script_module
 from tests.test_kit_scripts import BASH, KIT, PY, Project, run, write
 
 
@@ -125,6 +126,7 @@ class GatesV5Test(unittest.TestCase):
         run(self.p.root, "git", "add", "-A", check=True)
         run(self.p.root, "git", "commit", "-q", "-m", "html", check=True)
         self.gates("baseline", "demo")
+        self.gates("compare", "demo")
 
     def test_close_prints_one_short_block_and_logs_the_rest(self) -> None:
         self.close_setup()
@@ -201,6 +203,36 @@ esac
         write(self.p.root, ".claude/prd-flow/state/demo/baseline-failures.txt", "")
         run(self.p.root, "git", "add", "-A", check=True)
         run(self.p.root, "git", "commit", "-q", "-m", "stub gates", check=True)
+        key = script_module("close_gate").content_hash(self.p.root)
+        write(self.p.root, f".claude/prd-flow/state/_compare/{key}/final.log", "1 passed\n")
+
+    def test_close_runs_lint_trailers_and_docs_before_it_reads_the_compare_result(self) -> None:
+        self.stub_gates(trailers_rc=1)
+        self.close_direct()
+        log = (self.p.root / ".claude/prd-flow/state/_close/demo.log").read_text(encoding="utf-8")
+        order = [log.index(f"$ gates.sh {name}") for name in ("lint", "trailers", "docs", "compare", "retro")]
+        self.assertEqual(order, sorted(order), log)
+
+    def test_the_close_log_is_appended_per_step_not_written_once_at_the_end(self) -> None:
+        text = (KIT / "scripts/close_gate.py").read_text(encoding="utf-8")
+        self.assertNotIn("log.write_text(\"\\n\".join(chunks)", text)
+        self.assertIn('log.open("a"', text)
+
+    def test_close_without_a_compare_result_fails_and_never_runs_the_suite(self) -> None:
+        self.stub_gates()
+        shutil.rmtree(self.p.root / ".claude/prd-flow/state/_compare")
+        r = self.close_direct()
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("no compare result", r.stdout)
+        self.assertIn("background", r.stdout)
+
+    def test_close_reports_a_running_compare_and_never_waits_for_it(self) -> None:
+        self.stub_gates()
+        shutil.rmtree(self.p.root / ".claude/prd-flow/state/_compare")
+        write(self.p.root, ".claude/prd-flow/state/demo/compare.status", "running\n")
+        r = self.close_direct()
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("compare is still running", r.stdout)
 
     def test_a_dirty_tracked_file_under_docs_or_changes_is_refused_with_an_executor_owner(self) -> None:
         self.stub_gates()

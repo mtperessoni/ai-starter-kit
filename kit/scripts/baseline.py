@@ -21,7 +21,7 @@ import time
 from pathlib import Path
 
 from kit_config import load, repo_root
-from new_failures import failures
+from new_failures import NO_SUMMARY, failures, has_summary
 
 LOCKFILES = ("package-lock.json", "yarn.lock", "pnpm-lock.yaml", "bun.lockb", "uv.lock", "poetry.lock", "Pipfile.lock", "requirements.txt",
              "Cargo.lock", "go.sum", "composer.lock", "Gemfile.lock", "gradle.lockfile", "packages.lock.json")
@@ -201,9 +201,15 @@ def publish(source: Path, target: Path, status: str) -> int:
     return 0
 
 
+def fast_flags(tests: dict) -> str:
+    """tests.fast_flags (for example "--no-cov -n auto") when the project declares them; never assumed."""
+    value = tests.get("fast_flags", "")
+    return " ".join(map(str, value)) if isinstance(value, list) else str(value or "")
+
+
 def run_suite(root: Path, config: dict, commit: str, work: Path) -> tuple[int, bool]:
     commands, tests = config["commands"], config.get("tests", {})
-    command = " ".join(filter(None, [str(commands["test"]), str(commands.get("offline_args", ""))]))
+    command = " ".join(filter(None, [str(commands["test"]), str(commands.get("offline_args", "")), fast_flags(tests)]))
     if tests.get("baseline_deselect") and "baseline_deselect_flag" not in tests and NODE_RUNNER.search(command):
         raise SetupError("tests.baseline_deselect is set but tests.baseline_deselect_flag is not: --deselect is pytest only")
     command += " " + deselect_args(tests) if tests.get("baseline_deselect") else ""
@@ -271,8 +277,8 @@ def execute(args: argparse.Namespace, root: Path, target: Path) -> int:
         return 2
     config = load(root)
     tests, commands = config.get("tests", {}), config["commands"]
-    command = f"{commands['test']} {commands.get('offline_args', '')}"
-    base = root / ".claude" / "prd-flow" / "state" / "_baseline"
+    command = f"{commands['test']} {commands.get('offline_args', '')} {fast_flags(tests)}"
+    base =root / ".claude" / "prd-flow" / "state" / "_baseline"
     cache = base / cache_key(root, commit, command, list(tests.get("baseline_deselect", [])))
     ready = cache / "done"
     lock = base / f"{commit[:12]}.lock"
@@ -313,6 +319,11 @@ def execute(args: argparse.Namespace, root: Path, target: Path) -> int:
             shutil.rmtree(cache, ignore_errors=True)
             print(f"baseline INCOMPLETE: no progress for {idle} s, the run was killed; failures so far are recorded, rerun or add the hanging test to tests.baseline_deselect")
             return HUNG
+        if not (cache / "run.log").is_file() or not has_summary(cache / "run.log", tests):
+            log = (cache / "run.log").as_posix()
+            (target / "baseline.status").write_text("failed no summary\n", encoding="utf-8")
+            print(f"baseline FAILED: {NO_SUMMARY}, log {log}; nothing was recorded or cached", file=sys.stderr)
+            return 2
         ready.write_text(f"{commit}\n", encoding="utf-8")
         return publish(cache, target, f"ok {commit[:8]}\n")
     finally:

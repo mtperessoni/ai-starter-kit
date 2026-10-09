@@ -18,7 +18,7 @@ import time
 from pathlib import Path
 
 from close_gate import tree_stamp, valid_slug
-from kit_config import repo_root
+from kit_config import load, repo_root
 
 DETAIL_LINES = 6
 STUCK_LOOKBACK = 1048576
@@ -110,6 +110,27 @@ def preflight(root: Path) -> tuple[list[str], str]:
     return lines, "$ gates.sh reap\n" + text
 
 
+def failure_details(lines: list[str], pattern: re.Pattern) -> list[str]:
+    """The failed test ids with the first assertion line of each, never the slowest tests. A short-summary line
+    ("FAILED id - AssertionError: x") carries its own message; otherwise the first "E " or assertion line after the id."""
+    details = []
+    for index, line in enumerate(lines):
+        match = pattern.search(line)
+        if not match:
+            continue
+        ident = match.group(1) if match.groups() else line.strip()
+        message = line.split(" - ", 1)[1].strip() if " - " in line else ""
+        for later in lines[index + 1:index + 40] if not message else []:
+            stripped = later.strip()
+            if pattern.search(later):
+                break
+            if stripped.startswith("E ") or "AssertionError" in stripped or stripped.startswith("assert "):
+                message = stripped
+                break
+        details.append(f"FAILED {ident}" + (f": {message}" if message else ""))
+    return list(dict.fromkeys(details))
+
+
 def read_stamp(path: Path) -> dict:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -133,6 +154,7 @@ def main(argv: list[str]) -> int:
     folder = root / ".claude" / "prd-flow" / "state" / slug
     folder.mkdir(parents=True, exist_ok=True)
     stamp_path, log = folder / "verify.stamp", folder / "verify.log"
+    failure_regex = re.compile(load(root).get("tests", {}).get("failure_regex") or r"^(?:FAILED|ERROR)\s+(\S+)")
     notes, reap_text = preflight(root)
     stamp = read_stamp(stamp_path)
     tree = tree_stamp(root)
@@ -160,7 +182,9 @@ def main(argv: list[str]) -> int:
             out.append(f"{name} ok" + (f": {lines[-1]}" if lines else ""))
         else:
             failed.append(name)
-            out += [f"{name} FAILED (exit {result.returncode})"] + [f"  {ln}" for ln in lines[-DETAIL_LINES:]]
+            found = failure_details(lines, failure_regex)
+            shown = found[:DETAIL_LINES] if found else lines[-DETAIL_LINES:]
+            out += [f"{name} FAILED (exit {result.returncode})", *[f"  {ln}" for ln in shown]]
     log.write_text("\n".join(chunks), encoding="utf-8")
     stamp_path.write_text(json.dumps({"head": git(root, "rev-parse", "HEAD"), "tree": tree_stamp(root), "failed": failed, "ts": int(time.time())}), encoding="utf-8")
     out.append(f"verify {'FAILED' if failed else 'ok'}, log {log.relative_to(root).as_posix()}")

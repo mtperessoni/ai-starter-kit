@@ -7,6 +7,7 @@
 # "offline" number into the full number, and two equal numbers looked like
 # confirmation. The safe path is the invoked one.
 set -euo pipefail
+export PYTHONUTF8=1
 
 cd "$(git rev-parse --show-toplevel)"
 LOG_DIR=".claude/prd-flow/state/_tests"
@@ -33,7 +34,8 @@ usage: scripts/gates.sh <target> [args]
                    the offline failures at a commit (default HEAD), run in a throwaway worktree, cached by commit plus lockfile,
                    with a lock and a no-progress watchdog; tests.baseline_deselect is skipped; run it as a background Bash (completion event);
                    --bg (detached, no event) is kept for compatibility, not recommended
-  compare <slug>   run offline and print only failures that are not in the baseline
+  compare <slug>   run offline and print only failures that are not in the baseline; fails when the run ends without its summary line;
+                   a run of the same test content (source and test folders, lockfiles, dirty diff) is reused from state/_compare/<hash>
   rerun <slug> <id>...  rerun only those failing ids against the baseline (the close step does it for a fresh full run)
   verify <slug> [--since REF]
                    one verification per wave or batch: related tests of every file changed since the ref (default: the last verification,
@@ -49,8 +51,8 @@ usage: scripts/gates.sh <target> [args]
   ratchet          structure ratchet (docs/code-structure.md)
   docs [slug|args] the prd-flow docs gate; a slug runs every check of the change in one process (gate.py --docs)
   html [args]      rebuild the PRD and TRD HTML pages (build_prd_html.py, build_trd_html.py); --check verifies both
-  close [slug]     the closing ceremony in one block (retro findings and failure lines included): compare against the baseline
-                   (a fresh full run of this commit is reused), lint, trailers, docs --final, retro; full log in
+  close [slug]     the closing ceremony in one block (retro findings and failure lines included): lint, trailers, docs --final, then the
+                   compare result against the baseline (read once, never run inline), retro; full log, written per step, in
                    .claude/prd-flow/state/_close/<slug>.log; exit 1 on a failure
   trailers [range] commits touching the source folders carry Rules: or Case: none (default origin/<base>..HEAD)
   context <name>   name the run context (.ai-kit/runs/current) for the telemetry
@@ -110,6 +112,11 @@ resolve_python() {
 
 cmd() {
     "$PY" scripts/config_get.py "commands.$1"
+}
+
+# tests.fast_flags (for example "--no-cov -n auto"): added to baseline and compare only when the project declares them.
+fast_flags() {
+    "$PY" scripts/config_get.py tests.fast_flags ""
 }
 
 gate_has() {
@@ -264,10 +271,30 @@ compare)
     dir=".claude/prd-flow/state/$slug"
     mkdir -p "$dir"
     rm -f "$dir/final.stamp"
-    offline_sh offline "$(cmd test) $(cmd offline_args) $("$PY" scripts/config_get.py --deselect)" > "$dir/final.log" 2>&1 || true
+    content="$("$PY" scripts/close_gate.py --hash)"
+    cache=".claude/prd-flow/state/_compare/$content"
+    compare_code=0
+    if [ -f "$cache/final.log" ]; then
+        cp "$cache/final.log" "$dir/final.log"
+        compare_code="$(cat "$cache/exit" 2>/dev/null || echo 0)"
+        echo "compare: reused the full run of the same test content ${content:0:12}"
+    else
+        printf 'running\n' > "$dir/compare.status"
+        trap 'rm -f "$dir/compare.status"' EXIT
+        offline_sh offline "$(cmd test) $(cmd offline_args) $(fast_flags) $("$PY" scripts/config_get.py --deselect)" > "$dir/final.log" 2>&1 || compare_code=$?
+        if "$PY" scripts/new_failures.py --require-summary "$dir/final.log" > /dev/null; then
+            mkdir -p "$cache"
+            cp "$dir/final.log" "$cache/final.log"
+            printf '%s\n' "$compare_code" > "$cache/exit"
+        fi
+    fi
     "$PY" scripts/close_gate.py --stamp > "$dir/final.stamp"
     tail -n 1 "$dir/final.log"
-    "$PY" scripts/new_failures.py "$dir/baseline-failures.txt" "$dir/final.log"
+    if ! "$PY" scripts/new_failures.py --require-summary "$dir/final.log" > /dev/null; then
+        echo "compare FAILED: suite ended without its summary line (runner exit $compare_code), log $dir/final.log"
+        exit 1
+    fi
+    "$PY" scripts/new_failures.py --exit-code "$compare_code" "$dir/baseline-failures.txt" "$dir/final.log"
     ;;
 rerun)
     slug="${1:?usage: gates.sh rerun <slug> <id>...}"
