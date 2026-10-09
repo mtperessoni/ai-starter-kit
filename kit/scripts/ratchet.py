@@ -5,8 +5,8 @@ legacy layout); folders with a CLAUDE.md map are the feature folders plus "map_d
 Function and class size, inheritance, closures and import direction belong to the stack's linter.
 
 Usage: python scripts/ratchet.py          check; exit 1 on a violation outside the allowlist
-       python scripts/ratchet.py --init   print an allowlist of the current state for ai-kit.json
-The allowlist in ai-kit.json only shrinks: an entry that is no longer needed, or that dropped, fails too.
+       python scripts/ratchet.py --init   print the allowlist object of the current state, for ai-kit.allowlist.json
+The allowlist (ai-kit.allowlist.json, or the old "allowlist" key of ai-kit.json) only shrinks: an entry that is no longer needed, or that dropped, fails too.
 """
 
 import argparse

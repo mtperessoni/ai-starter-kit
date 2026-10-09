@@ -1,6 +1,7 @@
 """Closing ceremony in one call: the full suite against the baseline, lint, trailers, the final gate, retro.
 
 Usage: python scripts/close_gate.py [slug]     (through scripts/gates.sh close [slug])
+Runs `gates.sh cleanup <slug>` as the last step after retro (one line, or the survivors; it never fails the close).
 Prints one block of at most 24 lines, every failure with `owner:` and `next:` lines (a missing baseline or a trailer that needs a history rewrite is `owner: user`) (the retro findings, at most 5, highest severity first; a failing check's last lines, at most 10); the full output of every step goes to .claude/prd-flow/state/_close/<slug>.log.
 Refuses uncommitted tracked changes under docs/ and changes/ (promote's output, exit 1, after the baseline check); any other modified tracked file is a note line only.
 Prints "already closed" (exit 0) only when the state is gone, changes/archive/<NNN>-<slug> exists and git log has "docs(prd): promote <slug>".
@@ -165,6 +166,13 @@ def retro_block(result: subprocess.CompletedProcess) -> list[str]:
     return head + top if found or head else summarize("retro", result)
 
 
+def cleanup_lines(result: subprocess.CompletedProcess) -> list[str]:
+    lines = [ln for ln in result.stdout.splitlines() if ln.strip()]
+    if result.returncode == 0:
+        return [f"cleanup ok ({lines[-1].strip()})" if lines else "cleanup ok"]
+    return [f"cleanup left survivors (exit {result.returncode})", *(f"  {ln.strip()}" for ln in lines[-3:])]
+
+
 def main() -> int:
     root = repo_root()
     if sys.argv[1:] == ["--stamp"]:
@@ -207,6 +215,7 @@ def main() -> int:
         owner = USER_REWRITE if name == "trailers" and result.returncode != 0 and needs_rewrite(root, result) else OWNER
         block += retro_block(result) if name == "retro" and result.returncode == 0 else summarize(name, result, owner)
         failed = failed or (result.returncode != 0 and name != "retro")
+    block += cleanup_lines(gates(root, "cleanup", slug))
     status = subprocess.run(["git", "-C", str(root), "status", "--short"], capture_output=True, text=True,  # noqa: S603, S607
                             encoding="utf-8", check=False).stdout
     block.append(f"tree: {len([ln for ln in status.splitlines() if ln.strip()])} changed path(s)")

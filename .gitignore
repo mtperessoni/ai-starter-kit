@@ -2,6 +2,8 @@ __pycache__/
 *.pyc
 .claude/prd-flow/
 .ai-kit-test/
+kit/.ai-kit/
+tests/fixtures/**/.ai-kit/
 eval/results/**
 !eval/results/*/
 !eval/results/*/report.md

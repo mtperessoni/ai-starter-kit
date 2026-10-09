@@ -1,0 +1,17 @@
+{
+  "long_modules": {},
+  "long_tests": {},
+  "banned_names": [],
+  "duplicate_names": [],
+  "no_prd_id": [],
+  "untested_rules": [],
+  "no_feature_map": [],
+  "long_feature_maps": {},
+  "crowded_dirs": {},
+  "skill_md_bytes": {
+    ".claude/skills/prd-create/SKILL.md": 8244,
+    ".claude/skills/trd-create/SKILL.md": 8285
+  },
+  "generated_without_marker": [],
+  "invariant_gaps": 0
+}

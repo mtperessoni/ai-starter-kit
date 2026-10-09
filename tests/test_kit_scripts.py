@@ -10,6 +10,8 @@ import textwrap
 import unittest
 from pathlib import Path
 
+from tests.gate_report import full
+
 KIT = Path(__file__).resolve().parents[1] / "kit"
 PY = sys.executable
 
@@ -77,6 +79,7 @@ class Project:
         shutil.copytree(KIT / "scripts", self.root / "scripts")
         shutil.copytree(KIT / ".claude", self.root / ".claude")
         config = json.loads((KIT / "ai-kit.json").read_text(encoding="utf-8"))
+        config["allowlist"] = json.loads((KIT / "ai-kit.allowlist.json").read_text(encoding="utf-8"))
         config["code_extensions"] = [".py"]
         config["tests"]["runner"] = f'"{PY}" -c "print(\'FAILED fake::test_a\'); print(\'1 failed\')" {{files}}'
         write(self.root, "ai-kit.json", json.dumps(config, indent=2))
@@ -118,7 +121,7 @@ class GateTest(unittest.TestCase):
     def test_a_consistent_prd_passes(self) -> None:
         r = self.p.py(self.gate)
         self.assertEqual(r.returncode, 0, r.stdout)
-        self.assertIn("2 rules", r.stdout)
+        self.assertIn("2 rules", full(self.p, r))
 
     def test_rewording_a_rule_without_changelog_fails(self) -> None:
         section = self.p.root / "docs/prd/shop/05-orders.md"
@@ -138,8 +141,9 @@ class GateTest(unittest.TestCase):
             encoding="utf-8",
         )
         r = self.p.py(self.gate, "--base", "HEAD")
-        self.assertNotIn("Q1-01: Change via", r.stdout)
-        self.assertIn("ORD-03: Change via", r.stdout)
+        report = full(self.p, r)
+        self.assertNotIn("Q1-01: Change via", report)
+        self.assertIn("ORD-03: Change via", report)
 
     def test_em_dash_is_rejected(self) -> None:
         section = self.p.root / "docs/prd/shop/05-orders.md"
@@ -624,6 +628,46 @@ class KitIdsTest(unittest.TestCase):
                     text = f.read_bytes().decode("utf-8", errors="ignore")
                     hits += [f"{f.relative_to(root).as_posix()}: {m.group(0)}" for m in pattern.finditer(text)]
         self.assertEqual(hits, [])
+
+
+class AllowlistSidecarTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.p = Project()
+        self.cfg_path = self.p.root / "ai-kit.json"
+        write(self.p.root, "src/features/orders/order_report.py", '"""ORD-01."""\n' + "x = 1\n" * 520)
+
+    def tearDown(self) -> None:
+        self.p.close()
+
+    def current_state(self) -> dict:
+        return json.loads(self.p.py("scripts/ratchet.py", "--init").stdout)
+
+    def test_the_sidecar_wins_over_the_old_key(self) -> None:
+        state = self.current_state()
+        config = json.loads(self.cfg_path.read_text(encoding="utf-8"))
+        config["allowlist"] = {}
+        self.cfg_path.write_text(json.dumps(config), encoding="utf-8")
+        self.assertEqual(self.p.py("scripts/ratchet.py").returncode, 1)
+        (self.p.root / "ai-kit.allowlist.json").write_text(json.dumps(state), encoding="utf-8")
+        r = self.p.py("scripts/ratchet.py")
+        self.assertEqual(r.returncode, 0, r.stdout)
+
+    def test_the_old_key_still_works_without_a_sidecar(self) -> None:
+        state = self.current_state()
+        config = json.loads(self.cfg_path.read_text(encoding="utf-8"))
+        config["allowlist"] = state
+        self.cfg_path.write_text(json.dumps(config), encoding="utf-8")
+        self.assertFalse((self.p.root / "ai-kit.allowlist.json").exists())
+        self.assertEqual(self.p.py("scripts/ratchet.py").returncode, 0)
+
+    def test_config_get_omits_the_allowlist_unless_asked(self) -> None:
+        (self.p.root / "ai-kit.allowlist.json").write_text(json.dumps({"invariant_gaps": 600}), encoding="utf-8")
+        shown = self.p.py("scripts/config_get.py", "--dump").stdout
+        self.assertIn("source_dirs", shown)
+        self.assertNotIn("allowlist", shown)
+        self.assertNotIn("600", shown)
+        asked = self.p.py("scripts/config_get.py", "allowlist.invariant_gaps").stdout
+        self.assertEqual(asked.strip(), "600")
 
 
 if __name__ == "__main__":

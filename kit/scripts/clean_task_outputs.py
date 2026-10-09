@@ -44,7 +44,7 @@ def clean(
     max_mb: float,
     now: float | None = None,
     dry_run: bool = False,
-    hard_max_mb: float = DEFAULT_HARD_MAX_MB,
+    hard_max_mb: float | None = DEFAULT_HARD_MAX_MB,
 ) -> tuple[list[Removal], list[str]]:
     moment = time.time() if now is None else now
     removed: list[Removal] = []
@@ -58,7 +58,7 @@ def clean(
                 try:
                     output.unlink()
                 except OSError:
-                    if size <= hard_max_mb * 1024 * 1024:
+                    if hard_max_mb is None or size <= hard_max_mb * 1024 * 1024:
                         raise
                     output.write_bytes(b"")
                     verb = "truncated"
@@ -78,7 +78,7 @@ def clean(
                 reasons.append(f"larger than {max_mb:g} MB")
             if reasons:
                 remove(output, stat.st_size, " and ".join(reasons))
-    for output in sorted(root.glob("**/*.output")):
+    for output in sorted(root.glob("**/*.output")) if hard_max_mb is not None else []:
         if output in done:
             continue
         size = output.stat().st_size

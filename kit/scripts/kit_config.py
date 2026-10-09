@@ -49,7 +49,11 @@ def resolve_base(root: Path, explicit: str | None = None) -> str:
 
 
 def load(root: Path) -> dict:
-    return json.loads((root / "ai-kit.json").read_text(encoding="utf-8"))
+    cfg = json.loads((root / "ai-kit.json").read_text(encoding="utf-8"))
+    sidecar = root / "ai-kit.allowlist.json"
+    if sidecar.is_file():
+        cfg["allowlist"] = json.loads(sidecar.read_text(encoding="utf-8"))
+    return cfg
 
 
 def rel(path: Path, root: Path) -> str:

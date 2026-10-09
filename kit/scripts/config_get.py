@@ -3,9 +3,11 @@
 Usage: python scripts/config_get.py <section.key> [default]      lists are joined with spaces
        python scripts/config_get.py --has <section.key> <item>   exit 0 when the list holds the item
        python scripts/config_get.py --many <key>...              one run, one `key=value` line per key ("" when unset)
-       python scripts/config_get.py --deselect                  the shell-quoted tests.baseline_deselect flags ("" when none)
+       python scripts/config_get.py --dump                      the whole config without the allowlist (ask it by key: allowlist.<name>)
+       python scripts/config_get.py --deselect                 the shell-quoted tests.baseline_deselect flags ("" when none)
 """
 
+import json
 import sys
 
 from kit_config import load, repo_root
@@ -33,6 +35,9 @@ def main(argv: list[str]) -> int:
             value = lookup(config, key)
             joined = "" if value is None else " ".join(map(str, value)) if isinstance(value, list) else value
             print(f"{key}={joined}")
+        return 0
+    if argv == ["--dump"]:
+        print(json.dumps({k: v for k, v in config.items() if k != "allowlist"}, indent=2))
         return 0
     if argv == ["--deselect"]:
         from baseline import deselect_args
