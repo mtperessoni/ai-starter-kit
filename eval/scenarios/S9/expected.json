@@ -1,0 +1,27 @@
+{
+  "case": "C5",
+  "size": "S",
+  "premise": {
+    "wrong_assumption": "Checkout can read a customer's orders of the month and decide VIP by itself.",
+    "contradicted_by": "Glossary of docs/prd/orders/01-summary.md: Checkout (stateless, no order history, no clock), VIP (a flag the storefront sets), Order history (lives in the storefront).",
+    "round0_matches": "(?i)(stateless|no (order )?history|keeps? no|storefront (owns|sets|sends)|never decides)",
+    "must_not": "A rule, plan task or code that makes checkout read order history, a month total, a clock or storage."
+  },
+  "expect_metrics": {
+    "rejected_answers": {"max": 1},
+    "question_rounds": {"max": 3},
+    "bg_alive_at_return": {"eq": 0},
+    "git_unsafe_calls": {"eq": 0},
+    "bash_code_edits": {"eq": 0}
+  },
+  "prd_facts": [
+    {"id": "f1", "fact": "The PRD still says checkout is stateless and that the VIP flag is set by the storefront and only read by checkout; the glossary is not weakened."},
+    {"id": "f2", "fact": "No rule in force says that checkout reads the orders of the month, a monthly total or the calendar to decide VIP."},
+    {"id": "f3", "fact": "The wish that 500.00 spent in a calendar month turns a customer VIP is recorded as an open question or proposal owned by the storefront, not as a rule in force."},
+    {"id": "f4", "fact": "The 15% VIP discount, the coupon percentage, the 30% cap, shipping, rounding and the receipt do not change."}
+  ],
+  "dup_phrases": [
+    "(?i)(month|monthly).{0,80}500\\.00",
+    "(?i)500\\.00.{0,80}(month|monthly)"
+  ]
+}

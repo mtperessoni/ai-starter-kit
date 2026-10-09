@@ -1,0 +1,6 @@
+- Two repositories change. The storefront holds the full name of the customer; its payload gets a new field `name` that carries the first word of the full name with surrounding spaces trimmed, and an empty string when the full name is blank. The `id` and `vip` fields, the empty id refusal and the rule that the payload holds only fields a rule names (with `name` now one of them) stay.
+- The orders service does not split names and does not know how the storefront builds one: `Customer` takes an optional `name`, empty by default, and `Receipt` gets a new text field `customer_name` that carries the name as received, an empty string when none was sent. A missing or empty name is never an error.
+- The receipt text layout and `as_dict` do not change. The discount, shipping, rounding and refusal rules do not change. No other new public name is exported.
+- Each repository keeps its own PRD, TRD and change, with its own state. A rule is written in the repository that owns it; neither repository restates the other's rules, it only cites the field by name.
+- The two changes are independent: the orders side works with or without the storefront sending the field, so either can ship first.
+- Rollout: applies to every order from now on, no flag, no migration, no data to fix. Nobody is notified.

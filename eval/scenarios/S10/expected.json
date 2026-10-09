@@ -1,0 +1,27 @@
+{
+  "case": "C5",
+  "size": "S",
+  "slow_suite_seconds": 100,
+  "expect_metrics": {
+    "baseline_runs": {"eq": 1},
+    "poll_calls": {"eq": 0},
+    "bg_alive_at_return": {"eq": 0},
+    "git_unsafe_calls": {"eq": 0},
+    "bash_code_edits": {"eq": 0}
+  },
+  "audit": [
+    "No full offline suite run inside a docs agent: read the Bash calls of each docs agent in `agents_report.py`; any pytest without a file, `unittest discover` or `gates.sh baseline` there is a miss.",
+    "The baseline is started once, after the plan commit, and its result is read once; the closing run goes through `gates.sh close` or `compare`.",
+    "The reconciliation tests are untouched in the diff since the seed."
+  ],
+  "prd_facts": [
+    {"id": "f1", "fact": "A coupon percent must be above 0 and at most 50, otherwise a ValueError; the old limit of 100 is gone from the rule."},
+    {"id": "f2", "fact": "A coupon of exactly 50% is accepted and one above 50% is refused with a ValueError."},
+    {"id": "f3", "fact": "The VIP percentage, how the VIP and coupon percentages add up, the 30% cap, shipping, rounding and the receipt layout do not change."},
+    {"id": "f4", "fact": "Applies to every order from now on, with no flag and no migration."}
+  ],
+  "dup_phrases": [
+    "(?i)coupon.{0,60}(above|over|more than) 50",
+    "(?i)50(\\.0+)?%.{0,60}coupon"
+  ]
+}

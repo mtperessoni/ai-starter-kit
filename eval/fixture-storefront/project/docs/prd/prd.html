@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Storefront PRDs</title>
+<style>
+body{font:16px/1.6 system-ui,sans-serif;max-width:60rem;margin:2rem auto;padding:0 1rem}
+table{border-collapse:collapse;width:100%;margin:1rem 0}
+td,th{border:1px solid #ccd;padding:.4rem .6rem;text-align:left}
+</style>
+</head>
+<body>
+<h1>Storefront</h1>
+<p>Customers and the payload sent to the orders service.</p>
+
+<section id="s02">
+<h2>Step 1 · Customers</h2>
+<table class="rules"><thead><tr><th>ID</th><th>Rule</th><th>Source</th></tr></thead><tbody>
+<tr data-via="code"><td>CUS-01</td><td>The payload sent to the orders service holds the customer id and the vip flag, and no other field.</td><td>src/storefront/features/customers/customer_payload.py::build_customer_payload</td></tr>
+<tr data-via="code"><td>CUS-02</td><td>The vip flag is true when the record is flagged VIP in the storefront and false otherwise.</td><td>src/storefront/features/customers/customer_payload.py::build_customer_payload</td></tr>
+<tr data-via="code"><td>CUS-03</td><td>A record with an empty id is not sent: building its payload raises a ValueError.</td><td>src/storefront/features/customers/customer_payload.py::build_customer_payload</td></tr>
+</tbody></table>
+</section>
+</body>
+</html>

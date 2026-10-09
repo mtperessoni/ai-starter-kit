@@ -1,0 +1,107 @@
+{
+  "CLAUDE.md": {
+    "`<layout of this repository, filled at install>`": "`by feature: one folder per product area under src/storefront/features/`",
+    "<project>": "Storefront",
+    "<One sentence: what this service or app is and who uses it.>": "A small Python library that keeps customer records and builds the customer payload sent to the orders service, used by the storefront pages.",
+    "**I. <Principle name> (NON-NEGOTIABLE).** <One line.>": "**I. Minimal Customer Data (NON-NEGOTIABLE).** The payload carries only the fields the orders service needs; nothing else leaves the record.",
+    "**II. <Principle name>.** <One line.>": "**II. Deterministic Payload.** The same record always gives the same payload; no clock, no randomness, no IO.",
+    "**V. <Principle name>.** <One line.>": "**V. Stable Public API.** `from storefront import build_customer_payload, CustomerRecord` keeps its names and signatures.",
+    "<src>/app/": "src/storefront/",
+    "<src>/features/": "src/storefront/features/",
+    "<src>/infra/": "src/storefront/infra/",
+    "<src>": "src/storefront"
+  },
+  "AGENTS.md": {
+    "`<folder>/`: `<its role, the areas with files there and its map>`": "`src/storefront/features/`: `one folder per product area (customers), each with its CLAUDE.md map`",
+    "<project>": "Storefront",
+    "<One paragraph: what it is, stack, package manager.>": "A small Python 3.11+ library that keeps customer records and builds the customer payload the orders service receives. Standard library only at runtime, pytest for tests, pip for the one dev dependency.",
+    "<install>                          # Install dependencies (locked)": "python -m pip install pytest      # Install the dev dependency",
+    "<dev>                              # Dev server": "python -c \"import storefront\"           # Import smoke check (a library has no server)",
+    "<Domain constraint.>": "**NEVER put a field in the payload that no rule of the PRD names** (CUS-01).",
+    "<src>/app/": "src/storefront/",
+    "<src>/features/": "src/storefront/features/",
+    "<src>/infra/": "src/storefront/infra/",
+    "<src>": "src/storefront"
+  },
+  ".specify/memory/constitution.md": {
+    "# <Project> Constitution": "# Storefront Constitution",
+    "<Domain principle: auditability, rollback, configuration as data, safety...>": "Deterministic Payload and Stable Public API",
+    "<...>": "The same record always gives the same payload: no clock, no randomness, no IO. The public names `build_customer_payload` and `CustomerRecord` and their signatures change only through an ADR. Enforced by tests that call `build_customer_payload` and by review.",
+    "<Domain principle>": "Minimal Customer Data",
+    "<The rule in two or three sentences. What it forbids. How it is enforced (test, reviewer, gate).>": "The payload carries only the fields a PRD rule names. It forbids copying the whole record into the payload. Enforced by the tests of CUS-01 and by review.",
+    "<Stack, persistence ownership, boundaries with other systems.>": "Python 3.11 or later, standard library only at runtime, pytest for tests. No persistence and no network: the library is called by the storefront pages and its payload is sent to the orders service.",
+    "<YYYY-MM-DD>": "2026-01-05"
+  },
+  ".claude/skills/prd-gate/repo.md": {
+    "| `<docs/prd/product/04-*.md>` | `<name or role>` | `<in the interview, a PR review, a message>` |\n": "",
+    "| `<docs/prd/triage-documents>` | `<C:/Projects/backend/docs/prd/triage-documents>` | `<this repository or the sibling>` |\n": "",
+    "`<free text from ai-kit.json layout>`": "`by feature: one folder per product area under src/storefront/features/`",
+    "`<feature folders, or see ai-kit.json areas>`": "`customers`",
+    "`<feature folders plus ai-kit.json map_dirs>`": "`the feature folders`",
+    "`<a new feature folder (recommended), or the place docs/code-structure.md names>`": "`a new feature folder under src/storefront/features/`",
+    "`<...>`": "placeholder",
+    "`<names>`": "`customers`",
+    "`specs/` kept as history, or `<none>`": "none",
+    "`specs/` (spec-kit) or `<none>`": "`specs/` (spec-kit)",
+    "| `<path>` | `<reason, until it is split>` |": "| none | no big file |",
+    "| `<security-sensitive area: auth, payments, personal data>` | `<security-reviewer>` |\n| `<architecture seams>` | `<architecture-reviewer>` |\n": "",
+    "| `<principle>` | constitution `<numeral>` | `<ADR / constitution amendment / no exception>` |": "| Minimal payload | constitution I | ADR |\n| Stable public API of `storefront` | constitution VI | ADR |",
+    "`<for example: web and mobile>`": "The orders service is the only consumer of the payload",
+    "`<per-tenant behavior is configuration, never a branch on the name>`": "There are no tenants",
+    "`<docs/prd/... section>` or `none`": "none",
+    "`<for example: Pricing>`": "Pricing",
+    "`<does the change affect what the customer pays?>`": "Does the change affect what the customer pays?",
+    "| `<backend>` | `<C:/Projects/backend>` | `git -C <path> grep -n \"<field>\" origin/<branch> -- src` (DTO validation, enums) |": "| orders | ../orders | The orders service consumes the payload this library builds |",
+    "`<how config is published: endpoint, approval gate, versioning>`": "Not applicable: there is no configuration",
+    "`<infra repo>`": "the orders repository",
+    "`<publish path>`": "Not applicable: there are no prompts",
+    "`<repo>`": "the orders repository",
+    "`<agent calls, request logs, audit table>`": "none",
+    "`<table or log event names>`": "none",
+    "<src>/app/": "src/storefront/",
+    "<src>/features/": "src/storefront/features/",
+    "<src>/infra/": "src/storefront/infra/",
+    "<src>": "src/storefront",
+    "| Spec-kit | `none` \\| `kept` (LT11) |": "| Spec-kit | `none` (LT11) |"
+  },
+  "ai-kit.json": {
+    "<one line, in this project's own words, on how code is organized today; feature folders under feature_root are the recommendation, never a requirement>": "by feature: one folder per product area under src/storefront/features/",
+    "<makes a fresh clone or worktree ready to test, for example: uv sync --frozen>": "python -m pip install --quiet pytest",
+    "\"feature_root\": \"src/features\"": "\"feature_root\": \"src/storefront/features\"",
+    "<test runner, for example: uv run pytest>": "python -m pytest",
+    "<args that exclude the integration tier, for example: --ignore=tests/integration>": "",
+    "<args for the integration tier, for example: tests/integration>": "tests/integration",
+    "<args that disable the coverage threshold, for example: --no-cov>": "",
+    "<verify only, for example: uv run ruff check . && uv run ruff format --check . && uv run mypy src>": "python -m compileall -q src",
+    "<repair, for example: uv run ruff check --fix . && uv run ruff format .>": "python -m compileall -q src",
+    "<catches import cycles, for example: uv run python -c \\\"import main\\\">": "python -c \\\"import storefront\\\"",
+    "<runs the given test files offline without coverage, for example: uv run pytest {files} --no-cov -q>": "python -m pytest {files} -q"
+  },
+  ".github/workflows/ci.yml": {
+    "run: echo \"replaced by /ai-kit install\" && exit 1": "run: python -m pip install pytest"
+  },
+  ".github/workflows/claude-review.yml": {
+    "{{PROJECT}}": "Storefront",
+    "{{one line: what it is and its stack}}": "a small Python library that builds the customer payload of the orders service, standard library only",
+    "{{Domain principle sections, one per constitution principle with its checks, written by /ai-kit install}}": "## Minimal customer data (constitution I)\n            - A payload field that no rule of the PRD names\n\n            ## Stable public API (constitution VI)\n            - A changed name or signature of build_customer_payload or CustomerRecord"
+  },
+  ".gitleaks.toml": {
+    "  # /ai-kit install appends the stack's generated paths here (virtualenvs, caches, lockfiles, build output).\n": "  '''\\.pytest_cache/''',\n  '''__pycache__/''',\n"
+  },
+  "docs/code-structure.md": {
+    "`<default: a new folder under the feature root>`": "`a new folder under src/storefront/features/`",
+    "`<the direction that applies to this layout, as AR09 lists it>`": "`a feature uses infra and another feature only through its public entry; core features do not import peripheral ones; infra never imports a feature`",
+    "`<beside the code in <area folder>/tests/, or the stack's mirrored tree>`": "`beside the code, in the tests/ folder of each feature`",
+    "| `<area>` | `<glob of its files, for code outside the feature root>` | `<folder with its CLAUDE.md>` |": "| none | all code is under the feature root | none |",
+    "`<one line on how code is organized here, in this project's words>`": "`by feature: one folder per product area under src/storefront/features/`",
+    "`<folders with a CLAUDE.md besides the feature folders>`": "`none`",
+    "Features: <list>. Core features: <list>.": "Features: customers. Core features: customers.",
+    "<entry>": "__init__.py",
+    "<public entry>": "__init__.py",
+    "<ext>": "py",
+    "<src>/app/": "src/storefront/",
+    "<src>/features/": "src/storefront/features/",
+    "<src>/infra/": "src/storefront/infra/",
+    "<src>": "src/storefront"
+  }
+}

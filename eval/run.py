@@ -110,8 +110,12 @@ def suite_paths(cfg):
     return fixture, fill, HERE / cfg.get("scenarios_dir", "scenarios")
 
 
-def build_args(arm_cfg, out, fixture=None, fill=None, overlay=None):
+def build_args(arm_cfg, out, fixture=None, fill=None, overlay=None, siblings=None):
+    """build.py command; `siblings` is a scenario's siblings.json, {alias: fixture folder under eval/}."""
     cmd = [sys.executable, str(HERE / "build.py"), "--ref", arm_cfg["ref"], "--out", str(out)]
+    if siblings and Path(siblings).is_file():
+        for alias, folder in json.loads(Path(siblings).read_text(encoding="utf-8")).items():
+            cmd += ["--sibling", f"{alias}={HERE / folder}"]
     if fixture:
         cmd += ["--fixture", str(fixture)]
     if fill:
@@ -227,7 +231,7 @@ def run_pair(pair, cfg, args, projects, results, template):
         (results / f"{name}.metrics.json").write_text(json.dumps({"status": "skipped_rate_limit"}),
                                                       encoding="utf-8")
         return name, "skipped_rate_limit"
-    b = subprocess.run(build_args(arm_cfg, project, fixture, fill, scenario / "files"), capture_output=True, text=True,
+    b = subprocess.run(build_args(arm_cfg, project, fixture, fill, scenario / "files", scenario / "siblings.json"), capture_output=True, text=True,
                        encoding="utf-8", errors="replace")
     (results / f"{name}.build.log").write_text(b.stdout + b.stderr, encoding="utf-8")
     started_at = time.time()

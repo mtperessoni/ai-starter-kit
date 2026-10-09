@@ -310,7 +310,9 @@ SUM_KEYS = ("cost_usd", "wall_min", "agent_min", "main_min", "main_only_min", "c
             "cache_busts", "waves", "rework_actions", "max_reruns_per_step", "gate_reruns_after_fail",
             "redispatches", "main_edits", "main_reads_before_surveyor", "worker_only_reads",
             "extra_main_gate_runs", "inline_residency", "main_diff_reads", "main_source_reads",
-            "kit_script_reads", "agent_file_edits", "retro_rereads") + tuple(f"{k}" for k in MODEL_KEYS)
+            "kit_script_reads", "agent_file_edits", "retro_rereads", "baseline_runs", "poll_calls",
+            "bg_alive_at_return", "question_rounds", "rejected_answers", "bash_code_edits",
+            "git_unsafe_calls") + tuple(f"{k}" for k in MODEL_KEYS)
 
 
 def _add(vals):

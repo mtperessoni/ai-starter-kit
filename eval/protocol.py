@@ -4,6 +4,8 @@ import re
 import shlex
 from datetime import datetime
 
+import speed
+
 ROLES = ("surveyor", "docs", "executor", "reviewer", "recheck")
 REQUIRED_ROLES = ("surveyor", "docs", "executor", "reviewer")
 SPAWN = {"Agent", "Task"}
@@ -235,6 +237,8 @@ def analyze(events, carry=None):
     cwd = None
     closed = carry.get("closed", False)
     chief_bad, first_role, spawn_ids, returns = 0, carry.get("first_role"), set(), {}
+    baseline_runs = poll_calls = code_edits = git_unsafe = questions = rejected = 0
+    ask_ids, bg_launch, bg_shell = set(), {}, {}
 
     def finish(tid, when):
         nonlocal outstanding
@@ -311,6 +315,26 @@ def analyze(events, carry=None):
                         redispatch += bool(card) and card in exec_prompts
                         exec_prompts.add(card)
                     continue
+                if name == "AskUserQuestion" and parent is None:
+                    questions += 1
+                    ask_ids.add(b.get("id"))
+                if name in speed.CONSUME_TOOLS:
+                    ids = speed.consumed_ids(inp)
+                    mine = [t for t, owner in bg_launch.items() if owner == parent]
+                    for t in [t for t in mine if bg_shell.get(t) in ids] if ids else mine:
+                        bg_launch.pop(t)
+                if name == "Bash":
+                    line = str(inp.get("command", ""))
+                    baseline_runs += speed.is_full_suite(line)
+                    poll_calls += speed.is_poll(line)
+                    code_edits += speed.edits_code(line)
+                    if parent is not None:
+                        git_unsafe += speed.is_git_unsafe(line)
+                        if inp.get("run_in_background") is True:
+                            bg_launch[b.get("id")] = parent
+                        elif speed.detached(line):
+                            bg_launch[b.get("id")] = parent
+                            bg_shell[b.get("id")] = f"detached-{b.get('id')}"
                 if name in EDIT | READ and rel:
                     if DOC_RE.search(rel) or STATE_RE.search(rel):
                         doc_calls += 1
@@ -358,6 +382,12 @@ def analyze(events, carry=None):
                 tid = b.get("tool_use_id")
                 if tid in spawn_ids and parent is None:
                     returns[tid] = _text_of(b)
+                if tid in ask_ids:
+                    rejected += speed.rejected(_text_of(b), b.get("is_error") is True)
+                if tid in bg_launch and bg_shell.get(tid) is None:
+                    sid = speed.shell_id(_text_of(b))
+                    if sid:
+                        bg_shell[tid] = sid
                 if tid in exec_ids:
                     text = json.dumps(b.get("content"), default=str)
                     if tid not in launched and (tid in bg_ids or (BG_RESULT.search(text) and len(text) < 600)):
@@ -417,4 +447,7 @@ def analyze(events, carry=None):
         "max_reruns_per_step": max([n - 1 for n in cmd_runs.values()] or [0]),
         "gate_reruns_after_fail": gate_fail_reruns,
         "redispatches": redispatch,
+        "baseline_runs": baseline_runs, "poll_calls": poll_calls, "bg_alive_at_return": len(bg_launch),
+        "question_rounds": questions, "rejected_answers": rejected, "bash_code_edits": code_edits,
+        "git_unsafe_calls": git_unsafe,
     }

@@ -187,3 +187,23 @@ python eval/run.py --config eval/arms-flow.json                                 
 ```
 
 What decides: the hard gates (accept, suite, gate, completed, F1, R4) must hold for FLOW, then the Source-of-truth fidelity tally (`conflict_found` and `gap_recorded` higher, `contradiction_left` lower) and cost and time on the same runs; `report.md` names FLOW as the candidate and GATE as the base. Three scenarios with one rep are a smoke signal, not a statistic: a tie is read as "no regression".
+
+## Run-speed round (W6, plan run-speed)
+Base arm BASE = main at 3524bd2, candidate arm CAND = `feat/run-speed`, both two-phase; S5 at 2 reps, S8, S9 and S10 at 1 (`eval/arms-run-speed.json`). Predictions are written before the run in `eval/predictions/run-speed.md`. The new fields (`baseline_runs`, `poll_calls`, `bg_alive_at_return`, `question_rounds`, `rejected_answers`, `bash_code_edits`, `git_unsafe_calls`) are defined in `METRICS.md` "Run-speed fields".
+
+| Scenario | What it tests | Expected |
+|---|---|---|
+| S9 | Premise trap: the request says checkout reads the customer's orders of the month and makes the customer VIP; the glossary of `docs/prd/orders/01-summary.md` (placed by `S9/files/`) says checkout is stateless and VIP is a flag the storefront sets | the round 0 model sentence catches it (`premise.round0_matches` in the assistant text, before a rule question); no rule, plan or code on the wrong model; the wish recorded as an open question owned by the storefront; `rejected_answers` at most 1 |
+| S10 | Slow suite: a small rule change (coupon at most 50%) on a seed whose offline suite takes about 100 s (`S10/files/`: ten tests of 10 s) | `baseline_runs` = 1, `poll_calls` = 0, no full suite inside a docs agent (read in `agents_report.py`), the reconciliation tests untouched |
+| S11 | Cross-repo contract: the receipt carries the first name, which needs a `name` field in the sibling storefront repository (`S11/siblings.json`, fixture `eval/fixture-storefront/`) | per-repo state (each repository has its own state and rows), no domain assumption in the dispatch to the sibling, each repository states only its own rules; orders hidden tests pass, the storefront is checked by hand |
+
+Files and conventions of these scenarios:
+- `expected.json` may carry `expect_metrics` (`{field: {"max": n}}` or `{"eq": n}`, the gate targets read by hand from `rounds.py` columns), `premise` (S9: the wrong assumption, what contradicts it, `round0_matches` regex, `must_not`), `audit` (checks the efficiency auditor makes from the transcripts and git) and `sibling` (S11).
+- `<scenario>/siblings.json` maps an alias to a fixture folder under `eval/`; `build.py --sibling ALIAS=FIXTURE` builds it with the same kit ref as a git repository next to the project (`<project>-<alias>`) and writes `.ai-kit/repos.json` (`{"repos": [{"alias", "path"}]}`) in the project. Hidden tests and the gate grade the primary project only.
+- S11 is built and graded by hand; it is not in `arms-run-speed.json`.
+
+```bash
+python eval/run.py --config eval/arms-run-speed.json --dry-run --out "$TEMP/evaldry"    # builds every pair, no spend
+python eval/run.py --config eval/arms-run-speed.json --out eval/results/2026-10-09-run-speed   # the round, about US$20 to 30
+python eval/rounds.py eval/results/2026-10-09-run-speed:BASE eval/results/2026-10-09-run-speed:CAND --baseline eval/results/2026-10-09-run-speed:BASE --out eval/results/2026-10-09-run-speed/compare.md
+```

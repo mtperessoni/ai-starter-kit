@@ -1,0 +1,31 @@
+{
+  "timeout_min": 75,
+  "parallel": 3,
+  "base": "BASE",
+  "candidate": "CAND",
+  "model": "opus",
+  "effort": "high",
+  "phase2_share": 0.5,
+  "arms": {
+    "BASE": {
+      "ref": "3524bd2",
+      "spec_kit": false,
+      "protocol": "arms/living.md",
+      "two_phase": true,
+      "phase2_model": "sonnet"
+    },
+    "CAND": {
+      "ref": "feat/run-speed",
+      "spec_kit": false,
+      "protocol": "arms/living.md",
+      "two_phase": true,
+      "phase2_model": "sonnet"
+    }
+  },
+  "scenarios": {
+    "S5": {"reps": 2, "budget_usd": 10},
+    "S8": {"reps": 1, "budget_usd": 10},
+    "S9": {"reps": 1, "budget_usd": 10},
+    "S10": {"reps": 1, "budget_usd": 10}
+  }
+}

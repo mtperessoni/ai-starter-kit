@@ -1,0 +1,1 @@
+The receipt should carry the customer's first name, so the storefront can greet the shopper on the confirmation page without another lookup. The storefront repository is listed in `.ai-kit/repos.json` (alias `storefront`); it builds the customer payload that this service receives.
