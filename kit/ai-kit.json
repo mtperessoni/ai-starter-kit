@@ -140,6 +140,7 @@
     "baseline_deselect": [],
     "baseline_idle_seconds": 300,
     "always": [],
+    "related_exclude": [],
     "snapshot_patterns": [
       "**/__snapshots__/**",
       "**/*.snap",

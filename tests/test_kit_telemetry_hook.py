@@ -199,6 +199,27 @@ class RobustTest(HookCase):
         self.assertLess(time.perf_counter() - t, 0.3)
 
 
+class NoExtraProcessTest(HookCase):
+    """G11: a known context (env or the context file) never costs a git or interpreter probe."""
+
+    def test_context_from_env_or_file_spawns_nothing(self):
+        from unittest import mock
+
+        sys.path.insert(0, str(HOOK.parent))
+        self.addCleanup(lambda: (sys.path.remove(str(HOOK.parent)), sys.modules.pop("telemetry_hook", None)))
+        import telemetry_hook as hook
+
+        runs = self.proj / ".ai-kit" / "runs"
+        runs.mkdir(parents=True)
+        (runs / "current").write_text("slug-x\n", encoding="utf8")
+        with mock.patch.object(hook.subprocess, "run", side_effect=AssertionError("spawned")):
+            with mock.patch.dict(os.environ, {"AI_KIT_CONTEXT": "slug-y"}):
+                self.assertEqual(hook.context(str(runs)), "slug-y")
+            with mock.patch.dict(os.environ):
+                os.environ.pop("AI_KIT_CONTEXT", None)
+                self.assertEqual(hook.context(str(runs)), "slug-x")
+
+
 class FoundInTheRealEvaluation(HookCase):
     """Defects the 2026-10-05 telemetry evaluation exposed in a real session with subagents."""
 

@@ -2,7 +2,8 @@
 
 Usage: python scripts/config_get.py <section.key> [default]      lists are joined with spaces
        python scripts/config_get.py --has <section.key> <item>   exit 0 when the list holds the item
-       python scripts/config_get.py --deselect                   the shell-quoted tests.baseline_deselect flags ("" when none)
+       python scripts/config_get.py --many <key>...              one run, one `key=value` line per key ("" when unset)
+       python scripts/config_get.py --deselect                  the shell-quoted tests.baseline_deselect flags ("" when none)
 """
 
 import sys
@@ -27,6 +28,12 @@ def main(argv: list[str]) -> int:
     if not argv:
         print(__doc__)
         return 2
+    if argv[0] == "--many":
+        for key in argv[1:]:
+            value = lookup(config, key)
+            joined = "" if value is None else " ".join(map(str, value)) if isinstance(value, list) else value
+            print(f"{key}={joined}")
+        return 0
     if argv == ["--deselect"]:
         from baseline import deselect_args
 
