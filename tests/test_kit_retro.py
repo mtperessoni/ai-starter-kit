@@ -482,11 +482,21 @@ class RunSpeedDetectorTests(unittest.TestCase):
     def test_polling_calls_are_flagged(self):
         log = Log()
         a = log.call(cls="wait.test", cmd="until grep -q done out.txt; do sleep 5; done", dur=30)
-        b = log.call(cls="wait.test", cmd="sleep 30", dur=30)
+        b = log.call(cls="wait.test", cmd="while true; do\n  tail -1 out.txt\n  sleep 5\ndone", dur=30)
+        c = log.call(cls="wait.test", cmd="for i in 1 2 3; do ls out.txt && sleep 2; done", dur=30)
         log.call(cls="wait.test", cmd="scripts/gates.sh baseline x", dur=30)
         f, _ = findings(project(log.ev))
-        self.assertEqual(f["poll_calls"]["value"], 2)
-        self.assertEqual(f["poll_calls"]["evidence"]["seq"], [a, b])
+        self.assertEqual(f["poll_calls"]["value"], 3)
+        self.assertEqual(f["poll_calls"]["evidence"]["seq"], [a, b, c])
+
+    def test_a_bare_sleep_or_seq_is_not_a_poll(self):
+        log = Log()
+        log.call(cls="wait.test", cmd="sleep 30", dur=30)
+        log.call(cls="wait.test", cmd="seq 1 5", dur=30)
+        log.call(cls="wait.test", cmd="for f in a b; do echo $f; done; sleep 5", dur=30)
+        log.call(cls="wait.test", cmd="echo ready && sleep 2 && echo go", dur=30)
+        f, _ = findings(project(log.ev))
+        self.assertNotIn("poll_calls", f)
 
     def test_background_alive_at_handback(self):
         log = Log()

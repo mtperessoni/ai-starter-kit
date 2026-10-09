@@ -279,14 +279,18 @@ def _tool_calls(run, tool="bash"):
     return out
 
 
-POLL_CMD = re.compile(r"\b(?:until|while)\b[^\n]*\bsleep\b|(?:^|[;&|(]|\n)\s*sleep\s+\d|\bseq\s+\d")
+POLL_CMD = re.compile(
+    r"\b(?:until|while|for)\b[^\n]*?\bdo\b(?:(?!\bdone\b).)*?\bsleep\b"
+    r"|\bwhile\b[^\n]*\{[^}\n]*\b(?:Start-)?[Ss]leep\b",
+    re.S,
+)
 
 
 def poll_calls(run, th):
     polls = [e for e in _tool_calls(run) if POLL_CMD.search(e.get("cmd") or "")]
     if len(polls) > th["poll_calls"]:
         yield finding("poll_calls", len(polls), th["poll_calls"], [e["seq"] for e in polls], polls[0].get("agent", "main"),
-                      _cmd(polls[0]), "TS45", "medium", "until, sleep or seq loops wait on a process the harness can notify")
+                      _cmd(polls[0]), "TS45", "medium", "until, while or for loops with sleep wait on a process the harness can notify")
 
 
 def bg_alive_at_return(run, th):
