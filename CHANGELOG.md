@@ -2,6 +2,18 @@
 
 User-visible changes to the kit, newest first. Projects receive them through `/ai-kit update`.
 
+## one-pass interview: one decision sheet, no orphan agents
+
+Lessons of the runs of 2026-10-09 (LS32): the interview and docs cost 2.06M tokens against 1.72M for the code, 14 of 19 interactions came before any code, and heredoc orphans left about 230 stuck agent-minutes. Rules: WF10, WF14, WF15, WF42, WF43, WF47, WF67 to WF69, WF75 to WF82, CE12, CE27, CE29, WS08 to WS10, SA56, SA57, TS54, TM17, IN19 ([rules/](rules/README.md)); meta-rules M08 to M13 in MAINTAINING.md.
+
+- Interview: the surveyor writes `pack.md` and `sheet.md` only; the chief prints the sheet verbatim and ends the turn; the user answers in the chat in free text by number (`ok` takes the recommended defaults); docs `apply` writes `answers.md`, `rules.md` and `decisions.md` once; one follow-up sheet at most, then open items become visible `Q-` rows. The 16 dimensions, round 0, the separate change question, the question lint (Q6 to Q9) and the modes `rules`, `prd-plan` and `trd-plan` are gone. What the user already said in the conversation reaches the surveyor as `Decided in conversation:` and `Preferences:` and becomes assumed lines, never decisions.
+- Gates: `gate.py --sheet <slug>` runs the sheet lint S0 to S6; Q3 checks that every sheet item has an answer and that no mechanism (env var, flag, key, table, endpoint, column) appears that the sheet or the answers do not hold; `--questions` is an alias for one release. `promote.py` writes one CHANGELOG entry per slug.
+- Orphans: `scripts/guard_hook.py` is a blocking hook declared in the frontmatter of the five `prd-flow-*` agents (not global); `gates.sh reap` kills leftover session processes by tree, never by image name; the telemetry hook writes `agent_stuck` and `gates.sh verify` prints `stuck agents`. One interpreter (`gates.sh python`), commits from a message file with `git commit -F`, one command per call, long commands in the background.
+- Tools: `gates.sh fix-files`, `lint-files` (executors format and lint their own files) and `move`; `scripts/next_change_number.py` reserves the change number across parallel slugs; `scripts/settings_check.py` and new doctor checks read the harness settings.
+- One home per rule: the orchestration rules live once (SKILL.md, `dispatch.md`, `interview.md`, `review.md`, `execution.md`); the full suite starts once as `compare` during the last review; Medium findings ride along in a fix without counting a round.
+
+On update: in `repo.md` Gate config drop `question_lint` and add `sheet_labels` (the localized section and field labels of the sheet, default English); add to `ai-kit.json` `commands.fix_file`, `commands.lint_file`, `tests.summary_regex`, `tests.fast_flags`, `tests.test_dirs` and `tests.related_exclude`; the new scripts `guard_hook.py`, `reap.py`, `next_change_number.py` and `settings_check.py` are copied by the update, and the guard hook is declared in the `hooks:` frontmatter of the five prd-flow agents (nothing to merge into `.claude/settings.json`). A state folder from an old run finishes on the old route only if it already has approved rules; otherwise run the survey again. Deferred (D1 of the plan): the PRD pending marker and the TRD Planned section stay, because promote, `--hold` and the TRD path gate read them. The eval round of the plan (wave 4) was not run, so the targets (at most 2 touchpoints before code, no stuck agent minutes) are not yet measured.
+
 ## run speed: one baseline, verification per batch, no polling
 
 Lessons of a 432 minute run (LS31). Rules: TS43 to TS53, SA48 to SA55, CE29, RV18, WF65 to WF74, DS46, IN17, IN18, TM14 to TM16 ([rules/](rules/README.md)).
