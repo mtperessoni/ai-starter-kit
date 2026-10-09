@@ -227,7 +227,7 @@ def build_siblings(ref: str, out: Path, siblings: dict[str, Path]) -> None:
     for alias, fixture in siblings.items():
         path = out.parent / f"{out.name}-{alias}"
         build(ref, path, False, fixture)
-        repos.append({"alias": alias, "path": str(path)})
+        repos.append({"alias": alias, "path": str(path.resolve())})
     target = out / ".ai-kit" / "repos.json"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps({"repos": repos}, indent=2) + "\n", encoding="utf-8", newline="\n")

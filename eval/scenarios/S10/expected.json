@@ -5,6 +5,8 @@
   "expect_metrics": {
     "baseline_runs": {"eq": 1},
     "poll_calls": {"eq": 0},
+    "verify_runs": {"eq": 1},
+    "agent_test_runs": {"eq": 0},
     "bg_alive_at_return": {"eq": 0},
     "git_unsafe_calls": {"eq": 0},
     "bash_code_edits": {"eq": 0}

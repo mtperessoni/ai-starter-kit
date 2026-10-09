@@ -6,7 +6,10 @@ SEGMENT = re.compile(r"&&|\|\||[;|\n]")
 LOOP_SLEEP = re.compile(r"\b(?:until|while|for)\b.*\bsleep\b", re.S)
 SEQ_LOOP = re.compile(r"\bfor\b[^;\n]*\bin\b[^;\n]*\bseq\b")
 BASELINE_GATE = re.compile(r"gates\.sh\s+baseline\b")
-GATE_NARROW = re.compile(r"gates\.sh\s+(?:related|one|lint|ratchet|docs|imports|compare|close)\b")
+GATE_NARROW = re.compile(r"gates\.sh\s+(?:related|one|lint|ratchet|docs|imports|compare|close|verify)\b")
+VERIFY_GATE = re.compile(r"gates\.sh\s+verify\b")
+AGENT_GATE = re.compile(r"gates\.sh\s+(?:related|baseline|compare|close|verify|lint|ratchet|docs|imports)\b")
+SINGLE_TEST = re.compile(r"\.(?:py|ts|tsx|js|jsx|mjs|go|rs)(?:::\S+)?$")
 FULL_RUNNERS = (re.compile(r"\byarn\s+(?:run\s+)?test\b"), re.compile(r"\bnpm\s+(?:run\s+)?test\b"),
                 re.compile(r"\bpnpm\s+(?:run\s+)?test\b"), re.compile(r"\bunittest\s+discover\b"),
                 re.compile(r"\bgo\s+test\s+\./\.\.\."), re.compile(r"\bcargo\s+test\b"))
@@ -56,6 +59,26 @@ def is_full_suite(cmd):
         args = args[next(i for i, t in enumerate(args) if PYTEST.search(t)) + 1:]
         paths = [a for a in args if not a.startswith("-") and a.strip("'\"")]
         if all(p.strip("'\"") in BROAD_DIRS for p in paths):
+            return True
+    return False
+
+
+def is_verify(cmd):
+    """A shell line that runs the wave verification `gates.sh verify`."""
+    return bool(VERIFY_GATE.search(cmd))
+
+
+def is_agent_test_run(cmd):
+    """A test or gate run other than one named test file: a gates.sh gate, a whole suite, a directory or several files."""
+    if AGENT_GATE.search(cmd) or is_full_suite(cmd):
+        return True
+    for seg in _segments(cmd):
+        if not PYTEST.search(seg):
+            continue
+        args = _tokens(seg)
+        args = args[next(i for i, t in enumerate(args) if PYTEST.search(t)) + 1:]
+        paths = [a.strip("'\"") for a in args if not a.startswith("-") and a.strip("'\"")]
+        if len(paths) != 1 or not SINGLE_TEST.search(paths[0]):
             return True
     return False
 

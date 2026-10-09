@@ -16,7 +16,7 @@ METRICS = {
                           "gate_runs_sub", "gate_fail_ratio", "rereads", "rework_actions",
                           "max_reruns_per_step", "ceremony_ratio", "baseline_runs", "poll_calls",
                           "bg_alive_at_return", "question_rounds", "rejected_answers", "bash_code_edits",
-                          "git_unsafe_calls"] + [f"error_kinds.{k}" for k in KINDS]),
+                          "git_unsafe_calls", "verify_runs", "agent_test_runs"] + [f"error_kinds.{k}" for k in KINDS]),
     "M6": ("Implementation versus plan", ["plan_coverage", "plan_drift", "tasks_per_executor",
                                           "first_pass_rate", "first_pass", "review_rounds",
                                           "blind_findings_total", "review_weighted", "accept"]),
@@ -33,7 +33,7 @@ FLOW_KEYS = ("main_calls", "main_tokens_post_exec", "main_cache_write", "cache_b
              "dispatch_map", "review_coverage", "agents_by_role", "first_pass_clean", "main_diff_reads", "main_source_reads",
              "kit_script_reads", "agent_file_edits", "retro_rereads", "cost_by_role", "chief_violations",
              "return_compliance", "surveyor_first", "closed", "baseline_runs", "poll_calls", "bg_alive_at_return",
-             "question_rounds", "rejected_answers", "bash_code_edits", "git_unsafe_calls")
+             "question_rounds", "rejected_answers", "bash_code_edits", "git_unsafe_calls", "verify_runs", "agent_test_runs")
 LABELS = {"wall_min": "wall_min (active turns only)", "runner_wall_min": "runner_wall_min (run clock)"}
 HIGHER, LOWER = "higher", "lower"
 DIRECTION = {
@@ -47,7 +47,7 @@ DIRECTION = {
                      "rework_actions", "max_reruns_per_step", "ceremony_ratio", "review_weighted",
                      "main_violations", "chief_violations", "inline_residency", "baseline_runs", "poll_calls",
                      "bg_alive_at_return", "question_rounds", "rejected_answers", "bash_code_edits",
-                     "git_unsafe_calls"), LOWER),
+                     "git_unsafe_calls", "verify_runs", "agent_test_runs"), LOWER),
     **dict.fromkeys(("cache_hit_rate", "tasks_done", "hidden_passed", "completed", "plan_coverage",
                      "first_pass_rate", "accept", "prd_fidelity", "conflict_found", "gap_recorded",
                      "traceability", "docs_dispatched", "protocol_adherence", "docs_first", "first_pass",
@@ -62,7 +62,7 @@ ADDITIVE = {"tokens_total", "tokens_main", "tokens_subagents", "cost_usd", "task
             "cost_subagents_usd", "rereads", "main_calls", "main_tokens_post_exec", "main_only_min",
             "rework_actions", "main_violations", "chief_violations", "runner_wall_min", "baseline_runs",
             "poll_calls", "bg_alive_at_return", "question_rounds", "rejected_answers", "bash_code_edits",
-            "git_unsafe_calls"} | {
+            "git_unsafe_calls", "verify_runs", "agent_test_runs"} | {
     f"error_kinds.{k}" for k in KINDS}
 TRANSCRIPT_KEYS = ("cost_usd", "main_min", "agent_min", "cold_starts", "error_kinds", "gate_runs_main",
                    "gate_runs_sub", "cost_main_usd", "cost_subagents_usd", "cache_hit_rate",

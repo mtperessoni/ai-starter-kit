@@ -17,7 +17,7 @@ import transcript  # noqa: E402
 
 _n = [0]
 KEYS = ("baseline_runs", "poll_calls", "bg_alive_at_return", "question_rounds", "rejected_answers",
-        "bash_code_edits", "git_unsafe_calls")
+        "bash_code_edits", "git_unsafe_calls", "verify_runs", "agent_test_runs")
 
 
 def asst(blocks, parent=None):
@@ -174,6 +174,25 @@ class GitUnsafeCallsTest(unittest.TestCase):
     def test_safe_git_does_not_count(self):
         for cmd in ("git status", "git commit -m x", "git diff --stat", "git log --oneline", "git add a.py"):
             self.assertEqual(metrics(bash(cmd, "a1"))["git_unsafe_calls"], 0, cmd)
+
+
+class VerifyAndAgentTestRunsTest(unittest.TestCase):
+    def test_verify_runs_count_by_any_agent_and_are_not_baselines(self):
+        m = metrics(bash("scripts/gates.sh verify plan-1"), bash("scripts/gates.sh verify plan-1 --wave 2"),
+                    bash("scripts/gates.sh compare plan-1"))
+        self.assertEqual((m["verify_runs"], m["baseline_runs"]), (2, 0))
+
+    def test_agent_test_runs_count_gate_and_suite_runs_in_subagents(self):
+        for cmd in ("scripts/gates.sh related src/a.py", "scripts/gates.sh baseline x", "scripts/gates.sh verify x",
+                    "python -m pytest -q", "python -m pytest tests/ -q", "python -m pytest tests/a.py tests/b.py",
+                    "python -m unittest discover -s tests", "yarn test", "scripts/gates.sh lint"):
+            self.assertEqual(metrics(bash(cmd, "a1"))["agent_test_runs"], 1, cmd)
+            self.assertEqual(metrics(bash(cmd))["agent_test_runs"], 0, cmd)
+
+    def test_a_single_named_test_file_is_allowed(self):
+        for cmd in ("scripts/gates.sh one tests/test_a.py", "python -m pytest tests/test_a.py -q",
+                    "python -m pytest tests/test_a.py::T::test_x", "python -m unittest tests.test_a", "git status"):
+            self.assertEqual(metrics(bash(cmd, "a1"))["agent_test_runs"], 0, cmd)
 
 
 class WiringTest(unittest.TestCase):

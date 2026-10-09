@@ -238,6 +238,7 @@ def analyze(events, carry=None):
     closed = carry.get("closed", False)
     chief_bad, first_role, spawn_ids, returns = 0, carry.get("first_role"), set(), {}
     baseline_runs = poll_calls = code_edits = git_unsafe = questions = rejected = 0
+    verify_runs = agent_test_runs = 0
     ask_ids, bg_launch, bg_shell = set(), {}, {}
 
     def finish(tid, when):
@@ -328,7 +329,9 @@ def analyze(events, carry=None):
                     baseline_runs += speed.is_full_suite(line)
                     poll_calls += speed.is_poll(line)
                     code_edits += speed.edits_code(line)
+                    verify_runs += speed.is_verify(line)
                     if parent is not None:
+                        agent_test_runs += speed.is_agent_test_run(line)
                         git_unsafe += speed.is_git_unsafe(line)
                         if inp.get("run_in_background") is True:
                             bg_launch[b.get("id")] = parent
@@ -449,5 +452,5 @@ def analyze(events, carry=None):
         "redispatches": redispatch,
         "baseline_runs": baseline_runs, "poll_calls": poll_calls, "bg_alive_at_return": len(bg_launch),
         "question_rounds": questions, "rejected_answers": rejected, "bash_code_edits": code_edits,
-        "git_unsafe_calls": git_unsafe,
+        "git_unsafe_calls": git_unsafe, "verify_runs": verify_runs, "agent_test_runs": agent_test_runs,
     }
