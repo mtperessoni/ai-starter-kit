@@ -3,6 +3,7 @@
 import unittest
 
 from tests.test_kit_scripts import Project, run, write
+from tests.gate_report import full
 
 GATE = ".claude/skills/prd-flow/scripts/gate.py"
 ORDERS = "docs/prd/shop/05-orders.md"
@@ -47,9 +48,9 @@ class BaseTest(unittest.TestCase):
     def test_without_any_base_it_warns_that_results_change_after_commit(self) -> None:
         run(self.p.root, "git", "branch", "-m", "trunk", check=True)
         r = self.p.py(GATE)
-        self.assertIn("WARNING G0 no base", r.stdout)
-        self.assertIn("results change after commit", r.stdout)
-        self.assertEqual(r.stdout.count("WARNING G0"), 1, r.stdout)
+        self.assertIn("WARNING G0 no base", full(self.p, r))
+        self.assertIn("results change after commit", full(self.p, r))
+        self.assertEqual(full(self.p, r).count("WARNING G0"), 1, full(self.p, r))
 
 
 class ChangelogTest(unittest.TestCase):
@@ -93,7 +94,7 @@ class ChangelogTest(unittest.TestCase):
         run(self.p.root, "git", "checkout", "-q", "--orphan", "orphan", check=True)
         run(self.p.root, "git", "commit", "-qm", "orphan", check=True)
         r = self.p.py(GATE)
-        self.assertIn("WARNING G0 no merge-base", r.stdout)
+        self.assertIn("WARNING G0 no merge-base", full(self.p, r))
 
 
 class UntrackedTest(unittest.TestCase):
@@ -125,17 +126,18 @@ class SectionBudgetTest(unittest.TestCase):
 
     def test_an_untouched_big_section_is_earlier_drift_in_step_mode(self) -> None:
         r = self.p.py(GATE, "--step", "prd")
-        self.assertNotIn("WARNING G31 docs/prd/shop/06-big.md", r.stdout)
-        self.assertIn("WARNING G31 earlier drift", r.stdout)
+        report = full(self.p, r).splitlines()
+        self.assertFalse([x for x in report if x.startswith("WARNING G31 docs/prd/shop/06-big.md")])
+        self.assertIn("WARNING G31 earlier drift", " ".join(report))
 
     def test_a_changed_big_section_warns(self) -> None:
         write(self.p.root, "docs/prd/shop/06-big.md", "# big\n" + "line\n" * 251)
         r = self.p.py(GATE, "--step", "prd")
-        self.assertIn("WARNING G31 docs/prd/shop/06-big.md has 252 lines, over prd_section_budget_lines 200", r.stdout)
+        self.assertIn("WARNING G31 docs/prd/shop/06-big.md has 252 lines, over prd_section_budget_lines 200", full(self.p, r))
 
     def test_the_plain_run_reports_every_big_section(self) -> None:
         r = self.p.py(GATE)
-        self.assertIn("WARNING G31 docs/prd/shop/06-big.md", r.stdout)
+        self.assertIn("WARNING G31 docs/prd/shop/06-big.md", full(self.p, r))
 
 
 class FixAndCapTest(unittest.TestCase):
@@ -164,9 +166,10 @@ class FixAndCapTest(unittest.TestCase):
         r = self.p.py(GATE, "--step", "trd")
         lines = r.stdout.splitlines()
         self.assertEqual(sum(1 for x in lines if x.startswith("ERROR")), 15, r.stdout)
-        self.assertEqual(sum(1 for x in lines if x.startswith("WARNING")), 10, r.stdout)
+        self.assertEqual(sum(1 for x in lines if x.startswith("WARNING")), 0, r.stdout)
         self.assertIn(f"... 5 more errors, see {ARTIFACT}", lines)
-        self.assertIn(f"... 4 more warnings, see {ARTIFACT}", lines)
+        self.assertEqual(lines[-1], f"warnings: 14 (see {ARTIFACT})")
+        self.assertEqual(sum(1 for x in full(self.p, r).splitlines() if x.startswith("WARNING")), 14)
 
     def test_a_trd_error_citing_a_path_in_the_diff_stays_an_error_in_an_untouched_file(self) -> None:
         trd = "# T\n\n| File | Role |\n|---|---|\n| `src/features/orders/order_service.py` | svc |\n| `src/nowhere/other.py` | gone |\n"

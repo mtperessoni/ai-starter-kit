@@ -3,6 +3,7 @@
 import unittest
 
 from tests.test_kit_scripts import Project, write
+from tests.gate_report import full
 
 GATE = ".claude/skills/prd-flow/scripts/gate.py"
 STATE = ".claude/prd-flow/state/orders"
@@ -59,12 +60,14 @@ class SheetBase(unittest.TestCase):
         write(self.p.root, f"{STATE}/sheet.md", text)
         if pack is not None:
             write(self.p.root, f"{STATE}/pack.md", pack)
-        return self.p.py(GATE, "--sheet", "orders").stdout
+        return full(self.p, self.p.py(GATE, "--sheet", "orders"))
 
 
 class SheetLintTest(SheetBase):
     def test_a_good_sheet_passes(self) -> None:
-        self.assertIn("0 error(s), 0 warning(s)", self.sheet())
+        out = self.sheet()
+        self.assertNotIn("ERROR", out)
+        self.assertIn("warnings: 0 (see ", out)
 
     def test_help_lists_sheet(self) -> None:
         self.assertIn("--sheet", self.p.py(GATE, "--help").stdout)
@@ -72,7 +75,7 @@ class SheetLintTest(SheetBase):
     def test_questions_is_an_alias(self) -> None:
         write(self.p.root, f"{STATE}/sheet.md", SHEET)
         write(self.p.root, f"{STATE}/pack.md", PACK)
-        self.assertIn("0 error(s)", self.p.py(GATE, "--questions", "orders").stdout)
+        self.assertNotIn("ERROR", self.p.py(GATE, "--questions", "orders").stdout)
 
     def test_s1_a_decision_without_today(self) -> None:
         self.assertIn("ERROR S1", self.sheet(SHEET.replace("Today: nobody.\n", "")))

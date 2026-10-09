@@ -1,4 +1,4 @@
-"""The decision sheet: S0 to S6 on sheet.md and sheet-2.md, and Q3 on answers.md beside rules.md."""
+"""The decision sheet: S0 to S6 on sheet.md and sheet-2.md, the Q3 mechanism check of the new route, and (old route only) Q3 on answers.md."""
 
 import re
 from pathlib import Path
@@ -164,7 +164,17 @@ def sheet_items(state: Path, lab: dict[str, str]) -> list[str]:
     return list(dict.fromkeys(items))
 
 
+def check_mechanisms(state: Path, written: str, replies: str = "") -> None:
+    """New route: a mechanism term in the written decisions or rows must come from sheet.md, sheet-2.md or a Reply line."""
+    known = " ".join([read(state / n) or "" for n in ("sheet.md", "sheet-2.md")] + [replies]).lower()
+    for term in sorted({m.group(1).lower() for m in MECHANISM.finditer(written)}):
+        if term not in known:
+            err("Q3", f"the mechanism '{term}' appears in decisions.md or in the rows of the CHANGELOG IDs and in neither the sheet nor a Reply line",
+                "ask it in a sheet decision or remove it")
+
+
 def check_answers(state: Path, cfg: dict[str, str]) -> None:
+    """Old route only (a state folder with approved-rules.md or rules.md): every sheet item answered, no unasked mechanism."""
     lab = labels(cfg)
     items = sheet_items(state, lab)
     if not items:

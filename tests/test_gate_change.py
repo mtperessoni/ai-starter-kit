@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 from tests.test_kit_scripts import Project, write
+from tests.gate_report import full
 
 GATE = ".claude/skills/prd-flow/scripts/gate.py"
 ORDERS = "docs/prd/shop/05-orders.md"
@@ -50,9 +51,12 @@ class TraceTest(unittest.TestCase):
         self.p.close()
 
     def allow(self, rules: list[str]) -> None:
+        write(self.p.root, "ai-kit.allowlist.json", json.dumps({"untested_rules": rules}))
+
+    def allow_old_key(self, rules: list[str]) -> None:
         path = self.p.root / "ai-kit.json"
         cfg = json.loads(path.read_text(encoding="utf-8"))
-        cfg["allowlist"]["untested_rules"] = rules
+        cfg["allowlist"] = {"untested_rules": rules}
         path.write_text(json.dumps(cfg), encoding="utf-8")
 
     def cite(self, rid: str) -> None:
@@ -69,7 +73,20 @@ class TraceTest(unittest.TestCase):
         self.allow(["ORD-02"])
         r = self.p.py(GATE, "--trace")
         self.assertEqual(r.returncode, 0, r.stdout)
-        self.assertIn("WARNING G13", r.stdout)
+        self.assertIn("WARNING G13", full(self.p, r))
+
+    def test_the_old_allowlist_key_still_works_without_the_sidecar(self) -> None:
+        self.allow_old_key(["ORD-02"])
+        r = self.p.py(GATE, "--trace")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("WARNING G13", full(self.p, r))
+
+    def test_the_sidecar_wins_over_the_old_key(self) -> None:
+        self.allow_old_key(["ORD-02"])
+        self.allow([])
+        r = self.p.py(GATE, "--trace")
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("ERROR G12", r.stdout)
 
     def test_a_listed_rule_that_is_now_tested_must_leave_the_list(self) -> None:
         self.allow(["ORD-02"])
@@ -189,7 +206,7 @@ class ChangeTest(unittest.TestCase):
         write(self.p.root, f"{self.change}/design.md", "# Design\n")
         r = self.gate()
         self.assertEqual(r.returncode, 0, r.stdout)
-        self.assertIn("WARNING G18", r.stdout)
+        self.assertIn("WARNING G18", full(self.p, r))
 
     def test_a_design_with_size_l_is_clean(self) -> None:
         write(self.p.root, f"{self.change}/brief.md", BRIEF.replace("Size: M", "Size: L"))
@@ -244,9 +261,9 @@ class FinalTest(unittest.TestCase):
         text = section.read_text(encoding="utf-8").replace("src/features/orders/order_service.py | config", "planned | config")
         section.write_text(text, encoding="utf-8")
         r = self.p.py(GATE, "--final")
-        self.assertEqual(r.returncode, 0, r.stdout)
-        self.assertIn("WARNING G19", r.stdout)
-        self.assertIn("ORD-02", r.stdout)
+        self.assertEqual(r.returncode, 0, full(self.p, r))
+        self.assertIn("WARNING G19", full(self.p, r))
+        self.assertIn("ORD-02", full(self.p, r))
 
     def test_the_pending_marker_is_an_error(self) -> None:
         section = self.p.root / ORDERS

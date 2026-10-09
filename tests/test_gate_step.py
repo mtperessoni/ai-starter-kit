@@ -3,6 +3,7 @@
 import unittest
 
 from tests.test_kit_scripts import Project, write
+from tests.gate_report import full
 
 GATE = ".claude/skills/prd-flow/scripts/gate.py"
 ORDERS = "docs/prd/shop/05-orders.md"
@@ -33,7 +34,7 @@ class StepTest(unittest.TestCase):
         self.assertIn("ERROR G4", r.stdout)
         self.assertIn("ERROR Q3", r.stdout)
         self.assertIn("ERROR Q4", r.stdout)
-        self.assertEqual(r.stdout.count("gate:"), 1, r.stdout)
+        self.assertEqual(full(self.p, r).count("gate:"), 1, r.stdout)
 
     def test_prd_step_without_rules_is_the_light_route(self) -> None:
         r = self.p.py(GATE, "--step", "prd")
@@ -43,17 +44,17 @@ class StepTest(unittest.TestCase):
     def test_trd_step_runs_the_default_checks_and_the_trd_checks(self) -> None:
         write(self.p.root, "docs/trd/orders.md", TRD)
         r = self.p.py(GATE, "--step", "trd")
-        self.assertIn("ERROR G23", r.stdout)
-        self.assertIn("ERROR G8", r.stdout)
-        self.assertEqual(r.stdout.count("gate:"), 1, r.stdout)
+        self.assertIn("ERROR G23", full(self.p, r))
+        self.assertIn("ERROR G8", full(self.p, r))
+        self.assertEqual(full(self.p, r).count("gate:"), 1, full(self.p, r))
 
     def test_a_task_names_its_lens(self) -> None:
         write(self.p.root, "changes/001-orders/plan.md", PLAN + "Owns: src/a.py\nModel: sonnet\n")
-        out = self.p.py(GATE, "--step", "plan", "--plan", "changes/001-orders/plan.md").stdout
+        out = full(self.p, self.p.py(GATE, "--step", "plan", "--plan", "changes/001-orders/plan.md"))
         self.assertIn("WARNING P3", out)
         self.assertIn("Lens:", out)
         write(self.p.root, "changes/001-orders/plan.md", PLAN + "Owns: src/a.py\nModel: sonnet\nLens: none\n")
-        self.assertNotIn("P3", self.p.py(GATE, "--step", "plan", "--plan", "changes/001-orders/plan.md").stdout)
+        self.assertNotIn("P3", full(self.p, self.p.py(GATE, "--step", "plan", "--plan", "changes/001-orders/plan.md")))
 
     def test_a_task_without_read_is_error_p10(self) -> None:
         base = PLAN + "Owns: src/a.py" + chr(10) + "Model: sonnet" + chr(10) + "Lens: none" + chr(10)
@@ -66,14 +67,14 @@ class StepTest(unittest.TestCase):
     def test_the_reviewer_label_is_still_accepted_for_the_lens(self) -> None:
         card = chr(10).join(["Owns: src/a.py", "Read: src/a.py", "Model: sonnet", "Reviewer: none", ""])
         write(self.p.root, "changes/001-orders/plan.md", PLAN + card)
-        self.assertNotIn("P3", self.p.py(GATE, "--step", "plan", "--plan", "changes/001-orders/plan.md").stdout)
+        self.assertNotIn("P3", full(self.p, self.p.py(GATE, "--step", "plan", "--plan", "changes/001-orders/plan.md")))
 
     def test_plan_step_checks_the_plan_and_the_change_folder(self) -> None:
         write(self.p.root, "changes/001-orders/plan.md", PLAN)
         r = self.p.py(GATE, "--step", "plan", "--plan", "changes/001-orders/plan.md", "--change", "changes/404-none")
-        self.assertIn("ERROR P2", r.stdout)
-        self.assertIn("ERROR G22", r.stdout)
-        self.assertEqual(r.stdout.count("gate:"), 1, r.stdout)
+        self.assertIn("ERROR P2", full(self.p, r))
+        self.assertIn("ERROR G22", full(self.p, r))
+        self.assertEqual(full(self.p, r).count("gate:"), 1, full(self.p, r))
 
 
 if __name__ == "__main__":

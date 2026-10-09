@@ -2,6 +2,7 @@
 
 import unittest
 
+from tests.gate_report import full
 from tests.test_kit_scripts import Project
 
 GATE = ".claude/skills/prd-flow/scripts/gate.py"
@@ -50,23 +51,23 @@ class GateHtmlPolicyTest(unittest.TestCase):
         self.page("<p>stale</p>\n")
         r = self.p.py(GATE)
         self.assertEqual(r.returncode, 0, r.stdout)
-        self.assertIn("WARNING G29", r.stdout)
-        self.assertIn("fix: run /docs-html", r.stdout)
-        self.assertNotIn("ERROR G29", r.stdout)
+        self.assertIn("WARNING G29", full(self.p, r))
+        self.assertIn("fix: run /docs-html", full(self.p, r))
+        self.assertNotIn("ERROR G29", full(self.p, r))
 
     def test_default_run_generated_missing_page_is_a_warning(self) -> None:
         self.builder("def is_current(root, cfg):\n    return False\n")
         (self.p.root / PAGE).unlink()
         r = self.p.py(GATE)
         self.assertEqual(r.returncode, 0, r.stdout)
-        self.assertIn("WARNING G29", r.stdout)
+        self.assertIn("WARNING G29", full(self.p, r))
 
     def test_default_run_generated_current_page_is_silent(self) -> None:
         self.builder()
         self.page("<p>fresh</p>\n")
         r = self.p.py(GATE)
         self.assertEqual(r.returncode, 0, r.stdout)
-        self.assertNotIn("G29", r.stdout)
+        self.assertNotIn("G29", full(self.p, r))
 
     def test_steps_prd_and_trd_also_only_warn(self) -> None:
         self.builder()
@@ -80,16 +81,16 @@ class GateHtmlPolicyTest(unittest.TestCase):
         self.page("<p>anything</p>\n")
         r = self.p.py(GATE)
         self.assertEqual(r.returncode, 0, r.stdout)
-        self.assertIn("WARNING G5 html_mode hand: the HTML is not checked; migrate to generated with /ai-kit update, then /docs-html", r.stdout)
-        self.assertNotIn("G6", r.stdout)
-        self.assertNotIn("G10", r.stdout)
+        self.assertIn("WARNING G5 html_mode hand: the HTML is not checked; migrate to generated with /ai-kit update, then /docs-html", full(self.p, r))
+        self.assertNotIn("G6", full(self.p, r))
+        self.assertNotIn("G10", full(self.p, r))
 
     def test_default_run_with_html_none_says_nothing_about_html(self) -> None:
         self.mode("generated", "hand")
         self.config("html", "none")
         r = self.p.py(GATE)
-        self.assertNotIn("G5", r.stdout)
-        self.assertNotIn("G29", r.stdout)
+        self.assertNotIn("G5", full(self.p, r))
+        self.assertNotIn("G29", full(self.p, r))
 
     def test_default_run_em_dash_in_the_html_page_is_not_scanned(self) -> None:
         self.builder()
@@ -145,8 +146,8 @@ class GateHtmlPolicyTest(unittest.TestCase):
         self.trd_builder(False)
         r = self.p.py(GATE)
         self.assertEqual(r.returncode, 0, r.stdout)
-        self.assertIn(f"WARNING G32 {TRD_PAGE} is out of date", r.stdout)
-        self.assertIn("fix: run /docs-html", r.stdout)
+        self.assertIn(f"WARNING G32 {TRD_PAGE} is out of date", full(self.p, r))
+        self.assertIn("fix: run /docs-html", full(self.p, r))
 
     def test_html_flag_stale_trd_page_is_a_g32_error(self) -> None:
         self.builder()
