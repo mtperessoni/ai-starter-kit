@@ -7,13 +7,13 @@ Read by the surveyor, which classifies. The chief never reads this page nor a PR
 |---|---|---|---|
 | C0 no PRD | No `docs/prd/INDEX.md`. Only that | "create the PRD", "document the product", first use in the repository | The surveyor reports it; hand over to `/prd-create`, then `/trd-create` |
 | C1 query | Wants to know how something works or why | "how", "why", "what happens if", "what is the rule for" | Surveyor `query`: its return is the answer, with IDs and Source, saying per rule cited "verified in code" (one Grep found the Source symbol with a caller outside tests) or "not verified". For the state of rules (`proposed`, `approved`, `superseded`, `implemented`) it runs `gate.py --status`. No edits |
-| C2 implement within the rule | The rule exists, is approved, and the code does not meet it yet | "implement the amendment", a row marked `pending code`, "the spec still lacks X" | Surveyor `light` (rows, Source verdict, the task card); over one task or an area change: its Route is docs `trd-plan`; then executor, reviewer, executor `close` |
+| C2 implement within the rule | The rule exists, is approved, and the code does not meet it yet | "implement the amendment", a row marked `pending code`, "the spec still lacks X" | Surveyor `light` (rows, Source verdict, the task card); over one task or an area change: its Route is docs `short`; then executor, reviewer, executor `close` |
 | C3 bug | The code does something different from the PRD and the user confirms the PRD is right | "it is broken", "it should do what the PRD says" | Surveyor `light`, executor `task`, reviewer, executor `close`; the PRD changes only if the Source moves |
 | C4 stale PRD | The code is right and the PRD says something else, confirmed by the user | drift found in the PRD versus code check, removed env var, cited file that no longer exists | Surveyor `light`, then docs `c4` without interview (old text literally to the CHANGELOG), then executor `close` |
 | C5 rule change | Changed rule, new rule, gap in the PRD, or a fix to a defect the PRD documents as current behavior | "change", "it should", "from now on", "add", "fix" something the PRD describes as today's behavior | C5 route of `SKILL.md`, from surveyor `full`. Includes a new product, module or incoming spec document in a repository with PRDs: size L, new PRD variant (below) |
 | C6 refactor | Structure changes and behavior does not | "rename", "extract", "move", "split", "clean up" | Surveyor `light` (area TRD and invariants in the card; TRD update when files, entry points or tests move), executor `task`, reviewer, executor `close` |
 
-## Size (LT04)
+## Size
 Stated in the case line: `C5 · size L · <one line>`. It decides which files the change folder holds (`agent-plan.md`, "Where the plan lives") and how wide the surveyor sweeps (`impact.md`, "Sweep by size").
 
 | Size | When | Change folder |
@@ -24,8 +24,10 @@ Stated in the case line: `C5 · size L · <one line>`. It decides which files th
 
 A C5 is size M or L, never S: a one-row change is size M.
 
+A one-rule C5 (one rule row touched, one task) is the short path: sheet, PRD row, one card, close. A `brief.md` is written only for size L.
+
 ## A new context is a new PRD
-When the repository already has PRDs and the request is a new product context (a product, module or incoming spec document that runs on its own), it is C5 size L, new PRD variant, never C0. The surveyor sweeps it against every existing PRD of `docs/prd/INDEX.md` (`impact.md` K11). The variant writes only approved rows, after the interview: the docs agent lays out the new PRD folder with the anatomy of `.claude/skills/prd-create/reference/anatomy.md` and adds its INDEX section (its HTML tab appears the next time someone runs `/docs-html`). Only `/prd-create` (C0) writes `*(proposed)*` rules (Source `planned`); prd-flow confronts and interviews them per section and replaces the marker with `*(approved YYYY-MM-DD, pending code)*`. A proposed rule is C5 input, never C2.
+When the repository already has PRDs and the request is a new product context (a product, module or incoming spec document that runs on its own), it is C5 size L, new PRD variant, never C0. The surveyor sweeps it against every existing PRD of `docs/prd/INDEX.md` (`impact.md` K11). The variant writes only approved rows, after the decision sheet: the docs agent lays out the new PRD folder with the anatomy of `.claude/skills/prd-create/reference/anatomy.md` and adds its INDEX section (its HTML tab appears the next time someone runs `/docs-html`). Only `/prd-create` (C0) writes `*(proposed)*` rules (Source `planned`); prd-flow puts them on the decision sheet and replaces the marker with `*(approved YYYY-MM-DD, pending code)*`. A proposed rule is C5 input, never C2.
 
 ## Classification traps
 | Situation | Right case | Why |
@@ -37,7 +39,7 @@ When the repository already has PRDs and the request is a new product context (a
 | A row marked `(superseded: ...)` and the request cites the old one | Ask | The requester may not know the amendment, or the amendment may not be deployed yet |
 | A request with no matching rule in the PRD | C5 (gap) | Behavior without a written rule is a new rule; it enters the PRD before the code |
 | A request with several items | One case per item | Each item follows its route; a C5 gets its own slug; a C3 of the same request can be fixed first, after confirmation, if it does not touch the C5 rules |
-| "Diagnose", "understand why", "plan" | C1 until the user asks for a change | A diagnosis is only a diagnosis: show the cause and the options and wait (R01) |
+| "Diagnose", "understand why", "plan" | C1 until the user asks for a change | A diagnosis is only a diagnosis: show the cause and the options and wait |
 | A `pending code` rule whose code is already committed | C2 | Code without a caller outside the tests is not wired; the rule is still pending |
 | A `*(proposed)*` rule | C5, never C2 | It came from a document and nobody confronted it; it enters the confrontation and the interview first |
 | A new product, module or spec document in a repository with PRDs | C5 size L | Not C0: C0 is only for a repository without `docs/prd/INDEX.md` |

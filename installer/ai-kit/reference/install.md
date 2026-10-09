@@ -43,6 +43,7 @@ All must pass, or be reported:
 - `scripts/gates.sh lint`
 - `scripts/gates.sh ratchet` (green right after `--init`)
 - `scripts/gates.sh imports`
+- `scripts/gates.sh settings-check` (no deny rule on a file the flow writes); `commands.fix_file` and `commands.lint_file` set from the recipe, each run once with `{files}` on one real file (K05)
 - `scripts/gates.sh setup`, `scripts/gates.sh hotspots` and, when `contracts` is configured, `scripts/gates.sh contracts`
 - `python scripts/related_tests.py <one existing source file>` prints its mirror test and importers; `scripts/gates.sh related <that file>` runs them and prints only failures and the summary
 - `tests.failure_regex` (IN17): take one real failure line of the stack (run one deliberately failing test in a temporary file, or use the line the recipe documents) and check that the regex captures the test id (`python -c` with `re.search`, the regex read from `ai-kit.json`); a regex whose backslashes were lost (for example `^FAILs+(S+)` for `^FAIL\s+(\S+)`) is fixed from the recipe before the baseline is recorded

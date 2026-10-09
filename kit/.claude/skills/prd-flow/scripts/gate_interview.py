@@ -1,146 +1,226 @@
-"""Q3: the interview.md beside an approved-rules file covers every dimension and is confirmed."""
+"""The decision sheet: S0 to S6 on sheet.md and sheet-2.md, and Q3 on answers.md beside rules.md."""
 
 import re
 from pathlib import Path
 
-from gate_core import ID, Rules, cells, err, hint, is_table_line, warn
-from state_record import approved_text, interview_text
+from gate_core import ID, cells, err, is_table_line, warn
+from state_record import read
 
-STATES = {"user", "doc", "assumed-confirmed", "n/a", "question"}
-BASE_DIMENSIONS = [f"D{n:02d}" for n in range(1, 16)]
-HEADING = re.compile(r"^## Dimensions\b.*$", re.M)
-DATED = re.compile(r"\d{4}-\d\d-\d\d")
-DIMENSION = re.compile(r"^(D\d+)\b")
-SHORT_SCOPE = re.compile(r"^Scope:\s*short C5 outside a C5\b", re.M)
+LABELS = "What changes in the rules, What does not change, Assumed, Decisions, How to answer, Today:, Why it matters:, Example:, (Recommended)"
+KINDS = {"rewrites", "adds", "supersedes", "removes"}
+COMPARISON = re.compile(r"(?i)\b(above|below|more than|at least|high|higher|low|lower|after|before)\b")
+ITEM = re.compile(r"^\*\*\s*(\d+)\.\s*(.+?)\s*\*\*(.*)$")
+OPTION = re.compile(r"^\s*-\s+([A-Z])\)\s+(.*)$")
+INTERACTS = re.compile(r"^\s*Interacts with:\s*(.*)$")
+ASSUMED = re.compile(r"^\s*-\s+(A\d+)\b")
+MECHANISM = re.compile(
+    r"(?i)\b(?:env(?:ironment)?\s+var(?:iable)?|switch|feature\s+flag|config(?:uration)?\s+key|endpoint"
+    r"|(?:new|add(?:s|ed|ing)?)\s+(?:an?\s+|the\s+)?(?:\w+\s+)?(?:table|column|flag|configuration))(?:e?s)?\b"
+)
+SENTENCE = re.compile(r"(?<=[.!?;])\s+")
+SHORT_SHEET = re.compile(r"^sheet-short-(\w+)\.md$")
+CODE_TOKEN = re.compile(r"`([^`\n]+)`|\b([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)\b")
+MAX_ITEMS = 8
 
 
-def extra_dimensions() -> list[str]:
-    adapter = Path(__file__).resolve().parents[1] / "repo.md"
-    if not adapter.exists():
-        return []
-    text = adapter.read_text(encoding="utf-8")
-    block = re.search(r"^## Extra interview dimensions\s*$(.*?)(?=^## |\Z)", text, re.S | re.M)
-    found = []
-    for line in (block.group(1) if block else "").splitlines():
-        if not is_table_line(line) or "<" in line:
-            continue
-        m = re.match(r"^\|\s*(D\d+)\s*\|", line)
+def labels(cfg: dict[str, str]) -> dict[str, str]:
+    names = ["diff", "scope", "assumed", "decisions", "answer", "today", "why", "example", "recommended"]
+    parts = [p.strip() for p in (cfg.get("sheet_labels") or LABELS).split(",")]
+    parts += [p.strip() for p in LABELS.split(",")][len(parts):]
+    return dict(zip(names, parts))
+
+
+def heading_body(text: str, label: str) -> str | None:
+    found = None
+    for m in re.finditer(r"^## (.*)$", text, re.M):
+        if m.group(1).strip().lower().startswith(label.lower()):
+            rest = text[m.end():]
+            found = re.split(r"^## ", rest, maxsplit=1, flags=re.M)[0]
+            break
+    return found
+
+
+def decisions(body: str, lab: dict[str, str]) -> list[dict]:
+    items: list[dict] = []
+    for line in body.splitlines():
+        m = ITEM.match(line.strip())
         if m:
-            found.append(m.group(1))
-    return found
+            items.append({"n": m.group(1), "title": m.group(2), "head": m.group(3), "lines": [], "opts": [], "inter": []})
+        elif items:
+            o = OPTION.match(line)
+            if o:
+                items[-1]["opts"].append(o.group(2))
+                continue
+            i = INTERACTS.match(line)
+            if i:
+                items[-1]["inter"] += re.findall(r"\d+", i.group(1))
+            else:
+                items[-1]["lines"].append(line.strip())
+    return items
 
 
-def sections(text: str) -> list[tuple[bool, str]]:
-    heads = list(HEADING.finditer(text))
-    found = []
-    for i, m in enumerate(heads):
-        end = heads[i + 1].start() if i + 1 < len(heads) else len(text)
-        body = re.split(r"^## ", text[m.end():end], maxsplit=1, flags=re.M)[0]
-        found.append((bool(DATED.search(m.group(0))), body))
-    return found
-
-
-def known_question(qid: str, rules_text: str, prd: Path) -> bool:
-    if qid in rules_text:
-        return True
-    return any(qid in f.read_text(encoding="utf-8", errors="replace") for f in prd.rglob("*.md"))
-
-
-def interview_skeleton() -> None:
-    dims = [*BASE_DIMENSIONS, *extra_dimensions()]
-    hint("interview", [
-        "interview.md expected format (one rewrite fixes it):",
-        "## Dimensions",
-        "| Dimension | State | Answer |",
-        "|---|---|---|",
-        *[f"| {d} <name> | <state> | <answer> |" for d in dims],
-        f"Allowed states: {', '.join(sorted(STATES))}",
-        'Confirmed: <name> · <YYYY-MM-DD> · "<the user\'s words>"',
-    ])
-
-
-def check_interview(rules_path: Path, prd: Path, rules: Rules) -> None:
-    text = interview_text(rules_path.parent)
+def pack_ids(pack: Path) -> set[str]:
+    text = read(pack)
     if text is None:
-        err("Q3", f"interview.md not found beside {rules_path.name}")
-        interview_skeleton()
-        return
-    blocks = sections(text)
-    first = HEADING.search(text)
-    short_scope = bool(blocks and blocks[0][0] and first and SHORT_SCOPE.search(text[:first.start()]))
-    if not blocks:
-        err("Q3", "interview.md without a '## Dimensions' table")
-        interview_skeleton()
-        return
-    rules_text = approved_text(rules_path.parent) or ""
-    for n, (_, block) in enumerate(blocks):
-        seen: set[str] = set()
-        for line in block.splitlines():
-            if not is_table_line(line.strip()):
-                continue
-            row = cells(line.strip().strip("|"))
-            m = DIMENSION.match(row[0]) if row else None
-            if not m or len(row) < 3:
-                continue
-            dim, state, answer = m.group(1), row[1].strip("` ").lower(), row[2]
-            seen.add(dim)
-            if state not in STATES:
-                err("Q3", f"{dim}: state '{row[1]}' is not one of {sorted(STATES)}")
-                interview_skeleton()
-            elif state == "question":
-                qid = re.search(r"\bQ-[\w-]+", answer)
-                if not qid:
-                    err("Q3", f"{dim}: state question without a Q- ID in Answer")
-                elif not known_question(qid.group(0), rules_text, prd):
-                    err("Q3", f"{dim}: {qid.group(0)} exists neither in approved-rules.md nor in the PRD")
-        if n == 0 and not short_scope:
-            for dim in [*BASE_DIMENSIONS, *extra_dimensions()]:
-                if dim not in seen:
-                    err("Q3", f"interview.md without the dimension {dim}")
-                    interview_skeleton()
-        elif not seen:
-            err("Q3", "a follow-up '## Dimensions' table without any reopened dimension")
-        if not re.search(r"^Confirmed:\s*\S", block, re.M):
-            err("Q3", "a Dimensions table without a 'Confirmed:' line after it")
-            interview_skeleton()
+        return set()
+    ids = set(re.findall(r"\b(" + ID + r")\b", "\n".join(ln for ln in text.splitlines() if ln.startswith("Conflicts:"))))
+    rules = heading_body(text, "Rules") or ""
+    ids |= {m.group(1) for ln in rules.splitlines() if (m := re.match(r"^\|\s*(" + ID + r")\b", ln))}
+    return ids
 
 
-QUESTION = re.compile(r"^(Q\d+)\s*·\s*(?:D\d+\s*·\s*)?(.*)$")
-OPTION = re.compile(r"^\s+-\s+(.*)$")
-WRONG_SCENARIO = re.compile(r"(?i)scenario\b.*\b(wrong|incorrect)\b|\b(wrong|incorrect)\b.*\bscenario|document is stale")
-TWO_DECISIONS = re.compile(r"(?i)\band also\b|\bas well as\b|;|\s\+\s")
-ROW_TAG = re.compile(r"\s*\[row:\s*(?:" + ID + r"|none)\s*\]")
-QUOTED = re.compile(r'"[^"]+"|`[^`]+`')
-
-
-def prepared_questions(text: str) -> list[tuple[str, str, list[str]]]:
-    found: list[tuple[str, str, list[str]]] = []
-    for line in text.splitlines():
-        q = QUESTION.match(line.strip())
-        if q and not line.startswith((" ", "\t")):
-            found.append((q.group(1), q.group(2), []))
-            continue
-        o = OPTION.match(line)
-        if o and found:
-            found[-1][2].append(o.group(1).strip())
-    return found
-
-
-def check_questions(text: str, cfg: dict[str, str]) -> None:
-    flag = err if cfg.get("question_lint", "warn").strip().lower() == "error" else warn
+def lint_decisions(name: str, body: str, lab: dict[str, str], cfg: dict[str, str]) -> list[dict]:
+    items = decisions(body, lab)
     words = [w.strip().lower() for w in cfg.get("plain_words", "").split(",") if w.strip()]
-    for qid, question, options in prepared_questions(text):
-        shown = ROW_TAG.sub("", " ".join([question, *options])).lower()
+    nums = {d["n"] for d in items}
+    if len(items) > MAX_ITEMS:
+        err("S3", f"{name}: {len(items)} decisions (at most {MAX_ITEMS}); the change is too big: split it")
+    for d in items:
+        tag = f"{name} decision {d['n']}"
+        text = [ln for ln in d["lines"] if ln]
+        for key in ("today", "why", "example"):
+            if not any(ln.lower().startswith(lab[key].lower()) for ln in text):
+                err("S1", f"{tag} has no '{lab[key]}' line")
+        if len(d["opts"]) < 2:
+            err("S1", f"{tag} has fewer than two options")
+        recommended = sum(lab["recommended"].lower() in o.lower() for o in d["opts"])
+        if recommended != 1:
+            err("S1", f"{tag} has {recommended} options marked {lab['recommended']} (exactly one)")
+        d["ids"] = set(re.findall(r"\b(" + ID + r")\b", d["head"]))
+        if not d["ids"] and "mechanism" not in d["head"].lower():
+            err("S1", f"{tag} names no rule ID and is not marked '· mechanism'")
+        shown = " ".join([d["title"], *d["opts"]]).lower()
         for word in words:
             if re.search(r"(?<![\w-])" + re.escape(word) + r"(?![\w-])", shown):
-                flag("Q8", f"{qid} uses the jargon word '{word}': say it in the product's plain words")
-        if not any(WRONG_SCENARIO.search(o) for o in options):
-            flag("Q9", f"{qid} has no option saying the scenario is wrong")
-        for option in options:
-            if WRONG_SCENARIO.search(option):
-                continue
-            label = ROW_TAG.sub("", option).split(": ", 1)[0]
-            if not (ROW_TAG.search(option) or QUOTED.search(option) or re.search(r"\b" + ID + r"\b", option)):
-                flag("Q6", f"{qid} option '{label[:50]}' cites neither a row ID nor the rule text")
-            if TWO_DECISIONS.search(label):
-                flag("Q7", f"{qid} option '{label[:50]}' holds more than one decision: split it into two questions")
+                warn("S4", f"{tag} uses the jargon word '{word}' in its title or options: say it in the product's plain words")
+        context = " ".join([d["title"], *[ln for ln in text if ln.lower().startswith((lab["today"].lower(), lab["why"].lower()))]])
+        if COMPARISON.search(context) and not any(re.search(r"\d|\"[^\"]+\"|`[^`]+`", o) for o in d["opts"]):
+            warn("S5", f"{tag} compares values but no option names a number or a category")
+        for other in d["inter"]:
+            if other not in nums or other == d["n"]:
+                err("S6", f"{tag} interacts with decision {other}, which does not exist in {name}")
+    for i, a in enumerate(items):
+        for b in items[i + 1:]:
+            if a["ids"] & b["ids"] and overlap(a["title"], b["title"]):
+                err("S3", f"{name} decisions {a['n']} and {b['n']} decide the same rule ({', '.join(sorted(a['ids'] & b['ids']))}) and scope")
+    return items
+
+
+def overlap(a: str, b: str) -> bool:
+    wa, wb = {w for w in re.findall(r"\w+", a.lower()) if len(w) > 3}, {w for w in re.findall(r"\w+", b.lower()) if len(w) > 3}
+    small = min(len(wa), len(wb))
+    return bool(small) and len(wa & wb) / small >= 0.6
+
+
+def check_diff(text: str, lab: dict[str, str], pack: Path | None) -> None:
+    body = heading_body(text, lab["diff"])
+    if body is None:
+        err("S0", f"sheet without the section '## {lab['diff']}'")
+        return
+    table = [cells(ln.strip().strip("|")) for ln in body.splitlines() if is_table_line(ln.strip())]
+    if not table or len(table[0]) != 4:
+        err("S0", "the diff table needs 4 columns: Rule, Today, Becomes, Kind")
+        return
+    ids: set[str] = set()
+    for row in table[1:]:
+        if len(row) != 4:
+            err("S0", f"diff row with {len(row)} columns: {row[0][:40]}")
+            continue
+        kind = row[3].strip("` ").lower()
+        if kind not in KINDS:
+            err("S0", f"diff row {row[0]}: Kind '{row[3]}' is not one of {sorted(KINDS)}")
+        elif kind == "adds" and row[1].strip("` ").lower() != "(none)":
+            err("S0", f"diff row {row[0]}: an 'adds' row has '(none)' as Today, not '{row[1][:30]}'")
+        ids |= set(re.findall(r"\b(" + ID + r")\b", row[0]))
+    for rid in sorted((pack_ids(pack) if pack else set()) - ids):
+        err("S2", f"{rid} is touched or conflicting in the pack and is not a row of the diff table")
+    if not any(ln.strip().startswith("- ") for ln in (heading_body(text, lab["scope"]) or "").splitlines()):
+        err("S0", f"the section '## {lab['scope']}' needs at least one '- ' line")
+    assumed = [ln for ln in (heading_body(text, lab["assumed"]) or "").splitlines() if ASSUMED.match(ln)]
+    if len(assumed) > MAX_ITEMS:
+        err("S3", f"{len(assumed)} assumed lines (at most {MAX_ITEMS})")
+
+
+def check_sheet(target: Path, cfg: dict[str, str]) -> None:
+    lab = labels(cfg)
+    sheet = target if target.is_file() else target / "sheet.md"
+    text = read(sheet)
+    if text is None:
+        err("S0", f"{sheet} not found", "write sheet.md with the surveyor in full mode")
+        return
+    if not next((ln for ln in text.splitlines() if ln.strip()), "").startswith("# "):
+        err("S0", "sheet without the '# <the change in one line>' title line")
+    if heading_body(text, lab["answer"]) is None:
+        err("S0", f"sheet without the section '## {lab['answer']}'")
+    pack = sheet.parent / "pack.md"
+    if not pack.is_file():
+        warn("S0", "pack.md not found beside the sheet: S2 (pack rules in the diff) was not checked")
+    check_diff(text, lab, pack)
+    body = heading_body(text, lab["decisions"])
+    if body is None:
+        err("S0", f"sheet without the section '## {lab['decisions']}'")
+    else:
+        lint_decisions("sheet.md", body, lab, cfg)
+    second = read(sheet.parent / "sheet-2.md")
+    if second is not None:
+        lint_decisions("sheet-2.md", heading_body(second, lab["decisions"]) or second, lab, cfg)
+    for short in short_sheet_names(sheet.parent):
+        text_short = read(sheet.parent / short)
+        if text_short is not None:
+            lint_decisions(short, heading_body(text_short, lab["decisions"]) or text_short, lab, cfg)
+
+
+def short_sheet_names(state: Path) -> list[str]:
+    return sorted(p.name for p in state.glob("sheet-short-*.md") if SHORT_SHEET.match(p.name)) if state.is_dir() else []
+
+
+def sheet_items(state: Path, lab: dict[str, str]) -> list[str]:
+    items: list[str] = []
+    for name in ("sheet.md", "sheet-2.md", *short_sheet_names(state)):
+        text = read(state / name)
+        if text is None:
+            continue
+        body = heading_body(text, lab["decisions"]) or ""
+        short = SHORT_SHEET.match(name)
+        prefix = "2." if name == "sheet-2.md" else f"s{short.group(1)}." if short else ""
+        items += [prefix + d["n"] for d in decisions(body, lab)]
+        if name == "sheet.md" or short:
+            items += [prefix + m.group(1) for ln in (heading_body(text, lab["assumed"]) or "").splitlines() if (m := ASSUMED.match(ln))]
+            if name == "sheet.md" or heading_body(text, lab["scope"]) is not None:
+                items.append(prefix + "scope")
+    return list(dict.fromkeys(items))
+
+
+def check_answers(state: Path, cfg: dict[str, str]) -> None:
+    lab = labels(cfg)
+    items = sheet_items(state, lab)
+    if not items:
+        return
+    answers = read(state / "answers.md")
+    if answers is None:
+        err("Q3", f"answers.md not found beside the sheet in {state.name}", "write answers.md with the docs agent in apply mode")
+        return
+    body = heading_body(answers, "Resolution") or ""
+    answered = {cells(ln.strip().strip("|"))[0].replace("`", "").strip().lower() for ln in body.splitlines() if is_table_line(ln.strip())}
+    for item in items:
+        if item.lower() not in answered:
+            err("Q3", f"item {item} of the sheet has no row in answers.md '## Resolution'", "add the row: | Item | Answer | From |")
+    names = ("sheet.md", "sheet-2.md", *short_sheet_names(state), "answers.md")
+    known = " ".join(read(state / n) or "" for n in names).lower()
+    for token in sorted(mechanism_tokens("\n".join(read(state / n) or "" for n in ("rules.md", "decisions.md")))):
+        if token.lower() not in known:
+            err("Q3", f"the mechanism `{token}` appears in rules.md or decisions.md and in neither the sheet nor the answers", "ask it in a sheet decision or remove it")
+
+
+def mechanism_tokens(written: str) -> set[str]:
+    found: set[str] = set()
+    for line in written.splitlines():
+        for cell in line.split("|"):
+            for segment in SENTENCE.split(cell):
+                if not MECHANISM.search(segment):
+                    continue
+                for m in CODE_TOKEN.finditer(segment):
+                    token = (m.group(1) or m.group(2)).strip()
+                    if token and "/" not in token and not re.fullmatch(ID, token):
+                        found.add(token)
+    return found

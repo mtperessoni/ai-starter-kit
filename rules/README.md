@@ -12,7 +12,7 @@ Read only the file of the domain you need. IDs are stable: a new rule takes the 
 | [04-testing.md](04-testing.md) | TS | Test-first, related tests only, full suite once, baseline, offline gates, containers and disk |
 | [05-code-structure.md](05-code-structure.md) | AR, CX | AI-readable code layout, size limits, the ratchet, code constraints |
 | [06-docs-system.md](06-docs-system.md) | DS | PRD by section, rule rows and Example column, CHANGELOG, TRD by feature, budget and checks, invariants, generated HTML, gate |
-| [07-workflow.md](07-workflow.md) | WF | Cases C0 to C6, survey and sweeps, interview record, PRD then TRD then plan then code, R09, commits and trailers |
+| [07-workflow.md](07-workflow.md) | WF | Cases C0 to C6, survey and sweeps, the decision sheet and its answers, PRD then TRD then plan then code, R09, commits and trailers |
 | [08-writing-style.md](08-writing-style.md) | WS | Language, punctuation, comments, commits, tables |
 | [09-lessons.md](09-lessons.md) | LS | What was measured and why each rule exists |
 | [10-creation-and-install.md](10-creation-and-install.md) | PC, IN | Creating the PRD and TRD; installing and updating the kit per project |
@@ -37,11 +37,12 @@ Read only the file of the domain you need. IDs are stable: a new rule takes the 
 | `.claude/skills/prd-flow/` | WF, SA, RV, TS rules as operating procedure, plus `repo.md` (formerly `prd-gate`; WF35, IN14) |
 | `.claude/skills/adr/` | DS23, DS27, DS28 |
 | `.claude/agents/<risk>-reviewer.md` | RV12 to RV16 |
-| `scripts/` and `ai-kit.json` | AR rules marked "ratchet", TS02 to TS08, TS22, TS28 to TS31, TS35, TS43 to TS53 (`docker_hygiene.py`, `clean_task_outputs.py`, `baseline.py`, `config_get.py`, the `docker` section, `tests.baseline_deselect`, `tests.always`) |
+| `scripts/` and `ai-kit.json` | AR rules marked "ratchet", TS02 to TS08, TS22, TS28 to TS31, TS35, TS43 to TS54 (`docker_hygiene.py`, `clean_task_outputs.py`, `baseline.py`, `config_get.py`, the `docker` section, `tests.baseline_deselect`, `tests.always`) |
 | `.claude/settings.json`, `.ai-kit/runs/` | TM03, TM12: the telemetry hooks (project-owned, merged) and the git-ignored run artifacts (SA51 and SA53 are behavior guidance in the agent files, no guard hook) |
-| `scripts/telemetry_hook.py`, `run_probe.py`, `retro.py` and the `telemetry` section of `ai-kit.json` | TM01 to TM11, TM13 to TM16 |
-| `.claude/skills/prd-flow/scripts/gate.py` and its `gate_*.py` modules, `state_record.py` | WF31 to WF33 (`--trace`, `--change`, `--final`); WF43, WF44 (`--rules`, `--applied`); WF68 to WF74 (`--questions`, `--plan` alignment, `--snapshot`, `--final --change`); DS34, DS37, DS39 (`--status`, `--trd`, `--sibling`); DS46 (`--docs`); CE29 (the state record) |
-| `.claude/skills/prd-flow/reference/dispatch.md` | WF65, WF67, WF71, SA48, SA50, SA54, SA55 (labels DP01 to DP13); trd-planned.md TP06, TP07 map to WF69, WF70 |
+| `scripts/telemetry_hook.py`, `run_probe.py`, `retro.py` and the `telemetry` section of `ai-kit.json` | TM01 to TM11, TM13 to TM17 |
+| `scripts/guard_hook.py`, `reap.py`, `next_change_number.py`, `settings_check.py` | SA56, SA57 (the guard hook in the `hooks:` key of the five `prd-flow-*` agents, `gates.sh reap`); IN19 (doctor checks, change number reservation) |
+| `.claude/skills/prd-flow/scripts/gate.py` and its `gate_*.py` modules, `state_record.py` | WF31 to WF33 (`--trace`, `--change`, `--final`); WF43, WF44 (`--rules`, `--applied`); WF68 to WF74 (`--sheet`, `--plan` alignment, `--snapshot`, `--final --change`); DS34, DS37, DS39 (`--status`, `--trd`, `--sibling`); DS46 (`--docs`); CE29 (the state record) |
+| `.claude/skills/prd-flow/reference/dispatch.md` | WF65, WF67, WF71, WF76 to WF79, WF81, SA48, SA50, SA54, SA55 (labels DP01 to DP13); trd-planned.md TP06, TP07 map to WF69, WF70 |
 | `.claude/skills/prd-flow/scripts/build_prd_html.py`, `build_trd_html.py` | DS42: the generated `prd.html` and `trd.html`, checked by G29 and G32 |
 | `.claude/skills/docs-html/` | DS45: the only place that builds the pages |
 | `.github/CODEOWNERS` | WF48, DS43 |

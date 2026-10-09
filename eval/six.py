@@ -2,6 +2,9 @@
 import statistics
 
 KINDS = ("gate_check", "environment", "missing_file", "test_failure", "other")
+INTERVIEW_KEYS = ("user_touchpoints", "repeated_topics", "post_prd_reversals", "sheet_decisions", "docs_gate_reruns",
+                  "heredoc_commands", "stuck_minutes", "orphans_at_wave_end", "questions_after_plan",
+                  "agents_over_150k", "interview_to_code_tokens", "budget_violation_count")
 METRICS = {
     "M1": ("Token consumption", ["cost_per_accept", "tokens_total", "tokens_main", "tokens_subagents", "context_peak",
                                  "start_context", "main_calls", "main_tokens_post_exec", "main_cache_write",
@@ -22,6 +25,7 @@ METRICS = {
                                           "blind_findings_total", "review_weighted", "accept"]),
     "M7": ("Output quality", ["prd_fidelity", "conflict_found", "contradiction_left",
                               "gap_recorded", "traceability", "single_source", "conflict_recall"]),
+    "M9": ("Interview and context budgets", list(INTERVIEW_KEYS)),
     "M8": ("Protocol compliance", ["docs_dispatched", "protocol_adherence", "docs_first", "dispatch_map", "review_coverage",
                                   "main_violations", "chief_violations", "return_compliance", "surveyor_first",
                                   "closed", "inline_residency", "waves"]),
@@ -33,7 +37,8 @@ FLOW_KEYS = ("main_calls", "main_tokens_post_exec", "main_cache_write", "cache_b
              "dispatch_map", "review_coverage", "agents_by_role", "first_pass_clean", "main_diff_reads", "main_source_reads",
              "kit_script_reads", "agent_file_edits", "retro_rereads", "cost_by_role", "chief_violations",
              "return_compliance", "surveyor_first", "closed", "baseline_runs", "poll_calls", "bg_alive_at_return",
-             "question_rounds", "rejected_answers", "bash_code_edits", "git_unsafe_calls", "verify_runs", "agent_test_runs")
+             "question_rounds", "rejected_answers", "bash_code_edits", "git_unsafe_calls", "verify_runs",
+             "agent_test_runs") + INTERVIEW_KEYS
 LABELS = {"wall_min": "wall_min (active turns only)", "runner_wall_min": "runner_wall_min (run clock)"}
 HIGHER, LOWER = "higher", "lower"
 DIRECTION = {
@@ -47,7 +52,7 @@ DIRECTION = {
                      "rework_actions", "max_reruns_per_step", "ceremony_ratio", "review_weighted",
                      "main_violations", "chief_violations", "inline_residency", "baseline_runs", "poll_calls",
                      "bg_alive_at_return", "question_rounds", "rejected_answers", "bash_code_edits",
-                     "git_unsafe_calls", "verify_runs", "agent_test_runs"), LOWER),
+                     "git_unsafe_calls", "verify_runs", "agent_test_runs") + INTERVIEW_KEYS, LOWER),
     **dict.fromkeys(("cache_hit_rate", "tasks_done", "hidden_passed", "completed", "plan_coverage",
                      "first_pass_rate", "accept", "prd_fidelity", "conflict_found", "gap_recorded",
                      "traceability", "docs_dispatched", "protocol_adherence", "docs_first", "first_pass",

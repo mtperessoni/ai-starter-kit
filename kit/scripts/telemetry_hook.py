@@ -34,6 +34,8 @@ TARGET_ARGS = re.compile(r"\b(?:pytest|jest|vitest|unittest)\b(.*)", re.S)
 WRAPPERS = re.compile(r"(^|[;&|(]\s*)(?:(?:env\s+)?(?:\w+=\S*\s+)*(?:rtk\s+(?:proxy\s+)?|timeout\s+\S+\s+|time\s+|nice\s+|nohup\s+|sudo\s+))+")
 NOT_IN_HASH = ("description", "timeout", "run_in_background")
 LOCK_WAIT_S, LOCK_STALE_S = 5.0, 10.0
+STUCK_ALIVE_S, STUCK_IDLE_S, STUCK_SCAN_EVERY_S, STUCK_LOOKBACK = 1800, 600, 60, 1048576
+TOOL_EVENTS = ("PreToolUse", "PostToolUse", "PostToolUseFailure")
 
 
 def redact(text):
@@ -292,6 +294,55 @@ def cap(path, max_mb, now):
         f.write(json.dumps(marker) + "\n" + "\n".join(keep) + "\n")
 
 
+def scan_stuck(path, now):
+    """agent_stuck events for subagents alive past STUCK_ALIVE_S or without a tool event for STUCK_IDLE_S, once per agent and reason."""
+    try:
+        with open(path, "rb") as f:
+            f.seek(0, os.SEEK_END)
+            f.seek(max(0, f.tell() - STUCK_LOOKBACK))
+            lines = f.read().splitlines()
+    except OSError:
+        return []
+    live, reported = {}, set()
+    for line in lines:
+        try:
+            d = json.loads(line)
+        except ValueError:
+            continue
+        agent = d.get("agent") if isinstance(d, dict) else None
+        if not agent or agent == "main":
+            continue
+        ev = d.get("ev")
+        if ev == "SubagentStart":
+            live[agent] = {"start": d["ts"], "last": d["ts"], "atype": d.get("atype"), "sid": d.get("sid")}
+        elif ev == "SubagentStop":
+            live.pop(agent, None)
+        elif ev == "agent_stuck":
+            reported.add((agent, d.get("reason")))
+        elif ev in TOOL_EVENTS and agent in live:
+            live[agent]["last"] = d["ts"]
+    out = []
+    for agent, a in live.items():
+        alive, idle = now - a["start"], now - a["last"]
+        for reason, over in (("idle", idle > STUCK_IDLE_S), ("alive", alive > STUCK_ALIVE_S)):
+            if over and (agent, reason) not in reported:
+                out.append({"ts": now, "ev": "agent_stuck", "sid": a["sid"], "agent": agent, "atype": a["atype"], "reason": reason,
+                            "alive_min": round(alive / 60, 1), "idle_min": round(idle / 60, 1)})
+    return out
+
+
+def stuck_events(folder, path, now):
+    marker = os.path.join(folder, ".stuck_scan")
+    try:
+        if now - os.path.getmtime(marker) < STUCK_SCAN_EVERY_S:
+            return []
+    except OSError:
+        pass
+    with open(marker, "w", encoding="utf8") as f:
+        f.write(str(now))
+    return scan_stuck(path, now)
+
+
 def write_meta(folder, ctx, e):
     path = os.path.join(folder, "meta.json")
     try:
@@ -366,6 +417,9 @@ def main():
         e["seq"] = next_seq(path)
         with open(path, "a", encoding="utf8") as f:
             f.write(json.dumps(e) + "\n")
+            for i, extra in enumerate(stuck_events(folder, path, now), 1):
+                extra.update(repo=root, seq=e["seq"] + i)
+                f.write(json.dumps(extra) + "\n")
         cap(path, max_mb, now)
         if e["ev"] in ("SessionStart", "SessionEnd"):
             write_meta(folder, ctx, e)

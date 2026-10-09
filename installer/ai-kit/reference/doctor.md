@@ -1,6 +1,6 @@
 # doctor
 
-Read-only. Reports, in at most 25 lines, what drifted from the kit and from its own rules. Never edits.
+Read-only. Reports, in at most 30 lines, what drifted from the kit and from its own rules. Never edits.
 
 | Check | How |
 |---|---|
@@ -24,6 +24,10 @@ Read-only. Reports, in at most 25 lines, what drifted from the kit and from its 
 | Hand HTML under generated | `repo.md` `html_mode` is `generated` and `build_prd_html.py --check` fails: the HTML was edited by hand, rebuild it instead |
 | Commit trailers | `scripts/gates.sh trailers` on the last 20 commits; missing `Rules:` or `Case: none` is drift |
 | prd-flow agents | `.claude/agents/prd-flow-surveyor.md`, `-docs`, `-executor`, `-reviewer` and `-recheck` all exist; a missing one is drift, fixed by `/ai-kit update` |
+| Settings deny list (BE1, M12) | `scripts/gates.sh settings-check`: a `permissions.deny` rule in `.claude/settings.json` or `settings.local.json` on Read, Edit or Write of `docs/prd/**`, `docs/trd/**`, `changes/**` or `.claude/prd-flow/state/**` is drift (exit 1 lists the rules). Also list the permission prompts the flow would trigger: a command the instructions run (`scripts/gates.sh`, `git add`, `git commit -F`, the `gate.py` and `promote.py` calls) that no `allow` entry covers, and a `deny` rule that matches one of them |
+| Setup current | `scripts/gates.sh setup` runs clean on a fresh state (dependencies in sync with the lockfile); a failure or an unset `commands.setup` is drift |
+| Base green | `scripts/gates.sh lint` and `scripts/gates.sh imports` on the base branch: a red base is reported first, before any other drift, because every delivery would start from it. `commands.fix_file` and `commands.lint_file` set and containing `{files}` |
+| Guard hook | The five prd-flow agent files carry the `hooks:` frontmatter that runs `scripts/guard_hook.py`; `scripts/guard_hook.py` and `scripts/reap.py` exist; `.claude/settings.json` does not register `guard_hook.py` (it belongs in the agents, so it costs nothing elsewhere); `scripts/next_change_number.py` and `scripts/settings_check.py` exist |
 | Leftover workers | `.claude/skills/prd-flow/reference/workers/` exists: drift, fixed by `/ai-kit update` |
 | SKILL.md sizes | Every `.claude/skills/*/SKILL.md` is within `ai-kit.json` `limits.skill_md_bytes` or listed in `allowlist.skill_md_bytes` (`scripts/gates.sh ratchet`) |
 | Global block | `~/.claude/CLAUDE.md` contains the kit block (between the `ai-kit` markers) |

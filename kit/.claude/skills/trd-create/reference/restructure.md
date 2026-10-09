@@ -1,6 +1,6 @@
 # Restructuring plan (N5, optional)
 
-Optional (AR20, PC09): offer it with its cost after the readiness plan (`reference/readiness.md`); the repository may keep its layout. The target tree X02 is the recommended one, and the move can be incremental, one area at a time (C6 per area). When the code is not organized by feature, the maps can only describe the spread. The fix is a structure-only refactor (prd-flow C6): behavior does not change, files move into one folder per PRD area, giant files split, generic names disappear. In the source repository this took modules over 500 lines from 18 to 1 and made related-test runs cheap enough to stop running the full suite per task.
+Optional (AR20): offer it with its cost after the readiness plan (`reference/readiness.md`); the repository may keep its layout. The target tree X02 is the recommended one, and the move can be incremental, one area at a time (C6 per area). When the code is not organized by feature, the maps can only describe the spread. The fix is a structure-only refactor (prd-flow C6): behavior does not change, files move into one folder per PRD area, giant files split, generic names disappear. In the source repository this took modules over 500 lines from 18 to 1 and made related-test runs cheap enough to stop running the full suite per task.
 
 ## Rules
 | ID | Rule |

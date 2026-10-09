@@ -7,10 +7,12 @@
 Binding, and it wins over everything else in this repository. Full text: `.specify/memory/constitution.md`. Read the whole principle your change touches before writing code; the plan's `Constitution check` and the reviewer agents read the file in full.
 
 - **I. <Principle name> (NON-NEGOTIABLE).** <One line.>
-- **II. <Principle name>.** <One line.>
-- **III. Test-First With Deterministic Doubles (NON-NEGOTIABLE).** Failing test first, fakes for external services and models, the unit suite runs offline.
-- **IV. Documents Are the Source of Truth.** Behavior lives in `docs/prd/`, code maps in `docs/trd/`; a rule change updates them before the code.
-- **V. <Principle name>.** <One line.>
+- **II. Test-First With Deterministic Doubles (NON-NEGOTIABLE).** Failing test first, fakes for external services and models, the unit suite runs offline.
+- **III. Documents Are the Source of Truth.** Behavior lives in `docs/prd/`, code maps in `docs/trd/`; a rule change updates them before the code.
+- **IV. AI-Readable Code.** `docs/code-structure.md`, enforced by the ratchet and the linter rules.
+- **V. Bounded Agent Work.** Contracts, ceilings and review rounds; behavior changes go back to a person.
+- **VI. <Principle name>.** <One line.>
+- **VII. Secrets and Trust Boundaries.** No secret in source, prompt, config file or fixture; configuration is typed and validated at boot.
 
 ## Product rules flow
 
@@ -24,7 +26,9 @@ All code follows `docs/code-structure.md` (rules AR01 to AR28); `scripts/gates.s
 - **Size:** module up to 500 lines, function up to 80, class up to 300, test file up to 1,200. One responsibility per file, named after it and unique in the repo; never `helpers`, `utils`, `shared`, `common`, `misc`, `state`.
 - **Shape:** composition over mixins; explicit state, no shared mutable closures; re-export only in an area's public entry.
 - **Traceability:** every module of an area cites the PRD IDs it implements, every test the ID it proves; update the area's map and TRD in the same commit as the code.
-- **Tests:** where the stack expects them, beside the code or its mirrored tree (AR10); mocks target the module of the caller. While working, run only the tests related to what you touched; the full suite runs once, at the end of a delivery.
+- **Tests:** where the stack expects them, beside the code or its mirrored tree (AR10); mocks target the module of the caller. A person may run `scripts/gates.sh related`; a prd-flow executor runs only its own test plus `gates.sh fix-files` and `lint-files` on its files; the chief runs one `gates.sh verify` per wave; the full suite runs once, at the end of a delivery.
+- **Processes:** long commands run in the background with an explicit timeout longer than the run; never kill processes by image name (`taskkill /IM`, `pkill`, `killall`), use `scripts/gates.sh reap`.
+- **Returns:** every prd-flow agent returns at most 20 lines with the five fields `Status`, `Files:`, `Commit:`, `Route:`, `Next:`.
 - **Moving code:** by script (line ranges or AST), never retyped.
 - **Language:** everything in English: code, docs, PRD, TRD, artifacts, commits.
 

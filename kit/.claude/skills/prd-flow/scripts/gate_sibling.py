@@ -3,7 +3,7 @@
 import re
 from pathlib import Path
 
-from gate_core import PIPE, SEPARATOR, err, warn
+from gate_core import PIPE, SEPARATOR, err
 
 
 def shared_section(text: str) -> str:
@@ -37,7 +37,6 @@ def check_sibling(root: Path, repo_md: Path) -> None:
     for folder, sibling in shared_rows(repo_md):
         mine, theirs = root / folder, root / sibling
         if not theirs.is_dir():
-            warn("G28", f"sibling path {sibling} for {folder} does not exist locally; not compared")
             continue
         if not mine.is_dir():
             err("G28", f"{folder} does not exist in this repository")

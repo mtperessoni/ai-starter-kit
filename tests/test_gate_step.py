@@ -9,7 +9,7 @@ ORDERS = "docs/prd/shop/05-orders.md"
 RULES = "state/orders/approved-rules.md"
 APPROVED = "# Approved\n\n## shop/05-orders.md\n| ID | Rule | Source | Change via |\n|---|---|---|---|\n| ORD-03 | Orders can be reopened. | planned | code |\n"
 TRD = "# TRD\n\n| File | Role | Main symbols | IDs |\n|---|---|---|---|\n| `src/nowhere/missing.py` | gone | `gone` | ORD-01 |\n\n## Planned\nRules: ORD-77\n"
-PLAN = "# Plan\n\n## Plan execution rules\n- x\n\n### T01 · do it\nContract: ORD-01\n"
+PLAN = "# Plan\n\n### T01 · do it\nContract: ORD-01\n"
 
 
 class StepTest(unittest.TestCase):
@@ -31,7 +31,6 @@ class StepTest(unittest.TestCase):
         r = self.p.py(GATE, "--step", "prd", "--rules", RULES, "--applied")
         self.assertEqual(r.returncode, 1, r.stdout)
         self.assertIn("ERROR G4", r.stdout)
-        self.assertIn("ERROR Q3", r.stdout)
         self.assertIn("ERROR Q4", r.stdout)
         self.assertEqual(r.stdout.count("gate:"), 1, r.stdout)
 

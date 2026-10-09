@@ -11,7 +11,7 @@ PIPE = re.compile(r"(?<!\\)\|")
 SEPARATOR = re.compile(r"^\|[\s|:-]+$")
 RANGE = re.compile(r"([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*)-(\d+)(?:\.\.(\d+))?")
 EM_DASH = chr(0x2014)
-PACK_SECTIONS = ["Rules", "TRD", "Invariants", "Principles", "Divergences", "Pre-interview"]
+PACK_SECTIONS = ["Rules", "TRD", "Invariants", "Principles", "Divergences"]
 TASK = re.compile(r"^### (T\d+[a-z]?)\b", re.M)
 DEFAULTS = {
     "base_branch": "main",
@@ -35,7 +35,7 @@ DEFAULTS = {
     "trd_budget_lines": "250",
     "prd_section_budget_lines": "200",
     "plan_strict": "no",
-    "question_lint": "warn",
+    "sheet_labels": "",
     "plain_words": "flag, key, handler, payload, endpoint, enum",
     "shared_files": "",
 }
@@ -81,7 +81,7 @@ FIXES = {
     "P9": "add the path to the Owns: line of the task",
     "Q1": "rewrite the pack section so it matches the PRD literally",
     "Q2": "fix the row in approved-rules.md",
-    "Q3": "rewrite interview.md in the skeleton shown",
+    "Q3": "add the missing row to '## Resolution' of answers.md, or ask the mechanism in the sheet",
     "Q4": "edit the PRD row to equal the approved row",
     "Q5": "add or correct the row of the ID under '## Conflicts' of approved-rules.md",
 }

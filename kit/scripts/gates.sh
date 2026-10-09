@@ -7,6 +7,7 @@
 # "offline" number into the full number, and two equal numbers looked like
 # confirmation. The safe path is the invoked one.
 set -euo pipefail
+export PYTHONUTF8=1
 
 cd "$(git rev-parse --show-toplevel)"
 LOG_DIR=".claude/prd-flow/state/_tests"
@@ -33,22 +34,32 @@ usage: scripts/gates.sh <target> [args]
                    the offline failures at a commit (default HEAD), run in a throwaway worktree, cached by commit plus lockfile,
                    with a lock and a no-progress watchdog; tests.baseline_deselect is skipped; run it as a background Bash (completion event);
                    --bg (detached, no event) is kept for compatibility, not recommended
-  compare <slug>   run offline and print only failures that are not in the baseline
+  compare <slug>   run offline and print only failures that are not in the baseline; fails when the run ends without its summary line;
+                   a run of the same test content (source and test folders, lockfiles, dirty diff) is reused from state/_compare/<hash>
   rerun <slug> <id>...  rerun only those failing ids against the baseline (the close step does it for a fresh full run)
   verify <slug> [--since REF]
                    one verification per wave or batch: related tests of every file changed since the ref (default: the last verification,
                    else the plan commit, else the base branch), the structure tests and the docs gate; log, short summary and
                    verify.stamp; a rerun with nothing changed reruns only what failed
+  reap [--older-than <min>] [--dry-run]
+                   kill, by PID tree, this session's stdin-waiting or older-than-N-minutes (default 20) processes; never a baseline|compare|verify tree;
+                   prints "reaped: <n>" and "left: 0" or the survivors
   python           print the resolved interpreter (the one every target uses)
   lint             verify lint, format and types, as CI does; one line: lint ok, or lint FAILED (exit N), log <path>
   fix              repair lint and format; same one-line result (then run lint)
+  fix-files <file>...   fix only those files (commands.fix_file with {files}, in chunks); unset runs fix with a note
+  lint-files <file>...  lint only those files (commands.lint_file with {files}, in chunks); unset runs lint with a note
+  move <source> <start> <end> <destination> [--at LINE]
+                   move lines by script (scripts/move_lines.py, same arguments), never retyped
+  settings-check   .claude/settings*.json deny rules that block files the flow writes (docs/prd, docs/trd, changes, state); exit 1 with the lines
   imports          the import check (catches cycles); same one-line result
   ratchet          structure ratchet (docs/code-structure.md)
   docs [slug|args] the prd-flow docs gate; a slug runs every check of the change in one process (gate.py --docs)
   html [args]      rebuild the PRD and TRD HTML pages (build_prd_html.py, build_trd_html.py); --check verifies both
-  close [slug]     the closing ceremony in one block (retro findings and failure lines included): compare against the baseline
-                   (a fresh full run of this commit is reused), lint, trailers, docs --final, retro; full log in
-                   .claude/prd-flow/state/_close/<slug>.log; exit 1 on a failure
+  close [slug] [--case C2..C6]
+                   the closing ceremony in one block (retro findings and failure lines included): lint, trailers, docs --final, then the
+                   compare result against the baseline (read once, never run inline), retro; full log, written per step, in
+                   .claude/prd-flow/state/_close/<slug>.log; exit 1 on a failure; --case C4 skips the compare and baseline steps
   trailers [range] commits touching the source folders carry Rules: or Case: none (default origin/<base>..HEAD)
   context <name>   name the run context (.ai-kit/runs/current) for the telemetry
   retro [args]     the run retrospective (scripts/retro.py): --context <name>, --prune
@@ -85,6 +96,7 @@ resolve_python() {
         return 0
     fi
     [ -f ai-kit.json ] && configured="$(sed -n 's/.*"python"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' ai-kit.json | head -n 1)"
+    configured="${configured//\\\\/\\}"
     case "$configured" in
     "" | "<"*) ;;
     *)
@@ -109,6 +121,26 @@ cmd() {
     "$PY" scripts/config_get.py "commands.$1"
 }
 
+# The run keys, read in one Python process: CFG_TEST, CFG_OFFLINE_ARGS, CFG_FAST (tests.fast_flags, for example "--no-cov -n auto":
+# added to baseline and compare only when the project declares them), CFG_UNSET, CFG_FLAG.
+CFG_LOADED=0
+CFG_TEST="" CFG_OFFLINE_ARGS="" CFG_FAST="" CFG_UNSET="" CFG_FLAG=""
+load_run_config() {
+    local line
+    if [ "$CFG_LOADED" -eq 1 ]; then return 0; fi
+    while IFS= read -r line; do
+        line="${line%$'\r'}"
+        case "$line" in
+        commands.test=*) CFG_TEST="${line#*=}" ;;
+        commands.offline_args=*) CFG_OFFLINE_ARGS="${line#*=}" ;;
+        tests.fast_flags=*) CFG_FAST="${line#*=}" ;;
+        commands.offline_unset=*) CFG_UNSET="${line#*=}" ;;
+        commands.offline_flag=*) CFG_FLAG="${line#*=}" ;;
+        esac
+    done < <("$PY" scripts/config_get.py --many commands.test commands.offline_args tests.fast_flags commands.offline_unset commands.offline_flag)
+    CFG_LOADED=1
+}
+
 gate_has() {
     local help
     help="$("$PY" -B "$GATE_PY" --help 2>&1 || true)"
@@ -124,6 +156,42 @@ checked() {
     return "$code"
 }
 
+# files_target <name> <fileKey> <wholeKey> <files...>: commands.<fileKey> with {files} on those files only, in chunks of
+# 25 so a Windows command line stays short; unset (empty or a placeholder) falls back to commands.<wholeKey> with a note.
+files_target() {
+    local name="$1" key="$2" whole="$3" tpl line rest chunk n code=0 log="$LOG_DIR/$1.log"
+    shift 3
+    [ $# -ge 1 ] || { echo "usage: gates.sh $name <file>..." >&2; exit 2; }
+    tpl="$("$PY" scripts/config_get.py "commands.$key" "")"
+    case "$tpl" in
+    "" | "<"*)
+        echo "gates.sh: commands.$key is not set in ai-kit.json, running commands.$whole on the whole repository" >&2
+        checked "$name" "$(cmd "$whole")"
+        return
+        ;;
+    esac
+    case "$tpl" in *'{files}'*) ;; *) tpl="$tpl {files}" ;; esac
+    : > "$log"
+    while [ $# -gt 0 ]; do
+        chunk=""
+        n=0
+        while [ $# -gt 0 ] && [ "$n" -lt 25 ]; do
+            chunk="$chunk $(printf '%q' "$1")"
+            shift
+            n=$((n + 1))
+        done
+        line=""
+        rest="$tpl"
+        while [[ "$rest" == *'{files}'* ]]; do
+            line="$line${rest%%\{files\}*}$chunk"
+            rest="${rest#*\{files\}}"
+        done
+        bash -c "$line$rest" >> "$log" 2>&1 || code=$?
+    done
+    if [ "$code" -eq 0 ]; then echo "$name ok"; else echo "$name FAILED (exit $code), log $log"; fi
+    return "$code"
+}
+
 # Every test and build target runs through the probe: same output, same exit code, plus one resources line.
 probe() {
     local label="$1"
@@ -135,8 +203,9 @@ probe() {
 offline() {
     local label="$1" args=() v
     shift
-    for v in $(cmd offline_unset); do args+=(-u "$v"); done
-    env "${args[@]}" "$(cmd offline_flag)=1" "$PY" scripts/run_probe.py --label "$label" -- "$@"
+    load_run_config
+    for v in $CFG_UNSET; do args+=(-u "$v"); done
+    env "${args[@]}" "${CFG_FLAG:-OFFLINE_ONLY}=1" "$PY" scripts/run_probe.py --label "$label" -- "$@"
 }
 
 # offline_sh <label> <configured command string> <args...>: the string is configuration; the args reach it quoted, as "$@".
@@ -250,6 +319,9 @@ verify)
     [ $# -ge 1 ] || { echo "usage: gates.sh verify <slug> [--since REF]" >&2; exit 2; }
     GATES_BASH="$(cygpath -w "$BASH" 2>/dev/null || printf %s "$BASH")" "$PY" scripts/verify.py "$@"
     ;;
+reap)
+    "$PY" scripts/reap.py "$@"
+    ;;
 python)
     echo "$PY"
     ;;
@@ -257,11 +329,35 @@ compare)
     slug="${1:?usage: gates.sh compare <slug>}"
     dir=".claude/prd-flow/state/$slug"
     mkdir -p "$dir"
-    rm -f "$dir/final.stamp"
-    offline_sh offline "$(cmd test) $(cmd offline_args) $("$PY" scripts/config_get.py --deselect)" > "$dir/final.log" 2>&1 || true
-    "$PY" scripts/close_gate.py --stamp > "$dir/final.stamp"
+    rm -f "$dir/final.stamp" "$dir/exit"
+    "$PY" scripts/close_gate.py --stamp > "$dir/final.stamp.pending"
+    content="$("$PY" scripts/close_gate.py --hash)"
+    cache=".claude/prd-flow/state/_compare/$content"
+    compare_code=0
+    load_run_config
+    if [ -f "$cache/final.log" ] && [ -f "$cache/exit" ]; then
+        cp "$cache/final.log" "$dir/final.log"
+        compare_code="$(cat "$cache/exit")"
+        echo "compare: reused the full run of the same test content ${content:0:12}"
+    else
+        printf 'running\n' > "$dir/compare.status"
+        trap 'rm -f "$dir/compare.status"' EXIT
+        offline_sh offline "$CFG_TEST $CFG_OFFLINE_ARGS $CFG_FAST $("$PY" scripts/config_get.py --deselect)" > "$dir/final.log" 2>&1 || compare_code=$?
+        if "$PY" scripts/new_failures.py --require-summary "$dir/final.log" > /dev/null; then
+            mkdir -p "$cache"
+            printf '%s\n' "$compare_code" > "$cache/exit"
+            cp "$dir/final.log" "$cache/final.log.tmp"
+            mv -f "$cache/final.log.tmp" "$cache/final.log"
+        fi
+    fi
+    printf '%s\n' "$compare_code" > "$dir/exit"
+    mv -f "$dir/final.stamp.pending" "$dir/final.stamp"
     tail -n 1 "$dir/final.log"
-    "$PY" scripts/new_failures.py "$dir/baseline-failures.txt" "$dir/final.log"
+    if ! "$PY" scripts/new_failures.py --require-summary "$dir/final.log" > /dev/null; then
+        echo "compare FAILED: suite ended without its summary line (runner exit $compare_code), log $dir/final.log"
+        exit 1
+    fi
+    "$PY" scripts/new_failures.py --exit-code "$compare_code" "$dir/baseline-failures.txt" "$dir/final.log"
     ;;
 rerun)
     slug="${1:?usage: gates.sh rerun <slug> <id>...}"
@@ -269,7 +365,10 @@ rerun)
     dir=".claude/prd-flow/state/$slug"
     mkdir -p "$dir"
     rerun_code=0
-    offline_sh offline "$(cmd test) $(cmd offline_args) $("$PY" scripts/config_get.py --deselect)" "$@" > "$dir/rerun.log" 2>&1 || rerun_code=$?
+    load_run_config
+    rm -f "$dir/rerun.exit"
+    offline_sh offline "$CFG_TEST $CFG_OFFLINE_ARGS $("$PY" scripts/config_get.py --deselect)" "$@" > "$dir/rerun.log" 2>&1 || rerun_code=$?
+    printf '%s\n' "$rerun_code" > "$dir/rerun.exit"
     tail -n 1 "$dir/rerun.log"
     new_code=0
     "$PY" scripts/new_failures.py "$dir/baseline-failures.txt" "$dir/rerun.log" || new_code=$?
@@ -284,6 +383,18 @@ lint)
     ;;
 fix)
     checked fix "$(cmd fix)"
+    ;;
+fix-files)
+    files_target fix-files fix_file fix "$@"
+    ;;
+lint-files)
+    files_target lint-files lint_file lint "$@"
+    ;;
+move)
+    "$PY" scripts/move_lines.py "$@"
+    ;;
+settings-check)
+    "$PY" scripts/settings_check.py "$@"
     ;;
 imports)
     checked imports "$(cmd import_check)"

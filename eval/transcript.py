@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 
 import costs
+import interview_metrics
 import protocol
 
 USAGE_KEYS = ("input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens")
@@ -258,6 +259,8 @@ def summarize(path, carry=None):
     clean = review_fix_rounds == 0 and not flow["gate_reruns_after_fail"] and not flow["redispatches"]
     return {
         **flow,
+        **interview_metrics.analyze(events),
+        **interview_metrics.detail_metrics(detail),
         "main_only_min": max(0.0, wall_min - agent_min) if wall_min is not None else None,
         "rework_actions": rework,
         "first_pass_clean": clean,
@@ -331,6 +334,8 @@ def summarize_phases(paths):
         out[k] = _add([p.get(k) for p in parts])
     for k in ("subagent_detail", "assistant_texts", "wave_widths"):
         out[k] = [x for p in parts for x in p.get(k) or []]
+    out.update(interview_metrics.merge(parts))
+    out.update(interview_metrics.detail_metrics(out["subagent_detail"]))
     roles = [p["cost_by_role"] for p in parts if p.get("cost_by_role")]
     out["cost_by_role"] = {k: sum(r.get(k, 0.0) for r in roles) for k in {x for q in roles for x in q}} if roles else None
     out["skills"] = sorted({x for p in parts for x in p.get("skills") or []})

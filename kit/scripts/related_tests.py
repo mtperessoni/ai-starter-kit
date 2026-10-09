@@ -1,4 +1,4 @@
-"""Related tests of a change (rule TS02): the mirror test of each changed module and the tests that use it.
+"""Related tests of a change: the mirror test of each changed module and the tests that use it.
 
 Usage: python scripts/related_tests.py [files...] [--base REF] [--run]
 Without files, the change is: committed since the merge-base with REF (default origin/main), plus
@@ -170,7 +170,8 @@ def related(root: Path, cfg: dict, changed: list[str]) -> list[str]:
         mirrors = {rel(t, root) for t in tests if any(test_name(t) in mirror_names(m, cfg) or stem(t) in mirror_names(m, cfg) for m in modules)}
         picked = {f for f in picked if f in changed} | mirrors
     picked |= always_files(root, cfg)
-    return sorted(picked)
+    exclude = cfg["tests"].get("related_exclude", [])
+    return sorted(f for f in picked if not matches(f, exclude))
 
 
 def always_files(root: Path, cfg: dict) -> set[str]:
@@ -247,21 +248,31 @@ def selection_key(root: Path, cfg: dict, files: list[str], changed: list[str]) -
 
 def run(root: Path, cfg: dict, files: list[str], changed: list[str]) -> int:
     native = cfg["tests"].get("native_related", "")
+    exts = set(cfg["code_extensions"])
+    changed = [f for f in changed if Path(f).suffix in exts]
+    if not changed:
+        print("related: no related tests")
+        return 0
+    always = always_files(root, cfg) & set(files)
     plan = []
     if native:
-        plan.append((native, "{changed}", changed))
-        extra = sorted(always_files(root, cfg) & set(files))
-        if extra:
-            plan.append((cfg["tests"]["runner"], "{files}", extra))
+        plan.append((native, "{changed}", changed, True))
+        if always:
+            plan.append((cfg["tests"]["runner"], "{files}", sorted(always), False))
     elif files:
-        plan.append((cfg["tests"]["runner"], "{files}", files))
+        plan.append((cfg["tests"]["runner"], "{files}", [f for f in files if f not in always], True))
+        if always:
+            plan.append((cfg["tests"]["runner"], "{files}", sorted(always), False))
+        plan = [entry for entry in plan if entry[2]]
     else:
         print("related: no related tests")
         return 0
     log_dir = root / cfg["tests"]["log_dir"]
     log_dir.mkdir(parents=True, exist_ok=True)
-    log = log_dir / "related.log"
-    cache = log_dir / "related.cache.json"
+    slug = re.sub(r"[^\w.-]", "-", os.environ.get("AI_KIT_CONTEXT", "").strip())
+    suffix = f"-{slug}" if slug else ""
+    log = log_dir / f"related{suffix}.log"
+    cache = log_dir / f"related.cache{suffix}.json"
     key = selection_key(root, cfg, files, changed)
     try:
         saved = json.loads(cache.read_text(encoding="utf-8"))
@@ -273,15 +284,17 @@ def run(root: Path, cfg: dict, files: list[str], changed: list[str]) -> int:
             print(line)
         return 0
     limit = cfg["tests"].get("related_cmd_chars", CMD_CHARS)
-    started = time.monotonic()
+    elapsed = 0.0
     code = 0
     with log.open("w", encoding="utf-8") as out:
-        for template, placeholder, items in plan:
+        for template, placeholder, items, timed in plan:
             for argv in chunked_commands(template, placeholder, items, limit):
                 argv[0] = shutil.which(argv[0]) or argv[0]
+                started = time.monotonic()
                 returned = subprocess.run(argv, shell=False, cwd=root, stdout=out, stderr=subprocess.STDOUT, check=False).returncode  # noqa: S603
+                if timed:
+                    elapsed += time.monotonic() - started
                 code = code or returned
-    elapsed = time.monotonic() - started
     failure = re.compile(cfg["tests"]["failure_regex"])
     lines = log.read_text(encoding="utf-8", errors="replace").splitlines()
     summary = [line for line in lines if failure.search(line)] + [lines[-1] if lines else "(empty log)"]

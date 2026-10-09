@@ -92,7 +92,7 @@
     "crowded_dirs": {},
     "skill_md_bytes": {
       ".claude/skills/prd-create/SKILL.md": 8244,
-      ".claude/skills/trd-create/SKILL.md": 8285
+      ".claude/skills/trd-create/SKILL.md": 8218
     },
     "generated_without_marker": [],
     "invariant_gaps": 0
@@ -108,6 +108,8 @@
     "no_coverage_args": "<args that disable the coverage threshold, for example: --no-cov>",
     "lint": "<verify only, for example: uv run ruff check . && uv run ruff format --check . && uv run mypy src>",
     "fix": "<repair, for example: uv run ruff check --fix . && uv run ruff format .>",
+    "fix_file": "<repair only the given files, {files} is replaced by the paths, for example: uv run ruff check --fix {files} && uv run ruff format {files}>",
+    "lint_file": "<verify only the given files, {files} is replaced by the paths, for example: uv run ruff check {files} && uv run ruff format --check {files}>",
     "import_check": "<catches import cycles, for example: uv run python -c \"import main\">",
     "setup": "<makes a fresh clone or worktree ready to test, for example: uv sync --frozen>",
     "offline_unset": [
@@ -121,6 +123,9 @@
     "runner": "<runs the given test files offline without coverage, for example: uv run pytest {files} --no-cov -q>",
     "native_related": "",
     "failure_regex": "^(?:FAILED|ERROR)\\s+(\\S+)",
+    "summary_regex": "",
+    "fast_flags": [],
+    "test_dirs": [],
     "log_dir": ".claude/prd-flow/state/_tests",
     "mirror_patterns": [
       "test_{name}",
@@ -140,6 +145,7 @@
     "baseline_deselect": [],
     "baseline_idle_seconds": 300,
     "always": [],
+    "related_exclude": [],
     "snapshot_patterns": [
       "**/__snapshots__/**",
       "**/*.snap",

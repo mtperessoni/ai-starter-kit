@@ -25,7 +25,7 @@ Parsed by `scripts/gate.py`. Keep the two-column table format and the key names.
 | proposed_marker | proposed |
 | plain_words | flag, key, handler, payload, endpoint, enum |
 | plan_strict | no |
-| question_lint | warn |
+| sheet_labels | What changes in the rules, What does not change, Assumed, Decisions, How to answer, Today:, Why it matters:, Example:, (Recommended) |
 | shared_files |  |
 | html_mode | generated |
 | html_template | docs/templates/prd.html |
@@ -33,7 +33,7 @@ Parsed by `scripts/gate.py`. Keep the two-column table format and the key names.
 | trd_budget_lines | 250 |
 | prd_section_budget_lines | 200 |
 
-`plain_words`: words the user never says; the question lint (Q8) flags them in a prepared question. `plan_strict`: `yes` makes the plan alignment checks P11 and P13 to P16 errors instead of warnings. `question_lint`: `error` makes Q6 to Q9 errors instead of warnings. `shared_files`: comma-separated files several tasks tend to touch (settings, allowlists, config modules); the wave gate P17 fails when two tasks of one wave touch the same one.
+`sheet_labels`: the headings and field labels of `sheet.md` in this order (comma list); the sheet lint reads them, so a repository in another `language` translates them here. `plain_words`: words the user never says; the sheet lint (S4) flags them in a decision title or option. `plan_strict`: `yes` makes the plan alignment checks P11 and P13 to P16 errors instead of warnings. `shared_files`: comma-separated files several tasks tend to touch (settings, allowlists, config modules); the wave gate P17 fails when two tasks of one wave touch the same one.
 
 `prd_section_budget_lines`: lines a PRD section file may have before G31 warns; a section over it splits into smaller section files, so the rows a change reads stay bounded as the product grows.
 
@@ -47,7 +47,7 @@ Parsed by `scripts/gate.py`. Keep the two-column table format and the key names.
 
 `trd_budget_lines`: lines a TRD file may have before G26 warns; an area over it splits into parts (`reference/trd-planned.md`).
 
-`language`: language of the PRD and TRD prose, the interview and the gate output. IDs, code, commits and file names stay English. The installer sets it from the language of the existing docs.
+`language`: language of the PRD and TRD prose, the decision sheet and the gate output. IDs, code, commits and file names stay English. The installer sets it from the language of the existing docs.
 
 `planned_heading`: the level-2 TRD heading that lists rules not built yet; G8 checks the IDs under it and G20 fails `--final` while it exists. Set it to the project's own word (for example `Planejado`).
 
@@ -70,8 +70,8 @@ Always through `scripts/gates.sh`; the stack commands behind each target are in 
 | Lint, repair | `scripts/gates.sh fix`, then `lint` |
 | Import and cycle check | `scripts/gates.sh imports` |
 | Structure ratchet | `scripts/gates.sh ratchet` |
-| Python interpreter | `python` |
-| Move code by line range | `python scripts/move_lines.py <source> <start> <end> <destination> [--at LINE]` |
+| Python interpreter | the output of `scripts/gates.sh python` |
+| Move code by line range (C6 only) | `scripts/gates.sh move <source> <start> <end> <destination> [--at LINE]` |
 
 ## Layout
 
@@ -114,7 +114,7 @@ What a request cannot change by itself. Used by `reference/impact.md`.
 | `<principle>` | constitution `<numeral>` | `<ADR / constitution amendment / no exception>` |
 | Invariant covered by a structural test | `docs/trd/invariants.md` | Changing it is a repository rule change: ADR or constitution amendment |
 
-## Variants and tenants (impact K03, K04; interview D02, D03)
+## Variants and tenants (impact K03, K04)
 
 | Item | Where it is documented | Notes |
 |---|---|---|
@@ -123,7 +123,7 @@ What a request cannot change by itself. Used by `reference/impact.md`.
 
 ## Rule owners
 
-Who decides on a section. When a change touches an owned section and the approver is not the owner, the confrontation names the owner, step 4 does not close until the user states the owner agreed, and the CHANGELOG records `decided by <owner>, written by <approver>`. Delete the rows when nobody owns a section.
+Who decides on a section. When a change touches an owned section and the approver is not the owner, the sheet carries an owner item and the change does not proceed until the user states the owner agreed, and the CHANGELOG records `decided by <owner>, written by <approver>`. Delete the rows when nobody owns a section.
 
 | PRD files (glob) | Owner | How they approve |
 |---|---|---|
@@ -136,14 +136,6 @@ PRD folders kept identical in a sibling repository. `gate.py --sibling` fails G2
 | PRD folder | Sibling repository path | Source of truth |
 |---|---|---|
 | `<docs/prd/triage-documents>` | `<C:/Projects/backend/docs/prd/triage-documents>` | `<this repository or the sibling>` |
-
-## Extra interview dimensions
-
-Domain dimensions added after D15 of `reference/interview.md`.
-
-| ID | Dimension | Guiding question |
-|---|---|---|
-| D16 | `<for example: Pricing>` | `<does the change affect what the customer pays?>` |
 
 ## Consumers in sibling repositories (impact K08)
 

@@ -45,21 +45,20 @@ class GateHtmlPolicyTest(unittest.TestCase):
     def builder(self, body: str = CURRENT) -> None:
         (self.p.root / BUILDER).write_text(body, encoding="utf-8")
 
-    def test_default_run_generated_stale_page_is_a_warning_with_the_docs_html_fix(self) -> None:
+    def test_default_run_generated_stale_page_is_not_printed(self) -> None:
         self.builder()
         self.page("<p>stale</p>\n")
         r = self.p.py(GATE)
         self.assertEqual(r.returncode, 0, r.stdout)
-        self.assertIn("WARNING G29", r.stdout)
-        self.assertIn("fix: run /docs-html", r.stdout)
-        self.assertNotIn("ERROR G29", r.stdout)
+        self.assertNotIn("G29", r.stdout)
+        self.assertNotIn("/docs-html", r.stdout)
 
-    def test_default_run_generated_missing_page_is_a_warning(self) -> None:
+    def test_default_run_generated_missing_page_is_not_printed(self) -> None:
         self.builder("def is_current(root, cfg):\n    return False\n")
         (self.p.root / PAGE).unlink()
         r = self.p.py(GATE)
         self.assertEqual(r.returncode, 0, r.stdout)
-        self.assertIn("WARNING G29", r.stdout)
+        self.assertNotIn("G29", r.stdout)
 
     def test_default_run_generated_current_page_is_silent(self) -> None:
         self.builder()
@@ -139,14 +138,13 @@ class GateHtmlPolicyTest(unittest.TestCase):
         self.assertIn("ERROR G5", r.stdout)
         self.assertIn("docs-html builds only html_mode generated; migrate with /ai-kit update", r.stdout)
 
-    def test_default_run_stale_trd_page_is_a_g32_warning(self) -> None:
+    def test_default_run_stale_trd_page_is_not_printed(self) -> None:
         self.builder()
         self.page("<p>fresh</p>\n")
         self.trd_builder(False)
         r = self.p.py(GATE)
         self.assertEqual(r.returncode, 0, r.stdout)
-        self.assertIn(f"WARNING G32 {TRD_PAGE} is out of date", r.stdout)
-        self.assertIn("fix: run /docs-html", r.stdout)
+        self.assertNotIn("G32", r.stdout)
 
     def test_html_flag_stale_trd_page_is_a_g32_error(self) -> None:
         self.builder()

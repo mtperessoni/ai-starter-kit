@@ -199,6 +199,27 @@ class RobustTest(HookCase):
         self.assertLess(time.perf_counter() - t, 0.3)
 
 
+class NoExtraProcessTest(HookCase):
+    """G11: a known context (env or the context file) never costs a git or interpreter probe."""
+
+    def test_context_from_env_or_file_spawns_nothing(self):
+        from unittest import mock
+
+        sys.path.insert(0, str(HOOK.parent))
+        self.addCleanup(lambda: (sys.path.remove(str(HOOK.parent)), sys.modules.pop("telemetry_hook", None)))
+        import telemetry_hook as hook
+
+        runs = self.proj / ".ai-kit" / "runs"
+        runs.mkdir(parents=True)
+        (runs / "current").write_text("slug-x\n", encoding="utf8")
+        with mock.patch.object(hook.subprocess, "run", side_effect=AssertionError("spawned")):
+            with mock.patch.dict(os.environ, {"AI_KIT_CONTEXT": "slug-y"}):
+                self.assertEqual(hook.context(str(runs)), "slug-y")
+            with mock.patch.dict(os.environ):
+                os.environ.pop("AI_KIT_CONTEXT", None)
+                self.assertEqual(hook.context(str(runs)), "slug-x")
+
+
 class FoundInTheRealEvaluation(HookCase):
     """Defects the 2026-10-05 telemetry evaluation exposed in a real session with subagents."""
 
@@ -378,7 +399,7 @@ class LauncherTest(unittest.TestCase):
         if not bash:
             self.skipTest("bash not available")
         env = dict(os.environ, CLAUDE_PROJECT_DIR=proj.as_posix())
-        return subprocess.run([bash, "-c", self.launcher()], capture_output=True, text=True, env=env, timeout=30)
+        return subprocess.run([bash, "-s"], input=self.launcher() + "\n", capture_output=True, text=True, env=env, timeout=30)
 
     def test_commands_python_from_ai_kit_json_runs_the_hook(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -415,7 +436,7 @@ class LauncherTest(unittest.TestCase):
             if not bash:
                 self.skipTest("bash not available")
             env = dict(os.environ, CLAUDE_PROJECT_DIR=proj.as_posix(), PATH=bindir.as_posix() + os.pathsep + os.environ["PATH"])
-            r = subprocess.run([bash, "-c", self.launcher()], capture_output=True, text=True, env=env, timeout=30)
+            r = subprocess.run([bash, "-s"], input=self.launcher() + "\n", capture_output=True, text=True, env=env, timeout=30)
             self.assertEqual((r.returncode, r.stdout), (0, ""))
 
     def test_a_failing_stub_is_skipped_for_the_next_interpreter(self):
@@ -437,6 +458,56 @@ class LauncherTest(unittest.TestCase):
             if not bash:
                 self.skipTest("bash not available")
             env = dict(os.environ, CLAUDE_PROJECT_DIR=proj.as_posix(), PATH=bindir.as_posix() + os.pathsep + os.environ["PATH"])
-            r = subprocess.run([bash, "-c", self.launcher()], capture_output=True, text=True, env=env, timeout=30)
+            r = subprocess.run([bash, "-s"], input=self.launcher() + "\n", capture_output=True, text=True, env=env, timeout=30)
             self.assertEqual(r.returncode, 0)
             self.assertTrue((proj / "marker").is_file())
+
+
+class StuckAgentTest(HookCase):
+    CTX = "stk"
+
+    def seed(self, rows):
+        folder = self.proj / ".ai-kit" / "runs" / self.CTX
+        folder.mkdir(parents=True, exist_ok=True)
+        now = time.time()
+        lines = []
+        for i, (ago_min, ev, agent) in enumerate(rows, 1):
+            lines.append(json.dumps({"ts": now - ago_min * 60, "ev": ev, "agent": agent, "atype": "prd-flow-executor", "sid": "s1", "seq": i}))
+        (folder / "events.jsonl").write_text("\n".join(lines) + "\n", encoding="utf8")
+
+    def tick(self):
+        self.run_hook({"session_id": "s1", "hook_event_name": "UserPromptSubmit"}, {"AI_KIT_CONTEXT": self.CTX})
+        return [e for e in self.events(self.CTX) if e["ev"] == "agent_stuck"]
+
+    def test_an_agent_alive_past_30_minutes_is_reported(self):
+        self.seed([(40, "SubagentStart", "a1"), (1, "PostToolUse", "a1")])
+        stuck = self.tick()
+        self.assertEqual([(e["agent"], e["reason"]) for e in stuck], [("a1", "alive")])
+        self.assertGreaterEqual(stuck[0]["alive_min"], 39)
+        self.assertEqual(stuck[0]["atype"], "prd-flow-executor")
+
+    def test_an_agent_with_no_tool_event_for_10_minutes_is_reported(self):
+        self.seed([(15, "SubagentStart", "a1"), (12, "PostToolUse", "a1")])
+        stuck = self.tick()
+        self.assertEqual([(e["agent"], e["reason"]) for e in stuck], [("a1", "idle")])
+        self.assertGreaterEqual(stuck[0]["idle_min"], 11)
+
+    def test_a_healthy_or_stopped_agent_is_not_reported(self):
+        self.seed([(5, "SubagentStart", "a1"), (1, "PostToolUse", "a1"), (50, "SubagentStart", "a2"), (45, "SubagentStop", "a2")])
+        self.assertEqual(self.tick(), [])
+
+    def test_the_main_thread_is_never_reported(self):
+        self.seed([(60, "PreToolUse", "main")])
+        self.assertEqual(self.tick(), [])
+
+    def test_a_reported_agent_is_not_reported_twice(self):
+        self.seed([(40, "SubagentStart", "a1"), (1, "PostToolUse", "a1")])
+        self.assertEqual(len(self.tick()), 1)
+        (self.proj / ".ai-kit" / "runs" / self.CTX / ".stuck_scan").unlink(missing_ok=True)
+        self.assertEqual(len(self.tick()), 1)
+
+    def test_the_scan_is_throttled(self):
+        self.seed([(40, "SubagentStart", "a1")])
+        self.tick()
+        self.seed([(40, "SubagentStart", "a1"), (40, "SubagentStart", "a3")])
+        self.assertEqual([e["agent"] for e in self.tick()], [])

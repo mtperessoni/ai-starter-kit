@@ -1,6 +1,6 @@
 """Move code by line range, never retyped (rule AR12).
 
-Usage: python scripts/move_lines.py <source> <start> <end> <destination> [--at LINE]
+Usage: scripts/gates.sh move <source> <start> <end> <destination> [--at LINE]   (same arguments as this script)
 Cuts lines start..end (1-based, inclusive) from source and inserts them into destination before
 LINE, or appends them when --at is omitted. Creates destination if it does not exist. The model
 decides the map and fixes imports afterwards; this script only moves the bytes.

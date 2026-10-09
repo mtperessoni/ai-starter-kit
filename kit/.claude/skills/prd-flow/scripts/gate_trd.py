@@ -3,7 +3,7 @@
 import re
 from pathlib import Path
 
-from gate_core import SEPARATOR, cells, errors, expand, git, err, warn, warnings
+from gate_core import SEPARATOR, cells, errors, git, err, warn, warnings
 from gate_output import park
 
 EXTENSIONS = {
@@ -103,11 +103,6 @@ def check_row(rel: str, header: list[str], row: list[str], tracked: Tracked, g23
                 if m and not re.search(r"(?<![\w$])" + re.escape(m.group(0)) + r"(?![\w$])", blob):
                     warn("G24", f"{rel}: symbol `{m.group(0)}` not found in {where}")
             break
-    if "ids" in low:
-        cited = expand(blob) | set(re.findall(r"[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d+[a-z]?", blob))
-        for rid in sorted(expand(row[low.index("ids")])):
-            if rid not in cited:
-                warn("G25", f"{rel}: {rid} is not mentioned in {where}")
 
 
 def check_file(root: Path, f: Path, cfg: dict[str, str], tracked: Tracked) -> None:

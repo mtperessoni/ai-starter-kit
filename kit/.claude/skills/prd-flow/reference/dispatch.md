@@ -1,7 +1,6 @@
 # Dispatch (the chief's prompts, background, resume, cross-repo)
 
-Read once by the chief at the start of a run, with `repo.md`; it is the only reference the chief reads. The chief never reads the plan, a diff or a PRD row. Rule IDs (`rules/`): DP01 WF65, DP02 SA54, DP03 SA48, DP04 SA50, DP05 WF71, DP06 TS43, DP07 TS50, DP08 WF73 and DS46, DP09 WF72, DP10 to DP13 SA55, BR01 to BR07 behavior; round 0 is WF67.
-
+Read once by the chief at the start of a run, with `repo.md`; it is the only reference the chief reads. The chief never reads the plan or a diff, and reads only the PRD rows a sheet cites.
 ## Prompt template
 Short form, one line per dispatch:
 
@@ -10,30 +9,30 @@ Short form, one line per dispatch:
 | Part | Rule |
 |---|---|
 | `Repo:` | Alias from `.ai-kit/repos.json`; omitted in a single-repo run (DP10) |
-| `Python:` | The interpreter from the first surveyor's `Survey` line, added to every later prompt; none for the first surveyor |
-| Mode | surveyor `query\|light\|full\|short`; executor `task\|fix\|close`; reviewer `review`; recheck `recheck`; docs as returned |
+| `Python:` | The output of `scripts/gates.sh python`, run by the chief (its one extra Bash call) and added to every prompt; the only interpreter any prompt names |
+| Mode | surveyor `query\|light\|full\|short`; executor `task\|fix\|close`; reviewer `review`; recheck `recheck`; docs `apply\|apply merge\|adjust\|c4\|fold\|context` |
 | Agent | `prd-flow-<role>`, else `general-purpose` following its `.claude/agents` file |
 
 Task lines:
 | Role | Task line |
 |---|---|
-| surveyor | `case <C1 to C6\|unclear> · size <M\|L\|unclear> · request: <words>`; a delta re-survey (DP05) adds `Delta: <touched IDs and contexts>` |
-| executor | `Task: <ID>` or `Card: <state>/card.md`; `fix` carries the finding lines; `close` carries `Case <C>` (a rerun after a logged `closed: <commit>` is answered from its earlier return) |
+| surveyor | `case <C1 to C6\|unclear> · size <M\|L\|unclear> · request: <words>`; `full` adds `Decided in conversation: "<verbatim>"` and `Preferences: "<verbatim>"`; `short` adds `Touched: <behavior, task, files>` and, outside a C5, `outside a C5` |
+| executor | `Task: <ID>` or `Card: <state>/card.md`; `fix` carries the finding lines; `close` carries `Case <C>` and runs `gates.sh close <slug> --case <C>` (a rerun after a logged `closed: <commit>` is answered from its earlier return) |
 | reviewer | `Round N/5. Wave: <n\|last>. Commits: <hashes>` |
 | recheck | `Round N/5. Commits: <hashes>. Findings:` <lines or `findings-r<N>.md`> |
-| docs | `rules` `Answers:` <words>, plus `Confirmed: "<words>"` when the user already said it is clear; `prd-plan` `Answers:` <words> `Folded: yes` when folded; `trd-plan` `adjust: <words>` |
+| docs | `apply` `Answers: <verbatim>`, then `Answers 2: <verbatim>` for the follow-up sheet; `Case short` when the sheet is a `sheet-short-<k>.md` (also outside a C5); `apply merge` after the `context` fan-out (the handoff names the facts file); `adjust: <words>` |
 
 ## Rules
 | ID | Rule |
 |---|---|
-| DP01 | **Premise.** A prompt carries no domain assumption: the request in the user's words, rule IDs, paths and answers verbatim, never the chief's reading of the domain. "User-confirmed" is allowed only with the user's own words quoted and the scope they covered (this rule, this round); never as a label on the chief's summary. A prompt to another repository names only the request and the approved rows |
+| DP01 | **Premise.** A prompt carries no domain assumption: the request in the user's words, rule IDs, paths and answers verbatim, never the chief's reading of the domain. The user's own words are allowed verbatim, with the scope they covered: `Decided in conversation:` and `Preferences:` become Assumed lines on the sheet, never a label on the chief's summary. A prompt to another repository names only the request and the approved rows |
 | DP02 | **Background and parallel by default.** Every dispatch runs in the background. A whole wave goes in one message; so do independent docs, review and fix dispatches with disjoint files. The chief never waits on one agent while other independent work exists, and never polls: returns arrive by themselves |
-| DP03 | **Resume or replace.** A warm agent that already holds the context, is under about 150k tokens and did not hit its ceiling (review.md V08) is continued with SendMessage; otherwise a new dispatch of the same role with a handoff of at most 10 lines. A correction folded into a plan is one in-place docs `trd-plan` `adjust: <words>`, not a revert and a redo |
+| DP03 | **Resume or replace.** A warm agent that already holds the context, is under about 150k tokens and did not hit its ceiling (review.md V08) is continued with SendMessage; otherwise a new dispatch of the same role with a handoff of at most 10 lines. A correction to a plan is one in-place docs `adjust: <words>`, not a revert and a redo |
 | DP04 | **Ledger.** `## Chief` keeps a dispatch ledger, one line per dispatch: `role · mode · task · agent id · status` (`running`, `done`, `failed`). Before dispatching, the chief checks it: an entry for the same role, mode and task that is `running` or `done` is not dispatched again; the chief waits for or uses that return |
-| DP05 | **Delta re-survey.** After a user correction the surveyor re-checks only the touched rows and contexts, the same surveyor resumed (DP03) with `Delta:`; never a full survey again |
-| DP06 | **Baseline.** The chief runs `scripts/gates.sh baseline <slug>` as a background Bash in the TARGET repo (a cross-repo run: that repo's path as cwd), never inside another agent, so the harness sends a completion event: no detached `--bg`, no waiting loop. Start it after the plan commit in C5 and after the surveyor card in C2, C3 and C6. Executors do not wait for it. Close reads the baseline status file once and never polls; `close` fails with "baseline missing" when it was never started |
-| DP07 | **Wave verification.** When a wave ends the chief starts ONE background `scripts/gates.sh verify <slug>` (related tests of every file changed in the wave, structure tests, docs gates; output to a file) together with the wave reviewer. Verification failures and review findings go to ONE `fix` dispatch; the next verification reruns only what failed. During the last review the chief also starts `scripts/gates.sh compare <slug>` in the background; executor `close` reuses the last verification and that result (execution.md E20) |
-| DP08 | **Docs gates.** Reminders, not locks: the plan alignment (`Reached from:`), question lint and shared-file owner checks print warnings the agent reads and decides on; none blocks, and each gate runs once per phase, never in a loop. One call: `scripts/gates.sh docs <slug>` (rules, prd, trd, plan, applied). The final gate is `gate.py --final --change <slug>`; at classification the surveyor runs `gate.py --snapshot <slug>` so older drift is not blamed on the change |
+| DP05 | **Follow-up.** A user correction is never a new survey: it is the one follow-up sheet (`sheet-2.md`) or docs `adjust` |
+| DP06 | **Baseline.** The chief runs `scripts/gates.sh baseline <slug>` as a background Bash in the TARGET repo (a cross-repo run: that repo's path as cwd), never inside another agent, so the harness sends a completion event: no detached `--bg`, no waiting loop. Start it after the plan commit in C5 and after the surveyor card in C2, C3 and C6; C4 needs none (its close skips baseline and compare). Executors do not wait for it. Close reads the baseline status file once and never polls; without a baseline `close` fails with "baseline missing" in C2, C3, C5, C6, and a baseline taken at close would hide the change's own failures |
+| DP07 | **Wave verification.** When a wave ends the chief runs `scripts/gates.sh reap` as its own Bash call; in the next message it starts ONE background `scripts/gates.sh verify <slug>` (related tests of every file changed in the wave, structure tests, docs gates; output to a file) together with the wave reviewer. The reviewer and recheck do not read the verify output (it runs beside them); the chief routes verification failures together with the review findings into ONE `fix` dispatch; the next verification reruns only what failed. During the last review the chief also starts `scripts/gates.sh compare <slug>` in the background; after the last fix it restarts `compare` (a fix changes the tree, so the earlier result does not apply). Close reads that result: "compare is still running": wait for its event; "no compare result": start `compare`; then rerun close |
+| DP08 | **Docs gates.** Reminders, not locks: the plan alignment (`Reached from:`), sheet lint and shared-file owner checks print warnings the agent reads and decides on; none blocks, and each gate runs once per phase, never in a loop. One call: `scripts/gates.sh docs <slug>` (rules, prd, trd, plan, applied). The final gate is `gate.py --final --change <slug>`; at classification the surveyor runs `gate.py --snapshot <slug>` so older drift is not blamed on the change |
 | DP09 | **Hold.** Close promotes with `promote.py --hold <ID> --reason <words>` for a row blocked by an eval, a deploy or another repository; it stays `planned` and is listed in the close return |
 
 ## Behavior by role
@@ -41,10 +40,10 @@ No agent has a power limit; these are behavior rules. The agent files hold the d
 
 | ID | Role | Behavior |
 |---|---|---|
-| BR01 | chief | Splits work into one-concern tasks; sends independent work in parallel; resumes warm agents (DP03); puts no assumption of its own in a prompt (DP01); confirms the domain model in one plain sentence before any rule question |
-| BR02 | surveyor | Reads the glossary, the section intros and the journey first; asks only what the PRD does not answer; plain words; a correction is a delta re-survey (DP05) |
+| BR01 | chief | Splits work into one-concern tasks; sends independent work in parallel; resumes warm agents (DP03); puts no assumption of its own in a prompt (DP01) |
+| BR02 | surveyor | Reads the glossary, the section intros and the journey first; asks only what the PRD does not answer, on one sheet; plain words |
 | BR03 | docs | Writes everything first, then runs `gates.sh docs` once and fixes what it flags |
-| BR04 | executor | Runs only its own new test (see it fail, implement, see it pass); no related tests, suites or gates. Edits with Edit and Write and reads with Read and Grep (faster and safer); scripts only to move code or run shipped tools; never `git stash`, `reset` or `checkout` in a shared tree (guidance, no hook) |
+| BR04 | executor | As its agent file `prd-flow-executor.md` says |
 | BR05 | wave verification | One background run per wave end (DP07); the next reruns only what failed |
 | BR06 | reviewer | Reads the executors' Self-check first, then the diff; findings only |
 | BR07 | fix | One dispatch per wave takes the verification failures and the findings together; same Owns rules as an executor |

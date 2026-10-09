@@ -1,0 +1,39 @@
+{
+  "timeout_min": 60,
+  "parallel": 3,
+  "base": "GATE",
+  "candidate": "FLOW",
+  "arms": {
+    "GATE": {
+      "ref": "fix/existing-repo-adoption",
+      "spec_kit": false,
+      "protocol": "arms/living-gate.md"
+    },
+    "FLOW": {
+      "ref": "feat/one-pass-interview",
+      "spec_kit": false,
+      "protocol": "arms/living.md",
+      "two_phase": true,
+      "phase2_model": "sonnet"
+    }
+  },
+  "phase2_share": 0.5,
+  "scenarios": {
+    "S5": {
+      "reps": 2,
+      "budget_usd": 10
+    },
+    "S6": {
+      "reps": 1,
+      "budget_usd": 10
+    },
+    "S7": {
+      "reps": 1,
+      "budget_usd": 10
+    },
+    "S12": {
+      "reps": 2,
+      "budget_usd": 10
+    }
+  }
+}

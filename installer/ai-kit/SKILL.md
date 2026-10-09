@@ -25,6 +25,7 @@ The kit lives in a git repository on this machine; its path is in `kit-path` nex
 | K06 | Commit with Conventional Commits in English; never push and never open a pull request without an explicit request |
 | K07 | At most 4 questions per round, each with the detected value as the recommended option |
 | K08 | Budget: detection reads manifests and configuration only, never source files whole; a sweep of a large tree goes to an Explore agent with questions |
+| K09 | Every command the skill runs in the project uses the interpreter printed by `scripts/gates.sh python`, one command per call; doctor starts with `scripts/gates.sh settings-check` because a deny rule on a file the flow writes stops it mid-run |
 
 ## Files
 | File | Read when |

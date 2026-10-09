@@ -1,7 +1,10 @@
 """Retro (RT09 to RT13): synthetic events and resources built from the RT04 and RT07 schemas."""
 
+import contextlib
+import io
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -539,6 +542,43 @@ class RunSpeedDetectorTests(unittest.TestCase):
         log.add("PostToolUse", gap=60, tool="AskUserQuestion", tuid="q", cls="wait.human", ms=1, wait_ms=60000)
         _, s = findings(project(log.ev))
         self.assertAlmostEqual(s["totals"]["human_wait_s"], 60.0, delta=1)
+
+
+class ContextResolutionTests(unittest.TestCase):
+    """G12: --context beats env AI_KIT_CONTEXT beats the context file; retro prints the slug it reports on."""
+
+    def setUp(self):
+        log = Log()
+        log.call()
+        self.root = project(log.ev, ctx="from-file")
+        for name in ("slug-a", "slug-b"):
+            shutil.copytree(self.root / ".ai-kit" / "runs" / "from-file", self.root / ".ai-kit" / "runs" / name)
+        (self.root / ".ai-kit" / "runs" / "current").write_text("from-file\n", encoding="utf-8")
+        self.saved = os.environ.pop("AI_KIT_CONTEXT", None)
+
+    def tearDown(self):
+        os.environ.pop("AI_KIT_CONTEXT", None)
+        if self.saved is not None:
+            os.environ["AI_KIT_CONTEXT"] = self.saved
+        shutil.rmtree(self.root, ignore_errors=True)
+
+    def report(self, *argv):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            retro.main(["--root", str(self.root), *argv])
+        return out.getvalue()
+
+    def test_the_file_is_the_last_resort(self):
+        self.assertEqual(retro.resolve_context(self.root, None), "from-file")
+
+    def test_env_beats_the_file(self):
+        os.environ["AI_KIT_CONTEXT"] = "slug-b"
+        self.assertEqual(retro.resolve_context(self.root, None), "slug-b")
+        self.assertTrue(self.report().startswith("retro slug-b:"))
+
+    def test_the_flag_beats_env_and_the_slug_is_printed(self):
+        os.environ["AI_KIT_CONTEXT"] = "slug-b"
+        self.assertTrue(self.report("--context", "slug-a").startswith("retro slug-a:"))
 
 
 if __name__ == "__main__":

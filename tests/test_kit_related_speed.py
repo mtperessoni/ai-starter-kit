@@ -111,6 +111,102 @@ class NativeAlwaysTest(RelatedSpeedBase):
         self.assertIn("tests/test_architecture.py", (self.p.root / "plain.txt").read_text(encoding="utf-8"))
 
 
+class DocsOnlyTest(RelatedSpeedBase):
+    def test_a_docs_only_change_runs_nothing_and_caches_nothing(self) -> None:
+        (self.p.root / "native.py").write_text("open('native.txt','a').write('n')\nprint('1 passed')\n", encoding="utf-8")
+        self.configure(native_related=f'"{PY}" native.py {{changed}}')
+        write(self.p.root, "README.md", "# x\n")
+        r = self.related("README.md", "--run")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("no related tests", r.stdout)
+        self.assertFalse((self.p.root / "native.txt").exists())
+        self.assertEqual(list(self.p.root.glob("**/related.cache*.json")), [])
+
+
+class NativeFilterTest(RelatedSpeedBase):
+    def test_native_related_gets_only_code_extension_paths(self) -> None:
+        (self.p.root / "native.py").write_text(
+            "import sys\nopen('native.txt','w').write(' '.join(sys.argv[1:]))\nprint('1 passed')\n", encoding="utf-8"
+        )
+        self.configure(native_related=f'"{PY}" native.py {{changed}}')
+        write(self.p.root, "README.md", "# x\n")
+        listing = self.p.root / "args.txt"
+        listing.write_text("README.md\nsrc/features/orders/order_service.py\n", encoding="utf-8")
+        r = self.related("--args-file", str(listing), "--run")
+        self.assertIn("exit 0", r.stdout, r.stdout + r.stderr)
+        self.assertEqual((self.p.root / "native.txt").read_text(encoding="utf-8"), "src/features/orders/order_service.py")
+
+
+class ExcludeTest(RelatedSpeedBase):
+    def test_related_exclude_drops_integration_tests(self) -> None:
+        write(self.p.root, "tests/integration/test_orders_db.py", "from features.orders.order_service import create_order\n")
+        self.assertIn("tests/integration/test_orders_db.py", self.related("src/features/orders/order_service.py").stdout.split())
+        self.configure(related_exclude=["tests/integration/**"])
+        out = self.related("src/features/orders/order_service.py").stdout.split()
+        self.assertNotIn("tests/integration/test_orders_db.py", out)
+        self.assertIn("src/features/orders/tests/test_order_service.py", out)
+
+    def test_related_exclude_also_drops_always_entries(self) -> None:
+        write(self.p.root, "tests/integration/test_arch.py", "x = 1\n")
+        self.configure(always=["tests/integration/test_arch.py"], related_exclude=["tests/integration/**"])
+        self.assertNotIn("tests/integration/test_arch.py", self.related("src/features/orders/order_service.py").stdout.split())
+
+    def test_the_default_config_excludes_nothing(self) -> None:
+        config = json.loads((KIT / "ai-kit.json").read_text(encoding="utf-8"))
+        self.assertEqual(config["tests"]["related_exclude"], [])
+
+
+class BudgetTest(RelatedSpeedBase):
+    def test_always_entries_do_not_count_toward_the_budget(self) -> None:
+        write(self.p.root, "tests/test_architecture.py", "x = 1\n")
+        (self.p.root / "slow.py").write_text(
+            "import sys,time\nif any('test_architecture' in a for a in sys.argv):\n    time.sleep(2)\nprint('1 passed')\n", encoding="utf-8"
+        )
+        self.configure(runner=f'"{PY}" slow.py {{files}}', always=["tests/test_architecture.py"], related_budget_seconds=1)
+        r = self.related("src/features/orders/order_service.py", "--run")
+        self.assertIn("exit 0", r.stdout, r.stdout + r.stderr)
+        self.assertNotIn("over the budget", r.stdout)
+
+    def test_a_slow_selected_test_still_trips_the_budget(self) -> None:
+        (self.p.root / "slow.py").write_text("import time\ntime.sleep(2)\nprint('1 passed')\n", encoding="utf-8")
+        self.configure(runner=f'"{PY}" slow.py {{files}}', related_budget_seconds=1)
+        r = self.related("src/features/orders/order_service.py", "--run")
+        self.assertIn("over the budget", r.stdout)
+
+
+class LogPerSlugTest(RelatedSpeedBase):
+    def run_with_context(self, slug: str | None):
+        import os
+        import subprocess
+
+        env = {k: v for k, v in os.environ.items() if k != "AI_KIT_CONTEXT"}
+        if slug:
+            env["AI_KIT_CONTEXT"] = slug
+        self.configure(runner=f'"{PY}" -c "print(\'1 passed\')" {{files}}')
+        return subprocess.run([PY, "scripts/related_tests.py", "src/features/orders/order_service.py", "--run"],
+                              cwd=self.p.root, capture_output=True, text=True, encoding="utf-8", env=env, check=False)
+
+    def test_the_log_and_cache_carry_the_slug(self) -> None:
+        r = self.run_with_context("slug-a")
+        self.assertIn("related-slug-a.log", r.stdout)
+        log_dir = self.p.root / json.loads((self.p.root / "ai-kit.json").read_text(encoding="utf-8"))["tests"]["log_dir"]
+        self.assertTrue((log_dir / "related-slug-a.log").is_file())
+        self.assertFalse((log_dir / "related.log").exists())
+
+    def test_without_a_context_the_shared_name_stays(self) -> None:
+        self.assertIn("related.log", self.run_with_context(None).stdout)
+
+
+class ConfigManyKeysTest(RelatedSpeedBase):
+    def test_many_keys_resolve_in_one_call(self) -> None:
+        r = self.p.py("scripts/config_get.py", "--many", "tests.related_budget_seconds", "tests.nope", "commands.python")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        lines = r.stdout.splitlines()
+        self.assertEqual(lines[0], "tests.related_budget_seconds=60")
+        self.assertEqual(lines[1], "tests.nope=")
+        self.assertEqual(len(lines), 3)
+
+
 class ListedFilesFallbackTest(unittest.TestCase):
     def test_the_fallback_walk_skips_the_git_folder(self) -> None:
         scripts = str(KIT / "scripts")

@@ -1,6 +1,6 @@
 # trd-create workers
 
-Read only the section with your name. You do not talk to the user: anything missing becomes a **gap** in the return. Parallel batches when reads are independent; code only by symbol (`Grep -n`, then `Read` with offset and limit); big files from `.claude/skills/prd-flow/repo.md` never whole. Write with Write and Edit only. Markdown only: never build, edit or read `docs/trd/trd.html` (`/docs-html` builds it; a stale-page WARNING G32 is expected, DS45); the index-writer's read-back ends with "`/docs-html` for the reading pages". Names only, never line numbers or default values. Everything in English, no em dash (U+2014). State: `.claude/prd-flow/state/trd-create/`.
+Read only the section with your name. You do not talk to the user: anything missing becomes a **gap** in the return. Parallel batches when reads are independent; code only by symbol (`Grep -n`, then `Read` with offset and limit); big files from `.claude/skills/prd-flow/repo.md` never whole. Write with Write and Edit only. Markdown only: never build, edit or read `docs/trd/trd.html` (`/docs-html` builds it; a stale page is reported only by `gate.py --html`); the index-writer's read-back ends with "`/docs-html` for the reading pages". Names only, never line numbers or default values. Everything in English, no em dash (U+2014). State: `.claude/prd-flow/state/trd-create/`.
 
 Stay inside the folders, globs and read budget of your assignment; do not explore beyond it, and do not call ToolSearch.
 
