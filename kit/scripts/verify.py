@@ -21,7 +21,8 @@ from close_gate import tree_stamp, valid_slug
 from kit_config import load, repo_root
 
 DETAIL_LINES = 6
-STUCK_LOOKBACK = 1048576
+STUCK_ALIVE_S, STUCK_IDLE_S = 1800, 600
+TOOL_EVENTS = ("PreToolUse", "PostToolUse", "PostToolUseFailure")
 BASES = ("origin/main", "origin/staging", "origin/master", "main", "staging", "master")
 
 
@@ -73,28 +74,38 @@ def stuck_agents(root: Path) -> list[str]:
         if not found:
             return []
         path = found[-1]
+    stuck: dict[str, None] = {}
+    live: dict[str, dict[str, float]] = {}
     try:
         with path.open("rb") as handle:
-            handle.seek(0, os.SEEK_END)
-            handle.seek(max(0, handle.tell() - STUCK_LOOKBACK))
-            lines = handle.read().decode("utf-8", errors="replace").splitlines()
+            for line in handle:
+                try:
+                    event = json.loads(line)
+                except ValueError:
+                    continue
+                agent = event.get("agent") if isinstance(event, dict) else None
+                if not agent or agent == "main":
+                    continue
+                kind, ts = event.get("ev"), event.get("ts")
+                if kind == "agent_stuck":
+                    stuck[agent] = None
+                elif kind == "SubagentStop":
+                    stuck.pop(agent, None)
+                    live.pop(agent, None)
+                elif kind == "SubagentStart" and isinstance(ts, (int, float)):
+                    live[agent] = {"start": ts, "last": ts}
+                elif kind in TOOL_EVENTS and agent in live and isinstance(ts, (int, float)):
+                    live[agent]["last"] = ts
     except OSError:
         return []
-    stuck: dict[str, None] = {}
-    for line in lines:
-        try:
-            event = json.loads(line)
-        except ValueError:
-            continue
-        agent = event.get("agent") if isinstance(event, dict) else None
-        if event.get("ev") == "agent_stuck" and agent:
+    now = time.time()
+    for agent, seen in live.items():
+        if now - seen["last"] > STUCK_IDLE_S or now - seen["start"] > STUCK_ALIVE_S:
             stuck[agent] = None
-        elif event.get("ev") == "SubagentStop":
-            stuck.pop(agent, None)
     return list(stuck)
 
 
-def preflight(root: Path) -> tuple[list[str], str]:
+def preflight(root: Path, stuck: list[str]) -> tuple[list[str], str]:
     """Reap this session's stuck processes first, then name the stuck agents: (lines for the screen, text for the log)."""
     result = gates(root, "reap")
     text = (result.stdout + result.stderr).strip()
@@ -104,7 +115,6 @@ def preflight(root: Path) -> tuple[list[str], str]:
         left = re.search(r"left:\s*(.*)", text)
         if (reaped and int(reaped.group(1))) or (left and left.group(1).strip() != "0"):
             lines.append(f"reap: reaped {reaped.group(1) if reaped else '?'}, left {left.group(1).strip() if left else '?'}")
-    stuck = stuck_agents(root)
     if stuck:
         lines.append("stuck agents: " + ", ".join(stuck))
     return lines, "$ gates.sh reap\n" + text
@@ -155,11 +165,15 @@ def main(argv: list[str]) -> int:
     folder.mkdir(parents=True, exist_ok=True)
     stamp_path, log = folder / "verify.stamp", folder / "verify.log"
     failure_regex = re.compile(load(root).get("tests", {}).get("failure_regex") or r"^(?:FAILED|ERROR)\s+(\S+)")
-    notes, reap_text = preflight(root)
+    stuck = stuck_agents(root)
     stamp = read_stamp(stamp_path)
     tree = tree_stamp(root)
     unchanged = stamp.get("tree") == tree and since is None
     previous = list(stamp.get("failed", [])) if unchanged else None
+    if unchanged and not previous and not stuck:
+        print(f"verify {slug}: ok, nothing changed since the last verification")
+        return 0
+    notes, reap_text = preflight(root, stuck)
     if unchanged and not previous:
         print("\n".join([f"verify {slug}: ok, nothing changed since the last verification", *notes]))
         return 0

@@ -11,6 +11,7 @@ hooks:
           command: |
             f="${CLAUDE_PROJECT_DIR:-.}/scripts/guard_hook.py"; [ -f "$f" ] || exit 0
             c=$(sed -n 's/.*"python"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "${CLAUDE_PROJECT_DIR:-.}/ai-kit.json" 2>/dev/null | head -n 1)
+            c=$(printf '%s' "$c" | sed 's/\\\\/\\/g')
             case "$c" in ""|"<"*) c="" ;; esac
             py=""; for p in "$c" python3 python; do [ -n "$p" ] || continue; "$p" -c pass >/dev/null 2>&1 && { py="$p"; break; }; done
             [ -n "$py" ] || exit 0

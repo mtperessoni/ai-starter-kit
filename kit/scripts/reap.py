@@ -16,8 +16,12 @@ import sys
 
 DEFAULT_MINUTES = 20.0
 SNAPSHOT = re.compile(r"snapshot-[\w.-]*?(?=\.sh\b|[\s'\"]|$)")
-PROTECTED = re.compile(r"gates\.sh\s+(?:baseline|compare|verify)\b|scripts[/\\]baseline\.py")
-STDIN_WAIT = re.compile(r"(?:^|[\s/\\'\"])(?:python[\d.]*|py|node|perl|ruby)(?:\.exe)?\s+-(?:\s|$)|<<|(?:^|[\s;&|'\"])(?:cat|tee)\s*>")
+PROTECTED = re.compile(r"gates\.sh\s+(?:baseline|compare|verify|close)\b|scripts[/\\]baseline\.py")
+STDIN_WAIT = re.compile(r"(?:^|[\s/\\'\"])(?:python[\d.]*|py|node|perl|ruby)(?:\.exe)?\s+(?:-[A-Za-z]+\s+)*-(?:\s|$)|(?:^|[\s;&|'\"])(?:cat|tee)\s*>|^(?:\S*[/\\])?cat(?:\.exe)?\s*$")
+STDIN_MIN_AGE = 2.0
+AGE_IMAGES = re.compile(r"^(?:python[\d.]*|py|node|bash|sh|uv|pytest|cat)$")
+DEV_SERVER = re.compile(r"(?:yarn|npm|pnpm)\s+(?:run\s+)?(?:dev|start|storybook)\b|storybook|next\s+dev|\bvite\b", re.I)
+REUSE_SLACK = 0.2
 CIM = ("$ErrorActionPreference='Stop'; $now = Get-Date; "
        "$rows = @(Get-CimInstance Win32_Process | ForEach-Object { [pscustomobject]@{pid=[int]$_.ProcessId; ppid=[int]$_.ParentProcessId; "
        "age=[math]::Round(($now - $_.CreationDate).TotalMinutes, 1); cmd=$_.CommandLine} }); "
@@ -90,8 +94,28 @@ def session_id(by_pid, self_pid):
     return None
 
 
+def image(cmd):
+    first = (cmd.strip().split(None, 1) or [""])[0].strip("'\"")
+    name = re.split(r"[/\\]", first)[-1].lower()
+    return name[:-4] if name.endswith(".exe") else name
+
+
+def drop_reused_links(procs):
+    """A child cannot be older than its parent: such a parent link is a reused PID, so the child is treated as parentless."""
+    age = {p["pid"]: p["age"] for p in procs}
+    return [dict(p, ppid=0) if p["ppid"] in age and p["age"] > age[p["ppid"]] + REUSE_SLACK else p for p in procs]
+
+
+def is_stuck(p, limit):
+    cmd = p["cmd"]
+    if STDIN_WAIT.search(cmd) and p["age"] >= STDIN_MIN_AGE:
+        return True
+    return p["age"] >= limit and bool(AGE_IMAGES.match(image(cmd))) and not DEV_SERVER.search(cmd)
+
+
 def stuck(procs, self_pid, limit):
     """Pids to reap and the roots of their trees, for the session of self_pid."""
+    procs = drop_reused_links(procs)
     by_pid = {p["pid"]: p for p in procs}
     sid = session_id(by_pid, self_pid)
     if not sid:
@@ -109,7 +133,7 @@ def stuck(procs, self_pid, limit):
         if sid in p["cmd"]:
             session.add(p["pid"])
             session.update(descendants(p["pid"], children))
-    matched = {pid for pid in session - safe if STDIN_WAIT.search(by_pid[pid]["cmd"]) or by_pid[pid]["age"] >= limit}
+    matched = {pid for pid in session - safe if is_stuck(by_pid[pid], limit)}
     roots = sorted(pid for pid in matched if by_pid[pid]["ppid"] not in matched)
     covered = set()
     for root in roots:

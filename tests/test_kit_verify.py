@@ -2,6 +2,9 @@
 
 import json
 import re
+import subprocess
+import time
+from unittest import mock
 
 from tests.test_kit_baseline import GatesBase
 from tests.test_kit_gates_run_speed import RUNNER, script_module
@@ -68,8 +71,36 @@ class VerifyTest(GatesBase):
         self.assertIn("stuck agents: a1", r.stdout)
         self.assertNotIn("a2", r.stdout)
 
+    def test_stuck_agents_are_computed_from_start_stop_and_the_last_tool_event_over_the_whole_file(self) -> None:
+        verify = script_module("verify")
+        now = time.time()
+        pad = [{"ev": "PreToolUse", "agent": "pad", "ts": now, "x": "y" * 200} for _ in range(6000)]
+        self.events([{"ev": "SubagentStart", "agent": "old", "ts": now - 4000}, {"ev": "PreToolUse", "agent": "old", "ts": now - 10},
+                     {"ev": "SubagentStart", "agent": "idle", "ts": now - 1000}, {"ev": "PostToolUse", "agent": "idle", "ts": now - 900},
+                     {"ev": "SubagentStart", "agent": "fresh", "ts": now - 100}, {"ev": "SubagentStart", "agent": "done", "ts": now - 5000},
+                     {"ev": "SubagentStop", "agent": "done", "ts": now - 4000}, *pad])
+        self.assertGreater((self.p.root / ".ai-kit" / "runs" / "run1" / "events.jsonl").stat().st_size, 1048576)
+        self.assertEqual(sorted(verify.stuck_agents(self.p.root)), ["idle", "old"])
+
+    def test_the_nothing_changed_path_skips_reap_unless_something_is_stuck(self) -> None:
+        verify = script_module("verify")
+        calls: list[tuple] = []
+
+        def fake(root, *args):
+            calls.append(args)
+            return subprocess.CompletedProcess(args, 0, "reaped: 0\nleft: 0", "")
+
+        self.stamp.parent.mkdir(parents=True, exist_ok=True)
+        self.stamp.write_text(json.dumps({"head": "x", "tree": verify.tree_stamp(self.p.root), "failed": [], "ts": 1}), encoding="utf-8")
+        with mock.patch.object(verify, "repo_root", return_value=self.p.root), mock.patch.object(verify, "gates", side_effect=fake):
+            self.assertEqual(verify.main(["demo"]), 0)
+            self.assertEqual(calls, [])
+            self.events([{"ev": "SubagentStart", "agent": "a1", "ts": time.time() - 4000}])
+            self.assertEqual(verify.main(["demo"]), 0)
+            self.assertEqual(calls, [("reap",)])
+
     def test_no_stuck_line_when_none(self) -> None:
-        self.events([{"ev": "SubagentStart", "agent": "a1", "ts": 1}])
+        self.events([{"ev": "SubagentStart", "agent": "a1", "ts": time.time()}])
         write(self.p.root, "src/a.py", "x = 1\n")
         r = self.gates("verify", "demo", "--since", "HEAD")
         self.assertNotIn("stuck agents", r.stdout)
