@@ -5,7 +5,8 @@ Usage: python scripts/reap.py [--older-than <minutes>] [--dry-run]     (through 
 A process belongs to this session when it carries this session's shell snapshot id in its command line (Claude Code shell calls source
 ~/.claude/shell-snapshots/snapshot-*.sh; the id is read from this process's own ancestors) or descends from one that does. It is reaped when
 it reads a program from stdin (python -, a heredoc, cat >) or is older than the limit (default 20 minutes). Never reaped: this process and
-its ancestors, and any tree rooted at a gates.sh baseline|compare|verify call or scripts/baseline.py.
+its ancestors, and a tree rooted at a gates.sh baseline|compare|verify call or scripts/baseline.py only while the slug's status file
+(state/<slug>/<kind>.status) says running and the process is younger than 60 minutes.
 Prints `reaped: <n>` and `left: 0` or the survivors; exit 1 when a survivor is left.
 """
 import json
@@ -13,10 +14,15 @@ import os
 import re
 import subprocess
 import sys
+from pathlib import Path
 
 DEFAULT_MINUTES = 20.0
-SNAPSHOT = re.compile(r"snapshot-[\w.-]*?(?=\.sh\b|[\s'\"]|$)")
-PROTECTED = re.compile(r"gates\.sh\s+(?:baseline|compare|verify|close)\b|scripts[/\\]baseline\.py")
+SNAPSHOT = re.compile(r"snapshot-[\w.-]{6,}?(?=\.sh\b|[\s'\"]|$)")
+PROTECTED = re.compile(r"gates\.sh\s+(?:close|watch|related|one|cleanup|verify|compare|baseline)\b|scripts[/\\]baseline\.py")
+SUITE = re.compile(r"gates\.sh\s+(baseline|compare|verify)\s+(\w[\w.-]*)|scripts[/\\]baseline\.py\s+(\w[\w.-]*)")
+SUITE_TIMEOUT_MINUTES = 60.0
+PROTECTED_AGE_CAP_MINUTES = 90.0
+ROOT = Path(__file__).resolve().parent.parent
 STDIN_WAIT = re.compile(r"(?:^|[\s/\\'\"])(?:python[\d.]*|py|node|perl|ruby)(?:\.exe)?\s+(?:-[A-Za-z]+\s+)*-(?:\s|$)|(?:^|[\s;&|'\"])(?:cat|tee)\s*>|^(?:\S*[/\\])?cat(?:\.exe)?\s*$")
 STDIN_MIN_AGE = 2.0
 AGE_IMAGES = re.compile(r"^(?:python[\d.]*|py|node|bash|sh|uv|pytest|cat)$")
@@ -94,6 +100,22 @@ def session_id(by_pid, self_pid):
     return None
 
 
+def suite_live(proc, root):
+    """A gates.sh close|watch|related|one|cleanup|verify|compare|baseline tree is protected: by its status file when it has one, else while younger than the age cap."""
+    found = SUITE.search(proc["cmd"])
+    if not found:
+        return proc["age"] < PROTECTED_AGE_CAP_MINUTES
+    kind = found.group(1) or "baseline"
+    slug = found.group(2) or found.group(3)
+    if not slug or ".." in slug or "/" in slug or "\\" in slug:
+        return proc["age"] < PROTECTED_AGE_CAP_MINUTES
+    try:
+        status = (root / ".claude" / "prd-flow" / "state" / slug / f"{kind}.status").read_text(encoding="utf-8")
+    except OSError:
+        return proc["age"] < PROTECTED_AGE_CAP_MINUTES
+    return status.startswith("running") and proc["age"] < SUITE_TIMEOUT_MINUTES
+
+
 def image(cmd):
     first = (cmd.strip().split(None, 1) or [""])[0].strip("'\"")
     name = re.split(r"[/\\]", first)[-1].lower()
@@ -113,7 +135,7 @@ def is_stuck(p, limit):
     return p["age"] >= limit and bool(AGE_IMAGES.match(image(cmd))) and not DEV_SERVER.search(cmd)
 
 
-def stuck(procs, self_pid, limit):
+def stuck(procs, self_pid, limit, root=ROOT):
     """Pids to reap and the roots of their trees, for the session of self_pid."""
     procs = drop_reused_links(procs)
     by_pid = {p["pid"]: p for p in procs}
@@ -125,7 +147,7 @@ def stuck(procs, self_pid, limit):
         children.setdefault(p["ppid"], []).append(p["pid"])
     safe = set(ancestors(self_pid, by_pid))
     for p in procs:
-        if PROTECTED.search(p["cmd"]):
+        if PROTECTED.search(p["cmd"]) and suite_live(p, root):
             safe.update(ancestors(p["pid"], by_pid))
             safe.update(descendants(p["pid"], children))
     for p in procs:
@@ -146,7 +168,7 @@ def stuck(procs, self_pid, limit):
     return sid, [(root, sorted(covered & ({root} | set(descendants(root, children))))) for root in roots]
 
 
-def main(argv, list_processes=list_processes, kill_tree=kill_tree, self_pid=None):
+def main(argv, list_processes=list_processes, kill_tree=kill_tree, self_pid=None, root=ROOT):
     limit, dry = DEFAULT_MINUTES, "--dry-run" in argv
     if "--older-than" in argv:
         index = argv.index("--older-than")
@@ -157,7 +179,7 @@ def main(argv, list_processes=list_processes, kill_tree=kill_tree, self_pid=None
             return 2
     self_pid = self_pid or os.getpid()
     procs = list_processes()
-    sid, trees = stuck(procs, self_pid, limit)
+    sid, trees = stuck(procs, self_pid, limit, root)
     if sid is None:
         print("reap: no shell snapshot id in the ancestors of this process, nothing is scoped to this session")
         print("reaped: 0")

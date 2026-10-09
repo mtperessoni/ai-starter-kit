@@ -1,7 +1,8 @@
-"""check_plan alignment (P11 to P16) and the shared-file wave rule (P17)."""
+"""check_plan: P11 to P16 are retired, and the shared-file wave rule (P17) stays."""
 
 import unittest
 
+from tests.gate_report import full
 from tests.test_kit_scripts import Project, write
 
 GATE = ".claude/skills/prd-flow/scripts/gate.py"
@@ -31,7 +32,7 @@ def card(tid: str, contract: str = "ORD-01, ORD-02", owns: str = "src/orders/ser
     return "\n".join(lines) + "\n" + extra + "\n"
 
 
-class PlanAlignTest(unittest.TestCase):
+class RetiredAlignmentTest(unittest.TestCase):
     def setUp(self) -> None:
         self.p = Project()
         repo = self.p.root / ".claude/skills/prd-flow/repo.md"
@@ -42,69 +43,31 @@ class PlanAlignTest(unittest.TestCase):
     def tearDown(self) -> None:
         self.p.close()
 
-    def strict(self) -> None:
-        self.repo.write_text(self.repo.read_text(encoding="utf-8").replace("| html_mode | hand |", "| html_mode | hand |\n| plan_strict | yes |"), encoding="utf-8")
-
     def run_plan(self, body: str) -> str:
         write(self.p.root, PLAN_PATH, HEAD + body)
-        return self.p.py(GATE, "--step", "plan", "--plan", PLAN_PATH).stdout
+        return full(self.p, self.p.py(GATE, "--step", "plan", "--plan", PLAN_PATH))
 
-    def test_a_contract_missing_a_trd_id_of_an_owned_file_warns_on_an_old_plan_and_fails_when_strict(self) -> None:
-        out = self.run_plan(card("T01", contract="ORD-01", extra="Reached from: src/orders/service.py\n"))
-        self.assertIn("WARNING P11 T01", out)
-        self.assertIn("ORD-02", out)
-        self.strict()
-        self.assertIn("ERROR P11 T01", self.run_plan(card("T01", contract="ORD-01", extra="Reached from: src/orders/service.py\n")))
+    def test_cards_that_used_to_trip_p11_to_p16_print_nothing(self) -> None:
+        many = ", ".join(f"src/orders/f{i}.py" for i in range(9))
+        bodies = [card("T01", contract="ORD-01", extra="Reached from: src/orders/service.py\n"),
+                  card("T01", contract="ORD-01", owns=many),
+                  card("T01", owns="src/orders/service.py"),
+                  card("T01", extra="Creates / consumes: creates `Fresh.thing`\nReached from: nowhere/else.py\n")]
+        for body in bodies:
+            out = self.run_plan(body)
+            for code in ("P11", "P12", "P13", "P14", "P15", "P16"):
+                self.assertNotIn(code, out)
 
-    def test_a_contract_covering_the_trd_ids_passes(self) -> None:
-        self.assertNotIn("P11", self.run_plan(card("T01")))
+    def test_a_plan_without_an_execution_rules_heading_gets_no_p6(self) -> None:
+        write(self.p.root, PLAN_PATH, "# Plan\n\n" + card("T01", owns="src/orders/service.py"))
+        out = full(self.p, self.p.py(GATE, "--step", "plan", "--plan", PLAN_PATH))
+        self.assertNotIn("P6", out)
 
-    def test_an_open_trd_decision_warns_and_fails_when_strict(self) -> None:
-        write(self.p.root, "docs/trd/orders.md", TRD + "\nE-3: should retries be capped? decision open\n")
-        out = self.run_plan(card("T01"))
-        self.assertIn("WARNING P12", out)
-        self.assertNotIn("ERROR P12", out)
-        self.assertIn("E-3", out)
-        self.strict()
-        self.assertIn("ERROR P12", self.run_plan(card("T01")))
-
-    def test_a_decision_line_that_cites_a_prd_row_is_not_open(self) -> None:
-        write(self.p.root, "docs/trd/orders.md", TRD + "\nDecision: retries are capped, see ORD-02\n")
-        self.assertNotIn("P12", self.run_plan(card("T01")))
-
-    def test_a_created_symbol_needs_reached_from(self) -> None:
-        body = card("T01", extra="Creates / consumes: creates `OrderConfig.retry_after`\n")
-        self.assertIn("WARNING P13 T01", self.run_plan(body))
-        self.strict()
-        self.assertIn("ERROR P13 T01", self.run_plan(body))
-
-    def test_reached_from_must_name_a_file_some_card_owns_or_a_consumed_symbol(self) -> None:
-        extra = "Creates / consumes: creates `OrderConfig.retry_after`\nReached from: src/orders/nowhere.py::run\n"
-        self.assertIn("WARNING P14 T01", self.run_plan(card("T01", extra=extra)))
-        ok = "Creates / consumes: creates `OrderConfig.retry_after`\nReached from: src/orders/service.py::create_order\n"
-        self.assertNotIn("P14", self.run_plan(card("T01", extra=ok)))
-
-    def test_reached_from_may_be_a_symbol_another_card_consumes(self) -> None:
-        a = card("T01", extra="Creates / consumes: creates `OrderConfig.retry_after`\nReached from: OrderConfig.retry_after\n")
-        b = card("T02", contract="ORD-01", owns="src/orders/wire.py, src/orders/tests/test_wire.py", depends="T01",
-                 extra="Creates / consumes: consumes `OrderConfig.retry_after` (T01)\n")
-        self.assertNotIn("P14", self.run_plan(a + b))
-
-    def test_more_than_eight_files_or_no_test_path_fails_when_strict(self) -> None:
-        many = ", ".join(f"src/orders/f{i}.py" for i in range(9)) + ", src/orders/tests/test_f.py"
-        self.assertIn("WARNING P15 T01", self.run_plan(card("T01", contract="ORD-01", owns=many)))
-        no_test = card("T01", contract="ORD-01, ORD-02", owns="src/orders/service.py")
-        self.assertIn("WARNING P16 T01", self.run_plan(no_test))
-        self.strict()
-        self.assertIn("ERROR P16 T01", self.run_plan(no_test))
-        self.assertIn("ERROR P15 T01", self.run_plan(card("T01", contract="ORD-01", owns=many)))
-
-    def test_a_complete_card_is_clean_even_when_strict(self) -> None:
-        self.strict()
-        extra = "Creates / consumes: creates `OrderConfig.retry_after`\nReached from: src/orders/service.py::create_order\n"
-        out = self.run_plan(card("T01", extra=extra))
-        for code in ("P11", "P12", "P13", "P14", "P15", "P16"):
-            self.assertNotIn(code, out)
+    def test_plan_strict_no_longer_changes_anything(self) -> None:
+        self.repo.write_text(self.repo.read_text(encoding="utf-8").replace("| html_mode | hand |", "| html_mode | hand |\n| plan_strict | yes |"), encoding="utf-8")
+        write(self.p.root, PLAN_PATH, HEAD + card("T01", owns="src/orders/service.py"))
+        r = self.p.py(GATE, "--step", "plan", "--plan", PLAN_PATH)
+        self.assertEqual(r.returncode, 0, r.stdout)
 
 
 class SharedFileWaveTest(unittest.TestCase):
@@ -116,7 +79,7 @@ class SharedFileWaveTest(unittest.TestCase):
 
     def run_plan(self, body: str) -> str:
         write(self.p.root, PLAN_PATH, HEAD + body)
-        return self.p.py(GATE, "--step", "plan", "--plan", PLAN_PATH).stdout
+        return full(self.p, self.p.py(GATE, "--step", "plan", "--plan", PLAN_PATH))
 
     def strict(self) -> None:
         repo = self.p.root / ".claude/skills/prd-flow/repo.md"

@@ -1,0 +1,6 @@
+{
+  "source_dirs": ["src"],
+  "code_extensions": [".py", ".ts", ".tsx", ".js"],
+  "test_patterns": ["**/tests/**", "**/test_*", "**/*.test.*", "**/__tests__/**"],
+  "ignore": ["**/node_modules/**", "**/__pycache__/**"]
+}

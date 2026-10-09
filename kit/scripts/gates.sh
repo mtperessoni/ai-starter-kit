@@ -12,6 +12,7 @@ export PYTHONUTF8=1
 cd "$(git rev-parse --show-toplevel)"
 LOG_DIR=".claude/prd-flow/state/_tests"
 GATE_PY=".claude/skills/prd-flow/scripts/gate.py"
+SWEEP_PY=".claude/skills/prd-flow/scripts/prd_sweep.py"
 
 usage() {
     cat >&2 <<'USAGE'
@@ -28,6 +29,7 @@ usage: scripts/gates.sh <target> [args]
   guard            disk, image-cap and Docker disk file guards (guard-disk, guard-images run one each)
   sweep            remove this repo's test containers, volumes and networks older than
                    DOCKER_STALE_MINUTES (60): what a killed run left behind
+  prd-sweep [args] the prd-flow sweep of conflicts and impact across every PRD (prd_sweep.py); exit 2 when the script is missing
   docker-clean     remove labelled leftovers of any age and report unlabelled images (never touches those)
   clean-outputs    delete Claude Code task outputs older than 2 days or over 200 MB (any over 500 MB, in any project)
   baseline <slug> [--bg] [--commit REF]
@@ -43,7 +45,15 @@ usage: scripts/gates.sh <target> [args]
                    verify.stamp; a rerun with nothing changed reruns only what failed
   reap [--older-than <min>] [--dry-run]
                    kill, by PID tree, this session's stdin-waiting or older-than-N-minutes (default 20) processes; never a baseline|compare|verify tree;
-                   prints "reaped: <n>" and "left: 0" or the survivors
+                   prints "reaped: <n>" and "left: 0" or the survivors; a baseline|compare|verify tree is spared only while its
+                   state/<slug>/<target>.status says running and it is under 60 minutes old
+  cleanup [slug] [--session-end] [--dry-run]
+                   reap, delete this project's idle task outputs and loose files in .ai-kit/runs/, move state folders untouched for
+                   7 days to state/_stale/, purge _stale/ after 14 days and _tests/_gate caches after 3; --session-end: reap and
+                   task outputs only; at most 8 lines ending with "left: 0" or the survivors; exit 1 on a survivor
+  watch <slug> [--minutes N]
+                   the one bounded waiter per wave (default 30 min), run in the background by the chief: prints "stuck: <id> <type>
+                   idle <n> min", "deadline: <ids>" or "done: no agent running"
   python           print the resolved interpreter (the one every target uses)
   lint             verify lint, format and types, as CI does; one line: lint ok, or lint FAILED (exit N), log <path>
   fix              repair lint and format; same one-line result (then run lint)
@@ -296,6 +306,10 @@ guard)
 sweep)
     sweep
     ;;
+prd-sweep)
+    [ -f "$SWEEP_PY" ] || { echo "gates.sh: $SWEEP_PY is missing" >&2; exit 2; }
+    "$PY" "$SWEEP_PY" "$@"
+    ;;
 guard-disk)
     guard_disk
     ;;
@@ -317,10 +331,24 @@ baseline)
     ;;
 verify)
     [ $# -ge 1 ] || { echo "usage: gates.sh verify <slug> [--since REF]" >&2; exit 2; }
-    GATES_BASH="$(cygpath -w "$BASH" 2>/dev/null || printf %s "$BASH")" "$PY" scripts/verify.py "$@"
+    case "$1" in */* | *\\* | *..* | -*) echo "gates.sh: bad slug '$1'" >&2; exit 2 ;; esac
+    verify_dir=".claude/prd-flow/state/$1"
+    mkdir -p "$verify_dir"
+    printf 'running\n' > "$verify_dir/verify.status"
+    trap 'printf "done\n" > "$verify_dir/verify.status"' EXIT
+    verify_code=0
+    GATES_BASH="$(cygpath -w "$BASH" 2>/dev/null || printf %s "$BASH")" "$PY" scripts/verify.py "$@" || verify_code=$?
+    exit "$verify_code"
     ;;
 reap)
     "$PY" scripts/reap.py "$@"
+    ;;
+cleanup)
+    "$PY" scripts/cleanup.py "$@"
+    ;;
+watch)
+    [ $# -ge 1 ] || { echo "usage: gates.sh watch <slug> [--minutes N] [--since <epoch>]" >&2; exit 2; }
+    "$PY" scripts/watch.py "$@"
     ;;
 python)
     echo "$PY"
@@ -341,7 +369,7 @@ compare)
         echo "compare: reused the full run of the same test content ${content:0:12}"
     else
         printf 'running\n' > "$dir/compare.status"
-        trap 'rm -f "$dir/compare.status"' EXIT
+        trap 'printf "done\n" > "$dir/compare.status"' EXIT
         offline_sh offline "$CFG_TEST $CFG_OFFLINE_ARGS $CFG_FAST $("$PY" scripts/config_get.py --deselect)" > "$dir/final.log" 2>&1 || compare_code=$?
         if "$PY" scripts/new_failures.py --require-summary "$dir/final.log" > /dev/null; then
             mkdir -p "$cache"

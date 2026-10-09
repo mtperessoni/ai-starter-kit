@@ -1,5 +1,6 @@
 """Plan, trace, change folder and final checks."""
 
+import json
 import re
 import sys
 from pathlib import Path
@@ -7,93 +8,8 @@ from pathlib import Path
 from gate_core import (
     ID, ROW, TASK, Rules, cells, err, expand, git, is_code_route, is_proposed, is_table_line, rule_table_ids, warn,
 )
-from gate_waves import created, field, owned, shares
+from gate_rules import change_ids
 from gate_scope import approved_scope, heading_of_change, is_change_folder, read_snapshot, slug_of, write_snapshot
-
-
-TEST_PATH = re.compile(r"(^|/)(tests?|__tests__)/|(^|/)test_|\.(test|spec)\.|_test\.")
-OPEN_DECISION = re.compile(r"\bE-\d+\b|\bdecision\b", re.I)
-SYMBOL = re.compile(r"`([^`]+)`")
-FILE_TOKEN = re.compile(r"[\w./-]+/[\w./-]+\.\w+|[\w-]+\.(?:py|tsx?|jsx?|json|md|go|rs|java|kt|cs|rb|php|ya?ml|toml|sh|css|sql)")
-MAX_OWNED_FILES = 8
-
-
-def strict_plan(cfg: dict[str, str]) -> bool:
-    return cfg.get("plan_strict", "no").strip().lower() in {"yes", "true", "on"}
-
-
-def planned_sections(root: Path, cfg: dict[str, str]) -> list[str]:
-    trd = root / cfg["trd_dir"].rstrip("/")
-    found: list[str] = []
-    for f in sorted(trd.rglob("*.md")) if trd.is_dir() else []:
-        text = f.read_text(encoding="utf-8", errors="replace")
-        found += re.findall(r"^## " + re.escape(cfg["planned_heading"]) + r".*?(?=^## |\Z)", text, re.S | re.M)
-    return found
-
-
-def planned_file_ids(sections: list[str]) -> dict[str, set[str]]:
-    """TRD Planned rows: the file in the first cell and the IDs in the last one."""
-    found: dict[str, set[str]] = {}
-    for section in sections:
-        for line in section.splitlines():
-            row = cells(line.strip().strip("|")) if is_table_line(line.strip()) else []
-            m = re.fullmatch(r"`([^`]+)`", row[0].strip()) if len(row) >= 2 else None
-            if m:
-                found.setdefault(m.group(1), set()).update(re.findall(r"\b(" + ID + r")\b", row[-1]))
-    return found
-
-
-def open_decisions(sections: list[str], rules: Rules) -> list[str]:
-    found = []
-    for section in sections:
-        for line in section.splitlines():
-            ids = set(re.findall(r"\b(" + ID + r")\b", line))
-            if OPEN_DECISION.search(line) and not (ids & set(rules)) and not any(i.startswith("DEC-") for i in ids):
-                found.append(line.strip()[:100])
-    return found
-
-
-def block_contract(block: str) -> set[str]:
-    m = re.search(r"^Contract\b.*?(?=^[A-Z][A-Za-z /]*:|\Z)", block, re.S | re.M)
-    return (set(re.findall(r"\b(" + ID + r")\b", m.group(0))) | expand(m.group(0))) if m else set()
-
-
-def check_cards(cards: dict[str, str], sections: list[str], rules: Rules, cfg: dict[str, str]) -> None:
-    flag = err if strict_plan(cfg) else warn
-    mapped = planned_file_ids(sections)
-    for line in open_decisions(sections, rules):
-        flag("P12", f"the TRD Planned section holds an open decision without a PRD row: {line}; decide it in the interview and write the PRD row, then rerun")
-    for tid, block in cards.items():
-        files = [p for p in owned(block) if p]
-        covered = block_contract(block)
-        for rel, ids in sorted(mapped.items()):
-            if any(shares(rel, o) for o in files) and ids - covered:
-                flag("P11", f"{tid} owns {rel}, whose TRD Planned IDs {', '.join(sorted(ids - covered))} are not in its Contract")
-        if len(files) > MAX_OWNED_FILES:
-            flag("P15", f"{tid} owns {len(files)} files (at most {MAX_OWNED_FILES}): split the task")
-        if files and not any(TEST_PATH.search(p.lower()) for p in files):
-            flag("P16", f"{tid} owns no test path: add the test file to Owns")
-        symbols = SYMBOL.findall(created(block))
-        reached = field(block, "Reached from").strip()
-        if symbols and not reached:
-            flag("P13", f"{tid} creates {symbols[0]} and has no 'Reached from:' (entry point or caller)")
-        elif reached and not reached_is_owned(tid, reached, cards):
-            flag("P14", f"{tid}: 'Reached from: {reached}' is neither a file a card owns nor a symbol another card consumes")
-
-
-def reached_is_owned(tid: str, reached: str, cards: dict[str, str]) -> bool:
-    for token in re.split(r"[,;]", reached):
-        token = token.strip().strip("`").strip()
-        if not token:
-            continue
-        path = token.split("::")[0].strip()
-        if FILE_TOKEN.fullmatch(path):
-            if any(shares(path, o) for b in cards.values() for o in owned(b)):
-                continue
-            return False
-        if not any(token in b for t, b in cards.items() if t != tid):
-            return False
-    return True
 
 
 def check_plan(path: Path, rules: Rules, cfg: dict[str, str], root: Path | None = None) -> None:
@@ -107,11 +23,9 @@ def check_plan(path: Path, rules: Rules, cfg: dict[str, str], root: Path | None 
         err("P1", "plan without '### TNN' tasks")
         return
     prefixes = {rid.rsplit("-", 1)[0] for rid in rules}
-    cards: dict[str, str] = {}
     for tid, block in zip(found[1::2], found[2::2], strict=True):
         if re.search(r"^### \S+ · Promote", "### " + tid + block, re.M):
             continue
-        cards[tid] = block
         if not re.search(r"^Owns:", block, re.M):
             err("P2", f"{tid} without 'Owns:'")
         if not re.search(r"^Read:", block, re.M):
@@ -123,8 +37,6 @@ def check_plan(path: Path, rules: Rules, cfg: dict[str, str], root: Path | None 
         for rid in sorted(set(re.findall(r"\b(" + ID + r")\b", block))):
             if rid.rsplit("-", 1)[0] in prefixes and rid not in rules:
                 err("P5", f"{tid} cites {rid}, which does not exist in the PRD")
-    base = root or Path(git(path.resolve().parent, "rev-parse", "--show-toplevel").strip() or ".")
-    check_cards(cards, planned_sections(base, cfg), rules, cfg)
 
 
 def source_files(source: str) -> list[str]:
@@ -155,6 +67,20 @@ def source_exists(root: Path, rel: str, tracked: list[str]) -> bool:
     return any(("/" + f).endswith(tail) for f in tracked)
 
 
+def read_allowlist(root: Path, kit: dict) -> dict:
+    """ai-kit.allowlist.json holds the allowlist object itself; without it the old `allowlist` key of ai-kit.json."""
+    sidecar = root / "ai-kit.allowlist.json"
+    if sidecar.is_file():
+        try:
+            data = json.loads(sidecar.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            data = None
+        if isinstance(data, dict):
+            return data
+    old = kit.get("allowlist", {})
+    return old if isinstance(old, dict) else {}
+
+
 def check_trace(root: Path, rules: Rules, cfg: dict[str, str], vias: set[str]) -> None:
     config_path = root / "ai-kit.json"
     if not config_path.exists():
@@ -167,7 +93,7 @@ def check_trace(root: Path, rules: Rules, cfg: dict[str, str], vias: set[str]) -
     cited: set[str] = set()
     for f in kit_config.test_files(root, kit):
         cited |= set(re.findall(r"\b(" + ID + r")\b", f.read_text(encoding="utf-8", errors="replace")))
-    allowed = set(kit.get("allowlist", {}).get("untested_rules", []))
+    allowed = set(read_allowlist(root, kit).get("untested_rules", []))
     tracked = tracked_files(root)
     for rid, row in sorted(rule_rows(rules, vias).items()):
         if row[1].strip("` ").lower() == cfg["planned_source"]:
@@ -279,7 +205,7 @@ def check_final(root: Path, rules: Rules, cfg: dict[str, str], trd: Path, change
         if is_proposed(row[0], cfg):
             err("G30", f"{rid} is still {cfg['proposed_marker']}: confront it and approve it, or drop it")
     slug = slug_of(change) if change else None
-    mine = approved_scope(root, slug) if slug else set()
+    mine = (approved_scope(root, slug) or change_ids(root, cfg, slug)) if slug else set()
     older = read_snapshot(root, slug) if slug else set()
     for d in final_drift(root, rules, cfg, trd):
         message = final_message(d, cfg)

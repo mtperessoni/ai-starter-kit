@@ -1,6 +1,6 @@
 # <NNN-slug> · <change name>
 
-Size: <M|L> · Case: <C5> · Owner: <name>
+Size L only. Size: L · Case: C5 · Owner: <name>
 
 ## Why
 <At most 5 lines, in product language: who is affected, what hurts today, what changes for them.>

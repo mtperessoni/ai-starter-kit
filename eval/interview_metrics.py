@@ -204,6 +204,58 @@ def detail_metrics(detail):
             "budget_violations": (v := budget_violations(detail)), "budget_violation_count": len(v)}
 
 
+DOCS_PATH = re.compile(r"^(?:docs|changes)/")
+EDIT_TOOLS = ("Write", "Edit", "MultiEdit", "NotebookEdit")
+
+
+def _relative(path, cwd):
+    p, c = path.replace("\\", "/"), str(cwd or "").replace("\\", "/").rstrip("/")
+    if c and p.startswith(c + "/"):
+        return p[len(c) + 1:]
+    return p.lstrip("/")
+
+
+def run_metrics(events):
+    """Run-level counts: `agents_dispatched` (Agent or Task tool_use blocks, any depth), and the output tokens
+    split by what a turn edited. The unit is one assistant message (deduplicated by message id, largest
+    output_tokens kept; subagent turns count like the chief's). A message that edits only paths under docs/ or
+    changes/ (Write, Edit, MultiEdit, NotebookEdit; paths made relative to the event cwd) counts as docs; one that
+    edits any other path, source or tests, counts as code; a message with no edit counts for neither, and Bash
+    edits are not seen. `docs_to_code_ratio` is docs over code, None when no code token was spent."""
+    agents, turns = 0, {}
+    for i, e in enumerate(events):
+        if e.get("type") != "assistant":
+            continue
+        paths = []
+        for b in _blocks(e):
+            if b.get("type") != "tool_use":
+                continue
+            agents += b.get("name") in ("Agent", "Task")
+            inp = b.get("input") if isinstance(b.get("input"), dict) else {}
+            if b.get("name") in EDIT_TOOLS:
+                raw = inp.get("file_path") or inp.get("notebook_path")
+                if isinstance(raw, str):
+                    paths.append(_relative(raw, e.get("cwd")))
+        msg = e.get("message") if isinstance(e.get("message"), dict) else {}
+        usage = msg.get("usage") if isinstance(msg.get("usage"), dict) else {}
+        out = int(usage.get("output_tokens") or 0)
+        key = msg.get("id") or f"#{i}"
+        if key not in turns:
+            turns[key] = (out, paths)
+        else:
+            turns[key] = (max(out, turns[key][0]), turns[key][1] + paths)
+    docs = code = 0
+    for out, paths in turns.values():
+        if not paths:
+            continue
+        if all(DOCS_PATH.match(p) for p in paths):
+            docs += out
+        else:
+            code += out
+    return {"agents_dispatched": agents, "docs_output_tokens": docs, "code_output_tokens": code,
+            "docs_to_code_ratio": docs / code if code else None}
+
+
 def merge(parts):
     """Combine the per-session dicts of a two-phase run; the detail metrics are recomputed by the caller."""
     out = {}

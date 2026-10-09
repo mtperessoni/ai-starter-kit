@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 from tests.test_kit_scripts import Project, run, write
+from tests.gate_report import full
 
 GATE = ".claude/skills/prd-flow/scripts/gate.py"
 ORDERS = "docs/prd/shop/05-orders.md"
@@ -107,7 +108,7 @@ class ChangeViaColumnTest(unittest.TestCase):
             path = p.root / ORDERS
             path.write_text(path.read_text(encoding="utf-8") + "\n| ID | Rule | Source | Change via | Example |\n|---|---|---|---|---|\n"
                             "| ORD-03 | Orders can be reopened. | src/x.py | bogus | a cart |\n", encoding="utf-8", newline="\n")
-            self.assertIn("WARNING G3", p.py(GATE, "--base", "HEAD").stdout)
+            self.assertIn("WARNING G3", full(p, p.py(GATE, "--base", "HEAD")))
         finally:
             p.close()
 
@@ -132,7 +133,7 @@ class ProposedTest(unittest.TestCase):
     def test_a_proposed_row_with_another_source_warns_g9(self) -> None:
         path = self.p.root / ORDERS
         path.write_text(path.read_text(encoding="utf-8").replace("*(proposed)* | planned", "*(proposed)* | src/x.py"), encoding="utf-8", newline="\n")
-        self.assertIn("WARNING G9", self.p.py(GATE).stdout)
+        self.assertIn("WARNING G9", full(self.p, self.p.py(GATE)))
 
     def test_status_reports_proposed_and_implemented(self) -> None:
         out = self.p.py(GATE, "--status").stdout
@@ -176,8 +177,8 @@ class RemoteTest(unittest.TestCase):
         self.push_branch(ORDERS, (self.p.root / ORDERS).read_text(encoding="utf-8") + NEW_ROW + "\n")
         write(self.p.root, RULES, approved(NEW_ROW))
         r = self.p.py(GATE, "--rules", RULES)
-        self.assertIn("WARNING G27", r.stdout)
-        self.assertIn("ORD-03", r.stdout)
+        self.assertIn("WARNING G27", full(self.p, r))
+        self.assertIn("ORD-03", full(self.p, r))
         self.assertEqual(r.returncode, 0, r.stdout)
 
     def test_an_id_unused_on_remotes_is_silent(self) -> None:
@@ -189,8 +190,8 @@ class RemoteTest(unittest.TestCase):
         self.push_branch("changes/001-other/brief.md", "# Brief\n\nSize: S\n")
         write(self.p.root, "changes/001-limit/brief.md", "# Brief\n\nSize: S\n")
         r = self.p.py(GATE, "--change", "changes/001-limit")
-        self.assertIn("WARNING G27", r.stdout)
-        self.assertIn("001-other", r.stdout)
+        self.assertIn("WARNING G27", full(self.p, r))
+        self.assertIn("001-other", full(self.p, r))
 
     def test_the_same_change_folder_on_a_remote_is_not_a_clash(self) -> None:
         self.push_branch("changes/001-limit/brief.md", "# Brief\n\nSize: S\n")
@@ -210,6 +211,118 @@ class RemoteTest(unittest.TestCase):
         run(self.p.root, "git", "remote", "remove", "origin", check=True)
         write(self.p.root, RULES, approved(NEW_ROW))
         self.assertNotIn("G27", self.p.py(GATE, "--rules", RULES).stdout)
+
+
+PENDING = "| ORD-03 | *(approved 2026-10-07, pending code)* Orders can be reopened. | planned | code |"
+LOG = "docs/prd/CHANGELOG.md"
+ENTRY = """# CHANGELOG
+
+## Reopen orders (2026-10-07, Ana, changes/001-orders)
+
+Reason: orders can be reopened. IDs: ORD-03.
+Conflicts: ORD-01 compatible (reopening keeps the cart rule).
+Supersedes: none.
+
+### shop/05-orders.md
+
+**ORD-03** (whole row), new.
+"""
+DECISIONS = """# Decisions · 001-orders
+
+Reply 1: "reopen within 7 days, ok"
+
+| ID | Question | Decision | Rejected alternative | Why | Rules |
+|---|---|---|---|---|---|
+| DEC-01 | Window? | 7 days | none | simple | ORD-03 |
+"""
+
+
+class NewRouteTest(unittest.TestCase):
+    """No approved-rules.md or rules.md: the approved set is the CHANGELOG entry of the slug."""
+
+    def setUp(self) -> None:
+        self.p = Project()
+        path = self.p.root / ORDERS
+        path.write_text(path.read_text(encoding="utf-8") + PENDING + "\n", encoding="utf-8", newline="\n")
+        write(self.p.root, LOG, ENTRY)
+        write(self.p.root, "changes/001-orders/decisions.md", DECISIONS)
+        write(self.p.root, "state/orders/sheet.md", "# Sheet\n")
+
+    def tearDown(self) -> None:
+        self.p.close()
+
+    def gate(self, *extra: str) -> str:
+        return full(self.p, self.p.py(GATE, "--rules", RULES, *extra))
+
+    def test_a_valid_entry_passes_without_answers_md(self) -> None:
+        self.assertFalse((self.p.root / "state/orders/answers.md").exists())
+        out = self.gate("--applied")
+        self.assertNotIn("ERROR", out)
+        self.assertNotIn("Traceback", out)
+
+    def test_no_entry_is_q2(self) -> None:
+        write(self.p.root, LOG, "# CHANGELOG\n")
+        self.assertIn("ERROR Q2 no CHANGELOG entry", self.gate())
+
+    def test_an_id_missing_from_the_prd_is_q2(self) -> None:
+        write(self.p.root, LOG, ENTRY.replace("IDs: ORD-03.", "IDs: ORD-03, ORD-09."))
+        self.assertIn("ERROR Q2 ORD-09 is in the IDs of the CHANGELOG entry and not in the PRD", self.gate())
+
+    def test_an_id_without_the_pending_marker_is_q2_before_promote(self) -> None:
+        path = self.p.root / ORDERS
+        path.write_text(path.read_text(encoding="utf-8").replace("*(approved 2026-10-07, pending code)* ", ""), encoding="utf-8", newline="\n")
+        self.assertIn("ERROR Q2 ORD-03 is in the IDs of the CHANGELOG entry and its PRD row has no pending marker", self.gate())
+
+    def test_after_promote_the_marker_must_be_gone(self) -> None:
+        write(self.p.root, LOG, ENTRY + "\nPromoted: sources set.\n")
+        self.assertIn("ERROR Q4 ORD-03 still carries the pending marker after promote", self.gate())
+        path = self.p.root / ORDERS
+        path.write_text(path.read_text(encoding="utf-8").replace("*(approved 2026-10-07, pending code)* ", ""), encoding="utf-8", newline="\n")
+        self.assertNotIn("ERROR", self.gate())
+
+    def test_a_pack_conflict_must_be_in_the_entry(self) -> None:
+        write(self.p.root, "state/orders/pack.md", "# Pack\nConflicts: ORD-01, ORD-02\n")
+        out = self.gate()
+        self.assertNotIn("ORD-01 is in the Conflicts", out)
+        self.assertIn("ERROR Q5 ORD-02 is in the Conflicts of pack.md and not in the IDs, Supersedes or Conflicts", out)
+
+    def test_a_mechanism_term_must_come_from_the_sheet_or_a_reply(self) -> None:
+        write(self.p.root, "changes/001-orders/decisions.md", DECISIONS.replace("| 7 days |", "| 7 days via an environment variable |"))
+        self.assertIn("ERROR Q3 the mechanism 'environment variable'", self.gate())
+        write(self.p.root, "state/orders/sheet.md", "# Sheet\nuse an environment variable\n")
+        self.assertNotIn("ERROR Q3", self.gate())
+        write(self.p.root, "state/orders/sheet.md", "# Sheet\n")
+        write(self.p.root, "changes/001-orders/decisions.md",
+              DECISIONS.replace("ok", "ok, an environment variable").replace("| 7 days |", "| 7 days via an environment variable |"))
+        self.assertNotIn("ERROR Q3", self.gate())
+
+    def test_a_reply_line_is_not_itself_scanned_for_mechanisms(self) -> None:
+        write(self.p.root, "changes/001-orders/decisions.md", DECISIONS.replace("ok", "ok, a new table"))
+        self.assertNotIn("ERROR Q3", self.gate())
+
+    def test_a_mechanism_term_in_a_row_of_the_ids_is_scanned(self) -> None:
+        path = self.p.root / ORDERS
+        path.write_text(path.read_text(encoding="utf-8").replace("Orders can be reopened.", "Orders can be reopened through a new endpoint."), encoding="utf-8", newline="\n")
+        self.assertIn("ERROR Q3 the mechanism 'endpoint'", self.gate())
+
+    def test_the_old_route_wins_while_the_state_folder_has_approved_rules(self) -> None:
+        write(self.p.root, RULES, approved(PENDING))
+        self.assertNotIn("CHANGELOG", self.gate())
+
+
+class WarningsLineTest(unittest.TestCase):
+    def test_stdout_is_the_errors_and_one_warnings_line(self) -> None:
+        p = Project()
+        try:
+            path = p.root / ORDERS
+            path.write_text(path.read_text(encoding="utf-8") + "\n| ID | Rule | Source | Change via | Example |\n|---|---|---|---|---|\n"
+                            "| ORD-03 | Orders can be reopened. | src/x.py | bogus | a cart |\n", encoding="utf-8", newline="\n")
+            r = p.py(GATE, "--base", "HEAD")
+            self.assertNotIn("WARNING", r.stdout)
+            self.assertRegex(r.stdout.strip().splitlines()[-1], r"^warnings: [1-9]\d* \(see \.claude/prd-flow/state/_gate/last-default\.txt\)$")
+            self.assertIn("WARNING G3", full(p, r))
+        finally:
+            p.close()
 
 
 class ConfigDefaultsTest(unittest.TestCase):

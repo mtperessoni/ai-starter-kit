@@ -61,7 +61,7 @@ FIXES = {
     "G8": "cite an ID that exists in the PRD, or add the rule first",
     "G11": "point Source at a file that exists",
     "G12": "add a test that cites the ID in its header, or list it in allowlist.untested_rules",
-    "G14": "remove the ID from allowlist.untested_rules in ai-kit.json",
+    "G14": "remove the ID from allowlist.untested_rules in ai-kit.allowlist.json (or ai-kit.json on an older repo)",
     "G15": "cite an ID that exists in the PRD",
     "G16": "add the ID to the Contract of a task in plan.md",
     "G17": "remove the rule row from brief.md and cite its ID",
@@ -80,10 +80,10 @@ FIXES = {
     "P7": "make one of the two tasks depend on the other or give them disjoint Owns",
     "P9": "add the path to the Owns: line of the task",
     "Q1": "rewrite the pack section so it matches the PRD literally",
-    "Q2": "fix the row in approved-rules.md",
-    "Q3": "add the missing row to '## Resolution' of answers.md, or ask the mechanism in the sheet",
-    "Q4": "edit the PRD row to equal the approved row",
-    "Q5": "add or correct the row of the ID under '## Conflicts' of approved-rules.md",
+    "Q2": "fix the IDs: line of the CHANGELOG entry or the PRD row (old route: the row in approved-rules.md)",
+    "Q3": "ask the mechanism in a sheet decision or remove it (old route: also add the missing row to answers.md)",
+    "Q4": "edit the PRD row to equal the approved row, or drop the marker (old route: equal the approved row)",
+    "Q5": "list the ID with its resolution in the CHANGELOG entry (old route: under '## Conflicts' of approved-rules.md)",
 }
 
 

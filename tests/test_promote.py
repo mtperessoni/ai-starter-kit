@@ -453,5 +453,110 @@ class PromoteTest(unittest.TestCase):
         self.assertNotIn("pending code", self.text(f"{STATE}/rules.md"))
 
 
+ENTRY = """# CHANGELOG
+
+## Cancel unpaid orders (2026-10-04, Ana, changes/001-disc)
+
+Reason: unpaid orders are cancelled and shipped orders keep the invoice. IDs: ORD-02, ORD-03, ORD-04.
+Conflicts: none.
+Supersedes: ORD-01.
+
+### shop/05-orders.md
+
+**ORD-02** (whole row), rewritten.
+
+    | ORD-02 | *(approved 2026-10-04, pending code)* An unpaid order is cancelled after 30 s. | planned | config |
+"""
+
+REPLY_DECISIONS = DECISIONS.replace("# Decisions · 001-disc\n", '# Decisions · 001-disc\n\nReply 1: "20 s is fine, | DEC-99 | not a row"\n')
+
+
+class NewRoutePromoteTest(unittest.TestCase):
+    """No approved-rules.md or rules.md in the state folder: the set comes from the CHANGELOG entry."""
+
+    def setUp(self) -> None:
+        self.p = Project()
+        r = self.p.root
+        shutil.copytree(KIT / "docs" / "templates", r / "docs" / "templates", dirs_exist_ok=True)
+        write(r, PRD, PRD_TEXT)
+        write(r, "docs/prd/CHANGELOG.md", ENTRY)
+        write(r, f"{STATE}/deliveries.md", DELIVERIES + "Source: ORD-04 src/features/orders/refund.py\n")
+        write(r, f"{STATE}/state.md", "state\n")
+        write(r, "changes/001-disc/decisions.md", REPLY_DECISIONS)
+        write(r, "changes/001-disc/plan.md", "plan\n")
+        run(r, "git", "add", "-A", check=True)
+        run(r, "git", "commit", "-q", "-m", "docs apply", check=True)
+
+    def tearDown(self) -> None:
+        self.p.close()
+
+    def promote(self, *extra: str):
+        return self.p.py(PROMOTE, "disc", *extra)
+
+    def text(self, rel: str) -> str:
+        return (self.p.root / rel).read_text(encoding="utf-8")
+
+    def test_the_entry_drives_markers_sources_supersedes_decisions_and_archive(self) -> None:
+        r = self.promote()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("3 approved, 1 superseded", r.stdout)
+        prd = self.text(PRD)
+        self.assertNotIn("pending code", prd)
+        self.assertNotIn("| ORD-01 |", prd)
+        self.assertIn("| ORD-02 | An unpaid order is cancelled after 20 s. | src/features/orders/order_service.py::cancel_unpaid | config |", prd)
+        log = self.text("docs/prd/CHANGELOG.md")
+        self.assertEqual(log.count("**ORD-02**"), 1, log)
+        self.assertIn("**ORD-01** (whole row). Superseded.", log)
+        self.assertIn("    | ORD-01 | An order is created only from a cart with at least one item.", log)
+        self.assertIn("| DEC-01 | How long to wait? | 20 s | 30 s | carts expire | ORD-02 |", log)
+        self.assertNotIn("DEC-99", log)
+        self.assertIn("Promoted: sources set.", log)
+        self.assertTrue((self.p.root / "changes/archive/001-disc").is_dir())
+        self.assertFalse((self.p.root / STATE / "approved-rules.md").exists())
+        self.assertIn("Rules: ORD-01, ORD-02, ORD-03, ORD-04", r.stdout)
+
+    def test_dry_run_changes_nothing(self) -> None:
+        before = self.text(PRD)
+        r = self.promote("--dry-run")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(self.text(PRD), before)
+        self.assertNotIn("Promoted", self.text("docs/prd/CHANGELOG.md"))
+
+    def test_hold_keeps_the_row_planned_and_skips_the_archive(self) -> None:
+        r = self.promote("--hold", "ORD-04", "--reason", "front repo delivers it")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("pending code)* A refund keeps the invoice.", self.text(PRD))
+        self.assertTrue((self.p.root / "changes/001-disc").is_dir())
+        self.assertIn("Held planned: ORD-04", self.text("docs/prd/CHANGELOG.md"))
+
+    def test_a_delivered_rule_without_a_source_fails_without_changes(self) -> None:
+        write(self.p.root, f"{STATE}/deliveries.md", "Source: ORD-02 src/a.py\n")
+        before = self.text(PRD)
+        r = self.promote()
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("no Source line", r.stdout)
+        self.assertEqual(self.text(PRD), before)
+
+    def test_an_id_of_the_entry_in_no_prd_file_is_a_clean_error(self) -> None:
+        write(self.p.root, "docs/prd/CHANGELOG.md", ENTRY.replace("ORD-04.", "ORD-04, ORD-77."))
+        r = self.promote()
+        self.assertEqual(r.returncode, 2, r.stdout)
+        self.assertIn("ORD-77", r.stdout)
+        self.assertNotIn("Traceback", r.stderr)
+
+    def test_no_entry_and_no_state_record_is_a_clean_error(self) -> None:
+        write(self.p.root, "docs/prd/CHANGELOG.md", "# CHANGELOG\n")
+        r = self.promote()
+        self.assertEqual(r.returncode, 2, r.stdout)
+        self.assertIn("nothing to promote", r.stdout)
+
+    def test_a_state_folder_with_approved_rules_is_still_the_old_route(self) -> None:
+        write(self.p.root, f"{STATE}/approved-rules.md", APPROVED)
+        write(self.p.root, "docs/prd/CHANGELOG.md", "# CHANGELOG\n")
+        r = self.promote("--dry-run")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("3 approved, 1 superseded", r.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()

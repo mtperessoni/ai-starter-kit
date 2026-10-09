@@ -1,9 +1,11 @@
 """gate.py output: --step trd scoped to the change, capped stdout, full report in an artifact."""
 
 import os
+import re
 import unittest
 
 from tests.test_kit_scripts import Project, run, write
+from tests.gate_report import full
 
 GATE = ".claude/skills/prd-flow/scripts/gate.py"
 ARTIFACT = ".claude/prd-flow/state/_gate/last-step-trd.txt"
@@ -30,7 +32,7 @@ class OutputTest(unittest.TestCase):
         r = self.p.py(GATE, "--step", "trd")
         self.assertEqual(r.returncode, 0, r.stdout)
         self.assertNotIn("ERROR G23", r.stdout)
-        self.assertIn("WARNING G23 earlier drift, outside this change: 1 finding(s) in 1 file(s), see " + ARTIFACT, r.stdout)
+        self.assertIn("WARNING G23 earlier drift, outside this change: 1 finding(s) in 1 file(s), see " + ARTIFACT, full(self.p, r))
 
     def test_a_changed_trd_file_keeps_its_errors(self) -> None:
         write(self.p.root, "docs/trd/new.md", BAD)
@@ -51,7 +53,7 @@ class OutputTest(unittest.TestCase):
         lines = r.stdout.splitlines()
         self.assertEqual(sum(1 for x in lines if x.startswith("ERROR G23")), 15, r.stdout)
         self.assertIn("... 5 more errors, see " + ARTIFACT, lines)
-        self.assertTrue(lines[-1].startswith("gate:20 error(s)"), r.stdout)
+        self.assertRegex(lines[-1], r"^warnings: \d+ \(see " + re.escape(ARTIFACT) + r"\)$")
         full = (self.p.root / ARTIFACT).read_text(encoding="utf-8")
         self.assertEqual(sum(1 for x in full.splitlines() if x.startswith("ERROR G23")), 20)
         self.assertIn("gate:20 error(s)", full)
@@ -60,7 +62,7 @@ class OutputTest(unittest.TestCase):
         write(self.p.root, ".claude/prd-flow", "a file where the folder should be")
         r = self.p.py(GATE, "--step", "trd")
         self.assertEqual(r.returncode, 0, r.stdout)
-        self.assertIn("gate:0 error(s)", r.stdout)
+        self.assertRegex(r.stdout, r"warnings: \d+ \(see " + re.escape(ARTIFACT) + r"\)")
         self.assertFalse(os.path.isdir(self.p.root / ".claude/prd-flow"))
 
 

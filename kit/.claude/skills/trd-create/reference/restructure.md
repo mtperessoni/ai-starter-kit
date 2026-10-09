@@ -17,7 +17,7 @@ Optional (AR20): offer it with its cost after the readiness plan (`reference/rea
 | X10 | The TRD and the feature `CLAUDE.md` maps move in the same commit as the code they describe |
 
 ## Plan format
-Write `changes/NNN-feature-structure/plan.md` with the prd-flow task format (`.claude/skills/prd-flow/reference/agent-plan.md`), one task per feature or per giant file, in waves:
+Write `changes/NNN-feature-structure/plan.md` with the prd-flow task format (`.claude/skills/prd-flow/reference/write.md` "Card"), one task per feature or per giant file, in waves:
 
 | Wave | Tasks | Proof |
 |---|---|---|
@@ -28,4 +28,4 @@ Write `changes/NNN-feature-structure/plan.md` with the prd-flow task format (`.c
 | 5 | Maps: TRD and feature `CLAUDE.md` updated; ratchet allowlist lowered to the new state | gate, ratchet |
 | 6 | Full suite once, against the baseline | `scripts/gates.sh compare <slug>` |
 
-Present the plan as a table (ID, result, owns, depends on, model, lens) for approval; execution follows prd-flow `reference/execution.md` in a new session.
+Present the plan as a table (ID, result, owns, depends on, model, lens) for approval; execution follows prd-flow `reference/run.md` in a new session.

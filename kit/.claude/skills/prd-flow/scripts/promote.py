@@ -1,12 +1,16 @@
 """The mechanical part of Promote: markers, Source, CHANGELOG, archive, state, final gate.
 
 Usage: python .claude/skills/prd-flow/scripts/promote.py <slug> [--dry-run] [--root <repo>] [--hold ID[,ID] --reason TEXT]
-Reads .claude/prd-flow/state/<slug>/rules.md (the state record) or, without it, approved-rules.md and changes/NNN-<slug>/decisions.md, and deliveries/*.md (or an older single deliveries.md).
+New route (no approved-rules.md or rules.md in .claude/prd-flow/state/<slug>/): the approved set is the slug's CHANGELOG entry (heading names changes/NNN-<slug>;
+`IDs:`, `Conflicts:`, `Supersedes:` lines), the rows come from the PRD files, the DEC rows from changes/NNN-<slug>/decisions.md (Reply lines skipped), the Sources from deliveries/*.md.
+Rewritten-row excerpts are already in the entry; promote adds the excerpts of the superseded rows, the Decisions block and the Sources.
+Old route (the state folder still has rules.md or approved-rules.md): read as before, with deliveries/*.md (or an older single deliveries.md).
 Markers come from repo.md (pending_marker, planned_source). A delivered rule without a Source fails unless it is held (--hold keeps it planned, skips the archive and the final gate). After promote the state rows equal the PRD rows.
 Prints at most 14 lines: on success the files changed and a ready commit message (a WARN names its `next:` dispatch); on each error `owner:` and `next:` lines. What it cannot decide (the TRD Planned merge, amendment folds) is a listed warning.
 """
 
 import argparse
+import os
 import re
 import subprocess
 import sys
@@ -15,7 +19,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import state_record  # noqa: E402
-from gate_core import load_config, needs_source, parse_supersedes  # noqa: E402
+from gate_core import load_config, needs_source, parse_supersedes, read_md_rules  # noqa: E402
+from gate_rules import changelog_entry as find_entry, entry_approver, entry_pattern, entry_sets  # noqa: E402
 
 MAX_LINES = 14
 OWNER_FIX = ("owner: executor fix", "next: executor fix with the printed lines, then executor close")
@@ -184,8 +189,8 @@ def changelog_entry(slug, approver, folder, ids, files_old, rows, sources=None) 
     return "\n".join(out) + "\n"
 
 
-def entry_match(text: str, slug: str) -> re.Match | None:
-    return re.search(rf"^## (?:\d+-)?{re.escape(slug)} \(.*?(?=^## |\Z)", text, re.M | re.S)
+def entry_match(text: str, slug: str, pattern: str | None = None) -> re.Match | None:
+    return re.search(pattern or rf"^## (?:\d+-)?{re.escape(slug)} \(.*?(?=^## |\Z)", text, re.M | re.S)
 
 
 def release_hold(text: str, sources: dict[str, str]) -> str | None:
@@ -199,9 +204,11 @@ def release_hold(text: str, sources: dict[str, str]) -> str | None:
     return text[:m.start()] + line + text[m.end():]
 
 
-def complete_entry(text: str, slug: str, ids, files_old, rows, sources) -> str | None:
-    """The CHANGELOG text with the step 5 entry of slug completed, or None when there is none or promote already did it."""
-    m = entry_match(text, slug)
+def complete_entry(text: str, slug: str, ids, files_old, rows, sources, pattern: str | None = None, strict: bool = False) -> str | None:
+    """The CHANGELOG text with the entry of slug completed, or None when there is none or promote already did it.
+
+    strict (new route): an old-text block is skipped only when the entry already holds `**ID**` (a bare ID is on its IDs: line)."""
+    m = entry_match(text, slug, pattern)
     if not m or PROMOTED in m.group(0):
         return None
     section = m.group(0).rstrip("\n") + "\n"
@@ -212,7 +219,7 @@ def complete_entry(text: str, slug: str, ids, files_old, rows, sources) -> str |
         kept = []
         for item in items:
             first = OLD_BLOCK.match(item[0])
-            if first and first.group(1) not in section:
+            if first and (f"**{first.group(1)}**" if strict else first.group(1)) not in section:
                 kept += item
         if not kept:
             continue
@@ -267,7 +274,27 @@ def other_prd_files(root: Path, cfg: dict, taken: set[Path]) -> list[Path]:
     return [f for f in sorted(prd.rglob("*.md")) if f.name not in skip and f not in taken] if prd.is_dir() else []
 
 
-def plan_edits(root, cfg, slug, files, old, approver, sources, change, state, hold=frozenset(), reason=""):
+def entry_inputs(root: Path, cfg: dict, slug: str) -> tuple[dict[str, list[str]], dict[str, str], str]:
+    """New route: IDs by PRD file, the superseded IDs (no old text: the CHANGELOG entry has the excerpts), and the approver."""
+    entry = find_entry(root, cfg, slug)
+    if entry is None:
+        raise PromoteError(f"no approved-rules.md and no CHANGELOG entry for changes/NNN-{slug}: nothing to promote", "user",
+                           "user decides whether to restart the C5 (surveyor full) or stop; the run lost its records")
+    sets = entry_sets(entry)
+    if not sets["ids"]:
+        raise PromoteError(f"the CHANGELOG entry of {slug} has no IDs: line", "docs apply", "docs apply (write the IDs: line), then executor close")
+    prd = root / cfg["prd_dir"].rstrip("/")
+    owners = read_md_rules(prd, cfg["prd_glob"], cfg["via_header"])
+    files: dict[str, list[str]] = {}
+    for rid in sets["ids"]:
+        if rid not in owners:
+            raise PromoteError(f"{rid} is in the IDs of the CHANGELOG entry of {slug} and in no PRD file", "docs apply",
+                               "docs apply (write the row or correct the IDs: line), then executor close")
+        files.setdefault(os.path.relpath(owners[rid][0], root).replace(os.sep, "/"), []).append(rid)
+    return files, {rid: "" for rid in sets["supersedes"] if rid not in sets["ids"]}, entry_approver(entry)
+
+
+def plan_edits(root, cfg, slug, files, old, approver, sources, change, state, hold=frozenset(), reason="", new_route=False):
     """Every file write in memory first: the PRD rows and the CHANGELOG."""
     marker = pending_marker(cfg)
     approved_ids = {i for ids in files.values() for i in ids}
@@ -279,7 +306,8 @@ def plan_edits(root, cfg, slug, files, old, approver, sources, change, state, ho
             raise PromoteError(f"{name}: PRD file not found", "docs rules", "docs rules (correct the PRD file heading in approved-rules.md), then executor close")
     log = root / cfg["prd_dir"] / "CHANGELOG.md"
     log_text = log.read_text(encoding="utf-8") if log.is_file() else ""
-    entry = entry_match(log_text, slug)
+    pattern = entry_pattern(slug) if new_route else None
+    entry = entry_match(log_text, slug, pattern)
     done = entry is not None and PROMOTED in entry.group(0)
     writes: dict[Path, str] = {}
     stats = {"src": 0, "dropped": 0, "missing": [], "own": []}
@@ -311,9 +339,9 @@ def plan_edits(root, cfg, slug, files, old, approver, sources, change, state, ho
     if not done:
         rows = list(dict.fromkeys(state_record.decision_rows(state, change)))
         all_ids = sorted((approved_ids - hold) | superseded)
-        entry_text = complete_entry(log_text, slug, all_ids, files_old, rows, sources) or insert_entry(
+        entry_text = complete_entry(log_text, slug, all_ids, files_old, rows, sources, pattern, new_route) or insert_entry(
             log, changelog_entry(slug, approver, folder, all_ids, files_old, rows, sources))
-        own = entry_match(entry_text, slug) if hold else None
+        own = entry_match(entry_text, slug, pattern) if hold else None
         if own and PROMOTED in own.group(0):
             held = own.group(0).replace(PROMOTED, f"{PROMOTED}\n\nHeld planned: {', '.join(sorted(hold))}. Reason: {reason}.", 1)
             entry_text = entry_text[:own.start()] + held + entry_text[own.end():]
@@ -348,11 +376,8 @@ def promote(root: Path, slug: str, dry: bool, hold: frozenset[str] = frozenset()
     cfg = load_config()
     state = root / ".claude" / "prd-flow" / "state" / slug
     approved_text = state_record.approved_text(state)
-    if approved_text is None:
-        approved = state / "approved-rules.md"
-        raise PromoteError(f"no {approved.relative_to(root).as_posix()}: nothing to promote for {slug}", "user",
-                           "user decides whether to restart the C5 (surveyor full) or stop; the run lost its scaffold")
-    files, old, approver = parse_approved(approved_text)
+    new_route = approved_text is None
+    files, old, approver = entry_inputs(root, cfg, slug) if new_route else parse_approved(approved_text)
     unknown = sorted(hold - {i for ids in files.values() for i in ids})
     if unknown:
         raise PromoteError(f"--hold names {', '.join(unknown)}, which is not an approved rule of {slug}", "user", "user corrects the --hold IDs")
@@ -363,7 +388,8 @@ def promote(root: Path, slug: str, dry: bool, hold: frozenset[str] = frozenset()
     for f in delivery_files:
         sources.update(sources_from_deliveries(f.read_text(encoding="utf-8")))
     change = find_change(root, slug)
-    writes, stats, approved_ids, superseded, folder, log = plan_edits(root, cfg, slug, files, old, approver, sources, change, state, hold, reason)
+    writes, stats, approved_ids, superseded, folder, log = plan_edits(root, cfg, slug, files, old, approver, sources, change, state, hold, reason,
+                                                                      new_route)
     problems = [f"promote {slug}: ERROR {len(stats['missing'])} delivered rule(s) have no Source line: {', '.join(stats['missing'])}; "
                 "add the Source or hold them with --hold ID --reason TEXT"] if stats["missing"] else []
     problems += [f"promote {slug}: ERROR superseded ID {rid} matches no row in any PRD file" for rid in stats["unmatched"]]
@@ -381,7 +407,8 @@ def promote(root: Path, slug: str, dry: bool, hold: frozenset[str] = frozenset()
     if not dry:
         for path, text in writes.items():
             path.write_text(text, encoding="utf-8", newline="\n")
-        realign_state(state, writes, files, root, cfg, hold)
+        if not new_route:
+            realign_state(state, writes, files, root, cfg, hold)
     if hold:
         lines += ["archive: skipped, held rows remain", "state: kept for close", "gate --final: skipped (held rows)"]
         return lines + [f"commit: docs(prd): promote {slug} (partial)"], 0
@@ -405,7 +432,8 @@ def promote(root: Path, slug: str, dry: bool, hold: frozenset[str] = frozenset()
         gate = Path(__file__).with_name("gate.py")
         r = subprocess.run([sys.executable, str(gate), "--final", "--change", slug], capture_output=True, text=True, check=False,  # noqa: S603
                            cwd=root, encoding="utf-8")
-        tail = (r.stdout.strip().splitlines() or [""])[-1]
+        out = r.stdout.strip().splitlines()
+        tail = next((ln for ln in out if ln.startswith("ERROR")), (out or [""])[-1])
         lines.append(f"gate --final: {tail} (exit {r.returncode})")
         code = int(r.returncode != 0)
         if code:

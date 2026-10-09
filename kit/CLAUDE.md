@@ -27,8 +27,8 @@ All code follows `docs/code-structure.md` (rules AR01 to AR28); `scripts/gates.s
 - **Shape:** composition over mixins; explicit state, no shared mutable closures; re-export only in an area's public entry.
 - **Traceability:** every module of an area cites the PRD IDs it implements, every test the ID it proves; update the area's map and TRD in the same commit as the code.
 - **Tests:** where the stack expects them, beside the code or its mirrored tree (AR10); mocks target the module of the caller. A person may run `scripts/gates.sh related`; a prd-flow executor runs only its own test plus `gates.sh fix-files` and `lint-files` on its files; the chief runs one `gates.sh verify` per wave; the full suite runs once, at the end of a delivery.
-- **Processes:** long commands run in the background with an explicit timeout longer than the run; never kill processes by image name (`taskkill /IM`, `pkill`, `killall`), use `scripts/gates.sh reap`.
-- **Returns:** every prd-flow agent returns at most 20 lines with the five fields `Status`, `Files:`, `Commit:`, `Route:`, `Next:`.
+- **Processes:** a subagent runs long commands in the foreground with an explicit timeout under 600 s, output to a file; only the main thread starts background work, with a timeout longer than the run. Never kill processes by image name (`taskkill /IM`, `pkill`, `killall`): use `scripts/gates.sh reap`; every prd-flow case starts and ends with `scripts/gates.sh cleanup`.
+- **Returns:** every prd-flow agent returns the five fields `Status`, `Files:`, `Commit:`, `Route:`, `Next:` under the cap in `.claude/skills/prd-flow/reference/run.md` "Every agent".
 - **Moving code:** by script (line ranges or AST), never retyped.
 - **Language:** everything in English: code, docs, PRD, TRD, artifacts, commits.
 

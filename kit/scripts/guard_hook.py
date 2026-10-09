@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Blocking PreToolUse guard for Bash and PowerShell, declared in the frontmatter `hooks:` of the prd-flow agents only.
+"""Blocking PreToolUse guard for Bash and PowerShell, declared in settings.json for every agent; it applies only when the payload carries
+an agent_id (a subagent), so the main thread is never blocked.
 
 Denies the command shapes that left orphan processes or destroyed sibling work (heredocs, stdin interpreters, shell writes, kills by name,
 git commands that rewrite the shared tree). Exit 2 with the reason and the allowed way on stderr blocks the call. Fails open on any
@@ -111,7 +112,7 @@ def blocked_reason(command):
 def main():
     try:
         p = json.loads(sys.stdin.read())
-        if p.get("tool_name") not in ("Bash", "PowerShell"):
+        if p.get("tool_name") not in ("Bash", "PowerShell") or not p.get("agent_id"):
             return 0
         command = (p.get("tool_input") or {}).get("command") or ""
         why = blocked_reason(str(command))

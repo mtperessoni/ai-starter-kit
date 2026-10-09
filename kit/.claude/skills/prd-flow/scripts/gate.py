@@ -2,7 +2,7 @@
 
 Configuration comes from the "Gate config" table of ../repo.md.
 
-Modules beside it: gate_core (state, parsing), gate_prd, gate_plan, gate_rules (Q4), gate_interview (Q3),
+Modules beside it: gate_core (state, parsing), gate_prd, gate_plan, gate_rules (Q2 to Q5, the CHANGELOG entry), gate_interview (S0 to S6, Q3),
 gate_status, gate_remote (G27), gate_trd (G23 to G26), gate_sibling (G28), gate_html_build (G29, G32).
 
 Usage: python .claude/skills/prd-flow/scripts/gate.py [--base REF]
@@ -26,12 +26,16 @@ Usage: python .claude/skills/prd-flow/scripts/gate.py [--base REF]
 --step: one run per agent step, one report. prd: default run, --rules and --applied when given, --sibling.
         trd: default run and --trd. plan: --plan and --change, plus the computed WAVE table and CRITICAL PATH (Owns overlap in a wave fails).
 --sheet: sheet.md (and sheet-2.md) of the slug: decisions complete (S1), pack rules in the diff (S2), no repeated topic or over 8 items (S3), plain_words (S4 warn), numbers named (S5 warn), interactions exist (S6); S0 is the structure. --questions is the old name.
---plan: P11 to P16 (Contract covers the TRD Planned IDs of the Owns, Reached from, at most 8 Owns files, a test path) warn unless plan_strict is yes; P12 (open TRD-only decision) always fails.
---rules and --applied read rules.md through state_record (approved-rules.md only as the legacy file).
---rules also runs Q5 (every conflict of the pack is resolved under '## Conflicts', a rewrite keeps its ID).
+--plan: the P checks of the plan cards (Owns, Read, ids that exist, wave overlap); the old alignment reminders P11 to P16 are retired.
+--rules <state>/approved-rules.md (the path only names the state folder, the slug is its name), new route: the approved set is the slug's CHANGELOG entry
+        (heading with changes/NNN-<slug>; IDs:, Conflicts:, Supersedes: lines), the rows come from the PRD files, the decisions from changes/NNN-<slug>/decisions.md.
+        Q2: every IDs: ID is in the PRD with the pending marker (until promote) or without it (after). Q5: every Conflicts: ID of pack.md is in the entry's IDs:, Supersedes: or Conflicts:.
+        Q3: a mechanism term in decisions.md or in the rows of IDs: is also in sheet.md, sheet-2.md or a Reply line. answers.md is not read.
+--rules, old route (the state folder still has rules.md or approved-rules.md): rows against the PRD (Q2), every sheet item answered in answers.md and no unasked mechanism (Q3),
+        every conflict of the pack resolved under '## Conflicts' (Q5), and with --applied each approved row identical in the PRD (Q4).
+--rules also runs G27 for IDs used on remote branches (old route).
 G31: a PRD section file over prd_section_budget_lines (warning).
---rules: rows against the PRD (Q2), every sheet item answered in answers.md and no unasked mechanism (Q3), and G27 for IDs used on remote branches.
---applied: with --rules, every approved row exists in the PRD file named by its heading, identical (Q4).
+Output: stdout carries the errors and one line 'warnings: N (see .claude/prd-flow/state/_gate/last-<mode>.txt)'; the full report with the warnings is in that file.
 --status: ID, state, file, Source and Change via of each rule; states proposed, approved, superseded, implemented.
 --trace: every PRD rule not planned is cited by a test file (test_patterns of ai-kit.json);
          untested rules are held to allowlist.untested_rules, which only shrinks.
@@ -39,7 +43,7 @@ G31: a PRD section file over prd_section_budget_lines (warning).
 --final: nothing planned, pending, proposed (G30) or open is left (CI, on pushes to the base branch).
 --final --change <slug>: G19 to G21 only for the slug's approved rows, its '## Planned (<slug>' heading and its folder; the rest is a warning (gate_scope).
 --snapshot <slug>: records the older G19 to G21 drift (final-snapshot.json in the slug state) so a scoped final reports it as pre-existing.
---docs <slug>: default prd checks, --rules --applied when approved-rules.md exists, trd and plan in one run; cached by input mtimes (--fresh reruns).
+--docs <slug>: default prd checks, --rules --applied when the slug has a state record (old route) or a CHANGELOG entry (new route), trd and plan in one run; cached by input mtimes (--fresh reruns).
 --trd: backticked paths exist (G23), symbols (G24) are in the row's files, files within trd_budget_lines (G26).
 --sibling: PRD folders listed under "Shared PRDs" of repo.md equal the sibling repository's (G28).
 The default run and --step never print a stale page (G29, G32 only under --html); html_mode hand warns G5. G25 and the G28 absent-sibling warning are not printed.
@@ -66,7 +70,7 @@ from gate_core import notes
 from gate_prd import changed_rows, check_index, check_pack, check_rules
 from gate_html_build import check_html_flow, check_html_strict
 from gate_remote import warn_remote_change, warn_remote_ids
-from gate_rules import check_applied, check_conflicts
+from gate_rules import changelog_entry, check_applied, check_conflicts, check_entry
 from gate_sibling import check_sibling
 from gate_status import STATES, status_lines
 from gate_trd import check_trd
@@ -134,7 +138,7 @@ def docs_checks(root: Path, cfg, rules, vias, args, repo_md: Path, rules_checks,
     slug = slug_of(args.docs)
     state = state_dir(root, slug)
     approved = state / "approved-rules.md"
-    has_rules = approved_text(state) is not None
+    has_rules = approved_text(state) is not None or changelog_entry(root, cfg, slug) is not None
     plan = find_plan(root, slug)
     prd_rel, trd_rel = cfg["prd_dir"].rstrip("/"), cfg["trd_dir"].rstrip("/")
     base = base_ref(root, cfg, args.base)
@@ -173,13 +177,13 @@ def main() -> int:
     )
     parser.add_argument("--base", default=None, metavar="REF", help="comparison ref (default: merge-base with origin/<base_branch>)")
     parser.add_argument("--pack", type=Path, metavar="FILE", help="check a pack.md of the state folder (Q1)")
-    parser.add_argument("--rules", type=Path, metavar="FILE|SLUG", help="check the approved rules of a state folder: rows, conflicts, answers (Q2 to Q5)")
+    parser.add_argument("--rules", type=Path, metavar="FILE|SLUG", help="check the approved set of a change: <state>/approved-rules.md names the state folder; the set is the CHANGELOG entry of the slug (old route: the file); Q2 to Q5")
     parser.add_argument("--plan", type=Path, metavar="FILE", help="check a plan for agents (P1 to P17)")
     parser.add_argument("--sheet", "--questions", dest="sheet", metavar="SLUG", help="lint sheet.md and sheet-2.md of a change (S0 to S6); --questions is the old name")
     parser.add_argument("--trace", action="store_true", help="every non-planned PRD rule is cited by a test file")
     parser.add_argument("--change", type=Path, metavar="FOLDER", help="check a change folder (brief.md, design.md, plan.md)")
     parser.add_argument("--final", action="store_true", help="nothing planned, pending, proposed or open is left (with --change: scoped to the slug)")
-    parser.add_argument("--applied", action="store_true", help="with --rules: the approved rows exist in the PRD, identical (Q4)")
+    parser.add_argument("--applied", action="store_true", help="with --rules: the rows were written to the PRD (old route: literally, Q4; new route: the marker check)")
     parser.add_argument("--trd", action="store_true", help="check TRD paths, symbols and size against the tracked files (G23, G24, G26)")
     parser.add_argument("--html", action="store_true", help="strict check of the generated PRD and TRD pages (G29, G32; docs-html skill)")
     parser.add_argument("--sibling", action="store_true", help="check the shared PRD folders against the sibling repositories (G28)")
@@ -214,7 +218,7 @@ def main() -> int:
         if text is None and args.rules.is_file():
             text = args.rules.read_text(encoding="utf-8")
         if text is None:
-            err("Q2", f"no rules.md and no {args.rules.name} in {args.rules.parent}", "write the state record with the docs agent in rules mode")
+            check_entry(root, cfg, rules, slug_of(args.rules.parent.name), args.rules.parent)
             return
         check_rules(args.rules, rules, cfg, vias, text)
         check_conflicts(args.rules, rules, text)

@@ -3,6 +3,7 @@
 import unittest
 
 from tests.test_kit_scripts import Project, write
+from tests.gate_report import full
 
 GATE = ".claude/skills/prd-flow/scripts/gate.py"
 ORDERS = "docs/prd/shop/05-orders.md"
@@ -46,9 +47,9 @@ class ScopedFinalTest(unittest.TestCase):
     def test_another_changes_planned_row_is_a_warning(self) -> None:
         self.plan_row("ORD-01", "src/features/orders/order_service.py::create_order | code")
         r = self.final()
-        self.assertEqual(r.returncode, 0, r.stdout)
-        self.assertIn("WARNING G19", r.stdout)
-        self.assertIn("ORD-01", r.stdout)
+        self.assertEqual(r.returncode, 0, full(self.p, r))
+        self.assertIn("WARNING G19", full(self.p, r))
+        self.assertIn("ORD-01", full(self.p, r))
 
     def test_this_changes_planned_row_is_an_error(self) -> None:
         self.plan_row("ORD-02", "src/features/orders/order_service.py | config")
@@ -61,7 +62,7 @@ class ScopedFinalTest(unittest.TestCase):
         write(self.p.root, "changes/002-other/plan.md", "# other\n")
         r = self.final()
         self.assertEqual(r.returncode, 0, r.stdout)
-        self.assertIn("WARNING G21", r.stdout)
+        self.assertIn("WARNING G21", full(self.p, r))
         write(self.p.root, f"changes/{SLUG}/plan.md", "# mine\n")
         r = self.final()
         self.assertEqual(r.returncode, 1, r.stdout)
@@ -71,7 +72,7 @@ class ScopedFinalTest(unittest.TestCase):
         write(self.p.root, "docs/trd/orders.md", "# Orders\n\n## Planned (002-other)\nORD-01 moves.\n")
         r = self.final()
         self.assertEqual(r.returncode, 0, r.stdout)
-        self.assertIn("WARNING G20", r.stdout)
+        self.assertIn("WARNING G20", full(self.p, r))
         write(self.p.root, "docs/trd/billing.md", f"# Billing\n\n## Planned ({SLUG})\nBIL-01 moves.\n")
         r = self.final()
         self.assertEqual(r.returncode, 1, r.stdout)
@@ -90,12 +91,12 @@ class ScopedFinalTest(unittest.TestCase):
         self.assertEqual(s.returncode, 0, s.stdout)
         write(self.p.root, "changes/004-new/plan.md", "# new\n")
         r = self.final()
-        self.assertEqual(r.returncode, 0, r.stdout)
-        self.assertIn("pre-existing", r.stdout)
-        lines = [ln for ln in r.stdout.splitlines() if "004-new" in ln]
-        self.assertTrue(lines and "pre-existing" not in lines[0], r.stdout)
-        old = [ln for ln in r.stdout.splitlines() if "002-other" in ln]
-        self.assertTrue(old and "pre-existing" in old[0], r.stdout)
+        self.assertEqual(r.returncode, 0, full(self.p, r))
+        self.assertIn("pre-existing", full(self.p, r))
+        lines = [ln for ln in full(self.p, r).splitlines() if "004-new" in ln]
+        self.assertTrue(lines and "pre-existing" not in lines[0], full(self.p, r))
+        old = [ln for ln in full(self.p, r).splitlines() if "002-other" in ln]
+        self.assertTrue(old and "pre-existing" in old[0], full(self.p, r))
 
 
 class DocsTest(unittest.TestCase):
@@ -108,8 +109,8 @@ class DocsTest(unittest.TestCase):
     def test_approved_rules_run_the_rules_checks(self) -> None:
         write(self.p.root, f".claude/prd-flow/state/{SLUG}/approved-rules.md", APPROVED.replace("payment timeout", "grace period"))
         r = self.p.py(GATE, "--docs", SLUG)
-        self.assertIn("ERROR Q4", r.stdout)
-        self.assertEqual(r.stdout.count("gate:"), 1, r.stdout)
+        self.assertIn("Q3", r.stdout)
+        self.assertEqual(r.stdout.count("gate:"), 1, full(self.p, r))
 
     def test_a_rules_md_only_state_runs_the_rules_checks(self) -> None:
         write(self.p.root, f".claude/prd-flow/state/{SLUG}/rules.md", RULES_ONLY.replace("payment timeout", "grace period"))
@@ -128,9 +129,9 @@ class DocsTest(unittest.TestCase):
 
     def test_one_run_prints_one_summary(self) -> None:
         r = self.p.py(GATE, "--docs", SLUG)
-        self.assertEqual(r.returncode, 0, r.stdout)
-        self.assertEqual(r.stdout.count("gate:"), 1, r.stdout)
-        self.assertNotIn("cache hit", r.stdout)
+        self.assertEqual(r.returncode, 0, full(self.p, r))
+        self.assertEqual(full(self.p, r).count("gate:"), 1, full(self.p, r))
+        self.assertNotIn("cache hit", full(self.p, r))
 
     def test_the_second_call_reuses_the_cache(self) -> None:
         self.p.py(GATE, "--docs", SLUG)

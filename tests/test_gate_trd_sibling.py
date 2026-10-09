@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from tests.gate_report import full
 from tests.test_kit_scripts import PY, Project, run, write
 
 GATE = ".claude/skills/prd-flow/scripts/gate.py"
@@ -58,24 +59,25 @@ class TrdTest(unittest.TestCase):
         self.assertEqual(self.out.stdout.count("ERROR G23"), 1, self.out.stdout)
 
     def test_planned_section_and_creates_rows_are_skipped(self) -> None:
-        self.assertNotIn("new_thing", self.out.stdout)
-        self.assertNotIn("nowhere", self.out.stdout)
+        self.assertNotIn("new_thing", full(self.p, self.out))
+        self.assertNotIn("nowhere", full(self.p, self.out))
 
     def test_a_symbol_absent_from_the_row_files_is_a_warning(self) -> None:
-        self.assertIn("WARNING G24", self.out.stdout)
-        self.assertIn("missing_symbol", self.out.stdout)
-        self.assertNotIn("`create_order`", self.out.stdout)
+        report = full(self.p, self.out)
+        self.assertIn("WARNING G24", report)
+        self.assertIn("missing_symbol", report)
+        self.assertNotIn("`create_order`", report)
 
     def test_an_id_the_files_never_mention_is_not_printed(self) -> None:
-        self.assertNotIn("G25", self.out.stdout)
-        self.assertNotIn("ORD-09", self.out.stdout)
+        self.assertNotIn("G25", full(self.p, self.out))
+        self.assertNotIn("ORD-09", full(self.p, self.out))
 
     def test_a_file_over_budget_is_a_warning_including_part_files(self) -> None:
         write(self.p.root, "docs/trd/orders/part-one.md", "# part\n" + "line\n" * 300)
         commit(self.p)
         r = self.p.py(GATE, "--trd")
-        self.assertIn("WARNING G26", r.stdout)
-        self.assertIn("docs/trd/orders/part-one.md", r.stdout)
+        self.assertIn("WARNING G26", full(self.p, r))
+        self.assertIn("docs/trd/orders/part-one.md", full(self.p, r))
 
     def test_the_planned_heading_is_a_config_key(self) -> None:
         repo = self.p.root / REPO_MD
@@ -193,12 +195,12 @@ class SiblingTest(unittest.TestCase):
         self.share(self.sibling / "nope")
         r = self.p.py(GATE, "--sibling")
         self.assertEqual(r.returncode, 0, r.stdout)
-        self.assertNotIn("G28", r.stdout)
+        self.assertNotIn("G28", full(self.p, r))
 
     def test_placeholder_rows_are_ignored(self) -> None:
         r = self.p.py(GATE, "--sibling")
         self.assertEqual(r.returncode, 0, r.stdout)
-        self.assertNotIn("G28", r.stdout)
+        self.assertNotIn("G28", full(self.p, r))
 
 
 class GeneratedHtmlTest(unittest.TestCase):
@@ -224,7 +226,7 @@ class GeneratedHtmlTest(unittest.TestCase):
         self.page("<p>stale</p>\n")
         r = self.p.py(GATE)
         self.assertEqual(r.returncode, 0, r.stdout)
-        self.assertNotIn("G29", r.stdout)
+        self.assertNotIn("G29", full(self.p, r))
         strict = self.p.py(GATE, "--html")
         self.assertIn("ERROR G29", strict.stdout)
         self.assertIn("fix: run /docs-html", strict.stdout)
@@ -232,7 +234,8 @@ class GeneratedHtmlTest(unittest.TestCase):
     def test_a_missing_html_is_g29_only_under_html(self) -> None:
         self.fake("def is_current(root, cfg):\n    return False\n")
         (self.p.root / "docs/prd/prd.html").unlink()
-        self.assertNotIn("G29", self.p.py(GATE).stdout)
+        r = self.p.py(GATE)
+        self.assertNotIn("G29", full(self.p, r))
         self.assertIn("G29", self.p.py(GATE, "--html").stdout)
 
     def test_an_unimportable_builder_is_reported_not_a_crash(self) -> None:

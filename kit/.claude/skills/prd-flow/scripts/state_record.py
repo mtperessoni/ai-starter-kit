@@ -1,4 +1,8 @@
-"""The state record of one change: rules.md, and the views rendered from it.
+"""The state record of one change on the OLD route: rules.md, and the views rendered from it.
+
+The new route has no rules.md, approved-rules.md or render: the approved set is the slug's CHANGELOG entry (gate_rules) and the DEC rows
+come from changes/NNN-<slug>/decisions.md, which `decision_rows` reads when the state folder has no rules.md. This module keeps serving
+state folders that still have rules.md or approved-rules.md.
 
 rules.md: `# Rules · <slug> · <date> · <approver>`, one `## <prd file>.md` section per PRD file with its current rows
 (replaced in place), `## Supersedes`, `## Conflicts`, `## Rounds` and `## Decisions`.

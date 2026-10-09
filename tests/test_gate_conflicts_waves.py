@@ -2,6 +2,7 @@
 
 import unittest
 
+from tests.gate_report import full
 from tests.test_kit_scripts import Project, write
 
 GATE = ".claude/skills/prd-flow/scripts/gate.py"
@@ -110,7 +111,7 @@ class WaveTest(unittest.TestCase):
         self.assertIn("WAVE 1: T01, T02", lines, r.stdout)
         self.assertIn("WAVE 2: T03", lines, r.stdout)
         self.assertIn("CRITICAL PATH: T01 > T03", lines, r.stdout)
-        self.assertIn("gate:0 error(s), 0 warning(s)", r.stdout)
+        self.assertIn("gate:0 error(s), 0 warning(s)", full(self.p, r))
 
     def test_at_most_four_per_wave(self) -> None:
         tasks = [task(f"T0{n}", f"src/f{n}.py") for n in range(1, 7)]
@@ -148,7 +149,7 @@ class WaveTest(unittest.TestCase):
 
     def test_p8_two_serial_tasks_in_one_area_warn(self) -> None:
         r = self.gate(plan(task("T01", "src/features/orders/a.py"), task("T02", "src/features/orders/b.py", "T01")))
-        self.assertIn("WARNING P8", r.stdout)
+        self.assertIn("WARNING P8", full(self.p, r))
         self.assertEqual(r.returncode, 0, r.stdout)
 
     def test_p9_a_task_touching_docs_without_owning_it(self) -> None:

@@ -1,6 +1,7 @@
 """Closing ceremony in one call: the full suite against the baseline, lint, trailers, the final gate, retro.
 
 Usage: python scripts/close_gate.py [slug] [--case C2..C6]     (through scripts/gates.sh close [slug] [--case C])
+Runs `gates.sh cleanup <slug>` as the last step after retro (one line, or the survivors; it never fails the close).
 With --case C4 the compare and baseline steps are skipped and say so (no code change to prove); without --case nothing changes.
 Close never runs tests: with tests.rerun_ids it prints the failing ids to rerun (gates.sh rerun) and fails; every subprocess has a timeout.
 The baseline counts only with baseline.status ok (or watchdog); a compare result counts only with the runner exit code stored beside its log,
@@ -152,7 +153,11 @@ def rerun_covers(folder: Path, final: Path, config: dict, base: set[str]) -> boo
 
 def compare_running(root: Path, slug: str) -> bool:
     status = root / ".claude" / "prd-flow" / "state" / slug / "compare.status"
-    return status.is_file() and time.time() - status.stat().st_mtime < RUNNING_FRESH_SECONDS
+    try:
+        running = status.read_text(encoding="utf-8").startswith("running")
+    except OSError:
+        return False
+    return running and time.time() - status.stat().st_mtime < RUNNING_FRESH_SECONDS
 
 
 def reuse_full_run(root: Path, slug: str) -> subprocess.CompletedProcess | None:
@@ -266,6 +271,13 @@ def retro_block(result: subprocess.CompletedProcess) -> list[str]:
     return head + top if found or head else summarize("retro", result)
 
 
+def cleanup_lines(result: subprocess.CompletedProcess) -> list[str]:
+    lines = [ln for ln in result.stdout.splitlines() if ln.strip()]
+    if result.returncode == 0:
+        return [f"cleanup ok ({lines[-1].strip()})" if lines else "cleanup ok"]
+    return [f"cleanup left survivors (exit {result.returncode})", *(f"  {ln.strip()}" for ln in lines[-3:])]
+
+
 def main() -> int:
     root = repo_root()
     if sys.argv[1:] == ["--stamp"]:
@@ -340,6 +352,7 @@ def main() -> int:
         owner = USER_REWRITE if name == "trailers" and result.returncode != 0 and needs_rewrite(root, result) else OWNER
         block += retro_block(result) if name == "retro" and result.returncode == 0 else summarize(name, result, owner)
         failed = failed or (result.returncode != 0 and name != "retro")
+    block += cleanup_lines(gates(root, "cleanup", slug))
     status = run_git(root, "status", "--short").stdout
     block.append(f"tree: {len([ln for ln in status.splitlines() if ln.strip()])} changed path(s)")
     if failed:

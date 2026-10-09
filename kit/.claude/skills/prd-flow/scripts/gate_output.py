@@ -1,11 +1,10 @@
-"""Gate report: capped stdout, full report in an artifact, scope of --step trd to the files this change touched."""
+"""Gate report: stdout is the errors (capped) plus one 'warnings: N (see <artifact>)' line; the full report with the warnings is in the artifact; scope of --step trd to the files this change touched."""
 
 from pathlib import Path
 
 from gate_core import baseline, err, errors, git, hints, notes, warn, warnings
 
 MAX_ERRORS = 15
-MAX_WARNINGS = 10
 STATE_DIR = ".claude/prd-flow/state/_gate"
 
 run = {"mode": "default", "capped": True, "root": None}
@@ -92,17 +91,14 @@ def report(extra: str = "") -> int:
     summary = f"gate:{len(errors)} error(s), {len(warnings)} warning(s){extra}"
     detail = [f"EARLIER {line}" for slot in outside.values() for line in slot["lines"]]
     write_artifact([*errors, *warnings, *detail, *notes, *hint_lines, summary])
-    shown_errors, shown_warnings = errors, warnings
-    if run["capped"]:
-        shown_errors, shown_warnings = errors[:MAX_ERRORS], warnings[:MAX_WARNINGS]
-    for line in [*shown_errors, *shown_warnings]:
+    shown_errors = errors[:MAX_ERRORS] if run["capped"] else errors
+    for line in shown_errors:
         print(line)
-    for kind, found, shown in (("errors", errors, shown_errors), ("warnings", warnings, shown_warnings)):
-        if len(found) > len(shown):
-            print(f"... {len(found) - len(shown)} more {kind}, see {artifact_rel()}")
+    if len(errors) > len(shown_errors):
+        print(f"... {len(errors) - len(shown_errors)} more errors, see {artifact_rel()}")
     for line in notes:
         print(line)
     for line in hint_lines:
         print(line)
-    print(summary)
+    print(f"warnings: {len(warnings)} (see {artifact_rel()})")
     return 1 if errors else 0

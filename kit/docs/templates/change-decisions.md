@@ -1,6 +1,9 @@
 # Decisions · <NNN-slug>
 
-Product trade-offs decided in the interview of this change. One row per trade-off decided and per answer that chose between real options. Written at C5 step 4, committed with `docs(prd)`. The Promote task copies the rows into the CHANGELOG entry under `Decisions:`; technical decisions stay in `design.md`.
+Reply 1: "<the user's reply to the sheet, verbatim>"
+Reply 2: "<the reply to the follow-up sheet, verbatim; delete this line when there was none>"
+
+Product trade-offs decided on the sheet of this change: one row per answer that chose between real options. Written by docs `apply` and committed in its `docs(prd)` commit; promote copies the rows into the CHANGELOG entry under `Decisions:`. Technical decisions stay in `design.md`.
 
 | ID | Question | Decision | Rejected alternative | Why | Rules |
 |---|---|---|---|---|---|

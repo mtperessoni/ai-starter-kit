@@ -16,7 +16,7 @@ There is no code, so the user is the only source. The interview runs in this con
 G01 to G03 come first: a wrong problem invalidates the rest. With G01 to G07 answered, write the outline (sections per step of G05) and approve it.
 
 ## Step level (per section)
-For each journey step, check failure paths, requests in flight during the deploy, consumers of the data, tenant variation and safety; ask only where a real alternative exists. Put the open decisions of a section on one sheet, in the format of "Format of `sheet.md`" in `.claude/skills/prd-flow/reference/interview.md`, answered in the chat by number. An item the user does not want to decide becomes an open question with its default.
+For each journey step, check failure paths, requests in flight during the deploy, consumers of the data, tenant variation and safety; ask only where a real alternative exists. Put the open decisions of a section on one sheet, in the format of "Format" in `.claude/skills/prd-flow/reference/sheet.md`, answered in the chat by number. An item the user does not want to decide becomes an open question with its default.
 
 ## Writing
 Greenfield rules come from the interview, so they are approved, not `*(proposed)*`. The example of each decision lands in the Example column. Every rule gets Source `planned` and the marker `*(approved YYYY-MM-DD, pending code)*` is not used: in greenfield the whole PRD is planned, and `README.md` "How this document was made" says so. When code arrives, prd-flow C2 fills the Sources task by task.

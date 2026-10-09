@@ -1,6 +1,7 @@
 import io
 import os
 import sys
+import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -50,6 +51,7 @@ class Fake:
 
 def reap_with(procs, **kw):
     fake = Fake(procs)
+    kw.setdefault("root", Path(tempfile.gettempdir()) / "aikit-no-such-root")
     out = io.StringIO()
     with redirect_stdout(out):
         code = reap.main(kw.pop("argv", []), list_processes=fake.list, kill_tree=fake.kill, self_pid=ME, **kw)
@@ -143,20 +145,60 @@ class SelectionTest(unittest.TestCase):
         fake, out, _ = reap_with(table(), argv=["--older-than", "0"])
         self.assertEqual(fake.killed, [])
 
-    def test_never_a_tree_rooted_at_baseline_compare_verify_or_baseline_py(self):
-        for inner in ["scripts/gates.sh baseline s1", "scripts/gates.sh compare s1", "scripts/gates.sh verify s1", "python scripts/baseline.py s1"]:
+    def state(self, kind, text):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        folder = Path(tmp.name) / ".claude" / "prd-flow" / "state" / "s1"
+        folder.mkdir(parents=True)
+        if text is not None:
+            (folder / f"{kind}.status").write_text(text, encoding="utf-8")
+        return Path(tmp.name)
+
+    def test_a_running_suite_tree_younger_than_the_timeout_is_never_reaped(self):
+        for kind, inner in [("baseline", "scripts/gates.sh baseline s1"), ("compare", "scripts/gates.sh compare s1"),
+                            ("verify", "scripts/gates.sh verify s1"), ("baseline", "python scripts/baseline.py s1")]:
             with self.subTest(inner=inner):
-                root = wrapper(500, inner, age=90.0)
-                kid = proc(501, 500, "python -", age=90.0)
-                fake, out, _ = reap_with(table(root, kid))
+                root = wrapper(500, inner, age=30.0)
+                kid = proc(501, 500, "python -", age=30.0)
+                fake, out, _ = reap_with(table(root, kid), root=self.state(kind, "running\n"))
                 self.assertEqual(fake.killed, [])
                 self.assertIn("reaped: 0", out)
 
+    def test_a_suite_tree_past_the_timeout_or_not_running_or_without_a_status_is_reaped(self):
+        cases = [("running\n", 90.0), ("failed exit 1\n", 30.0), ("ok\n", 30.0), (None, 100.0)]
+        for text, age in cases:
+            with self.subTest(status=text, age=age):
+                root = wrapper(500, "scripts/gates.sh baseline s1", age=age)
+                kid = proc(501, 500, "python -", age=age)
+                fake, out, _ = reap_with(table(root, kid), root=self.state("baseline", text), argv=["--older-than", "20"])
+                self.assertEqual(fake.killed, [500])
+
+    def test_close_watch_related_one_cleanup_trees_are_kept_under_the_age_cap_and_reaped_past_it(self):
+        for call in ["close s1", "watch s1", "related a.ts", "one t.test.ts", "cleanup s1"]:
+            with self.subTest(call=call):
+                young = wrapper(500, f"scripts/gates.sh {call}", age=40.0)
+                fake, _, _ = reap_with(table(young, proc(501, 500, "pytest", age=40.0)))
+                self.assertEqual(fake.killed, [])
+                old = wrapper(500, f"scripts/gates.sh {call}", age=100.0)
+                fake, _, _ = reap_with(table(old))
+                self.assertEqual(fake.killed, [500])
+
+    def test_a_stdin_waiting_shell_is_killed_at_any_age_even_inside_a_protected_name(self):
+        waiting = wrapper(500, "python3 - <<'E'", age=1.0)
+        fake, _, _ = reap_with(table(waiting))
+        self.assertEqual(fake.killed, [500])
+
+    def test_a_bare_snapshot_prefix_is_not_a_session_id(self):
+        procs = {p["pid"]: p for p in [proc(1, 0, "x"), proc(ME, 1, "bash source snapshot- foo")]}
+        self.assertIsNone(reap.session_id(procs, ME))
+        fake, out, _ = reap_with([proc(1, 0, "x"), proc(ME, 1, "bash source snapshot- foo"), proc(500, 1, "python - snapshot-", age=99.0)])
+        self.assertEqual(fake.killed, [])
+
     def test_a_protected_descendant_without_the_id_in_its_own_command_line_is_kept(self):
-        root = wrapper(500, "scripts/gates.sh verify s1", age=90.0)
-        mid = proc(501, 500, "bash scripts/gates.sh verify s1", age=90.0)
-        deep = proc(502, 501, "python -m unittest", age=90.0)
-        fake, out, _ = reap_with(table(root, mid, deep))
+        root = wrapper(500, "scripts/gates.sh verify s1", age=30.0)
+        mid = proc(501, 500, "bash scripts/gates.sh verify s1", age=30.0)
+        deep = proc(502, 501, "python -m unittest", age=30.0)
+        fake, out, _ = reap_with(table(root, mid, deep), root=self.state("verify", "running\n"))
         self.assertEqual(fake.killed, [])
 
     def test_the_killed_set_is_trees_not_images(self):

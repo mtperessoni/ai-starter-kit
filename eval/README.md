@@ -207,3 +207,10 @@ python eval/run.py --config eval/arms-run-speed.json --dry-run --out "$TEMP/eval
 python eval/run.py --config eval/arms-run-speed.json --out eval/results/2026-10-09-run-speed   # the round, about US$20 to 30
 python eval/rounds.py eval/results/2026-10-09-run-speed:BASE eval/results/2026-10-09-run-speed:CAND --baseline eval/results/2026-10-09-run-speed:BASE --out eval/results/2026-10-09-run-speed/compare.md
 ```
+
+## Lite round (plan prd-flow-lite, L19)
+Config `eval/arms-lite.json`: base **FLOW** (`feat/one-pass-interview`, `arms/living.md`), candidates **LITE** (this branch, `arms/living.md`) and **PLAIN** (same fixture with no prd-flow skill installed, `arms/plain.md`: the PRD in `docs/prd` is the source of truth, test first, update the PRD row and CHANGELOG). Scenarios S5 (deciding, 2 reps), S7 and S12 (interview scenario), budget US$10 each. Not run yet.
+
+Adoption: LITE replaces FLOW when hidden tests and conflicts caught are not worse and wall time and tokens drop. If PLAIN matches LITE on quality, record it as a finding to shrink the skill further. The new metrics (`agents_dispatched`, `agents_over_150k`, docs over code output tokens, `stuck_minutes`, `task_output_left_bytes`) are listed in `METRICS.md`, "Adoption", with which ones `run.py` computes.
+
+PLAIN needs the arm flag `no_skill`: `run.py` `build_args` must append `--no-skill`, and `build.py` must skip `install_kit` of the `prd-flow` skill and its agents, `regenerate_html` and the gate run.

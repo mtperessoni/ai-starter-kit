@@ -38,7 +38,7 @@ Copy the section layout of `stacks/README.md` "Recipe format". Every command in 
 ## Evaluating the skills
 The skills are interactive, so the evaluation is a set of headless runs, one per scenario and per version:
 1. Pick 4 to 6 scenarios that cover the cases: a question (C1), a stale PRD (C4), a rule change end to end (C5), a protected rule (a per-tenant branch), a refactor (C6), and for the creators a small repository from scratch.
-2. Run each scenario in its own worktree with `claude -p` (prompt through stdin), once without the skill, once with the current version, once with the candidate; record time, cost and the final answer.
+2. Run each scenario in its own worktree with `claude -p` (prompt through stdin), once without the skill, once with the current version, once with the candidate; record time, cost and the final answer. The arm without the skill (`PLAIN`: no skill, the same request given as a PRD diff prompt) is mandatory in every round, never dropped to save cost: a skill is measured against the plain agent, not only against its previous version (L19; the audit of 2026-10-09 found a plain session beating prd-flow).
 3. Grade each answer against written expectations (the right case, the right IDs, no edit before confirmation, the gate green).
 4. Keep the candidate only when it is at least as good on quality and not worse on cost. In the source repository this is how the worker route was measured (-48% time, -53% cost) for about US$18 of runs.
 
