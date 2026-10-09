@@ -20,9 +20,9 @@ Folder `changes/NNN-<slug>/` with the next free number (LT01); size from the cas
 
 Compatibility (LT11): a legacy `specs/` stays untouched as history. With `repo.md` "Spec-kit" `kept`, its `spec.md` cites PRD rule IDs and defines no FR, and `tasks.md` is not used: this plan is.
 
-Plan commit: `docs(changes): <sentence>`, no push. After writing, one run: `gate.py --step plan --plan <plan> --change changes/NNN-<slug>` (LT09; it warns G27 when the same change number exists on a remote branch). It prints the waves (`WAVE n: T01, T02`, critical path first, at most 4 per wave) and the `CRITICAL PATH`; it fails when two tasks of one wave share a file in Owns, or a task touches `docs/` or `changes/` without owning it, and warns when two serial tasks of the same area could be one. The docs agent copies the wave table, with each task's model and lens, into `## Plan` of `state.md`, then runs `scripts/gates.sh baseline <slug>` before any code.
+Plan commit: `docs(changes): <sentence>`, no push. After writing, one run: `gate.py --step plan --plan <plan> --change changes/NNN-<slug>` (LT09; it warns G27 when the same change number exists on a remote branch). It prints the waves (`WAVE n: T01, T02`, critical path first, at most 4 per wave) and the `CRITICAL PATH`; it fails when two tasks of one wave share a file in Owns, or a task touches `docs/` or `changes/` without owning it, and warns when two serial tasks of the same area could be one. The docs agent copies the wave table, with each task's model and lens, into `## Plan` of `state.md`. The baseline is not its job: the chief starts it after the plan commit (`scripts/gates.sh baseline <slug> --bg`).
 
-Docs fan-out by context: when the surveyor reports `fan-out: yes` (two or more PRD folders or TRD areas, each with more than about 5 rows), docs `prd-plan` returns one `Route: docs context <context>` per context, the chief dispatches them in one message, and each runs in parallel in `context` mode: it writes only its own PRD and TRD section files and does not commit. Then one docs agent in `prd-plan merge` mode does CHANGELOG, INDEX, the full `gate.py --step prd --rules <approved-rules.md> --applied`, one `docs(prd)` commit, then the TRD and the plan.
+Docs fan-out by context: the routing step first writes `<state>/facts.md`, a table of the facts the contexts share (key names, invariants, owners, call sites; SA49) that every context agent reads; when the surveyor reports `fan-out: yes` (two or more PRD folders or TRD areas, each with more than about 5 rows), docs `prd-plan` returns one `Route: docs context <context>` per context, the chief dispatches them in one message, and each runs in parallel in `context` mode: it writes only its own PRD and TRD section files and does not commit. Then one docs agent in `prd-plan merge` mode does CHANGELOG, INDEX, the full `gate.py --step prd --rules <approved-rules.md> --applied`, one `docs(prd)` commit, then the TRD and the plan.
 
 Executor affinity by area: waves group tasks by TRD area, and the parallel width comes from independent areas; two tasks of one area are serial or one task.
 
@@ -46,6 +46,7 @@ A card has at most 25 lines; every field is mandatory, `Read:` above all: the ex
 Contract: CHK-02 (IDs only; the literal row stays in `approved-rules.md` and the pack)
 Owns: src/features/checkout/payment_call.py, src/features/checkout/tests/test_payment_call.py
 Read: docs/trd/checkout.md (Planned row), src/features/checkout/payment_call.py::call_provider (exact paths or `path::symbol`, about 25k tokens at most)
+Reached from: POST /checkout handler `checkout_route` calls `call_provider` (entry point or caller of each new symbol, never a test) | none (a pure refactor creates no symbol)
 Depends on: T01 | none
 Creates / consumes: creates `PaymentOutcome.retry_after`; consumes `PaymentConfig.provider_timeout_seconds` (T01)
 Tests: test_<behavior> in <file>, docstring citing CHK-02, fails before the change; then scripts/gates.sh related <Owns> and scripts/gates.sh lint
@@ -68,6 +69,8 @@ Deliveries: the executor writes `.claude/prd-flow/state/<slug>/deliveries/<task>
 | Granularity by the critical path | A task is at least one file and its test. Split only when the pieces run in parallel (disjoint Owns) and each is at least about 10 tool calls of work; sequential pieces of one area are one task; a one-rule change is one task. Each task is an agent with a cold start |
 | Context affinity | Tasks that read the same large files go to the same executor, since parallel agents each reread them |
 | Interfaces before parallel work | Names shared between tasks are written in `Creates / consumes` and come from the producer's delivery file |
+| Reached from (WF74) | Every created symbol names its entry point or caller in a card's `Reached from:`; the last task of each feature is its wiring task (the card that owns that caller), so no symbol ships unreachable. The executor's `Self-check:` proves it |
+| Card size (WF74) | At most 8 files in Owns, and at least one test path among them; more files means two cards |
 | Owns | Include the tests outside the area the change will break (`Grep` who imports the changed symbols); a task that discovers one midway stops and routes it |
 | TRD | The last code task owns `docs/trd/<area>.md` and merges Planned into the body (trd-planned.md) |
 

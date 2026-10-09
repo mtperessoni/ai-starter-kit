@@ -66,17 +66,21 @@ The chief only asks: every question reaches it ready, in `## Survey` (interview 
 
 ```
 Q1 · D05 · "The payment provider takes 45 s to answer: what does the customer see?"
-  - "Try again" after 20 s, cart kept (Recommended): fewer stuck carts; a slow success may be charged twice on retry
-  - Wait up to 60 s: fewer false failures; the customer waits longer
-  - Keep today's 30 s: no change; the complaints stay
+  - "Try again" after 20 s, cart kept (Recommended): fewer stuck carts; a slow success may be charged twice on retry [row: CHK-02]
+  - Wait up to 60 s: fewer false failures; the customer waits longer [row: CHK-02]
+  - Keep today's 30 s: no change; the complaints stay [row: none]
+  - The scenario is wrong, explain it differently [row: none]
 ```
 
 | Rule | Detail |
 |---|---|
 | Language | Product language with a concrete scenario and the effect on the user, the operator or the stored record. No rule IDs, symbol names, internal acronyms or words like "flag", "key", "handler" in the quoted text; the `Q1 · D05` label is for the docs agent only |
-| Options | Two to four, each with its trade-off; the recommended one first, marked "(Recommended)" |
+| Options | Two to four decision options plus the scenario-wrong option, each with its trade-off; the recommended one first, marked "(Recommended)" |
 | Rounds | At most 4 questions per round; more open dimensions make more rounds, in the order that unblocks the most rows |
-| Never asked | Anything the code or the PRD already answers |
+| Never asked | Anything the code or the PRD already answers; what an approved row already states; a question whose premise comes from code alone (WF66) |
+| Option cites its row | Each option ends with `[row: <ID>]` or `[row: none]` (for the docs agent and the question lint, never shown to the user); one decision per option, never two choices joined by "and" |
+| Plain words | No word of the jargon list of `repo.md` "Jargon" (words the user never says) in the quoted text; say the effect for the person instead |
+| Scenario wrong | Every question ends with one option "The scenario is wrong / explain it differently": picking it re-surveys the model, never a rule |
 | Order | Protected rule and rule owner questions first, then the change question, then the interview rounds |
 
 The change question (full mode, in `Route: user:`): "Change the rule as proposed, with the assumed lines above? / Keep today's rule (the request becomes a fix or nothing) / Adjust the proposal (say how)". A protected rule question: "<protection in plain words> still holds? / It holds: <right path, an ADR or a constitution amendment> / The document is stale". An owner question: "<owner> owns this rule: did they agree?".
@@ -87,6 +91,7 @@ The change question (full mode, in `Route: user:`): "Change the rule as proposed
 ```markdown
 ## Survey
 Case: C5 · Size: M · Approver: <name> · Base: <short commit> · Mode: full
+Model: <the domain model in one plain sentence, from the glossary, the section intros and the journey>
 Contexts: product/04: 3 rows · fan-out: no
 Python: <interpreter>
 Protected: none   [or: <rule or invariant> · <source> · <right path>; only a protection the change breaks or touches, an untouched one goes to a Checked: line]

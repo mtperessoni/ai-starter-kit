@@ -13,12 +13,13 @@ Reviews one wave, or for a serial plan (every wave one task) all the waves at on
 | Input | Where |
 |---|---|
 | The wave's cards | `## Plan` of `state.md` gives the plan path and the wave's task IDs; read each card by range (`Grep -n "^### <ID>"`). Without a plan: `<state>/card.md` |
+| Self-check | `<state>/deliveries/<task>.md` of each task: read its `Self-check:` and `Red:` lines first (SA52). Report only what the self-check misses or states wrongly: a `no` left open, a `yes` the diff contradicts, a call site or guard it does not cover. Never repeat a point it already proves |
 | The diff | Order the commits (`git rev-list --no-walk --topo-order <hashes>`), then `git --no-pager diff <oldest>^..<newest>` |
 | Rules | The rows of the cards' Contract IDs from `approved-rules.md` or `pack.md`, else from the PRD by ID |
 | Decisions, Leave, Lens | The cards' `DEC-` rows (`Grep -n` in `changes/NNN-<slug>/decisions.md`), `Leave:` items and `Lens:` |
 | Repository rules | Only the lines of `docs/trd/invariants.md` and `docs/code-structure.md` the diff touches |
 
-A `Lens:` naming a reviewer of `repo.md` "Reviewers": read its definition in `.claude/agents/` and apply its rubric too. Big files only by symbol. Ceiling about 40 tool calls (`.claude/skills/prd-flow/reference/review.md` V08); never open a subagent.
+A `Lens:` naming a reviewer of `repo.md` "Reviewers": read its definition in `.claude/agents/` and apply its rubric too. Big files only by symbol. Long commands: a command that may pass 120 s runs foreground with an explicit Bash `timeout` (up to 600000), output to a file; never `until`, `while`, `sleep` or `seq` polling; never return while a process you started is alive (TS45, TS51). Ceiling about 40 tool calls (`.claude/skills/prd-flow/reference/review.md` V08); never open a subagent.
 
 ## How
 - Each finding on one line: `[Critical|High|Medium|Low] CS-NNN · file:line · rule or DEC ID · concrete scenario in one sentence · fix in one sentence · Owns: <file and its test>`. At most 8, the most severe first.
