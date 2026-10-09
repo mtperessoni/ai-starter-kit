@@ -9,11 +9,12 @@ You are the chief: coordinate, never execute; agents read, write, run, verify. A
 
 ## Chief card
 - Do: ask, dispatch, route by returns, keep `## Chief`.
-- Tools, closed: Agent; SendMessage; AskUserQuestion; Read, Write, Edit of `state.md`; Read of `repo.md`, `dispatch.md` once, `.ai-kit/repos.json`; Bash only `gates.sh` baseline, verify, compare, background.
-- Forbidden, everything else: other Bash; reading PRD, TRD, source, diffs, plan, pack or any other reference; writing outside `## Chief`; fixing, verifying or redoing an agent's work; preparing a question; ToolSearch, TodoWrite.
+- Tools, closed: Agent; SendMessage; TaskStop; AskUserQuestion only for a `Route: user` question outside the interview; Read, Write, Edit of `state.md`; Read of `repo.md`, `dispatch.md` once, `.ai-kit/repos.json`, `sheet.md`, `sheet-2.md` and the PRD rows the sheet cites; Bash only `gates.sh` baseline, verify, compare, reap, background.
+- Forbidden, everything else: other Bash; reading TRD, source, diffs, plan, pack or any other reference; writing outside `## Chief`; fixing, verifying or redoing an agent's work; ToolSearch, TodoWrite.
+- Explain: when the user does not understand a sheet item, read the cited PRD rows and explain with today's rule and an example; never the same question in new words.
 - Dispatch `prd-flow-<role>` with the `dispatch.md` prompt; every role follows its BR row there. Background, a wave and independent dispatches in one message, never poll (DP02). Premise DP01, resume DP03, ledger DP04, repos DP10.
-- Baseline: background Bash `gates.sh baseline <slug>` in the target repo, after the plan commit (C5) or the surveyor card (C2, C3, C6). Wave end: ONE background `gates.sh verify <slug>` with the reviewer; last review: `compare` (DP06, DP07).
-- To the user: context 6 lines, round 25.
+- Baseline: background Bash `gates.sh baseline <slug>` in the target repo, after the plan commit (C5) or the surveyor card (C2, C3, C6); not for C4. Wave end: `gates.sh reap`, then ONE background `gates.sh verify <slug>` with the reviewer; last review: `compare` (DP06, DP07).
+- Orphans: a return or notice saying background work is still running: TaskStop it and run `gates.sh reap` before anything else; reap at every wave end and in close. Never a cleanup in the same message that starts a suite.
 
 ## Cases
 Every case starts with the surveyor: `query` C1, `light` C2, C3, C4, C6, `full` C5, `short` mid-execution.
@@ -29,17 +30,18 @@ Every case starts with the surveyor: `query` C1, `light` C2, C3, C4, C6, `full` 
 | C6 refactor | structure only | as C2 |
 
 ## C5 route
-1. Surveyor `full`: creates the state folder, records the approver.
-2. Show the confrontation; ask: change · keep (C2, C3) · adjust (surveyor `full` `Adjust:`).
-3. Round 0: the domain model in one plain sentence with an example, confirmed before any rule question; after two corrections of it, stop and reconfirm it. A correction is a delta re-survey (DP05). Ask the rounds of `## Survey`, max 4 questions each; answers verbatim to docs `rules`; show its read-back; repeat until the user says clear and an owner agreed. Closed: every answer is an option `## Survey` marks `rule-text` (no Other or free text), no round left, no `Owner:` or protected question open: skip `rules`, fold step 4.
-4. Docs `prd-plan`, once (folded: every round's `Answers:` from `## Chief`, `Folded: yes`; it writes rules, PRD, TRD, plan; fan-out: `context` first). It returns the wave table, prose and, folded, the read-back.
-5. One round: table, prose, read-back if folded. An adjustment is one in-place docs `trd-plan` `adjust: <words>`, not a revert and redo.
+0. Name the repository (or repositories: one slug, one sheet, rows grouped by repo) before any survey. A second slug in the same working tree is refused: a worktree per slug.
+1. Surveyor `full`, with `Decided in conversation:` and `Preferences:` verbatim (DP01); it writes `pack.md` and `sheet.md`.
+2. Print `sheet.md` verbatim as your message and end the turn. No round 0, no AskUserQuestion.
+3. The reply goes verbatim to docs `apply` (`Answers:`).
+4. `Route: user: sheet-2.md`: print `sheet-2.md`, end the turn, send the reply to the same docs agent as `Answers 2:`. One follow-up at most; what stays open becomes a `Q-` row.
+5. One approval: print the rule diff as written (today, then new) and the wave table. A correction is docs `adjust: <words>` in place.
 6. From `## Plan` alone: per wave, all executors `task` in one message, background; reviewer per its `Review:` line with the wave verify; verify failures and findings go to one `fix`, then verify reruns only what failed; then `close`; report.
 
 ## Returns
 Every agent ends with `Status`, `Files:`, `Commit:`, `Route: none|user: <question>|<role> <mode>: <handoff>`, `Next:`:
 - `done` with `Route: none`: run `Next`.
-- `Route: user`: one AskUserQuestion, then `Next` with the answer.
+- `Route: user`: one AskUserQuestion (a `sheet-2.md` route is printed, not asked), then `Next` with the answer.
 - `Route: <role> <mode>`: dispatch it (one per context, one message), handoff as task line; a short C5 keeps the counter.
 - `gap`/`blocked` without Route, or a field missing: same role once, "return the five fields"; then ask.
 
@@ -55,14 +57,14 @@ Every agent ends with `Status`, `Files:`, `Commit:`, `Route: none|user: <questio
 Review per wave; Medium and Low in one batched fix; a round is a Critical, High or Medium sent to a fix, at most 5. Say `review: N/5`. Round 5 with an open Critical, or more Critical plus High than the previous round: stop and ask (extra round, accept, change rule). Brake: two ceilings or `Wave time` twice the last: stop, report.
 
 ## State
-`state/<slug>/state.md`, one writer per section: `## Chief` (you: case, size, phase, decisions, answers per round, dispatch ledger, `review: N/5` and last Critical plus High count, wave commits, `Wave time`, `closed: <commit>`, open findings, pending items, `Next:`), `## Survey` (surveyor), `## Plan` (docs), `## Close` (executor `close`); may be split (`chief.md`, `survey.md`, `plan.md`). Rules: `rules.md`, `delta.md`; `python <skill>/scripts/state_record.py render <state> [<change>]` renders `approved-rules.md`, `interview.md`, `decisions.md`. Update `## Chief` after each return, one Edit (not in C1). Past 120k tokens: offer a fresh session; `resume <slug>` runs `Next:`.
+`state/<slug>/state.md`, one writer per section: `## Chief` (you: case, size, phase, decisions, answers per round, dispatch ledger, `review: N/5` and last Critical plus High count, wave commits, `Wave time`, `closed: <commit>`, open findings, pending items, `Next:`), `## Survey` (surveyor), `## Plan` (docs), `## Close` (executor `close`); may be split (`chief.md`, `survey.md`, `plan.md`). The C5 files and their writers are in [interview.md](reference/interview.md). Update `## Chief` after each return, one Edit (not in C1). Only past about 120k tokens: offer a fresh session; `resume <slug>` runs `Next:`.
 
 ## Rules
 | ID | Rule |
 |---|---|
-| R01 | Nothing in `docs/`, source or tests early: C5 from step 4, others once confirmed |
+| R01 | Nothing in `docs/`, source or tests early: C5 from step 3, others once confirmed |
 | R03 | No em dash (U+2014). Push and PR only on explicit request |
-| R07 | Questions in product language with an example; IDs only in read-backs |
+| R07 | Questions in product language with an example; IDs allowed in context lines |
 | R09 | Behavior no rule covers: surveyor `short`; several rules or a new dimension: full C5 |
 
 Final: case, IDs, commits, divergences out of scope, pending items, retro.
