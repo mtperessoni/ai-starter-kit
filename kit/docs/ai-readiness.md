@@ -25,7 +25,7 @@ Techniques that make a repository cheap for an agent to work in. Used by `trd-cr
 | IDs | Technique | Any layout | Checked by | Where |
 |---|---|---|---|---|
 | AR07 | Short `CLAUDE.md` per map folder | yes, with `map_dirs` | ratchet | map folders |
-| AR13, DS15 | One TRD per area, split into parts past the budget, verifiable by `gate.py --trd` | yes | review, gate | `docs/trd/` |
+| AR13 | One TRD per area, split into parts past the budget, verifiable by `gate.py --trd` | yes | review, gate | `docs/trd/` |
 | DS31 | Pattern to copy per kind of change | yes | trd-create | `docs/trd/invariants.md` |
 | DS30 | Schema and contract snapshots | yes | `scripts/gates.sh contracts` | `contracts` |
 | AR19 | Layout config valid | yes | ratchet | `ai-kit.json` |
@@ -33,7 +33,7 @@ Techniques that make a repository cheap for an agent to work in. Used by `trd-cr
 ## Tests: speed and reliability
 | IDs | Technique | Any layout | Checked by | Where |
 |---|---|---|---|---|
-| AR10, TS16 | Tests findable from the module | yes | `scripts/related_tests.py` (mirror names), review | `tests.mirror_patterns` |
+| AR10 | Tests findable from the module | yes | `scripts/related_tests.py` (mirror names), review | `tests.mirror_patterns` |
 | TS37 | Related run within budget | yes | related_tests.py | `tests.related_budget_seconds` |
 | TS38 | Flaky list, shrink-only | yes | new_failures.py | `tests.flaky` |
 | TS39 | Snapshots never updated to pass | yes | related_tests.py | `tests.snapshot_patterns` |
@@ -44,7 +44,7 @@ Techniques that make a repository cheap for an agent to work in. Used by `trd-cr
 ## Legacy adoption
 | IDs | Technique | Any layout | Checked by | Where |
 |---|---|---|---|---|
-| PC11, PC09 | Incremental readiness plan in the current layout | yes | trd-create | `reference/readiness.md` |
+| PC11 | Incremental readiness plan in the current layout | yes | trd-create | `reference/readiness.md` |
 | PC12 | Hotspots rank the work | yes | `scripts/gates.sh hotspots` | `scripts/hotspots.py` |
 | TS42 | Characterization test before change | yes | review | legacy areas |
 | AR20 | Feature folders as an optional move | yes | review | restructure option |

@@ -1,4 +1,4 @@
-"""Records the baseline failures of the offline suite at a commit, in a throwaway git worktree (TS43).
+"""Records the baseline failures of the offline suite at a commit, in a throwaway git worktree.
 
 Usage: python scripts/baseline.py <slug> [--commit REF] [--wait SECONDS]     (through scripts/gates.sh baseline)
 A normal foreground command: the chief launches it as a background Bash (run_in_background) and gets a completion event. --bg (detached, no event) is kept for compatibility and not recommended.

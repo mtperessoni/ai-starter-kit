@@ -86,7 +86,7 @@ Interacts with: 1
 ## Records
 | File | Content |
 |---|---|
-| `answers.md` | `## Reply 1` (the user's message verbatim), `## Reply 2` only after the follow-up, then `## Resolution`: `\| Item \| Answer \| From \|`, one row per sheet item (`1`..`N`, `A1`..`An`, `scope`); Answer is the option letter, `accepted`, the correction words, `default` or `open Q-<ID>`; From is `Reply 1`, `Reply 2` or `ok` |
+| `answers.md` | `## Reply 1` (the user's message verbatim), `## Reply 2` only after the follow-up, then `## Resolution`: `\| Item \| Answer \| From \|`, one row per sheet item (`1`..`N`, `A1`..`An`, `scope`; items of `sheet-2.md` are `2.<n>`); Answer is the option letter, `accepted`, the correction words, `default` or `open Q-<ID>`; From is `Reply 1`, `Reply 2` or `ok` |
 | `rules.md` | The approved rows, written once from sheet plus answers, replaced in place (one row per ID) |
 | `approved-rules.md` | Rendered from `rules.md` with `<python> .claude/skills/prd-flow/scripts/state_record.py render <state> [<change>]`, never edited by hand; `gate.py --rules` and `--applied` read it |
 | `decisions.md` | `changes/NNN-<slug>/decisions.md`, from `docs/templates/change-decisions.md`: `\| ID \| Question \| Decision \| Rejected alternative \| Why \| Rules \|`, one `DEC-NN` row per answer that chose between real options; the only home of DEC rows; promotion copies them once into the CHANGELOG entry |

@@ -1,4 +1,4 @@
-"""New failures against a baseline (rule TS04); known flaky tests (tests.flaky, TS38) are listed, not counted.
+"""New failures against a baseline; known flaky tests (tests.flaky, TS38) are listed, not counted.
 
 Usage: python scripts/new_failures.py --extract <log> > <baseline-failures.txt>
        python scripts/new_failures.py [--exit-code N] <baseline-failures.txt> <log>

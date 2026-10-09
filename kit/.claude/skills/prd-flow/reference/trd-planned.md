@@ -36,7 +36,7 @@ Must not break: <what of the "Must not break" section the change touches>.
 | TP02 | "Tests to write" is the test file and the IDs only, never expected values: they are the PRD Example column |
 | TP03 | Contracts live only in `design.md`; Planned links to it |
 | TP04 | Plan tasks point to the Planned row by file instead of describing it again (`reference/agent-plan.md`) |
-| TP05 | Every cited ID must exist in the PRD, and the module will cite the IDs it implements (G25 checks the IDs column against the files) |
+| TP05 | Every cited ID must exist in the PRD, and the module will cite the IDs it implements |
 | TP06 | An open TRD-only decision (a design choice no PRD row or `DEC-` row settles) is an item of `sheet-2.md` before the plan is written: the docs agent writes no plan until it is answered |
 | TP07 | Each plan card's Contract covers the TRD IDs of the Planned rows of its Owns files, and each created symbol has a non-test caller owned by a card |
 

@@ -11,7 +11,7 @@ AI readiness of an existing repository, in its current layout (PC11). Nothing mo
 | R04 | Extract on touch (AR21): a task that changes a file over the limits first extracts the responsibility it touches, by script (AR12), never grows the file |
 | R05 | Maps per map folder (AR07): feature map or folder map, each linking the area TRDs (AR13) |
 | R06 | Noise exclusion (CE22, AR28): `.ignore`, read denies, generated markers, from `ai-kit.json` `ignore` and `generated_patterns` |
-| R07 | Big tests split before the code they prove (TS10); builders beside the tests (TS41) |
+| R07 | Big tests split before the code they prove; builders beside the tests (TS41) |
 | R08 | Names and IDs (AR02, AR06): generic names replaced by the responsibility, PRD IDs in the first comment of each module and test |
 | R09 | Crowded folders (AR23) split by area or responsibility; the ratchet starts from the current state and no wave raises an entry (X05 of `restructure.md`) |
 | R10 | Contracts snapshot (DS30): schema and API snapshots in `contracts`, checked by `scripts/gates.sh contracts` |

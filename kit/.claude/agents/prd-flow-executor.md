@@ -74,7 +74,7 @@ Fix only what the handoff names, inside its Owns, under the rules of `task` (tes
 | A missing technical detail | `Status: gap` · `Route: user: <question with options>` |
 | promote: rule without `Source:` | `Route: executor fix: <error lines, rule IDs>`; `Next:` executor close |
 | promote: fold or superseded mismatch | `Route: docs fold: <error or warning lines>`; `Next:` executor close |
-| promote: PRD file not found | `Route: docs rules: <error line>`; `Next:` executor close |
+| promote: PRD file not found | `Route: docs fold: <error line>`; `Next:` executor close |
 | promote: no `approved-rules.md` | `Status: blocked` · `Route: user: the run lost its scaffold / Restart the C5 (surveyor full) / Stop`; restarting is the user's call |
 | promote: archive, final gate | `Route: executor fix: <printed lines, Owns: the files named>`; `Next:` executor close |
 | close: tests, lint, trailers, G19, G21 | `Route: executor fix: <printed lines, Owns and Read: the files named>`; `Next:` executor close |
