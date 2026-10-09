@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 
 from gate_core import Rules, cells, err, hint, is_table_line
-from state_record import interview_text
+from state_record import approved_text, interview_text
 
 STATES = {"user", "doc", "assumed-confirmed", "n/a", "question"}
 BASE_DIMENSIONS = [f"D{n:02d}" for n in range(1, 16)]
@@ -72,7 +72,7 @@ def check_interview(rules_path: Path, prd: Path, rules: Rules) -> None:
         err("Q3", "interview.md without a '## Dimensions' table")
         interview_skeleton()
         return
-    rules_text = rules_path.read_text(encoding="utf-8")
+    rules_text = approved_text(rules_path.parent) or ""
     for n, (_, block) in enumerate(blocks):
         seen: set[str] = set()
         for line in block.splitlines():

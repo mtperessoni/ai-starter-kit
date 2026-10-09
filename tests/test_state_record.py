@@ -111,8 +111,7 @@ class StateRecordTest(unittest.TestCase):
 
         gate_core.errors.clear()
         gate_interview.check_interview(self.state / "approved-rules.md", self.state, {})
-        text = "
-".join(gate_core.errors)
+        text = chr(10).join(gate_core.errors)
         self.assertNotIn("not found", text)
         self.assertIn("without the dimension D02", text)
         gate_core.errors.clear()
