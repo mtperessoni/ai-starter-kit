@@ -7,11 +7,15 @@
 - Model: sonnet by default; opus only with a written reason.
 - Review: at most 5 rounds per delivery; from round 2, only the previous findings against the fix diff. An open Critical at round 5, or a round worse than the previous one: stop and ask me. Say `review: N/5` every round.
 - Brake: an agent that hits its ceiling twice, or a wave twice as slow as the previous one, stops and reports cost and what is left.
+- No polling loops (`sleep` in a loop): run a long command in the background with an explicit timeout longer than the run, and read its output file once.
+- Never leave a process running when you hand back; stop what you started.
+- Verification is per batch: an executor runs only its own new test; the chief runs one `gates.sh verify <slug>` per wave, with the reviewer, and fixes in one batch. Gates are reminders, run once per phase.
 
 ## Tests
-- While working, run only the related tests: the mirror test of the touched module and the tests that import or use it. The full suite runs once, at the end of a delivery, compared against a recorded baseline of failures.
+- Executors run only their own new test; the related tests (the mirror test of each touched module and the tests that import it) run once per wave in the verification. The full suite runs once, at the end of a delivery, compared against a recorded baseline of failures.
 - Test output goes to a file; only failures and the summary come back into context.
 - Write the failing test first.
+- A token-saving proxy such as `rtk` swallows test-runner output: run test runners and linters through `rtk proxy <cmd>` or the runner's own binary.
 
 ## Docker and disk
 - Build an image only when a test must prove services start together; otherwise a throwaway database container or in-process fakes. Ask whether a cheaper test exists before building.

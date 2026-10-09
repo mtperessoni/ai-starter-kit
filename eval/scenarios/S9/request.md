@@ -1,0 +1,1 @@
+Customers should become VIP by themselves once they have spent 500.00 or more in orders during the calendar month, so a loyal shopper gets the 15% VIP discount without anybody flagging them. Checkout has to look at the customer's orders of the month and apply the VIP discount as soon as the month's total reaches 500.00.

@@ -20,9 +20,9 @@ Folder `changes/NNN-<slug>/` with the next free number (LT01); size from the cas
 
 Compatibility (LT11): a legacy `specs/` stays untouched as history. With `repo.md` "Spec-kit" `kept`, its `spec.md` cites PRD rule IDs and defines no FR, and `tasks.md` is not used: this plan is.
 
-Plan commit: `docs(changes): <sentence>`, no push. After writing, one run: `gate.py --step plan --plan <plan> --change changes/NNN-<slug>` (LT09; it warns G27 when the same change number exists on a remote branch). It prints the waves (`WAVE n: T01, T02`, critical path first, at most 4 per wave) and the `CRITICAL PATH`; it fails when two tasks of one wave share a file in Owns, or a task touches `docs/` or `changes/` without owning it, and warns when two serial tasks of the same area could be one. The docs agent copies the wave table, with each task's model and lens, into `## Plan` of `state.md`, then runs `scripts/gates.sh baseline <slug>` before any code.
+Plan commit: `docs(changes): <sentence>`, no push. After writing, one run: `gate.py --step plan --plan <plan> --change changes/NNN-<slug>` (LT09; it warns G27 when the same change number exists on a remote branch). It prints the waves (`WAVE n: T01, T02`, critical path first, at most 4 per wave) and the `CRITICAL PATH`; it reminds you when two tasks of one wave share a file in Owns (name one owner), or a task touches `docs/` or `changes/` without owning it, and when two serial tasks of the same area could be one. The docs agent copies the wave table, with each task's model and lens, into `## Plan` of `state.md`. The baseline is not its job: the chief starts it after the plan commit (`scripts/gates.sh baseline <slug> --bg`).
 
-Docs fan-out by context: when the surveyor reports `fan-out: yes` (two or more PRD folders or TRD areas, each with more than about 5 rows), docs `prd-plan` returns one `Route: docs context <context>` per context, the chief dispatches them in one message, and each runs in parallel in `context` mode: it writes only its own PRD and TRD section files and does not commit. Then one docs agent in `prd-plan merge` mode does CHANGELOG, INDEX, the full `gate.py --step prd --rules <approved-rules.md> --applied`, one `docs(prd)` commit, then the TRD and the plan.
+Docs fan-out by context: the routing step first writes `<state>/facts.md`, a table of the facts the contexts share (key names, invariants, owners, call sites; SA49) that every context agent reads; when the surveyor reports `fan-out: yes` (two or more PRD folders or TRD areas, each with more than about 5 rows), docs `prd-plan` returns one `Route: docs context <context>` per context, the chief dispatches them in one message, and each runs in parallel in `context` mode: it writes only its own PRD and TRD section files and does not commit. Then one docs agent in `prd-plan merge` mode does CHANGELOG, INDEX, the full `gate.py --step prd --rules <approved-rules.md> --applied`, one `docs(prd)` commit, then the TRD and the plan.
 
 Executor affinity by area: waves group tasks by TRD area, and the parallel width comes from independent areas; two tasks of one area are serial or one task.
 
@@ -46,9 +46,10 @@ A card has at most 25 lines; every field is mandatory, `Read:` above all: the ex
 Contract: CHK-02 (IDs only; the literal row stays in `approved-rules.md` and the pack)
 Owns: src/features/checkout/payment_call.py, src/features/checkout/tests/test_payment_call.py
 Read: docs/trd/checkout.md (Planned row), src/features/checkout/payment_call.py::call_provider (exact paths or `path::symbol`, about 25k tokens at most)
+Reached from: POST /checkout handler `checkout_route` calls `call_provider` (entry point or caller of each new symbol, never a test) | none (a pure refactor creates no symbol)
 Depends on: T01 | none
 Creates / consumes: creates `PaymentOutcome.retry_after`; consumes `PaymentConfig.provider_timeout_seconds` (T01)
-Tests: test_<behavior> in <file>, docstring citing CHK-02, fails before the change; then scripts/gates.sh related <Owns> and scripts/gates.sh lint
+Tests: test_<behavior> in <file>, docstring citing CHK-02, fails before the change (the executor runs only that test; related tests and lint run once in the chief's wave verification)
 Decisions: DEC-03 (the `decisions.md` rows that bind this task, IDs only) | none
 Leave: src/features/shipping/fee.py::free_shipping uses `>` at 200.00 (out-of-scope divergence from the pack, left as it is) | none
 Commit: <type>(<scope>): <sentence>
@@ -61,13 +62,15 @@ Lens: <extra specialized reviewer from repo.md "Reviewers"> | none
 
 Commit trailer: a commit that touches the source folders (`ai-kit.json`) carries `Rules: <IDs>` or `Case: none (<reason>)`; the executor commits its own work with it, and `scripts/gates.sh close` checks it.
 
-Deliveries: the executor writes `.claude/prd-flow/state/<slug>/deliveries/<task>.md` (one file per task, never a shared file) with one `Source: <ID>: <path::symbol>` line per approved code rule the task implements (rewritten rules included, never a list or a range); `promote.py` reads them to fill each rule's Source. Rules changed via config, env, prompt, data or a handoff need no `Source:` line, stay planned, are listed in promote's output and close by their own route (repo.md "Change routing"). "Creates / consumes" names the shared symbols: a consumer reads the producer's delivery file, never its code. `gate.py --step plan` checks: every task has Owns (error), Lens and Model (warning), no ID missing from the PRD (error), and the file size (warning above `plan_budget_kb` of `repo.md`).
+Deliveries: the executor writes `.claude/prd-flow/state/<slug>/deliveries/<task>.md` (one file per task, never a shared file) with one `Source: <ID>: <path::symbol>` line per approved code rule the task implements (rewritten rules included, never a list or a range); `promote.py` reads them to fill each rule's Source. Rules changed via config, env, prompt, data or a handoff need no `Source:` line, stay planned, are listed in promote's output and close by their own route (repo.md "Change routing"). "Creates / consumes" names the shared symbols: a consumer reads the producer's delivery file, never its code. `gate.py --step plan` checks (warnings are reminders: read them and decide; plan alignment, `Reached from:`, files per card, shared-file owner and question lint never block): every task has Owns (error), Lens and Model (warning), no ID missing from the PRD (error), and the file size (warning above `plan_budget_kb` of `repo.md`).
 
 | Rule | Detail |
 |---|---|
 | Granularity by the critical path | A task is at least one file and its test. Split only when the pieces run in parallel (disjoint Owns) and each is at least about 10 tool calls of work; sequential pieces of one area are one task; a one-rule change is one task. Each task is an agent with a cold start |
 | Context affinity | Tasks that read the same large files go to the same executor, since parallel agents each reread them |
 | Interfaces before parallel work | Names shared between tasks are written in `Creates / consumes` and come from the producer's delivery file |
+| Reached from (WF74) | Every created symbol names its entry point or caller in a card's `Reached from:`; the last task of each feature is its wiring task (the card that owns that caller), so no symbol ships unreachable. The executor's `Self-check:` proves it. A missing one is a reminder to read and decide on, not a blocker |
+| Card size (WF74) | At most 8 files in Owns, and at least one test path among them; more files usually means two cards (a reminder, not a blocker) |
 | Owns | Include the tests outside the area the change will break (`Grep` who imports the changed symbols); a task that discovers one midway stops and routes it |
 | TRD | The last code task owns `docs/trd/<area>.md` and merges Planned into the body (trd-planned.md) |
 
@@ -88,7 +91,7 @@ The reviewer and the recheck build it from their findings (each finding carries 
 The plan header copies these lines under `## Plan execution rules`, so whoever executes does not depend on the skill:
 - Review with a ceiling (`.claude/skills/prd-flow/reference/review.md`): at most 5 rounds per delivery; every wave is reviewed (a serial plan once, after the last wave); from round 2 only the previous findings against the fix commit; Critical is fixed, High is fixed when it fits the approved rules, else the user decides; Medium and Low become pending; an open Critical at round 5, or a round that finds more than the previous one, stops the delivery and goes to the user.
 - Every agent stops at its ceiling (review.md V08) and returns the handoff for a new agent of the same role.
-- Inside a task, only the related tests; the full suite runs once, in `executor close`.
+- Inside a task, only the task's own new test; related tests run once in the wave verification (`gates.sh verify`); the full suite runs once, in `executor close`.
 - Any behavior outside the approved rules, safety included, stops the task and routes to the surveyor in `short` mode (R09).
 - Each executor commits its own work with the `Rules:` or `Case: none (...)` trailer and writes `deliveries/<task>.md`.
 - Per wave: the wave's executors in one message, each on its card's model; `prd-flow-reviewer` on the wave's commits whatever `Lens:` says; a fix through `executor fix`, then `prd-flow-recheck`. After the last wave, `executor close`.

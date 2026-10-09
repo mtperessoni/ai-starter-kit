@@ -3,7 +3,8 @@
 import re
 from pathlib import Path
 
-from gate_core import Rules, cells, err, hint, is_table_line
+from gate_core import ID, Rules, cells, err, hint, is_table_line, warn
+from state_record import approved_text, interview_text
 
 STATES = {"user", "doc", "assumed-confirmed", "n/a", "question"}
 BASE_DIMENSIONS = [f"D{n:02d}" for n in range(1, 16)]
@@ -59,12 +60,11 @@ def interview_skeleton() -> None:
 
 
 def check_interview(rules_path: Path, prd: Path, rules: Rules) -> None:
-    path = rules_path.parent / "interview.md"
-    if not path.exists():
-        err("Q3", f"{path.name} not found beside {rules_path.name}")
+    text = interview_text(rules_path.parent)
+    if text is None:
+        err("Q3", f"interview.md not found beside {rules_path.name}")
         interview_skeleton()
         return
-    text = path.read_text(encoding="utf-8")
     blocks = sections(text)
     first = HEADING.search(text)
     short_scope = bool(blocks and blocks[0][0] and first and SHORT_SCOPE.search(text[:first.start()]))
@@ -72,7 +72,7 @@ def check_interview(rules_path: Path, prd: Path, rules: Rules) -> None:
         err("Q3", "interview.md without a '## Dimensions' table")
         interview_skeleton()
         return
-    rules_text = rules_path.read_text(encoding="utf-8")
+    rules_text = approved_text(rules_path.parent) or ""
     for n, (_, block) in enumerate(blocks):
         seen: set[str] = set()
         for line in block.splitlines():
@@ -103,3 +103,44 @@ def check_interview(rules_path: Path, prd: Path, rules: Rules) -> None:
         if not re.search(r"^Confirmed:\s*\S", block, re.M):
             err("Q3", "a Dimensions table without a 'Confirmed:' line after it")
             interview_skeleton()
+
+
+QUESTION = re.compile(r"^(Q\d+)\s*·\s*(?:D\d+\s*·\s*)?(.*)$")
+OPTION = re.compile(r"^\s+-\s+(.*)$")
+WRONG_SCENARIO = re.compile(r"(?i)scenario\b.*\b(wrong|incorrect)\b|\b(wrong|incorrect)\b.*\bscenario|document is stale")
+TWO_DECISIONS = re.compile(r"(?i)\band also\b|\bas well as\b|;|\s\+\s")
+ROW_TAG = re.compile(r"\s*\[row:\s*(?:" + ID + r"|none)\s*\]")
+QUOTED = re.compile(r'"[^"]+"|`[^`]+`')
+
+
+def prepared_questions(text: str) -> list[tuple[str, str, list[str]]]:
+    found: list[tuple[str, str, list[str]]] = []
+    for line in text.splitlines():
+        q = QUESTION.match(line.strip())
+        if q and not line.startswith((" ", "\t")):
+            found.append((q.group(1), q.group(2), []))
+            continue
+        o = OPTION.match(line)
+        if o and found:
+            found[-1][2].append(o.group(1).strip())
+    return found
+
+
+def check_questions(text: str, cfg: dict[str, str]) -> None:
+    flag = err if cfg.get("question_lint", "warn").strip().lower() == "error" else warn
+    words = [w.strip().lower() for w in cfg.get("plain_words", "").split(",") if w.strip()]
+    for qid, question, options in prepared_questions(text):
+        shown = ROW_TAG.sub("", " ".join([question, *options])).lower()
+        for word in words:
+            if re.search(r"(?<![\w-])" + re.escape(word) + r"(?![\w-])", shown):
+                flag("Q8", f"{qid} uses the jargon word '{word}': say it in the product's plain words")
+        if not any(WRONG_SCENARIO.search(o) for o in options):
+            flag("Q9", f"{qid} has no option saying the scenario is wrong")
+        for option in options:
+            if WRONG_SCENARIO.search(option):
+                continue
+            label = ROW_TAG.sub("", option).split(": ", 1)[0]
+            if not (ROW_TAG.search(option) or QUOTED.search(option) or re.search(r"\b" + ID + r"\b", option)):
+                flag("Q6", f"{qid} option '{label[:50]}' cites neither a row ID nor the rule text")
+            if TWO_DECISIONS.search(label):
+                flag("Q7", f"{qid} option '{label[:50]}' holds more than one decision: split it into two questions")

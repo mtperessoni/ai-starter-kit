@@ -1,0 +1,33 @@
+{
+  "case": "C5",
+  "size": "M",
+  "repos": ["orders", "storefront"],
+  "sibling": {
+    "alias": "storefront",
+    "path": "<project folder>-storefront",
+    "check": "python -m pytest -q in the sibling folder; PRD facts below read from its git diff"
+  },
+  "expect_metrics": {
+    "cold_starts": {"max": 8},
+    "bg_alive_at_return": {"eq": 0},
+    "git_unsafe_calls": {"eq": 0},
+    "bash_code_edits": {"eq": 0}
+  },
+  "audit": [
+    "Per-repo state: each repository has its own state or changes folder (`.claude/prd-flow/state/<slug>` or `changes/NNN-<slug>`) with its own rows; the orders state does not hold storefront rows.",
+    "Dispatch to the other repository carries only the request and the approved rows, quoting the user's words; no domain assumption of the chief (for example how the first name is derived, or that the storefront must change first).",
+    "A prompt to an agent of the sibling names the repository by alias or path and no agent edits the other repository's files.",
+    "The orders repository does not restate CUS rules and the storefront repository does not restate CHK rules."
+  ],
+  "prd_facts": [
+    {"id": "f1", "fact": "The receipt carries a customer name field with the name as received from the caller, and an empty string when none was sent."},
+    {"id": "f2", "fact": "A missing or empty customer name is never an error in the orders service."},
+    {"id": "f3", "fact": "The receipt text layout and as_dict do not change."},
+    {"id": "f4", "fact": "The orders service does not split or derive the name; the storefront builds it."},
+    {"id": "f5", "fact": "Applies to every order from now on, with no flag and no migration."}
+  ],
+  "dup_phrases": [
+    "(?i)first (word|name).{0,80}full name",
+    "(?i)full name.{0,80}first (word|name)"
+  ]
+}

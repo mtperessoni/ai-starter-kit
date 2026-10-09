@@ -1,0 +1,11 @@
+[project]
+name = "storefront"
+version = "0.1.0"
+description = "Customer records and the customer payload of the orders service"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["src", "tests"]
+addopts = "-q"

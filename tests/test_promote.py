@@ -224,6 +224,13 @@ class PromoteTest(unittest.TestCase):
         self.assertNotIn("html", r.stdout.lower())
         self.assertNotIn("ORD-03", self.text("docs/prd/prd.html"))
 
+    def test_the_final_gate_is_scoped_to_the_slug_so_another_changes_planned_section_only_warns(self) -> None:
+        (self.p.root / "docs/trd/orders.md").unlink()
+        (self.p.root / STATE / "deliveries.md").write_text("Source: ORD-02, ORD-03, ORD-04: src/a.py" + chr(10), encoding="utf-8")
+        write(self.p.root, "docs/trd/billing.md", "# Billing" + chr(10) + chr(10) + "## Planned (002-other)" + chr(10) + "BIL-01 moves." + chr(10))
+        r = self.promote()
+        self.assertEqual(r.returncode, 0, r.stdout)
+
     def test_it_runs_the_final_gate_and_prints_its_last_line(self) -> None:
         r = self.promote()
         self.assertIn("gate --final:", r.stdout)
@@ -318,6 +325,85 @@ class PromoteTest(unittest.TestCase):
         before = self.text("docs/prd/CHANGELOG.md")
         self.promote()
         self.assertEqual(self.text("docs/prd/CHANGELOG.md"), before)
+
+    def set_gate_config(self, **kv: str) -> None:
+        repo = self.p.root / ".claude/skills/prd-flow/repo.md"
+        text = repo.read_text(encoding="utf-8")
+        for key, value in kv.items():
+            text = re.sub(rf"^\| {key} \|.*\|$", f"| {key} | {value} |", text, flags=re.M)
+        repo.write_text(text, encoding="utf-8")
+
+    def go_pt_br(self) -> None:
+        self.set_gate_config(planned_source="planejado", pending_marker="pendente de código", language="Português")
+        pt = ("approved 2026-10-04, pending code", "aprovada 2026-10-04, pendente de código")
+        write(self.p.root, PRD, PRD_TEXT.replace(*pt).replace("| planned |", "| planejado |"))
+        write(self.p.root, f"{STATE}/approved-rules.md", APPROVED.replace(*pt).replace("| planned |", "| planejado |"))
+        (self.p.root / "docs/trd/orders.md").unlink()
+
+    def test_pt_br_markers_come_from_repo_md(self) -> None:
+        self.go_pt_br()
+        (self.p.root / STATE / "deliveries.md").write_text("Source: ORD-02, ORD-03, ORD-04: src/a.py" + chr(10), encoding="utf-8")
+        r = self.promote()
+        prd = self.text(PRD)
+        self.assertNotIn("pendente de código", prd, r.stdout)
+        self.assertIn("| ORD-02 | An unpaid order is cancelled after 20 s. | src/a.py | config |", prd)
+
+    def test_pt_br_planned_row_without_source_is_still_missing(self) -> None:
+        self.go_pt_br()
+        (self.p.root / STATE / "deliveries.md").write_text("Source: ORD-02, ORD-03: src/a.py" + chr(10), encoding="utf-8")
+        r = self.promote()
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("ORD-04", r.stdout)
+
+    def test_a_frontend_or_backend_rule_without_a_source_fails(self) -> None:
+        (self.p.root / "docs/trd/orders.md").unlink()
+        for route in ("frontend", "backend"):
+            write(self.p.root, PRD, PRD_TEXT.replace("A refund keeps the invoice. | planned | code |", f"A refund keeps the invoice. | planned | {route} |"))
+            (self.p.root / STATE / "deliveries.md").write_text("Source: ORD-02, ORD-03: src/a.py" + chr(10), encoding="utf-8")
+            r = self.promote()
+            self.assertEqual(r.returncode, 1, r.stdout)
+            self.assertIn("ORD-04", r.stdout)
+            self.assertIn("--hold", r.stdout)
+
+    def test_hold_leaves_the_row_planned_with_its_reason(self) -> None:
+        (self.p.root / "docs/trd/orders.md").unlink()
+        (self.p.root / STATE / "deliveries.md").write_text("Source: ORD-02, ORD-03: src/a.py" + chr(10), encoding="utf-8")
+        r = self.promote("--hold", "ORD-04", "--reason", "front repo delivers it")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        prd = self.text(PRD)
+        self.assertIn("pending code)* A refund keeps the invoice. | planned | code |", prd)
+        self.assertNotIn("pending code)* A paid order", prd)
+        self.assertIn("held: ORD-04", r.stdout)
+        self.assertIn("front repo delivers it", r.stdout)
+        self.assertTrue((self.p.root / "changes/001-disc").is_dir())
+
+    def test_hold_requires_a_reason(self) -> None:
+        r = self.promote("--hold", "ORD-04")
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+
+    def test_the_state_rows_are_realigned_to_the_prd_text(self) -> None:
+        (self.p.root / "docs/trd/orders.md").unlink()
+        (self.p.root / STATE / "deliveries.md").write_text("Source: ORD-02, ORD-03, ORD-04: src/a.py" + chr(10), encoding="utf-8")
+        self.promote()
+        state = self.text(f"{STATE}/approved-rules.md")
+        self.assertNotIn("pending code", state)
+        self.assertIn("| ORD-02 | An unpaid order is cancelled after 20 s. | src/a.py | config |", state)
+        self.assertIn("- ORD-02 (An unpaid order is cancelled after 30 s.)", state)
+
+    def test_promote_reads_the_state_record_when_rules_md_exists(self) -> None:
+        (self.p.root / STATE / "approved-rules.md").unlink()
+        rules = APPROVED.replace("# Approved rules", "# Rules") + "## Decisions\n" + DECISIONS.split("\n", 2)[2]
+        write(self.p.root, f"{STATE}/rules.md", rules)
+        (self.p.root / "changes/001-disc/decisions.md").unlink()
+        (self.p.root / "docs/trd/orders.md").unlink()
+        run(self.p.root, "git", "add", "-A", check=True)
+        run(self.p.root, "git", "commit", "-q", "-m", "state record", check=True)
+        (self.p.root / STATE / "deliveries.md").write_text("Source: ORD-02, ORD-03, ORD-04: src/a.py" + chr(10), encoding="utf-8")
+        r = self.promote()
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("| DEC-01 | How long to wait? | 20 s | 30 s | carts expire | ORD-02 |", self.text("docs/prd/CHANGELOG.md"))
+        self.assertIn("| ORD-02 | An unpaid order is cancelled after 20 s. | src/a.py | config |", self.text(f"{STATE}/approved-rules.md"))
+        self.assertNotIn("pending code", self.text(f"{STATE}/rules.md"))
 
 
 if __name__ == "__main__":

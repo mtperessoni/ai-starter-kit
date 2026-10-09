@@ -10,19 +10,27 @@ tests.match_symbol, when it names the module as a word (languages whose imports 
 """
 
 import argparse
+import hashlib
+import json
+import os
 import re
+import shlex
+import shutil
 import subprocess
 import sys
 import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from kit_config import BaseError, is_test, load, matches, rel, repo_root, resolve_base, stem, test_files
+from kit_config import BaseError, is_test, listed_files, load, matches, rel, repo_root, resolve_base, stem, test_files
 
 IMPORT_LINE = re.compile(r"^\s*(import|from|require|use|using|include|#include|export)\b|require\(|import\(", re.M)
 COMMENT_LINE = re.compile(r"^\s*(#|//|/\*|\*|--|;|%|')")
 DEFAULT_MIRRORS =["test_{name}", "{name}_test", "{name}_spec", "{name}.test", "{name}.spec"]
 SLOWEST = 5
+MAX_FILES = 60
+CMD_CHARS = 7000
+NO_BARE_STEM = {"__init__", "index"}
 
 
 def git_lines(root: Path, *args: str) -> list[str]:
@@ -64,19 +72,38 @@ def symbol_forms(module: Path) -> set[str]:
     return forms
 
 
-def imports_module(text: str, module: Path, root: Path) -> bool:
-    relpath = rel(module, root)
-    no_ext = relpath.rsplit(".", 1)[0]
-    parts = no_ext.split("/")
-    tail = parts[-2:] if len(parts) > 1 else parts
-    forms = {"/".join(tail), ".".join(tail), "\\".join(tail)}
+def dotted_forms(parts: list[str]) -> set[str]:
+    if len(parts) == 1:
+        return {parts[0]}
+    return {".".join(parts[i:]) for i in range(len(parts) - 1)}
+
+
+def imports_module(text: str, module: Path, root: Path, packages: frozenset[str] = frozenset()) -> bool:
+    """A line imports the module by its dotted path (Python) or its trailing path, never by a stem that is also a package name."""
+    parts = rel(module, root).rsplit(".", 1)[0].split("/")
     name = stem(module)
+    if name == "__init__":
+        return False
+    python = module.suffix == ".py"
+    if python:
+        forms = dotted_forms(parts)
+    else:
+        tail = parts[-2:]
+        forms = {"/".join(tail), ".".join(tail), "\\".join(tail)}
+    bare = not python and name not in NO_BARE_STEM and name not in packages
+    parent = ".".join(parts[:-1])
     for line in text.splitlines():
         if not IMPORT_LINE.search(line):
             continue
-        if any(form in line for form in forms):
+        if python:
+            if any(re.search(r"(?<!\w)" + re.escape(form) + r"(?!\w)", line) for form in forms):
+                return True
+            m = re.match(r"\s*from\s+\.*([\w.]*)\s+import\s+(.+)", line)
+            if m and name in re.findall(r"\w+", m.group(2)) and m.group(1) and (parent == m.group(1) or parent.endswith("." + m.group(1))):
+                return True
+        elif any(form in line for form in forms):
             return True
-        if re.search(r"[./\\'\"\s]" + re.escape(name) + r"\b", line):
+        if bare and re.search(r"[./\'\"\s]" + re.escape(name) + r"", line):
             return True
     return False
 
@@ -88,10 +115,24 @@ def names_symbol(text: str, module: Path, cfg: dict) -> bool:
     return any(re.search(r"\b" + re.escape(form) + r"\b", code) for form in forms)
 
 
+def owning_test_folder(module: Path, root: Path, test_rels: list[str]) -> str:
+    """The deepest ancestor folder of the module that holds tests, else the common folder of the mirror tests."""
+    folder = Path(rel(module, root)).parent
+    while str(folder) != ".":
+        prefix = folder.as_posix() + "/"
+        if any(t.startswith(prefix) for t in test_rels):
+            return prefix
+        folder = folder.parent
+    return ""
+
+
 def related(root: Path, cfg: dict, changed: list[str]) -> list[str]:
     tests = test_files(root, cfg)
+    test_rels = [rel(t, root) for t in tests]
     exts = set(cfg["code_extensions"])
     match_symbol = cfg["tests"].get("match_symbol", False)
+    cap = cfg["tests"].get("related_max_files", MAX_FILES)
+    packages = frozenset(part for f in listed_files(root) for part in f.split("/")[:-1])
     picked: set[str] = set()
     modules = []
     for f in changed:
@@ -107,11 +148,36 @@ def related(root: Path, cfg: dict, changed: list[str]) -> list[str]:
         names = mirror_names(module, cfg)
         for t in tests:
             text = contents[t]
-            if test_name(t) in names or stem(t) in names or imports_module(text, module, root):
+            if test_name(t) in names or stem(t) in names or imports_module(text, module, root, packages):
                 picked.add(rel(t, root))
             elif match_symbol and names_symbol(text, module, cfg):
                 picked.add(rel(t, root))
+    folders = {owning_test_folder(m, root, test_rels) for m in modules} - {""}
+    if len(picked) > cap and folders:
+        print(
+            f"related: {len(picked)} tests selected, over the cap of {cap} (tests.related_max_files): "
+            f"running the owning test folder {sorted(folders)} instead",
+            file=sys.stderr,
+        )
+        picked = {f for f in picked if is_test(f, cfg) and f in changed}
+        picked |= {t for t in test_rels if any(t.startswith(folder) for folder in folders)}
+    elif len(picked) > cap:
+        print(
+            f"related: {len(picked)} tests selected, over the cap of {cap} (tests.related_max_files): "
+            "no owning test folder, running the mirror tests and the structure tests only",
+            file=sys.stderr,
+        )
+        mirrors = {rel(t, root) for t in tests if any(test_name(t) in mirror_names(m, cfg) or stem(t) in mirror_names(m, cfg) for m in modules)}
+        picked = {f for f in picked if f in changed} | mirrors
+    picked |= always_files(root, cfg)
     return sorted(picked)
+
+
+def always_files(root: Path, cfg: dict) -> set[str]:
+    found: set[str] = set()
+    for pattern in cfg["tests"].get("always", []):
+        found |= {f for f in listed_files(root) if matches(f, [pattern])}
+    return found
 
 
 def snapshot_warnings(cfg: dict, changed: list[str]) -> list[str]:
@@ -138,28 +204,93 @@ def slowest_tests(root: Path, pattern: str) -> list[str]:
     return [f"{seconds:.2f} s {name}" for seconds, name in sorted(cases, reverse=True)[:SLOWEST]]
 
 
+def split_command(command: str) -> list[str]:
+    if os.name != "nt":
+        return shlex.split(command)
+    return [t[1:-1] if len(t) > 1 and t[0] == t[-1] and t[0] in "\"'" else t for t in shlex.split(command, posix=False)]
+
+
+def chunked_commands(template: str, placeholder: str, items: list[str], limit: int) -> list[list[str]]:
+    """The argv lists of a runner template, the items spread so no command line passes `limit` characters (Windows caps at 8,191)."""
+    argv = split_command(template)
+    if placeholder not in " ".join(argv):
+        return [argv]
+    fixed = sum(len(t) + 1 for t in argv if placeholder not in t)
+    chunks: list[list[str]] = [[]]
+    size = fixed
+    for item in items:
+        if chunks[-1] and size + len(item) + 3 > limit:
+            chunks.append([])
+            size = fixed
+        chunks[-1].append(item)
+        size += len(item) + 3
+    commands = []
+    for chunk in chunks:
+        expanded = []
+        for token in argv:
+            if token == placeholder:
+                expanded += chunk
+            else:
+                expanded.append(token.replace(placeholder, " ".join(chunk)))
+        commands.append(expanded)
+    return commands
+
+
+def selection_key(root: Path, cfg: dict, files: list[str], changed: list[str]) -> str:
+    digest = hashlib.sha256(json.dumps([cfg["tests"].get("runner"), cfg["tests"].get("native_related")]).encode())
+    for f in sorted(set(files) | set(changed)):
+        path = root / f
+        digest.update(f.encode())
+        digest.update(path.read_bytes() if path.is_file() else b"<missing>")
+    return digest.hexdigest()
+
+
 def run(root: Path, cfg: dict, files: list[str], changed: list[str]) -> int:
     native = cfg["tests"].get("native_related", "")
+    plan = []
     if native:
-        command = native.replace("{changed}", " ".join(changed))
+        plan.append((native, "{changed}", changed))
+        extra = sorted(always_files(root, cfg) & set(files))
+        if extra:
+            plan.append((cfg["tests"]["runner"], "{files}", extra))
     elif files:
-        command = cfg["tests"]["runner"].replace("{files}", " ".join(files))
+        plan.append((cfg["tests"]["runner"], "{files}", files))
     else:
         print("related: no related tests")
         return 0
     log_dir = root / cfg["tests"]["log_dir"]
     log_dir.mkdir(parents=True, exist_ok=True)
     log = log_dir / "related.log"
+    cache = log_dir / "related.cache.json"
+    key = selection_key(root, cfg, files, changed)
+    try:
+        saved = json.loads(cache.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        saved = {}
+    if saved.get("key") == key:
+        print("related: unchanged since the last run (same selection and file hashes), cached summary:")
+        for line in saved["lines"]:
+            print(line)
+        return 0
+    limit = cfg["tests"].get("related_cmd_chars", CMD_CHARS)
     started = time.monotonic()
+    code = 0
     with log.open("w", encoding="utf-8") as out:
-        code = subprocess.run(command, shell=True, cwd=root, stdout=out, stderr=subprocess.STDOUT, check=False).returncode  # noqa: S602
+        for template, placeholder, items in plan:
+            for argv in chunked_commands(template, placeholder, items, limit):
+                argv[0] = shutil.which(argv[0]) or argv[0]
+                returned = subprocess.run(argv, shell=False, cwd=root, stdout=out, stderr=subprocess.STDOUT, check=False).returncode  # noqa: S603
+                code = code or returned
     elapsed = time.monotonic() - started
     failure = re.compile(cfg["tests"]["failure_regex"])
     lines = log.read_text(encoding="utf-8", errors="replace").splitlines()
-    for line in lines:
-        if failure.search(line):
-            print(line)
-    print(lines[-1] if lines else "(empty log)")
+    summary = [line for line in lines if failure.search(line)] + [lines[-1] if lines else "(empty log)"]
+    for line in summary:
+        print(line)
+    if code == 0 and not any(failure.search(line) for line in lines):
+        cache.write_text(json.dumps({"key": key, "lines": summary}), encoding="utf-8")
+    elif cache.exists():
+        cache.unlink()
     budget = cfg["tests"].get("related_budget_seconds")
     over = f", over the budget of {budget} s: split the slow test or its fixture (TS37)" if budget is not None and elapsed > budget else ""
     print(f"related: {elapsed:.1f} s{over}")
@@ -176,11 +307,15 @@ def main() -> int:
     parser.add_argument("files", nargs="*")
     parser.add_argument("--base", default=None)
     parser.add_argument("--run", action="store_true")
+    parser.add_argument("--args-file", default=None, help="a file with one changed path per line")
     args = parser.parse_args()
     root = repo_root()
     cfg = load(root)
+    given = list(args.files)
+    if args.args_file:
+        given += [line.strip() for line in Path(args.args_file).read_text(encoding="utf-8").splitlines() if line.strip()]
     try:
-        changed = args.files or changed_files(root, resolve_base(root, args.base))
+        changed = given or changed_files(root, resolve_base(root, args.base))
     except BaseError as e:
         print(f"related: ERROR {e}", file=sys.stderr)
         return 2

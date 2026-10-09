@@ -242,5 +242,201 @@ class FoundInTheRealEvaluation(HookCase):
         return self.events("h")[-1]
 
 
+class RunSpeedTelemetryTest(HookCase):
+    """W5.3: repo routing, agent fields, Bash timeout and bg, waits, durations and chains."""
+
+    def other_repo(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        repo = Path(tmp.name)
+        (repo / "ai-kit.json").write_text("{}", encoding="utf8")
+        return repo
+
+    def send(self, ev, tool=None, ti=None, ctx="t", read=True, **kw):
+        p = {"session_id": "s1", "hook_event_name": ev, **kw}
+        if tool:
+            p.update(tool_name=tool, tool_input=ti or {}, tool_use_id=kw.get("tool_use_id", "tu"))
+        self.run_hook(p, {"AI_KIT_CONTEXT": ctx})
+        return self.events(ctx) if read else None
+
+    def test_bash_cd_target_routes_the_event_to_that_repo(self):
+        other = self.other_repo()
+        self.send("PreToolUse", "Bash", {"command": f'cd "{other.as_posix()}" && git status'}, read=False)
+        path = other / ".ai-kit" / "runs" / "t" / "events.jsonl"
+        e = json.loads(path.read_text(encoding="utf8").splitlines()[-1])
+        self.assertEqual(Path(e["repo"]).resolve(), other.resolve())
+        self.assertFalse((self.proj / ".ai-kit" / "runs" / "t" / "events.jsonl").exists())
+
+    def test_git_dash_c_and_file_paths_route_too(self):
+        other = self.other_repo()
+        self.send("PreToolUse", "Bash", {"command": f"git -C {other.as_posix()} log"}, read=False)
+        self.send("PostToolUse", "Edit", {"file_path": str(other / "src" / "a.py")}, tool_use_id="t2", read=False)
+        lines = (other / ".ai-kit" / "runs" / "t" / "events.jsonl").read_text(encoding="utf8").splitlines()
+        self.assertEqual(len(lines), 2)
+
+    @unittest.skipUnless(os.name == "nt", "MSYS drive paths exist on Windows only")
+    def test_git_bash_drive_paths_route(self):
+        other = self.other_repo().resolve()
+        msys = "/" + other.drive[0].lower() + other.as_posix()[2:]
+        self.send("PreToolUse", "Bash", {"command": f"cd {msys} && git status"}, read=False)
+        e = json.loads((other / ".ai-kit" / "runs" / "t" / "events.jsonl").read_text(encoding="utf8").splitlines()[-1])
+        self.assertEqual(Path(e["repo"]).resolve(), other)
+
+    def test_an_absolute_path_in_a_command_without_cd_routes(self):
+        other = self.other_repo().resolve()
+        self.send("PreToolUse", "Bash", {"command": f"{other.as_posix()}/.venv/bin/python -m pytest {other.as_posix()}/tests/a.py"}, read=False)
+        lines = (other / ".ai-kit" / "runs" / "t" / "events.jsonl").read_text(encoding="utf8").splitlines()
+        self.assertEqual(len(lines), 1)
+        self.assertFalse((self.proj / ".ai-kit" / "runs" / "t" / "events.jsonl").exists())
+
+    @unittest.skipUnless(os.name == "nt", "drive paths exist on Windows only")
+    def test_backslash_and_git_bash_drive_paths_in_a_command_route(self):
+        other = self.other_repo().resolve()
+        msys = "/" + other.drive[0].lower() + other.as_posix()[2:]
+        self.send("PreToolUse", "Bash", {"command": f"type {other}{os.sep}README.md"}, read=False)
+        self.send("PreToolUse", "Bash", {"command": f"cat {msys}/README.md"}, tool_use_id="t2", read=False)
+        lines = (other / ".ai-kit" / "runs" / "t" / "events.jsonl").read_text(encoding="utf8").splitlines()
+        self.assertEqual(len(lines), 2)
+
+    def test_dash_c_of_other_tools_does_not_route(self):
+        other = self.other_repo()
+        for cmd in ("grep -C 3 foo src", "grep -rn -C 3 x"):
+            self.send("PreToolUse", "Bash", {"command": cmd}, read=False)
+        self.assertFalse((other / ".ai-kit").exists())
+        self.assertEqual(len(self.events("t")), 2)
+
+    def test_no_target_falls_back_to_the_session_root(self):
+        self.send("PreToolUse", "Bash", {"command": "echo hi"})
+        e = self.events("t")[-1]
+        self.assertEqual(Path(e["repo"]).resolve(), self.proj.resolve())
+
+    def test_agent_event_fields(self):
+        prompt = "Task K3, item W5.3.\nmode: close\nslug: run-speed\ntask: K3"
+        self.send("PreToolUse", "Agent", {"prompt": prompt, "model": "sonnet", "run_in_background": True,
+                                          "subagent_type": "prd-flow-executor"})
+        e = self.events("t")[-1]
+        self.assertEqual((e["mode"], e["task"], e["slug"], e["model"], e["bg"]), ("close", "K3", "run-speed", "sonnet", True))
+
+    def test_bash_bg_timeout_and_auto_bg(self):
+        e = self.send("PostToolUse", "Bash", {"command": "make", "timeout": 600000}, duration_ms=300000)[-1]
+        self.assertEqual((e["bg"], e["timeout"], e.get("auto_bg", False)), (False, 600000, False))
+        e = self.send("PostToolUse", "Bash", {"command": "make"}, duration_ms=130000, tool_use_id="b")[-1]
+        self.assertNotIn("timeout", e)
+        self.assertTrue(e["auto_bg"])
+        e = self.send("PostToolUse", "Bash", {"command": "make"}, duration_ms=5000, tool_use_id="c")[-1]
+        self.assertFalse(e.get("auto_bg", False))
+        e = self.send("PreToolUse", "Bash", {"command": "make", "run_in_background": True}, tool_use_id="d")[-1]
+        self.assertTrue(e["bg"])
+
+    def test_askuserquestion_wait_ms_comes_from_the_pre_event(self):
+        pre = self.send("PreToolUse", "AskUserQuestion", {"questions": []}, tool_use_id="q1")[-1]
+        time.sleep(0.3)
+        post = self.send("PostToolUse", "AskUserQuestion", {"questions": []}, tool_use_id="q1", duration_ms=1)[-1]
+        self.assertGreaterEqual(post["wait_ms"], 250)
+        self.assertNotIn("wait_ms", pre)
+
+    def test_wait_test_class_for_polling_and_baseline(self):
+        for cmd in ("until grep -q done out.txt; do sleep 5; done", "for i in 1 2 3; do ls; sleep 2; done",
+                    "scripts/gates.sh baseline my-slug"):
+            with self.subTest(cmd=cmd):
+                self.assertEqual(self.bash(cmd)["cls"], "wait.test")
+        self.assertEqual(self.bash("sleep infinity")["cls"], "background.unbounded")
+
+    def test_a_single_sleep_or_seq_is_not_polling_and_bg_baseline_is_no_wait(self):
+        for cmd in ("sleep 2 && curl x", "seq 1 5", "scripts/gates.sh baseline my-slug --bg"):
+            with self.subTest(cmd=cmd):
+                self.assertNotEqual(self.bash(cmd)["cls"], "wait.test")
+
+    def test_subagent_stop_carries_dur_ms_and_bg(self):
+        self.send("SubagentStart", agent_id="ag1", agent_type="x")
+        time.sleep(0.3)
+        e = self.send("SubagentStop", agent_id="ag1", agent_type="x", background_tasks=[{"id": "b"}])[-1]
+        self.assertGreaterEqual(e["dur_ms"], 250)
+        self.assertEqual(e["bg"], 1)
+
+    def test_edit_plus_test_is_a_chain(self):
+        self.assertEqual(self.bash("sed -i 's/a/b/' src/x.py && pytest tests/test_x.py")["cls"], "chain")
+        self.assertEqual(self.bash("cat > t.py <<EOF\nx\nEOF\npython -m unittest tests.t")["cls"], "chain")
+        self.assertEqual(self.bash("pytest tests/test_x.py > out.txt")["cls"], "test.single")
+
+
 if __name__ == "__main__":
     unittest.main()
+
+
+class LauncherTest(unittest.TestCase):
+    def launcher(self):
+        settings = json.loads((ROOT / "kit" / ".claude" / "settings.json").read_text(encoding="utf8"))
+        commands = {h["command"] for entries in settings["hooks"].values() for e in entries for h in e["hooks"]}
+        self.assertEqual(len(commands), 1)
+        self.assertNotIn("agent_guard_hook", next(iter(commands)))
+        return next(iter(commands))
+
+    def run_launcher(self, proj, extra_path=None):
+        import shutil
+        bash = shutil.which("bash")
+        if not bash:
+            self.skipTest("bash not available")
+        env = dict(os.environ, CLAUDE_PROJECT_DIR=proj.as_posix())
+        return subprocess.run([bash, "-c", self.launcher()], capture_output=True, text=True, env=env, timeout=30)
+
+    def test_commands_python_from_ai_kit_json_runs_the_hook(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            proj = Path(tmp)
+            (proj / "scripts").mkdir()
+            (proj / "scripts" / "telemetry_hook.py").write_text("", encoding="utf8")
+            fake = proj / "fakepy"
+            fake.write_text("#!/bin/sh\necho ran > " + (proj / "marker").as_posix() + "\n", encoding="utf8")
+            fake.chmod(0o755)
+            (proj / "ai-kit.json").write_text(json.dumps({"commands": {"python": fake.as_posix()}}), encoding="utf8")
+            r = self.run_launcher(proj)
+            self.assertEqual(r.returncode, 0)
+            self.assertTrue((proj / "marker").is_file())
+
+    def test_a_missing_hook_script_exits_zero(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            r = self.run_launcher(Path(tmp))
+            self.assertEqual((r.returncode, r.stdout), (0, ""))
+
+    def test_failing_interpreters_on_path_exit_zero(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            proj = Path(tmp)
+            (proj / "scripts").mkdir()
+            (proj / "scripts" / "telemetry_hook.py").write_text("", encoding="utf8")
+            (proj / "ai-kit.json").write_text("{}", encoding="utf8")
+            bindir = proj / "bin"
+            bindir.mkdir()
+            for name in ("python3", "python"):
+                stub = bindir / name
+                stub.write_text("#!/bin/sh\nexit 49\n", encoding="utf8")
+                stub.chmod(0o755)
+            import shutil
+            bash = shutil.which("bash")
+            if not bash:
+                self.skipTest("bash not available")
+            env = dict(os.environ, CLAUDE_PROJECT_DIR=proj.as_posix(), PATH=bindir.as_posix() + os.pathsep + os.environ["PATH"])
+            r = subprocess.run([bash, "-c", self.launcher()], capture_output=True, text=True, env=env, timeout=30)
+            self.assertEqual((r.returncode, r.stdout), (0, ""))
+
+    def test_a_failing_stub_is_skipped_for_the_next_interpreter(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            proj = Path(tmp)
+            (proj / "scripts").mkdir()
+            (proj / "scripts" / "telemetry_hook.py").write_text("", encoding="utf8")
+            (proj / "ai-kit.json").write_text("{}", encoding="utf8")
+            bindir = proj / "bin"
+            bindir.mkdir()
+            bad = bindir / "python3"
+            bad.write_text("#!/bin/sh\nexit 49\n", encoding="utf8")
+            bad.chmod(0o755)
+            good = bindir / "python"
+            good.write_text("#!/bin/sh\n[ \"$1\" = -c ] && exit 0\necho ran > " + (proj / "marker").as_posix() + "\n", encoding="utf8")
+            good.chmod(0o755)
+            import shutil
+            bash = shutil.which("bash")
+            if not bash:
+                self.skipTest("bash not available")
+            env = dict(os.environ, CLAUDE_PROJECT_DIR=proj.as_posix(), PATH=bindir.as_posix() + os.pathsep + os.environ["PATH"])
+            r = subprocess.run([bash, "-c", self.launcher()], capture_output=True, text=True, env=env, timeout=30)
+            self.assertEqual(r.returncode, 0)
+            self.assertTrue((proj / "marker").is_file())

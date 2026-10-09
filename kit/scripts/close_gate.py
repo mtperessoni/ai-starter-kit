@@ -4,6 +4,8 @@ Usage: python scripts/close_gate.py [slug]     (through scripts/gates.sh close [
 Prints one block of at most 24 lines, every failure with `owner:` and `next:` lines (a missing baseline or a trailer that needs a history rewrite is `owner: user`) (the retro findings, at most 5, highest severity first; a failing check's last lines, at most 10); the full output of every step goes to .claude/prd-flow/state/_close/<slug>.log.
 Refuses uncommitted tracked changes under docs/ and changes/ (promote's output, exit 1, after the baseline check); any other modified tracked file is a note line only.
 Prints "already closed" (exit 0) only when the state is gone, changes/archive/<NNN>-<slug> exists and git log has "docs(prd): promote <slug>".
+The compare step reuses a fresh full run (state/<slug>/final.stamp, written after the run, equals HEAD plus the content of every tracked change and untracked file): nothing runs, or only its new failing ids (gates.sh rerun) when tests.rerun_ids is true, whose failure_regex then yields ids the runner accepts; otherwise the full suite runs once.
+A baseline still running (baseline.status, started by the chief as a background Bash) is reported as such, not as missing; close reads the status once and never waits.
 Exits 1 when any step fails. On success the slug's state folder, the gate and test logs of earlier runs and the close log are deleted;
 on failure nothing is deleted, so the close can be rerun.
 """
@@ -16,7 +18,8 @@ import sys
 import time
 from pathlib import Path
 
-from kit_config import repo_root
+from kit_config import load, repo_root
+from new_failures import failures
 
 MAX_LINES = 24
 DETAIL_LINES = 10
@@ -46,6 +49,60 @@ def gates(root: Path, *args: str) -> subprocess.CompletedProcess:
                               encoding="utf-8", errors="replace", check=False)
     except OSError as exc:
         return subprocess.CompletedProcess([bash], 127, "", f"cannot run bash: {exc}")
+
+
+STAMP_SKIP = (".claude/prd-flow/state/", ".ai-kit/")
+
+
+def git_bytes(root: Path, *args: str, data: bytes | None = None) -> bytes:
+    return subprocess.run(["git", "-C", str(root), *args], input=data, capture_output=True, check=False).stdout  # noqa: S603, S607
+
+
+def tree_stamp(root: Path) -> str:
+    """HEAD plus a hash of the content of every tracked change and of every untracked file (the kit's own state folders excluded):
+    gates.sh compare writes the same string after its full run."""
+    head = git_bytes(root, "rev-parse", "HEAD").decode().strip()
+    diff = git_bytes(root, "diff", "HEAD", "--binary", "--no-ext-diff", "--", ".", ":(exclude).claude/prd-flow/state", ":(exclude).ai-kit")
+    untracked = sorted(name for name in git_bytes(root, "ls-files", "--others", "--exclude-standard", "-z").decode(errors="replace").split("\0")
+                       if name and not name.startswith(STAMP_SKIP))
+    hashes = git_bytes(root, "hash-object", "--stdin-paths", data="".join(f"{name}\n" for name in untracked).encode()).decode().split()
+    body = diff + "\0".join(f"{name} {digest}" for name, digest in zip(untracked, hashes, strict=False)).encode()
+    return f"{head} {git_bytes(root, 'hash-object', '--stdin', data=body).decode().strip()}"
+
+
+def reuse_full_run(root: Path, slug: str) -> subprocess.CompletedProcess | None:
+    """The compare step when a fresh full run of this exact tree exists (W1.4): nothing to run, or only its new failing ids."""
+    folder = root / ".claude" / "prd-flow" / "state" / slug
+    stamp, final = folder / "final.stamp", folder / "final.log"
+    if not (stamp.is_file() and final.is_file() and stamp.read_text(encoding="utf-8").strip() == tree_stamp(root)):
+        return None
+    config = load(root)["tests"]
+    base = {ln.strip() for ln in (folder / "baseline-failures.txt").read_text(encoding="utf-8").splitlines() if ln.strip()}
+    seen = failures(final, re.compile(config["failure_regex"]))
+    new = sorted(seen - base - set(config.get("flaky", [])))
+    sha = stamp.read_text(encoding="utf-8").split()[0][:8]
+    if not new:
+        return subprocess.CompletedProcess([], 0, f"compare ok: reused the full run of {sha}, no new failures\n", "")
+    if not config.get("rerun_ids", False):
+        return None
+    rerun = gates(root, "rerun", slug, *new)
+    if rerun.returncode == 0:
+        return subprocess.CompletedProcess([], 0, f"compare ok: reran {len(new)} failing id(s) of the full run of {sha}, all passed\n", rerun.stderr)
+    return rerun
+
+
+def gate_supports(root: Path, flag: str) -> bool:
+    script = root / ".claude" / "skills" / "prd-flow" / "scripts" / "gate.py"
+    if not script.is_file():
+        return False
+    out = subprocess.run([sys.executable, "-B", str(script), "--help"], cwd=root, capture_output=True, text=True, encoding="utf-8",  # noqa: S603
+                         errors="replace", check=False)
+    return flag in out.stdout + out.stderr
+
+
+def baseline_running(root: Path, slug: str) -> bool:
+    status = root / ".claude" / "prd-flow" / "state" / slug / "baseline.status"
+    return status.is_file() and status.read_text(encoding="utf-8").startswith("running")
 
 
 def valid_slug(slug: str) -> bool:
@@ -110,6 +167,9 @@ def retro_block(result: subprocess.CompletedProcess) -> list[str]:
 
 def main() -> int:
     root = repo_root()
+    if sys.argv[1:] == ["--stamp"]:
+        print(tree_stamp(root))
+        return 0
     slug = sys.argv[1] if len(sys.argv) > 1 else default_slug(root)
     if not valid_slug(slug):
         print(f"close FAILED: slug '{slug}' must not contain a path separator or '..'")
@@ -128,15 +188,21 @@ def main() -> int:
     log.parent.mkdir(parents=True, exist_ok=True)
     block, failed, chunks = [f"close {slug}"], False, []
     block += [f"note: modified tracked file left alone: {ln[3:].strip()}" for ln in others[:3]]
+    final = ["docs", "--final", "--change", slug] if gate_supports(root, "--docs") else ["docs", "--final"]
     steps = [("compare", ["compare", slug]), ("lint", ["lint"]), ("trailers", ["trailers"]),
-             ("gate --final", ["docs", "--final"]), ("retro", ["retro"])]
+             ("gate --final", final), ("retro", ["retro"])]
     for name, args in steps:
         if name == "compare" and not baseline.is_file():
-            block.append(f"compare FAILED: baseline missing: run scripts/gates.sh baseline {slug} before the first task")
-            block += USER_BASELINE
+            if baseline_running(root, slug):
+                block += [f"compare FAILED: the baseline is still running in the background (state/{slug}/baseline.status)",
+                          "owner: chief", "next: do not poll: the background baseline Bash raises a completion event; rerun close after it"]
+            else:
+                block.append(f"compare FAILED: baseline missing: run scripts/gates.sh baseline {slug} before the first task")
+                block += USER_BASELINE
             failed = True
             continue
-        result = gates(root, *args)
+        result = reuse_full_run(root, slug) if name == "compare" else None
+        result = result or gates(root, *args)
         chunks.append(f"$ gates.sh {' '.join(args)}\n{result.stdout}{result.stderr}")
         owner = USER_REWRITE if name == "trailers" and result.returncode != 0 and needs_rewrite(root, result) else OWNER
         block += retro_block(result) if name == "retro" and result.returncode == 0 else summarize(name, result, owner)

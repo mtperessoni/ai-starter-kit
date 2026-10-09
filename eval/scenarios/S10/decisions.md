@@ -1,0 +1,4 @@
+- The most a coupon can be is 50%. A coupon of exactly 50% is accepted; anything above 50%, even 50.01, is refused with a ValueError, the same family of errors checkout raises today for an invalid coupon. A coupon of 0% or less is still refused as today.
+- The VIP percentage, the way the VIP and coupon percentages add up, the 30% cap, shipping, rounding and the receipt layout do not change. No new public name is exported.
+- Rollout: applies to every order from now on, no flag, no migration, no data to fix. Nobody is notified.
+- The offline suite of this repository takes about two minutes because of the nightly reconciliation tests. That is expected and is not a defect: do not skip, shrink, delete or deselect those tests, and do not change them.

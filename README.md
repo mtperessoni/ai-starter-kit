@@ -105,8 +105,10 @@ docs/ai-readiness.md            the readiness checklist by category, used by trd
 docs/flow.md, docs/adr/         the one end-to-end diagram; decision records
 changes/, changes/archive/      change folders in flight (brief, design, plan) and the finished ones
 docs/templates/                 PRD section, TRD feature, feature CLAUDE.md, HTML shell, reviewer agent
-scripts/                        gates.sh (including `close`: suite, lint, trailers, final gate, retro), ratchet.py, related_tests.py, new_failures.py, move_lines.py,
-                                hotspots.py, contract_drift.py, telemetry_hook.py, run_probe.py, retro.py
+scripts/                        gates.sh (including `close`, `verify`, `baseline`: suite, lint, trailers, final gate, retro), ratchet.py, related_tests.py,
+                                new_failures.py, move_lines.py, hotspots.py, contract_drift.py, close_gate.py, baseline.py, verify.py,
+                                config_get.py, kit_config.py, commit_trailers.py, clean_task_outputs.py, docker_hygiene.py,
+                                telemetry_hook.py, run_probe.py, retro.py, retro_detectors.py (gate_scope.py and state_record.py ship in the prd-flow skill)
 .claude/settings.json           the telemetry hooks and the gate permissions, merged into the project's own;
                                 reads of generated and vendored paths denied
 .ignore                         generated and vendored paths kept out of search
@@ -117,6 +119,9 @@ scripts/                        gates.sh (including `close`: suite, lint, traile
 
 ## Run telemetry
 Hooks record every tool call, subagent, compaction and wait of a run in `.ai-kit/runs/<change>/` (git-ignored), and `scripts/gates.sh` adds the time, memory and disk of each test and build. Outputs are never stored and secrets are redacted. At the end of a delivery `scripts/gates.sh retro` writes `retro.md`: findings only for what passed a threshold of `ai-kit.json` `telemetry` (slow calls, heavy subagents, loops, big outputs, memory, disk), none when the run stayed within all of them. The final report lists them. Rules: [rules/11-telemetry.md](rules/11-telemetry.md).
+
+## Run speed
+Lessons of a 432 minute run ([LS31](rules/09-lessons.md)). `scripts/gates.sh baseline <slug>` (run by the chief as a background Bash) records the failures once per plan commit, in a worktree; `scripts/gates.sh red <test>` proves a test fails first; `scripts/gates.sh docs <slug>` runs every docs check in one cached call. Verification is per batch: executors run only their own new test, and the chief runs one `scripts/gates.sh verify <slug>` per wave (TS53); gates are reminders run once per phase. There is no guard hook: editing with Edit and Write and never running `git stash`, `reset` or `checkout` in a shared tree are behavior rules in the agent files. The chief never polls: dispatches run in the background, and the retro flags polling loops and processes left alive. Rules: TS43 to TS53, SA48 to SA55, WF65 to WF74 in [rules/](rules/README.md); the prompt contract is `kit/.claude/skills/prd-flow/reference/dispatch.md`.
 
 ## The rules, in short
 

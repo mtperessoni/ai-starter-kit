@@ -221,8 +221,20 @@ def regenerate_html(out: Path) -> None:
         raise SystemExit("build_prd_html.py failed on the arm:\n" + done.stdout + done.stderr)
 
 
+def build_siblings(ref: str, out: Path, siblings: dict[str, Path]) -> None:
+    """Builds each sibling repository next to `out` as `<out>-<alias>` and lists them in `.ai-kit/repos.json`."""
+    repos = []
+    for alias, fixture in siblings.items():
+        path = out.parent / f"{out.name}-{alias}"
+        build(ref, path, False, fixture)
+        repos.append({"alias": alias, "path": str(path.resolve())})
+    target = out / ".ai-kit" / "repos.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps({"repos": repos}, indent=2) + "\n", encoding="utf-8", newline="\n")
+
+
 def build(ref: str, out: Path, spec_kit: bool, fixture: Path = FIXTURE, fill: Path | None = None,
-          overlay: Path | None = None) -> None:
+          overlay: Path | None = None, siblings: dict[str, Path] | None = None) -> None:
     ref = resolve_ref(ref)
     if out.exists() and any(out.iterdir()):
         raise SystemExit(f"{out} is not empty")
@@ -239,6 +251,8 @@ def build(ref: str, out: Path, spec_kit: bool, fixture: Path = FIXTURE, fill: Pa
     if leftovers:
         raise SystemExit("placeholders left:\n" + "\n".join(leftovers))
     write_manifest(out, ref, files)
+    if siblings:
+        build_siblings(ref, out, siblings)
     regenerate_html(out)
     gate_path = next((f".claude/skills/{n}/scripts/gate.py" for n in SKILL_NAMES
                       if (out / ".claude" / "skills" / n / "scripts" / "gate.py").is_file()),
@@ -259,6 +273,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--fixture", type=Path, default=FIXTURE, help="fixture folder (default eval/fixture)")
     parser.add_argument("--fill", type=Path, help="fill file (default <fixture>/fill.json)")
     parser.add_argument("--overlay", type=Path, help="folder copied over the project before the seed commit")
+    parser.add_argument("--sibling", action="append", default=[], metavar="ALIAS=FIXTURE",
+                        help="build a sibling repository from a fixture folder next to the project (repeatable)")
     args = parser.parse_args(argv)
     args.fill = args.fill or args.fixture / "fill.json"
     return args
@@ -267,7 +283,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     build(args.ref, args.out.resolve(), args.spec_kit, args.fixture.resolve(), args.fill.resolve(),
-          args.overlay.resolve() if args.overlay else None)
+          args.overlay.resolve() if args.overlay else None,
+          {a: Path(p).resolve() for a, p in (s.split("=", 1) for s in args.sibling)})
     print(f"built {args.out} from {args.ref}{' with spec-kit ' + SPEC_KIT_TAG if args.spec_kit else ''}")
     return 0
 

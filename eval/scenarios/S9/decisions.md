@@ -1,0 +1,6 @@
+- The request came from a conversation with the storefront team and I wrote it from memory of how the storefront works. I have not read the glossary of the product document.
+- If the glossary says checkout is stateless, keeps no order history and never decides who is VIP, then the glossary is right and my request rests on a wrong assumption. In that case do not write a rule, a plan or code that makes checkout read the orders of the month, a clock or any storage, and say so plainly before asking me anything else.
+- What I still want: the wish stays visible for the storefront owner. Record it in the PRD as an open question with the proposal (500.00 in the calendar month turns a customer VIP) and the owner (the storefront), not as a rule in force. No code change in this repository.
+- If asked whether the monthly rule should live in checkout, the answer is no: the storefront computes the flag and sends it, exactly as today.
+- Nothing else changes: the 15% VIP discount, the coupon, the 30% cap, shipping, rounding and the receipt.
+- Rollout: nothing ships from this repository. Nobody is notified.
