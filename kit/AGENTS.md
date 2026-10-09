@@ -32,12 +32,15 @@ scripts/gates.sh docker-clean      # Every labelled leftover; reports other proj
 scripts/gates.sh clean-outputs     # Delete old or oversized background task outputs
 scripts/gates.sh context NAME      # Name the run for telemetry (prd-flow does it with the slug)
 scripts/gates.sh retro             # End of a delivery: what was slow, expensive, looping or wasteful
+scripts/gates.sh reap              # Kill stuck processes of this session by PID tree, never by image name
 ```
 
 The stack commands behind each target are in `ai-kit.json`.
 
 ### Testing while working
 - For a person: `scripts/gates.sh related` finds the mirror test of each changed module and every test that imports it, runs them, and prints only failures and the summary. Add lint of the touched files.
+- A prd-flow executor runs only its own test, then `scripts/gates.sh fix-files <its files>` and `lint-files <its files>`; the chief runs one `scripts/gates.sh verify <slug>` per wave.
+- Never kill processes by image name (`taskkill /IM`, `pkill`, `killall`); use `scripts/gates.sh reap`.
 - The full suite runs once, at the end of a delivery, compared with the recorded baseline of failures. A failure unrelated to what you touched waits for the end.
 - Redirect test output to a file and read only the failures and the summary.
 - The full gate sets its own environment (no network, no database for the unit tier); never rely on your shell's variables to make it offline. See `docs/trd/testing.md`.
@@ -107,4 +110,4 @@ Keeping it true:
 
 ## Handing work to a subagent
 
-Paste the rule rows it must implement (its contract) and point to files for everything else: the PRD file, the TRD feature file, the files it owns and the commands to run. Never paste whole documents. It returns at most 20 lines (Done, Files, Tests, Gaps), writes longer output to files, never opens another subagent, and stops at about 50 tool calls or 30 minutes to report.
+Paste the rule rows it must implement (its contract) and point to files for everything else: the PRD file, the TRD feature file, the files it owns and the commands to run. Never paste whole documents. It returns at most 20 lines with the five fields `Status`, `Files:`, `Commit:`, `Route:`, `Next:`, writes longer output to files, never opens another subagent, and stops at about 50 tool calls or 30 minutes to report.

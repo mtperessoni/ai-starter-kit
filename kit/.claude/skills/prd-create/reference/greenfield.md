@@ -1,9 +1,9 @@
 # Greenfield interview (M2)
 
-There is no code, so the user is the only source. The interview runs in this conversation, at most 4 questions per AskUserQuestion, each with a concrete scenario, options with trade-offs and the recommended one first. Record every answer in `interview.md` (`| Dimension | Question | Answer | Origin |`, origin `user` or `default`).
+There is no code, so the user is the only source. The interview runs in this conversation, at most 4 questions per round, each with a concrete scenario, options with trade-offs and the recommended one first. Record every answer in `interview.md` (`| Item | Question | Answer | Origin |`, origin `user` or `default`).
 
 ## Product level (before the outline)
-| ID | Dimension | Guiding question |
+| ID | Topic | Guiding question |
 |---|---|---|
 | G01 | Problem | What goes wrong today, for whom, and how often? |
 | G02 | Actors | Who uses it, who operates it, which systems call it or are called by it? |
@@ -16,7 +16,7 @@ There is no code, so the user is the only source. The interview runs in this con
 G01 to G03 come first: a wrong problem invalidates the rest. With G01 to G07 answered, write the outline (sections per step of G05) and approve it.
 
 ## Step level (per section)
-For each journey step, the dimensions D01 to D15 of `.claude/skills/prd-flow/reference/interview.md` plus the extra ones in `repo.md`. Ask only what is open; adopt defaults the user accepts. A dimension the user does not want to decide becomes an open question with its default.
+For each journey step, check failure paths, requests in flight during the deploy, consumers of the data, tenant variation and safety; ask only where a real alternative exists. Put the open decisions of a section on one sheet, in the format of "Format of `sheet.md`" in `.claude/skills/prd-flow/reference/interview.md`, answered in the chat by number. An item the user does not want to decide becomes an open question with its default.
 
 ## Writing
-Greenfield rules come from the interview, so they are approved, not `*(proposed)*`. The D15 answer lands in the Example column. Every rule gets Source `planned` and the marker `*(approved YYYY-MM-DD, pending code)*` is not used: in greenfield the whole PRD is planned, and `README.md` "How this document was made" says so. When code arrives, prd-flow C2 fills the Sources task by task.
+Greenfield rules come from the interview, so they are approved, not `*(proposed)*`. The example of each decision lands in the Example column. Every rule gets Source `planned` and the marker `*(approved YYYY-MM-DD, pending code)*` is not used: in greenfield the whole PRD is planned, and `README.md` "How this document was made" says so. When code arrives, prd-flow C2 fills the Sources task by task.
