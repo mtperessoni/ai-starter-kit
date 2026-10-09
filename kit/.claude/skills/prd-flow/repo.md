@@ -43,7 +43,7 @@ Parsed by the scripts. Keep the two-column table format and the key names.
 | `planned_heading`, `via_header` | The TRD heading of rules not built yet (G8, G20), and the last column that marks a rule table (G3) |
 | `proposed_marker`, `pending_marker`, `planned_source` | Marker words of rule rows; G30 fails `--final` while a proposed row is left |
 | `prd_section_budget_lines`, `trd_budget_lines`, `pack_budget_lines`, `plan_budget_kb` | Size warnings (G31, G26, pack, plan); over budget, split |
-| `html`, `trd_html`, `html_template`, `html_mode` | Reading pages built only by `/docs-html`; `generated` warns when stale (G29, G32), `hand` (default) warns once (G5); `none` opts out |
+| `html`, `trd_html`, `html_template`, `html_mode` | Reading pages built only by `/docs-html`; `generated`: a stale page is reported only by `gate.py --html` (G29, G32), `hand` (default) warns once (G5); `none` opts out |
 
 ## Commands
 
@@ -52,8 +52,8 @@ Always through `scripts/gates.sh`; the stack commands behind each target are in 
 | Who | `scripts/gates.sh` targets |
 |---|---|
 | A person | `related [files]` (agents rely on `verify`) |
-| Executor | `one <file>`, `red <test>`, `fix-files <files>` then `lint-files <files>`, `move <src> <start>-<end> <dst> [<line>]` (C6 only) |
-| Surveyor | `prd-sweep --ids <IDs> --terms "<words>" --out <state>/sweep.md` |
+| Executor | `one <file>`, `red <test>`, `fix-files <file>...` then `lint-files <file>...`, `move <source> <start> <end> <destination> [--at LINE]` (C6 only); `close <slug> --case <C>` |
+| Surveyor | `prd-sweep --ids <IDs> --terms "<words>" --out <state>/sweep.md`; `settings-check` (deny rules that block files the flow writes) |
 | Chief | background: `baseline`, `verify`, `compare`, `watch <slug> [--minutes N]`; foreground: `cleanup [<slug>]`, `reap` |
 | Anyone | `python` (the interpreter), `lint`, `fix` then `lint`, `imports`, `ratchet` |
 

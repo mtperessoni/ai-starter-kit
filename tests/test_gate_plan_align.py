@@ -7,7 +7,7 @@ from tests.test_kit_scripts import Project, write
 
 GATE = ".claude/skills/prd-flow/scripts/gate.py"
 PLAN_PATH = "changes/001-orders/plan.md"
-HEAD = "# Plan\n\n## Plan execution rules\n- x\n\n"
+HEAD = "# Plan\n\n"
 TRD = """# TRD
 
 ## Planned (orders, feat/orders)

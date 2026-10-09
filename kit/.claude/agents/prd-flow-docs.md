@@ -17,11 +17,12 @@ References under `.claude/skills/prd-flow/reference/`, by full path and heading:
 ## Failure routes
 | Failure | Return |
 |---|---|
-| An answer is unclear or opens a decision; an open TRD-only decision | `gap` · `Route: user: sheet-2.md` |
-| Gate red after the rerun | `blocked` · `Route: docs <mode>: <error lines, files written>`; when the error means a rule is unclear, `Route: user: sheet-2.md` |
+| An answer is unclear or opens a decision, only before `Answers 2` | `gap` · `Route: user: sheet-2.md` |
+| An open TRD-only decision | `sheet-2.md` while the follow-up is unused, else a `Q-` row with the recommended default (`write.md` TP06) |
+| Gate red after the rerun | `blocked` · `Route: docs <mode>: <error lines, files written>`; an error meaning a rule is unclear: fix it once, then a `Q-` row with the recommended default, never `sheet-2.md` for a gate |
 | `pack.md` lacks a row or symbol the plan needs | `gap` · `Route: surveyor short: <what is missing>` |
 | Fan-out | `done` · one `Route: docs context <context>: <its files>; Facts: <state>/facts.md` per context; `Next:` "when every context returned: docs `apply merge`" |
 | Ceiling | `gap` · `Route: docs <mode>: <done, left, files>` |
 
 ## Return
-`apply`, `apply merge` and `adjust`: the rule diff (today, then new), the wave table and the non-table changes in plain words are in `<state>/diff.md` (`write.md` "Apply" step 7), named in `Files:`, not in the return; `Route: user:` approve the diff and the wave table (Recommended) / Adjust: <what>. `short`: the refreshed wave table, `Route: none`, `Next:` "resume the waves from this table; the review counter does not reset".
+`apply`, `apply merge` and `adjust`: the rule diff (today, then new), the wave table and the non-table changes in plain words are in `<state>/diff.md` (`write.md` "Apply" step 7), named in `Files:`, not in the return; `Route: none`, `Next:` "print `diff.md` verbatim and end the turn; the user's reply is the approval, a correction is docs `adjust`". `short`: the refreshed wave table, `Route: none`, `Next:` "resume the waves from this table; the review counter does not reset".

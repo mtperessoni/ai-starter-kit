@@ -15,14 +15,21 @@ scripts/gates.sh related [files]   # The ratchet, then the tests related to the 
 scripts/gates.sh one <file>        # One test file, offline, no coverage threshold
 scripts/gates.sh baseline <slug>   # Before the first code task: record today's failures
 scripts/gates.sh compare <slug>    # ONCE, at the end of a delivery: the full suite, new failures only
+scripts/gates.sh verify <slug>     # One verification per wave: related tests of the wave files, structure tests, docs gate
 scripts/gates.sh lint              # Lint, format check, types, structure linter rules: verifies, as CI does
 scripts/gates.sh fix               # Repairs; then run lint
+scripts/gates.sh fix-files <file>...   # Repair only those files
+scripts/gates.sh lint-files <file>...  # Lint only those files
+scripts/gates.sh move <source> <start> <end> <destination> [--at LINE]   # Move lines by script, never retyped
+scripts/gates.sh python            # Print the resolved interpreter
+scripts/gates.sh close <slug>      # End of a delivery: lint, trailers, docs, compare result, retro (--case C4 skips compare and baseline)
+scripts/gates.sh settings-check    # Deny rules in .claude/settings*.json that block files the flow writes
 scripts/gates.sh imports           # Import check (cycles)
 scripts/gates.sh setup             # Make a fresh clone or worktree ready to test
 scripts/gates.sh hotspots          # Files ranked by recent commits times lines
 scripts/gates.sh contracts         # Schema and contract snapshots against their source
 scripts/gates.sh ratchet           # Structure ratchet (docs/code-structure.md)
-scripts/gates.sh docs              # PRD and TRD consistency (a stale HTML page is only a warning)
+scripts/gates.sh docs [slug]       # PRD and TRD consistency (a stale HTML page is only a warning); a slug runs every check of the change
 scripts/gates.sh html [--check]    # Build (or check) the PRD and TRD reading pages; run by /docs-html, never by prd-flow
 scripts/gates.sh trailers [range]  # Every commit that touches source folders carries Rules: or Case: none
 scripts/gates.sh integration       # Integration tier: disk and image guards first, cleanup on every exit
@@ -40,7 +47,7 @@ The stack commands behind each target are in `ai-kit.json`.
 
 ### Testing while working
 - For a person: `scripts/gates.sh related` finds the mirror test of each changed module and every test that imports it, runs them, and prints only failures and the summary. Add lint of the touched files.
-- A prd-flow executor runs only its own test, then `scripts/gates.sh fix-files <its files>` and `lint-files <its files>`; the chief runs one `scripts/gates.sh verify <slug>` per wave.
+- A prd-flow executor runs only its own test, then `scripts/gates.sh fix-files <file>...` and `lint-files <file>...` on its own files; the chief runs one `scripts/gates.sh verify <slug>` per wave.
 - Subagents never run a command in the background: a long one runs in the foreground with an explicit timeout under 600 s, output to a file. Only the prd-flow chief starts background work (baseline, verify, compare, watch).
 - Never kill processes by image name (`taskkill /IM`, `pkill`, `killall`); use `scripts/gates.sh reap`.
 - The full suite runs once, at the end of a delivery, compared with the recorded baseline of failures. A failure unrelated to what you touched waits for the end.

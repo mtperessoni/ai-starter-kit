@@ -29,7 +29,7 @@ flowchart LR
     T --> G{"/prd-flow<br/>every change"}
     G -->|question| A[Answer with rule IDs and sources]
     G -->|bug or approved rule| X[Plan, then agents implement test-first]
-    G -->|rule change| R[Confront, interview, PRD, TRD, plan, then code]
+    G -->|rule change| R[Decision sheet, one reply, PRD, TRD, plan, then code]
     X --> V[Related tests per task, review capped, full suite once]
     R --> V
     V --> M[Promote to PRD, TRD, ADR; archive the change folder]
@@ -51,14 +51,14 @@ Every fact has one living home, and everything else cites it by ID. A change get
 | Data model, API contract | The real artifact, linked from the TRD |
 | Principles | `.specify/memory/constitution.md` |
 
-Order of authority: constitution, PRD, TRD, code. An active plan governs only the order of work. `gate.py --trace`, `--change` and `--final` check that every rule has a test, every brief cites real rules, and nothing half-promoted reaches the base branch. Newer flags: `--rules --applied` (approved rows are in the PRD word for word), `--trd` (paths and symbols the TRD cites exist, TRD size budget), `--status` (state of every rule), `--sibling` (a PRD shared with another repository is identical). The interview record is checked by the gate, and `scripts/gates.sh trailers` checks that commits cite the rules they implement.
+Order of authority: constitution, PRD, TRD, code. An active plan governs only the order of work. `gate.py --trace`, `--change` and `--final` check that every rule has a test, every brief cites real rules, and nothing half-promoted reaches the base branch. Newer flags: `--rules --applied` (approved rows are in the PRD word for word), `--trd` (paths and symbols the TRD cites exist, TRD size budget), `--status` (state of every rule), `--sibling` (a PRD shared with another repository is identical). The decision sheet (`--sheet`, S0 to S6) and the answers record (Q3) are checked by the gate, and `scripts/gates.sh trailers` checks that commits cite the rules they implement.
 
 | Skill | What it does |
 |---|---|
 | `/ai-kit` | Global. `install` detects the stack, copies and adapts the kit, configures the linter with a day-one baseline, verifies every command by running it. `update` brings kit improvements without overwriting the project's edits. `doctor` reports drift |
 | `/prd-create` | Writes the PRDs: one folder per independent flow, one small file per section, rule rows with source and change via, glossary with code names, journey, configuration, risks, open questions; markdown only |
 | `/trd-create` | Writes the technical map in any layout: one file per product area, invariants with their proof, the testing guide, the end-to-end flow, and a `CLAUDE.md` of at most 20 lines in every feature folder or declared map folder. In an existing codebase it writes the incremental readiness plan, and offers the move to feature folders as an option |
-| `/prd-flow` | The gate for every change (formerly prd-gate). Classifies the request, loads only the rule and the map it needs, checks the doc against the code, and for a rule change runs survey, confront, interview, PRD (confirmed by the person), TRD, plan, then subagents implement. A behavior found missing during execution goes back through a short rule change before code |
+| `/prd-flow` | The gate for every change (formerly prd-gate). Classifies the request, loads only the rule and the map it needs, checks the doc against the code, and for a rule change runs survey, one decision sheet answered in the chat (one follow-up at most), PRD (confirmed by the person), TRD, plan, then subagents implement. A behavior found missing during execution goes back through a short rule change before code |
 | `/adr` | Records architecture decisions with at least two honest negatives and two real alternatives |
 | `/docs-html` | Rebuilds the human reading pages of the PRD and the TRD from the markdown and checks them. The only skill that touches HTML: the change flow never waits on it |
 
@@ -109,6 +109,7 @@ docs/templates/                 PRD section, TRD feature, feature CLAUDE.md, HTM
 scripts/                        gates.sh (including `close`, `verify`, `baseline`: suite, lint, trailers, final gate, retro), ratchet.py, related_tests.py,
                                 new_failures.py, move_lines.py, hotspots.py, contract_drift.py, close_gate.py, baseline.py, verify.py,
                                 config_get.py, kit_config.py, commit_trailers.py, clean_task_outputs.py, docker_hygiene.py,
+                                guard_hook.py, reap.py, next_change_number.py, settings_check.py,
                                 telemetry_hook.py, run_probe.py, retro.py, retro_detectors.py (gate_scope.py and state_record.py ship in the prd-flow skill)
 .claude/settings.json           the telemetry hooks and the gate permissions, merged into the project's own;
                                 reads of generated and vendored paths denied
@@ -122,7 +123,7 @@ scripts/                        gates.sh (including `close`, `verify`, `baseline
 Hooks record every tool call, subagent, compaction and wait of a run in `.ai-kit/runs/<change>/` (git-ignored), and `scripts/gates.sh` adds the time, memory and disk of each test and build. Outputs are never stored and secrets are redacted. At the end of a delivery `scripts/gates.sh retro` writes `retro.md`: findings only for what passed a threshold of `ai-kit.json` `telemetry` (slow calls, heavy subagents, loops, big outputs, memory, disk), none when the run stayed within all of them. The final report lists them. Rules: [rules/11-telemetry.md](rules/11-telemetry.md).
 
 ## Run speed
-Lessons of a 432 minute run ([LS31](rules/09-lessons.md)). `scripts/gates.sh baseline <slug>` (run by the chief as a background Bash) records the failures once per plan commit, in a worktree; `scripts/gates.sh red <test>` proves a test fails first; `scripts/gates.sh docs <slug>` runs every docs check in one cached call. Verification is per batch: executors run only their own new test, and the chief runs one `scripts/gates.sh verify <slug>` per wave (TS53); gates are reminders run once per phase. A guard hook registered in `settings.json` runs for every subagent (never for the main thread): editing with Edit and Write and never running `git stash`, `reset` or `checkout` in a shared tree are behavior rules in the agent files, enforced there. The chief never polls: dispatches run in the background, and the retro flags polling loops and processes left alive. Rules: TS43 to TS53, SA48 to SA55, WF65 to WF74 in [rules/](rules/README.md); the prompt contract is `kit/.claude/skills/prd-flow/reference/dispatch.md`.
+Lessons of a 432 minute run ([LS31](rules/09-lessons.md)) and of the interview that cost more than the code ([LS32](rules/09-lessons.md)). `scripts/gates.sh baseline <slug>` (run by the chief as a background Bash) records the failures once per plan commit, in a worktree; `scripts/gates.sh red <test>` proves a test fails first; `scripts/gates.sh docs <slug>` runs every docs check in one cached call. Verification is per batch: executors run only their own new test, and the chief runs one `scripts/gates.sh verify <slug>` per wave (TS53); gates are reminders run once per phase. A blocking guard hook (`scripts/guard_hook.py`) registered in `settings.json` runs for every subagent and never for the main thread: it denies heredocs, stdin interpreters, `taskkill`, `git stash`, `reset` and `checkout`, and each deny names the allowed way (Edit and Write, `gates.sh move`, `gates.sh reap`, commit with `-F <file>`). `scripts/gates.sh reap` kills leftover processes of the session by tree, and `verify` prints `stuck agents` from the watchdog. The chief never polls: dispatches run in the background, and the retro flags polling loops and processes left alive. prd-flow lite ([LS33](rules/09-lessons.md)) adds `gates.sh cleanup` and `gates.sh watch`. Rules: TS43 to TS54, SA48 to SA59, WF65 to WF83 in [rules/](rules/README.md); the prompt contract is `kit/.claude/skills/prd-flow/reference/dispatch.md`.
 
 ## The rules, in short
 

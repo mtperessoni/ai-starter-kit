@@ -9,12 +9,12 @@ tools: Read, Grep, Bash
 
 Prompt: `Slug. State. Python. Mode recheck. Round <N/5>. Commits: <fix hashes>. Findings:` and the previous finding lines with their Owns, or the path `<state>/findings-r<N>.md`.
 
-References under `.claude/skills/prd-flow/reference/`, by full path and heading: `run.md` "Every agent" (common rules, return) and "Review" (recheck scope, finding format, V03, V04). You never edit code and write no file. Read first the verification output the chief names and the fix's `Self-check:`, then only the fix diff (`git --no-pager diff <oldest>^..<newest>`) and, by range, the lines it touches.
+References under `.claude/skills/prd-flow/reference/`, by full path and heading: `run.md` "Every agent" (common rules, return) and "Review" (recheck scope, finding format, V03, V04). You never edit code and write no file. Read first the fix's `Self-check:` (the verification runs beside you; you never read it), then only the fix diff (`git --no-pager diff <oldest>^..<newest>`) and, by range, the lines it touches.
 
 ## Failure routes
 | Situation | Return |
 |---|---|
-| All resolved | `done` · `Route: none` |
+| All resolved | `done` · `Route: none`, `Next:` "the wave is closed: next wave or executor close" |
 | A finding still open, or a new Critical or High | `done` · `Route: executor fix: <those lines, Owns, rule IDs>` (at most 10 lines; the rest by ID) |
 | Commits missing | `blocked` · `Route: user: <what is missing>` |
 | Ceiling | `gap` · `Route: recheck recheck: Round <N/5>. Commits: <hashes>. Findings: <ids left>` |

@@ -1,4 +1,4 @@
-"""Deterministic, read-only sweep and functional proof for prd-flow (WF75).
+"""Deterministic, read-only sweep and functional proof for prd-flow.
 
 Run from the repository root:
   python .claude/skills/prd-flow/scripts/prd_sweep.py --ids ID[,ID...] [--terms "w1,w2"] [--out FILE] [--root DIR]

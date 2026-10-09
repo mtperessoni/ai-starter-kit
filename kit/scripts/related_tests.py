@@ -1,4 +1,4 @@
-"""Related tests of a change (rule TS02): the mirror test of each changed module and the tests that use it.
+"""Related tests of a change: the mirror test of each changed module and the tests that use it.
 
 Usage: python scripts/related_tests.py [files...] [--base REF] [--run]
 Without files, the change is: committed since the merge-base with REF (default origin/main), plus
@@ -250,6 +250,9 @@ def run(root: Path, cfg: dict, files: list[str], changed: list[str]) -> int:
     native = cfg["tests"].get("native_related", "")
     exts = set(cfg["code_extensions"])
     changed = [f for f in changed if Path(f).suffix in exts]
+    if not changed:
+        print("related: no related tests")
+        return 0
     always = always_files(root, cfg) & set(files)
     plan = []
     if native:

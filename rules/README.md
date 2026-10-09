@@ -12,7 +12,7 @@ Read only the file of the domain you need. IDs are stable: a new rule takes the 
 | [04-testing.md](04-testing.md) | TS | Test-first, related tests only, full suite once, baseline, offline gates, containers and disk |
 | [05-code-structure.md](05-code-structure.md) | AR, CX | AI-readable code layout, size limits, the ratchet, code constraints |
 | [06-docs-system.md](06-docs-system.md) | DS | PRD by section, rule rows and Example column, CHANGELOG, TRD by feature, budget and checks, invariants, generated HTML, gate |
-| [07-workflow.md](07-workflow.md) | WF | Cases C0 to C6, survey and sweeps, interview record, PRD then TRD then plan then code, R09, commits and trailers |
+| [07-workflow.md](07-workflow.md) | WF | Cases C0 to C6, survey and sweeps, the decision sheet and its answers, PRD then TRD then plan then code, R09, commits and trailers |
 | [08-writing-style.md](08-writing-style.md) | WS | Language, punctuation, comments, commits, tables |
 | [09-lessons.md](09-lessons.md) | LS | What was measured and why each rule exists |
 | [10-creation-and-install.md](10-creation-and-install.md) | PC, IN | Creating the PRD and TRD; installing and updating the kit per project |
@@ -37,14 +37,15 @@ Read only the file of the domain you need. IDs are stable: a new rule takes the 
 | `.claude/skills/prd-flow/` | WF, SA, RV, TS rules as operating procedure, plus `repo.md` (formerly `prd-gate`; WF35, IN14) |
 | `.claude/skills/adr/` | DS23, DS27, DS28 |
 | `.claude/agents/<risk>-reviewer.md` | RV12 to RV16 |
-| `scripts/` and `ai-kit.json` | AR rules marked "ratchet", TS02 to TS08, TS22, TS28 to TS31, TS35, TS43 to TS53 (`docker_hygiene.py`, `clean_task_outputs.py`, `baseline.py`, `config_get.py`, the `docker` section, `tests.baseline_deselect`, `tests.always`) |
-| `scripts/cleanup.py`, `scripts/watch.py` (via `gates.sh cleanup`, `gates.sh watch`) | SA56 (every run starts and ends with cleanup; `close` runs it last; a `SessionEnd` hook runs `cleanup --session-end`), SA57 (per-wave watch), TS34 |
-| `ai-kit.allowlist.json` | The shrink-only ratchet allowlist, moved out of `ai-kit.json` (L15; WF31, IN19); `kit_config.py` reads it first |
-| `.claude/settings.json`, `.ai-kit/runs/` | TM03, TM12, IN20: the telemetry hooks and the guard hook for every subagent (project-owned, merged; interpreter placeholder filled at install, L16) and the git-ignored run artifacts (SA51 and SA53 are enforced for subagents by `guard_hook.py`, L12) |
-| `scripts/telemetry_hook.py`, `run_probe.py`, `retro.py` and the `telemetry` section of `ai-kit.json` | TM01 to TM11, TM13 to TM16 |
-| `.claude/skills/prd-flow/scripts/gate.py` and its `gate_*.py` modules | WF31 to WF33 (`--trace`, `--change`, `--final`); WF43, WF44 (`--rules`: Q2, Q3, Q5 read from the CHANGELOG entry); WF68, WF73 (sheet lint, `--snapshot`, `--final --change`); DS34, DS37, DS39 (`--status`, `--trd`, `--sibling`); DS46 (`--docs`); CE29 (the record set) |
-| `.claude/skills/prd-flow/scripts/prd_sweep.py` | WF38, WF39, WF41, WF50, WF57, WF75 (`gates.sh prd-sweep`: the surveyor's collecting half) |
-| `.claude/skills/prd-flow/reference/` | Five files (L18): `dispatch.md` (WF65, WF71, SA48, SA50, SA54, SA55, SA57; labels DP01 to DP13), `survey.md` (WF03 to WF07, WF10 to WF13, WF38 to WF41, WF57, WF59, WF75), `sheet.md` (WF15, WF43, WF47, WF68, WF69), `write.md` (WF21, WF26 to WF28, WF37, WF44, WF47, WF60, WF61, WF74; the TRD Planned rules TP01 to TP07 map to WF69, WF70), `run.md` (SA07, SA15, RV01 to RV10, V01 to V10, WF46); the old file to new heading map is `proposals/lite-reference-map.md` |
+| `scripts/` and `ai-kit.json` | AR rules marked "ratchet", TS02 to TS08, TS22, TS28 to TS31, TS35, TS43 to TS54 (`docker_hygiene.py`, `clean_task_outputs.py`, `baseline.py`, `config_get.py`, the `docker` section, `tests.baseline_deselect`, `tests.always`) |
+| `scripts/cleanup.py`, `scripts/watch.py` (via `gates.sh cleanup`, `gates.sh watch`) | SA58 (every run starts and ends with cleanup; `close` runs it last; a `SessionEnd` hook runs `cleanup --session-end`), SA59 (per-wave watch), TS34 |
+| `scripts/guard_hook.py`, `reap.py`, `next_change_number.py`, `settings_check.py` | SA56 (the guard hook, registered in `settings.json` for every subagent, L12), SA57 (`gates.sh reap`); IN19 (doctor checks, change number reservation) |
+| `ai-kit.allowlist.json` | The shrink-only ratchet allowlist, moved out of `ai-kit.json` (L15; WF31, IN20); `kit_config.py` reads it first |
+| `.claude/settings.json`, `.ai-kit/runs/` | TM03, TM12, IN21: the telemetry hooks and the guard hook for every subagent (project-owned, merged; interpreter placeholder filled at install, L16) and the git-ignored run artifacts (SA51 and SA53 are enforced for subagents by `guard_hook.py`, L12) |
+| `scripts/telemetry_hook.py`, `run_probe.py`, `retro.py` and the `telemetry` section of `ai-kit.json` | TM01 to TM11, TM13 to TM17 |
+| `.claude/skills/prd-flow/scripts/gate.py` and its `gate_*.py` modules | WF31 to WF33 (`--trace`, `--change`, `--final`); WF43, WF44 (`--rules`: Q2, Q3, Q5 read from the CHANGELOG entry); WF68 to WF74 (sheet lint, `--plan` alignment, `--snapshot`, `--final --change`); DS34, DS37, DS39 (`--status`, `--trd`, `--sibling`); DS46 (`--docs`); CE29 (the record set) |
+| `.claude/skills/prd-flow/scripts/prd_sweep.py` | WF38, WF39, WF41, WF50, WF57, WF83 (`gates.sh prd-sweep`: the surveyor's collecting half) |
+| `.claude/skills/prd-flow/reference/` | Five files (L18): `dispatch.md` (WF65, WF67, WF71, WF76 to WF79, WF81, SA48, SA50, SA54, SA55, SA57, SA59; labels DP01 to DP13), `survey.md` (WF03 to WF07, WF10 to WF13, WF38 to WF41, WF57, WF59, WF83), `sheet.md` (WF15, WF43, WF47, WF68, WF69), `write.md` (WF21, WF26 to WF28, WF37, WF44, WF47, WF60, WF61, WF74; the TRD Planned rules TP01 to TP07 map to WF69, WF70), `run.md` (SA07, SA15, RV01 to RV10, V01 to V10, WF46); the old file to new heading map is `proposals/lite-reference-map.md` |
 | `.claude/skills/prd-flow/scripts/build_prd_html.py`, `build_trd_html.py` | DS42: the generated `prd.html` and `trd.html`, checked by G29 and G32 |
 | `.claude/skills/docs-html/` | DS45: the only place that builds the pages |
 | `.github/CODEOWNERS` | WF48, DS43 |

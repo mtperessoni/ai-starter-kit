@@ -17,12 +17,12 @@ Branch `feat/prd-flow-lite`, worktree `C:/Projects/ai-starter-kit-lite`, from `a
 | I8 | Trailers on every source commit; tests cite rule IDs | WF49, WF31 |
 | I9 | One return contract with Status, Files, Commit, Route, Next; every failure has an owner and a route | SA45, SA46 |
 | I10 | No data leaves its boundary: PII, PHI and tokens never in logs, telemetry, prompts to other repos or long-lived files; the state folder is deleted at close | constitution I of the target repos, TM redaction |
-| I11 | No process, agent or file of the run outlives it: every run starts and ends with `gates.sh cleanup` | new SA56 |
+| I11 | No process, agent or file of the run outlives it: every run starts and ends with `gates.sh cleanup` | new SA58 |
 
 ## Decisions
 | ID | Decision | Effect | Rules touched |
 |---|---|---|---|
-| L1 | The surveyor runs `scripts/gates.sh prd-sweep --ids <IDs> --terms "<words>" --out <state>/sweep.md` (`prd_sweep.py`) first: a deterministic script prints the literal rows, citing rows, same-table rows, candidate sections from INDEX by terms, unconditional candidates, CHANGELOG history, active changes, tests citing each ID, and for each Source symbol whether it exists and who calls it outside tests. The surveyor reads the output, does F3 (reads the symbols) and judges conflicts | Surveyor from 37 to 118 calls down to about 20 to 35 | WF38, WF39, WF41, WF57 (the sweep becomes a script plus judgment); new WF75 |
+| L1 | The surveyor runs `scripts/gates.sh prd-sweep --ids <IDs> --terms "<words>" --out <state>/sweep.md` (`prd_sweep.py`) first: a deterministic script prints the literal rows, citing rows, same-table rows, candidate sections from INDEX by terms, unconditional candidates, CHANGELOG history, active changes, tests citing each ID, and for each Source symbol whether it exists and who calls it outside tests. The surveyor reads the output, does F3 (reads the symbols) and judges conflicts | Surveyor from 37 to 118 calls down to about 20 to 35 | WF38, WF39, WF41, WF57 (the sweep becomes a script plus judgment); new WF83 |
 | L2 | Surveyor model per mode: `query` and `light` on sonnet (dispatch passes `model`), `full` and `short` on opus | Most cases run on the fast model | WF51 applied; SA44 amended (heavy only where a decision is made) |
 | L3 | Docs `apply` writes one record set: PRD rows (marker kept), the CHANGELOG entry (reason, IDs, conflicts, supersedes, the old rows literal), `changes/NNN-<slug>/decisions.md` (the user's reply verbatim on top, then DEC rows), the plan. No `answers.md`, no `rules.md`, no `approved-rules.md`, no `state_record.py render` | 3 artifacts and a render loop gone; the PRD diff is the approved set | CE29, WF43, WF44, WF47 amended; WF61 amended |
 | L4 | `promote.py` and the gate read the approved set from the PRD: the rows of the IDs listed in the slug's CHANGELOG entry (`IDs:` line) that carry the pending marker; Supersedes and Conflicts from the same entry | Same promotion, no state copy | WF61, WF72, WF44 |
@@ -34,8 +34,8 @@ Branch `feat/prd-flow-lite`, worktree `C:/Projects/ai-starter-kit-lite`, from `a
 | L10 | Ceilings fit the work: surveyor `full` and docs `apply` 80 calls, every other role as today; V08 stays the single home | Handoffs by design end | SA15, RV08, WF52 |
 | L11 | Subagents never use `run_in_background`; long commands run foreground with an explicit timeout under 600 s. Only the chief starts background work (baseline, verify, compare, watch) | Ends orphans from subagent shells | SA54 clarified; TS rows on background |
 | L12 | The guard hook runs for every subagent from `settings.json` (`PreToolUse`, Bash and PowerShell, only when the payload has `agent_id`), not only from the prd-flow frontmatter; the `general-purpose` fallback in `dispatch.md` is removed | Every agent is guarded; the main thread is never blocked | SA51, SA53 enforced |
-| L13 | `gates.sh cleanup [<slug>]` (new): reap by PID tree (suite trees reaped once their status is not running or past their timeout), delete this session's task output files, delete loose files in `.ai-kit/runs/`, move state folders untouched for 7 days to `state/_stale/` and delete `_stale/` entries older than 14 days, delete `_tests` and `_gate` caches older than 3 days. Prints `left: 0` or the survivors. The chief runs it at the start and at the end of every case; `gates.sh close` runs it last; a `SessionEnd` hook runs `cleanup --session-end` (reap and task outputs only) | The session always ends clean | new SA56; TS rows on disk; LK5 to LK7 |
-| L14 | `gates.sh watch <slug> [--minutes N]` (new): the chief starts it in the background with each wave; it exits when an agent of this session has had no tool event for 10 minutes or the wave passes N minutes (default 30), printing the agent ids. Its completion wakes the chief, which TaskStops them, reaps and redispatches with a handoff | A hung agent can no longer hold a wave | new SA57; LK4 |
+| L13 | `gates.sh cleanup [<slug>]` (new): reap by PID tree (suite trees reaped once their status is not running or past their timeout), delete this session's task output files, delete loose files in `.ai-kit/runs/`, move state folders untouched for 7 days to `state/_stale/` and delete `_stale/` entries older than 14 days, delete `_tests` and `_gate` caches older than 3 days. Prints `left: 0` or the survivors. The chief runs it at the start and at the end of every case; `gates.sh close` runs it last; a `SessionEnd` hook runs `cleanup --session-end` (reap and task outputs only) | The session always ends clean | new SA58; TS rows on disk; LK5 to LK7 |
+| L14 | `gates.sh watch <slug> [--minutes N]` (new): the chief starts it in the background with each wave; it exits when an agent of this session has had no tool event for 10 minutes or the wave passes N minutes (default 30), printing the agent ids. Its completion wakes the chief, which TaskStops them, reaps and redispatches with a handoff | A hung agent can no longer hold a wave | new SA59; LK4 |
 | L15 | The ratchet allowlist moves from `ai-kit.json` to `ai-kit.allowlist.json`; `kit_config` reads either (sidecar first) so old repos keep working; `/ai-kit update` moves it | `ai-kit.json` drops from 58 to 115 KB to under 10 KB | CF1; IN rule for update |
 | L16 | Hook commands carry the interpreter resolved at install (`__AIKIT_PYTHON__` placeholder filled by `/ai-kit install` and `update`), no `python -c pass` probe | About 2 fewer process launches per hook | TM03 |
 | L17 | Cross-repo: the chief is started in the target repository (or its worktree); a prompt never says "follow the other agent file" | One definition per agent | SA55 amended |
@@ -100,9 +100,9 @@ Gate checks replacing Q2 to Q5 (L4, L8), all errors: every `IDs:` entry exists i
 | WF43, WF44, WF47, WF61, WF72 | Amended by L3 and L4 |
 | WF68, WF69 | Sheet lint S1 to S6 kept; plan alignment P11 to P16 retired (L8); WF69 kept as a `sheet-2.md` item |
 | WF14, WF16, WF18, WF20, WF42, WF67 | Already replaced or retired by the one-pass branch |
-| New SA56 | Every run starts and ends with `gates.sh cleanup` (L13) |
-| New SA57 | Per-wave watch (L14) |
-| New WF75 | The sweep script (L1) |
+| New SA58 | Every run starts and ends with `gates.sh cleanup` (L13) |
+| New SA59 | Per-wave watch (L14) |
+| New WF83 | The sweep script (L1) |
 
 ## Waves and ownership
 Each agent reads this file, the decision rows it owns and its owned files; it never edits a file outside its Owns. Sonnet unless the row says otherwise. Each runs only its own tests (`python -m unittest tests.<module>`), output to a file. Returns at most 20 lines: Done, Files, Tests, Gaps.

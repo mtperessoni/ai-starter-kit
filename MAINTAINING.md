@@ -12,6 +12,18 @@ The kit is the source of the rules; projects receive them through `/ai-kit updat
 | M05 | Everything is in English, tables over prose, no em dash |
 | M06 | Every new rule has a text-level part (works in any language), a recipe part when it needs syntax (`stacks/`), and review as the fallback when no tool exists |
 
+## Writing kit instructions
+Lessons of the audit of 2026-10-09 (LS32): ceremony and bare prohibitions cost more than the code they guarded.
+
+| ID | Rule | Check |
+|---|---|---|
+| M08 | Never forbid without naming the allowed way that works on Windows, macOS and Linux | Review of every "never" line |
+| M09 | A gate checks product content; an error that only checks the form of a record, or a warning that needs no action, is removed | Count of gate codes per run in the eval |
+| M10 | One home per rule; other runtime files link by heading, never restate | A test that flags the same sentence, or the same number with different values, in two runtime files |
+| M11 | Runtime files cite only what the agent can open | A test that every cited ID or heading resolves inside the installed files |
+| M12 | Every instruction is checked against the harness (system reminders, settings deny, permission prompts) | `/ai-kit doctor` |
+| M13 | Read budget per mode: at most 3 reference files before the first action | A test on the agent files |
+
 ## Bringing an improvement back from a project
 1. Write down what happened and what it cost (time, tokens, rounds); that becomes the "Why" of the rule.
 2. Add or change the rule in the matching `rules/` file, with the next free ID.

@@ -18,7 +18,7 @@ The TRD says **where** behavior lives; the PRD says **what** it is. The TRD neve
 | T06 | **Invariants carry proof.** Every line of `invariants.md` names the test or the principle that proves it |
 | T07 | Everything in English; no em dash; tables over prose |
 | T08 | **Budget and parts.** An area whose file passes `trd_budget_lines` (`repo.md`, default 250) splits into `docs/trd/<area>/<part>.md`, parts mirroring the PRD section groups, plus `docs/trd/<area>/README.md` listing them; `docs/trd/README.md` points to the folder. There is no History section |
-| T09 | **Checkable by `gate.py --trd`.** Paths are real tracked files (G23); symbols in `Main symbols` exist in the row's files (G24); IDs in the `IDs` column are cited by the row's files (G25); no file over budget (G26). Paths of files a change will create go in "Planned", never in "Where it lives" |
+| T09 | **Checkable by `gate.py --trd`.** Paths are real tracked files (G23); symbols in `Main symbols` exist in the row's files (G24); no file over budget (G26). Paths of files a change will create go in "Planned", never in "Where it lives" |
 | T10 | **Planned holds names only.** `\| File \| Changes or creates \| Symbols \| IDs \|`; no parameters, intervals or values (rules or contracts). Tests to write: file and IDs, never expected values (the PRD Example). Contracts live in `design.md`, linked |
 
 ## Modes
@@ -28,7 +28,7 @@ The TRD says **where** behavior lives; the PRD says **what** it is. The TRD neve
 | N2 one area | A new area appeared, or one map is stale |
 | N3 refresh | After a refactor moved files: re-verify every map and fix names; no History section (git log is the history) |
 | N4 readiness | The code is not organized by area (logic for one product area spread over many folders, files over the size limits, generic names). Map what exists by area, then write the incremental readiness plan in the current layout (`reference/readiness.md`, PC11) for prd-flow |
-| N5 restructure | Optional, offered after N4 with its cost (PC09): move to feature folders (`reference/restructure.md`, prd-flow C6). Never required |
+| N5 restructure | Optional, offered after N4 with its cost: move to feature folders (`reference/restructure.md`, prd-flow C6). Never required |
 
 ## Route
 | Step | Who | Does | Leaves |

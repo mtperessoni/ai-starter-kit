@@ -70,17 +70,55 @@ class SessionIdTest(unittest.TestCase):
 
 class SelectionTest(unittest.TestCase):
     def test_a_stdin_waiting_interpreter_of_this_session_is_killed_by_tree(self):
-        orphan = wrapper(500, "cat >> tests/a.py <<EOF")
-        child = proc(501, 500, "cat")
+        orphan = wrapper(500, "cat >> tests/a.py <<EOF", age=3.0)
+        child = proc(501, 500, "cat", age=3.0)
         fake, out, code = reap_with(table(orphan, child))
         self.assertEqual(fake.killed, [500])
         self.assertIn("reaped: 2", out)
         self.assertIn("left: 0", out)
         self.assertEqual(code, 0)
 
+    def test_a_young_stdin_waiter_is_left_alone(self):
+        fake, _, _ = reap_with(table(wrapper(500, "python3 - <<'E'", age=1.0), proc(501, 500, "python -", age=1.0)))
+        self.assertEqual(fake.killed, [])
+
+    def test_a_double_angle_in_the_wrapper_text_alone_is_not_a_stdin_wait(self):
+        fake, _, _ = reap_with(table(wrapper(500, "grep -rn \"<<\" src", age=10.0), wrapper(510, "python -c \"print(1<<3)\"", age=10.0)))
+        self.assertEqual(fake.killed, [])
+
+    def test_the_age_rule_spares_dev_servers_and_other_images(self):
+        server = wrapper(500, "yarn dev", age=90.0)
+        sb = proc(510, 1, f"node storybook dev {SNAP}", age=90.0)
+        other = proc(520, 1, f"java -jar app.jar {SNAP}", age=90.0)
+        fake, _, _ = reap_with(table(server, sb, other))
+        self.assertEqual(fake.killed, [])
+
+    def test_a_child_of_a_dev_server_is_spared_even_when_old(self):
+        server = wrapper(500, "yarn dev", age=90.0)
+        child = proc(501, 500, "node /repo/node_modules/next/dist/server/lib/start-server.js", age=90.0)
+        fake, _, _ = reap_with(table(server, child))
+        self.assertEqual(fake.killed, [])
+
+    def test_a_snapshot_id_that_is_a_prefix_of_another_is_not_this_session(self):
+        longer = SNAP + "9"
+        stranger = wrapper(500, "pytest -q", snap=longer, age=90.0)
+        fake, _, _ = reap_with(table(stranger))
+        self.assertEqual(fake.killed, [])
+
+    def test_gates_close_is_protected(self):
+        root = wrapper(500, "scripts/gates.sh close s1", age=90.0)
+        fake, _, _ = reap_with(table(root, proc(501, 500, "python -m pytest", age=90.0)))
+        self.assertEqual(fake.killed, [])
+
+    def test_a_reused_parent_pid_does_not_shield_an_older_child(self):
+        shield = proc(600, 1, "bash scripts/gates.sh verify s1", age=1.0)
+        old = wrapper(500, "pytest -q", ppid=600, age=90.0)
+        fake, _, _ = reap_with(table(shield, old))
+        self.assertEqual(fake.killed, [500])
+
     def test_python_dash_stdin_child_of_a_session_wrapper_is_killed(self):
-        parent = wrapper(500, "python3 - <<'E'")
-        child = proc(501, 500, "/c/Python314/python.exe -")
+        parent = wrapper(500, "python3 - <<'E'", age=3.0)
+        child = proc(501, 500, "/c/Python314/python.exe -", age=3.0)
         fake, out, _ = reap_with(table(parent, child))
         self.assertEqual(fake.killed, [500])
         self.assertIn("reaped: 2", out)
@@ -98,7 +136,7 @@ class SelectionTest(unittest.TestCase):
         self.assertEqual(fake.killed, [510])
 
     def test_another_session_is_never_touched(self):
-        foreign = wrapper(500, "python3 - <<'E'", snap=OTHER, age=90.0)
+        foreign = wrapper(500, "python3 - <<'E'", snap=OTHER, age=90.0)  # noqa
         fake, out, _ = reap_with(table(foreign))
         self.assertEqual(fake.killed, [])
         self.assertIn("reaped: 0", out)
@@ -164,21 +202,21 @@ class SelectionTest(unittest.TestCase):
         self.assertEqual(fake.killed, [])
 
     def test_the_killed_set_is_trees_not_images(self):
-        a = wrapper(500, "python3 - <<'E'")
+        a = wrapper(500, "python3 - <<'E'", age=3.0)
         stray = proc(700, 1, "python.exe other.py", age=90.0)
         fake, out, _ = reap_with(table(a, stray))
         self.assertEqual(fake.killed, [500])
         self.assertIn(700, [p["pid"] for p in fake.procs])
 
     def test_dry_run_lists_and_kills_nothing(self):
-        a = wrapper(500, "python3 - <<'E'")
+        a = wrapper(500, "python3 - <<'E'", age=3.0)
         fake, out, _ = reap_with(table(a), argv=["--dry-run"])
         self.assertEqual(fake.killed, [])
         self.assertIn("500", out)
         self.assertIn("reaped: 0", out)
 
     def test_survivors_are_listed_and_exit_1(self):
-        a = wrapper(500, "python3 - <<'E'")
+        a = wrapper(500, "python3 - <<'E'", age=3.0)
         fake = Fake(table(a))
         fake.kill = lambda pid: fake.killed.append(pid)
         out = io.StringIO()

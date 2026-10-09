@@ -3,13 +3,13 @@
 Docs writes the PRD, the CHANGELOG entry, `decisions.md`, the TRD and the plan of one change, from `pack.md`, never from source. Examples are illustrative.
 
 ## Apply
-1. Read the state's `sheet.md`, the reply, `pack.md`, and `sheet.md` "Answers" and "decisions.md" of this folder. Check the combination of the answers. An unclear answer: write only `sheet-2.md`, return `Route: user: sheet-2.md`; on `Answers 2:` continue.
+1. Read the state's `sheet.md`, the reply, `pack.md`, and `sheet.md` "Answers" and "decisions.md" of this folder. Check the combination of the answers. An unclear answer: write only `sheet-2.md`, return `Route: user: sheet-2.md`; on `Answers 2:` continue. One follow-up, hard stop: after `Answers 2:` never another sheet; what stays open is a `Q-` row with the recommended default.
 2. `changes/NNN-<slug>/decisions.md`: the `Reply` lines verbatim, then the DEC rows.
 3. PRD rows ("Rule rows"), contract and transition lines, CHANGELOG entry, INDEX and README; the ADR when `## Survey` has `Protected:` (`docs/adr/README.md`; at least two real negative consequences and two considered alternatives; index updated). A new product context: the anatomy of `.claude/skills/prd-create/reference/anatomy.md`, approved rows only.
 4. TRD ("TRD"), then the plan ("Change folder", "Plan", "Card").
 5. Everything written, `scripts/gates.sh docs <slug>` once; fix what it flags; one rerun.
 6. One commit, `docs(prd): <sentence>`, holding PRD, CHANGELOG, INDEX, README, ADR, TRD and the change folder.
-7. Write the rule diff as written (today, then new) and the wave table (ID, result, owns, depends on, wave, model, lens) to `<state>/diff.md`, with the non-table changes in plain words; name it in `Files:`. `Route: user:` "approve the diff and the wave table (Recommended) / Adjust: <what>".
+7. Write the rule diff as written (today, then new) and the wave table (ID, result, owns, depends on, wave, model, lens) to `<state>/diff.md`, with the non-table changes in plain words; name it in `Files:`. `Route: none`, `Next:` "print `diff.md` verbatim and end the turn": the user's reply in chat is the approval, a correction is `adjust: <words>`.
 
 Never write `answers.md`, `rules.md` or `approved-rules.md`, never run `state_record.py`: the PRD diff and the CHANGELOG entry are the approved set. Never write a mechanism (rollback, switch, configuration key, environment variable, table, column, endpoint) that is not in the sheet or a `Reply` line.
 
@@ -17,7 +17,7 @@ Never write `answers.md`, `rules.md` or `approved-rules.md`, never run `state_re
 |---|---|
 | `apply merge` | After every `context` returned: steps 3 (entry, INDEX, README) to 7 once, deciding nothing |
 | `adjust: <words>` | In place, never revert and redo: the rows, entry, TRD and cards the words touch; the docs gate once; a new commit; rewrites `<state>/diff.md` (step 7) |
-| `short <YYYY-MM-DD>` | `run.md` "Short C5": PRD rows, the entry's `IDs:` extended, a `Reply` line and DEC rows, new and `redo` cards (Read and Owns from `pack.md`), the wave table replaced in `## Plan`; outside a C5 it creates the change folder and `plan.md` |
+| `short <YYYY-MM-DD>` | `run.md` "Short C5", from `sheet-short-<k>.md` and its reply (already the approval): PRD rows, the entry's `IDs:` extended, a `Reply` line and DEC rows, new and `redo` cards (Read and Owns from `pack.md`), the wave table replaced in `## Plan`; outside a C5 it creates the change folder and `plan.md` |
 | `plan` | C2, C3 or C6 over more than one task (the surveyor's `Route: docs plan`): TRD and plan from the rows of `## Survey`, no PRD change; committed before the baseline |
 | `c4` | The `## Survey` divergence: the PRD row in place and the old text literally into a CHANGELOG entry in the same run; the TRD body only when files, entry points or tests moved; `gate.py --step prd` (and `--step trd`) once; one commit |
 | `fold: <lines>` | What promote could not decide: an amendment fold (P3), a `design.md` destination of a size L, or a superseded row that matches no PRD row; commit `docs(prd): fold <slug>` |
@@ -84,9 +84,9 @@ INDEX: the IDs column of the file's row (range `CHK-01..13`), the TRD column whe
 |---|---|
 | P1 | Markers leave; superseded rows leave with their old text into the entry; Source gets the file of each `Source:` line of `deliveries/<task>.md` |
 | P2 | The `decisions.md` rows are copied once into the entry under `Decisions:`, not summarized |
-| P3 | Amendments fold (the single home of this rule): each amendment row moves to the section that owns the behavior (ID unchanged); a file whose rows all moved is deleted after its prose is merged; the pointers go; INDEX follows; the entry says "folded into <files>". What it cannot decide is a warning routed to docs `fold` |
+| P3 | Amendments fold (the single home of this rule): each amendment row moves to the section that owns the behavior (ID unchanged); a file whose rows all moved is deleted after its prose is merged; the pointers go; INDEX follows; the entry says "moved into <files>". What it cannot decide is a warning routed to docs `fold` |
 
-HTML is never part of this flow (the single home of this rule): no agent or script of prd-flow builds, edits or reads the PRD or TRD page. A stale page (G29, G32) or `html_mode: hand` (G5) is only a warning, never routed; `/docs-html` rebuilds the pages.
+HTML is never part of this flow (the single home of this rule): no agent or script of prd-flow builds, edits or reads the PRD or TRD page. The default gate never prints a stale page (G29, G32 only under `gate.py --html`); `html_mode: hand` (G5) is only a warning, never routed; `/docs-html` rebuilds the pages.
 
 ## TRD
 The TRD says where each feature lives and what must not break; it never repeats a rule. Symbols come from `pack.md`.
@@ -109,8 +109,8 @@ Invariants: I-31 (new) · affected: I-12. Must not break: <what the change touch
 | TP02 | Tests to write: file and IDs, never expected values (they are the Example column) |
 | TP03 | Contracts live only in `design.md`; Planned links to it |
 | TP04 | A card points to the Planned row by file instead of describing it again |
-| TP05 | Every cited ID exists in the PRD; the module will cite the IDs it implements (G25) |
-| TP06 | An open TRD-only decision is a `sheet-2.md` item before any plan |
+| TP05 | Every cited ID exists in the PRD; the module will cite the IDs it implements |
+| TP06 | An open TRD-only decision (no PRD or `DEC-` row settles it) goes into the one `sheet-2.md` while unused, no plan before its reply; else a `Q-` row with the recommended default, never a second sheet |
 | TP07 | Each card's Contract covers the TRD IDs of its Owns files; each created symbol has a non-test caller owned by a card |
 
 Over `trd_budget_lines` (G26) an area splits into `docs/trd/<area>/<part>.md` plus a README. No History section. A new area file copies the sections of the others and gets a row in `docs/trd/README.md`. A new invariant takes the next free row of its kind in `invariants.md`, with its proof.

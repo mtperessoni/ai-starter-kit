@@ -6,6 +6,7 @@
     "**I. <Principle name> (NON-NEGOTIABLE).** <One line.>": "**I. Minimal Customer Data (NON-NEGOTIABLE).** The payload carries only the fields the orders service needs; nothing else leaves the record.",
     "**II. <Principle name>.** <One line.>": "**II. Deterministic Payload.** The same record always gives the same payload; no clock, no randomness, no IO.",
     "**V. <Principle name>.** <One line.>": "**V. Stable Public API.** `from storefront import build_customer_payload, CustomerRecord` keeps its names and signatures.",
+    "**VI. <Principle name>.** <One line.>": "**VI. Deterministic Payload and Stable Public API.** The same record always gives the same payload (no clock, no randomness, no IO); `from storefront import build_customer_payload, CustomerRecord` keeps its names and signatures.",
     "<src>/app/": "src/storefront/",
     "<src>/features/": "src/storefront/features/",
     "<src>/infra/": "src/storefront/infra/",

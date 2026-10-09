@@ -287,13 +287,15 @@ class CloseReuseTest(GatesBase):
         self.assertNotIn("wait until", r.stdout)
         self.assertEqual(r.returncode, 1)
 
-    def test_close_without_a_fresh_full_run_runs_the_suite_once(self) -> None:
+    def test_close_without_a_compare_result_never_runs_the_suite(self) -> None:
         self.prepare(self.env)
         before = len(self.runs())
         r = self.close(self.env)
-        self.assertEqual(len(self.runs()), before + 1, r.stdout)
+        self.assertEqual(len(self.runs()), before, r.stdout)
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("no compare result", r.stdout)
 
-    def test_close_reruns_only_the_new_failing_ids_of_the_last_full_run(self) -> None:
+    def test_close_prints_the_ids_to_rerun_and_accepts_the_rerun_result_without_running_tests(self) -> None:
         self.prepare(self.env)
         flag = Path(self.tmp.name) / "flaky.flag"
         flag.write_text("1", encoding="utf-8")
@@ -301,18 +303,24 @@ class CloseReuseTest(GatesBase):
         self.gates("compare", "demo", env=env)
         before = len(self.runs())
         r = self.close(env)
-        runs = self.runs()
-        self.assertEqual(len(runs), before + 1, r.stdout)
-        self.assertEqual(runs[-1]["argv"][-1], "new::flaky")
+        self.assertEqual(len(self.runs()), before, r.stdout)
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("gates.sh rerun demo new::flaky", r.stdout)
+        self.gates("rerun", "demo", "new::flaky", env=env)
+        before = len(self.runs())
+        r = self.close(env)
+        self.assertEqual(len(self.runs()), before, r.stdout)
         self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("reran", r.stdout)
 
     def test_an_edit_after_the_full_run_makes_it_stale(self) -> None:
         self.prepare(self.env)
         self.gates("compare", "demo")
         write(self.p.root, "src/features/orders/order_service.py", '"""ORD-01."""\nx = 2\n')
         before = len(self.runs())
-        self.close(self.env)
-        self.assertGreater(len(self.runs()), before)
+        r = self.close(self.env)
+        self.assertEqual(len(self.runs()), before, r.stdout)
+        self.assertIn("no compare result", r.stdout)
 
 
 class CleanOutputsTest(unittest.TestCase):

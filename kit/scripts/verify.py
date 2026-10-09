@@ -18,10 +18,11 @@ import time
 from pathlib import Path
 
 from close_gate import tree_stamp, valid_slug
-from kit_config import repo_root
+from kit_config import load, repo_root
 
 DETAIL_LINES = 6
-STUCK_LOOKBACK = 1048576
+STUCK_ALIVE_S, STUCK_IDLE_S, STUCK_FORGET_S = 1800, 600, 6 * 3600
+TOOL_EVENTS = ("PreToolUse", "PostToolUse", "PostToolUseFailure")
 BASES = ("origin/main", "origin/staging", "origin/master", "main", "staging", "master")
 
 
@@ -73,28 +74,40 @@ def stuck_agents(root: Path) -> list[str]:
         if not found:
             return []
         path = found[-1]
+    stuck: dict[str, None] = {}
+    live: dict[str, dict[str, float]] = {}
     try:
         with path.open("rb") as handle:
-            handle.seek(0, os.SEEK_END)
-            handle.seek(max(0, handle.tell() - STUCK_LOOKBACK))
-            lines = handle.read().decode("utf-8", errors="replace").splitlines()
+            for line in handle:
+                try:
+                    event = json.loads(line)
+                except ValueError:
+                    continue
+                agent = event.get("agent") if isinstance(event, dict) else None
+                if not agent or agent == "main":
+                    continue
+                kind, ts = event.get("ev"), event.get("ts")
+                if kind == "agent_stuck":
+                    stuck[agent] = None
+                elif kind == "SubagentStop":
+                    stuck.pop(agent, None)
+                    live.pop(agent, None)
+                elif kind == "SubagentStart" and isinstance(ts, (int, float)):
+                    live[agent] = {"start": ts, "last": ts}
+                elif kind in TOOL_EVENTS and agent in live and isinstance(ts, (int, float)):
+                    live[agent]["last"] = ts
     except OSError:
         return []
-    stuck: dict[str, None] = {}
-    for line in lines:
-        try:
-            event = json.loads(line)
-        except ValueError:
-            continue
-        agent = event.get("agent") if isinstance(event, dict) else None
-        if event.get("ev") == "agent_stuck" and agent:
-            stuck[agent] = None
-        elif event.get("ev") == "SubagentStop":
+    now = time.time()
+    for agent, seen in live.items():
+        if now - seen["start"] > STUCK_FORGET_S:
             stuck.pop(agent, None)
+        elif now - seen["last"] > STUCK_IDLE_S or now - seen["start"] > STUCK_ALIVE_S:
+            stuck[agent] = None
     return list(stuck)
 
 
-def preflight(root: Path) -> tuple[list[str], str]:
+def preflight(root: Path, stuck: list[str]) -> tuple[list[str], str]:
     """Reap this session's stuck processes first, then name the stuck agents: (lines for the screen, text for the log)."""
     result = gates(root, "reap")
     text = (result.stdout + result.stderr).strip()
@@ -104,10 +117,30 @@ def preflight(root: Path) -> tuple[list[str], str]:
         left = re.search(r"left:\s*(.*)", text)
         if (reaped and int(reaped.group(1))) or (left and left.group(1).strip() != "0"):
             lines.append(f"reap: reaped {reaped.group(1) if reaped else '?'}, left {left.group(1).strip() if left else '?'}")
-    stuck = stuck_agents(root)
     if stuck:
         lines.append("stuck agents: " + ", ".join(stuck))
     return lines, "$ gates.sh reap\n" + text
+
+
+def failure_details(lines: list[str], pattern: re.Pattern) -> list[str]:
+    """The failed test ids with the first assertion line of each, never the slowest tests. A short-summary line
+    ("FAILED id - AssertionError: x") carries its own message; otherwise the first "E " or assertion line after the id."""
+    details = []
+    for index, line in enumerate(lines):
+        match = pattern.search(line)
+        if not match:
+            continue
+        ident = match.group(1) if match.groups() else line.strip()
+        message = line.split(" - ", 1)[1].strip() if " - " in line else ""
+        for later in lines[index + 1:index + 40] if not message else []:
+            stripped = later.strip()
+            if pattern.search(later):
+                break
+            if stripped.startswith("E ") or "AssertionError" in stripped or stripped.startswith("assert "):
+                message = stripped
+                break
+        details.append(f"FAILED {ident}" + (f": {message}" if message else ""))
+    return list(dict.fromkeys(details))
 
 
 def read_stamp(path: Path) -> dict:
@@ -133,11 +166,16 @@ def main(argv: list[str]) -> int:
     folder = root / ".claude" / "prd-flow" / "state" / slug
     folder.mkdir(parents=True, exist_ok=True)
     stamp_path, log = folder / "verify.stamp", folder / "verify.log"
-    notes, reap_text = preflight(root)
+    failure_regex = re.compile(load(root).get("tests", {}).get("failure_regex") or r"^(?:FAILED|ERROR)\s+(\S+)")
+    stuck = stuck_agents(root)
     stamp = read_stamp(stamp_path)
     tree = tree_stamp(root)
     unchanged = stamp.get("tree") == tree and since is None
     previous = list(stamp.get("failed", [])) if unchanged else None
+    if unchanged and not previous and not stuck:
+        print(f"verify {slug}: ok, nothing changed since the last verification")
+        return 0
+    notes, reap_text = preflight(root, stuck)
     if unchanged and not previous:
         print("\n".join([f"verify {slug}: ok, nothing changed since the last verification", *notes]))
         return 0
@@ -160,7 +198,9 @@ def main(argv: list[str]) -> int:
             out.append(f"{name} ok" + (f": {lines[-1]}" if lines else ""))
         else:
             failed.append(name)
-            out += [f"{name} FAILED (exit {result.returncode})"] + [f"  {ln}" for ln in lines[-DETAIL_LINES:]]
+            found = failure_details(lines, failure_regex)
+            shown = found[:DETAIL_LINES] if found else lines[-DETAIL_LINES:]
+            out += [f"{name} FAILED (exit {result.returncode})", *[f"  {ln}" for ln in shown]]
     log.write_text("\n".join(chunks), encoding="utf-8")
     stamp_path.write_text(json.dumps({"head": git(root, "rev-parse", "HEAD"), "tree": tree_stamp(root), "failed": failed, "ts": int(time.time())}), encoding="utf-8")
     out.append(f"verify {'FAILED' if failed else 'ok'}, log {log.relative_to(root).as_posix()}")

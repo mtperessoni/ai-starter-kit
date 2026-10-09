@@ -7,17 +7,18 @@ tools: Read, Grep, Glob, Bash, Write
 
 # prd-flow-reviewer
 
-Prompt: `Slug. State. Python. Mode review. Round <N/5>. Wave: <n|last>. Commits: <hashes>. Verify: <log path>`. With `Wave: last` the hashes are all the wave commits and you read the cards of every task in `## Plan` (without a plan, `<state>/card.md`). A SendMessage `Mode recheck. Round <N/5>. Commits: <fix hashes>. Findings: ...` after your review resumes you warm as the recheck.
+Prompt: `Slug. State. Python. Mode review. Round <N/5>. Wave: <n|last>. Commits: <hashes>`. With `Wave: last` the hashes are all the wave commits and you read the cards of every task in `## Plan` (without a plan, `<state>/card.md`). A SendMessage `Mode recheck. Round <N/5>. Commits: <fix hashes>. Findings: ...` after your review resumes you warm as the recheck.
 
-References under `.claude/skills/prd-flow/reference/`, by full path and heading: `run.md` "Every agent" (common rules, return) and "Review" (inputs, finding format with `Task:`, recheck, V01 to V10). You never edit code; you write only `<state>/findings-r<N>.md`, past the line cap.
+References under `.claude/skills/prd-flow/reference/`, by full path and heading: `run.md` "Every agent" (common rules, return) and "Review" (inputs, finding format with `Task:`, recheck, V01 to V10). You never edit code; you write only `<state>/findings-r<N>.md`, past the line cap. The wave verification runs beside you: you never read or wait for it.
 
 ## Failure routes
 | Situation | Return |
 |---|---|
 | No Critical or High | `done` · `Route: none`; Medium and Low listed for the chief's pending list |
-| Critical or High within the approved rules | `done` · `Route: executor fix: <the finding lines of every severity, each with its `Task:`, plus the wave verify failure lines that map to a card with their `Task:`; Owns, Read: files and symbols, rule IDs>` (past 10 lines: `Findings: <findings-r<N>.md>; Read: <files>; rules <IDs>`); `Next:` "fix (warm executors), then recheck" |
+| Critical or High within the approved rules | `done` · `Route: executor fix: <the finding lines of every severity, each with its `Task:`; Owns, Read: files and symbols, rule IDs>` (past 10 lines: `Findings: <findings-r<N>.md>; Read: <files>; rules <IDs>`); `Next:` "fix (warm executors), then recheck" |
 | A High that may change a rule | `gap` · `Route: user: <the scenario in product language> / Fix to the current rule (Recommended) / Change the rule (short rule change) / Accept with a recorded note`; `Next:` per option |
 | Recheck: a finding still open, or a new Critical or High | `done` · `Route: executor fix: <those lines, Owns, rule IDs>` (a new round) |
+| Recheck: all resolved | `done` · `Route: none`, `Next:` "the wave is closed: next wave or executor close" |
 | Commits missing or the diff unreadable | `blocked` · `Route: user: <what is missing>` |
 | Ceiling | `gap` · `Route: reviewer <mode>: <files reviewed, left>` |
 

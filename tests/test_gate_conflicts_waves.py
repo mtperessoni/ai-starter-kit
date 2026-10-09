@@ -9,8 +9,6 @@ GATE = ".claude/skills/prd-flow/scripts/gate.py"
 RULES = "state/orders/approved-rules.md"
 PACK = "state/orders/pack.md"
 ROW1 = "| ORD-01 | *(approved 2026-10-07, pending code)* An order needs two items. | src/features/orders/order_service.py::create_order | code |"
-DIMS = "\n".join(f"| D{n:02d} thing | doc | x |" for n in range(1, 16))
-INTERVIEW = f'# Interview\n\n## Dimensions\n| Dimension | State | Answer |\n|---|---|---|\n{DIMS}\n\nConfirmed: Ana · 2026-10-07 · "go"\n'
 
 
 def approved(rows: str = ROW1, conflicts: str = "", extra: str = "") -> str:
@@ -22,7 +20,6 @@ def approved(rows: str = ROW1, conflicts: str = "", extra: str = "") -> str:
 class ConflictTest(unittest.TestCase):
     def setUp(self) -> None:
         self.p = Project()
-        write(self.p.root, "state/orders/interview.md", INTERVIEW)
 
     def tearDown(self) -> None:
         self.p.close()
@@ -87,7 +84,7 @@ class ConflictTest(unittest.TestCase):
 
 
 def plan(*tasks: str) -> str:
-    return "# Plan\n\n## Plan execution rules\n- x\n\n" + "\n".join(tasks)
+    return "# Plan\n\n" + "\n".join(tasks)
 
 
 def task(tid: str, owns: str, depends: str = "none", extra: str = "", title: str = "do it") -> str:

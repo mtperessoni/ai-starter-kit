@@ -29,6 +29,13 @@ DENIED = {
                         "git restore a.ts", "git commit --amend --no-edit", "git add a && git stash"],
     "in-place edit": ["sed -i 's/a/b/' f.py", "sed -ni 's/a/b/p' f.py"],
 }
+DENIED_MORE = ["bash -c 'git stash'", 'sh -c "cat > a.py"', "echo it's; git stash", "git commit -F -", "git commit --file=-", "python3 -u -",
+               'python -c "exec(sys.stdin.read())"', "Get-Process python | Stop-Process -Id 4", "Get-Process python | Stop-Process",
+               "Set-Content a.py 'x'", "Add-Content a.py x", "Out-File a.py", "echo x > file.py", "echo x >> notes.md", "x = @'\nabc\n'@",
+               "pwsh -Command 'taskkill /IM python.exe'", "cat <<EOF\nx\nEOF", "cat <<-EOF\nx\nEOF"]
+ALLOWED_MORE = ['echo "user@"', 'grep -rn "<<" src', 'python -c "print(1<<3)"', 'git commit -m "fix <<x"', "python tee.py", "ls tee-dir",
+                "echo x > /dev/null", "cmd 2>&1", "echo x > out.log", "echo x > scratch/a.txt", "echo x > r.out", "a=1; echo $a",
+                "python -m pytest -q", "git commit -F msg.txt", "echo it's fine", "git log --format=%H -3"]
 ALLOWED = ["git log --oneline -5", "git diff --stat", "git status", "git commit -F .claude/msg.txt", "git add a.py", "git show HEAD",
            "python -m unittest tests.test_a", "python3 -m pytest -q", "python -c \"print(1)\"", "python scripts/verify.py s1",
            "scripts/gates.sh verify s1", "scripts/gates.sh reap --dry-run", "scripts/gates.sh move a.py 1-5 b.py", "scripts/gates.sh python",
@@ -45,6 +52,12 @@ class DenyTest(unittest.TestCase):
                     self.assertEqual(r.returncode, 2, r.stderr)
                     self.assertTrue(r.stderr.strip())
 
+    def test_wrapped_unquoted_and_uncovered_shapes_are_denied(self):
+        for cmd in DENIED_MORE:
+            with self.subTest(cmd=cmd):
+                r = run(cmd, tool="PowerShell" if cmd.startswith(("Get-", "Set-", "Add-", "Out-", "x =", "pwsh")) else "Bash")
+                self.assertEqual(r.returncode, 2, cmd)
+
     def test_each_message_names_the_allowed_way(self):
         allowed_way = {"heredoc": "Write", "here-string": "Write", "stdin interpreter": "python -m", "redirect write": "Write",
                        "kill by name": "gates.sh reap", "git destructive": "git", "in-place edit": "Edit"}
@@ -55,11 +68,30 @@ class DenyTest(unittest.TestCase):
         self.assertIn("-F", run("git commit --amend").stderr)
 
 
+class WrapperBodyTest(unittest.TestCase):
+    def test_heredoc_and_stdin_interpreter_inside_a_wrapper_are_denied(self):
+        for cmd in ["bash -c 'cat <<EOF\nx\nEOF'", "bash -c 'python - <<E\nprint(1)\nE'", "sh -c \"python -\"", 'cmd /c "echo > a.py"',
+                    "cmd /c \"echo x > b.md\""]:
+            with self.subTest(cmd=cmd):
+                self.assertEqual(run(cmd).returncode, 2, cmd)
+
+    def test_quoted_wrapper_bodies_that_only_mention_the_shapes_pass(self):
+        for cmd in ["bash -c 'python -c \"print(1<<3)\"'", "bash -c 'echo hi > out.log'", 'cmd /c "echo hi"']:
+            with self.subTest(cmd=cmd):
+                self.assertEqual(run(cmd).returncode, 0, cmd)
+
+
 class AllowTest(unittest.TestCase):
     def test_allowed_commands_pass_silently(self):
         for cmd in ALLOWED:
             with self.subTest(cmd=cmd):
                 r = run(cmd)
+                self.assertEqual((r.returncode, r.stderr), (0, ""), cmd)
+
+    def test_false_positives_pass(self):
+        for cmd in ALLOWED_MORE:
+            with self.subTest(cmd=cmd):
+                r = run(cmd, tool="PowerShell" if cmd.startswith("echo \"user") else "Bash")
                 self.assertEqual((r.returncode, r.stderr), (0, ""), cmd)
 
     def test_other_tools_are_ignored(self):

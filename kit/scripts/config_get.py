@@ -1,4 +1,4 @@
-"""Prints one value of ai-kit.json for gates.sh (TS48: no inline interpreter heredocs in the shell script).
+"""Prints one value of ai-kit.json for gates.sh (no inline interpreter heredocs in the shell script).
 
 Usage: python scripts/config_get.py <section.key> [default]      lists are joined with spaces
        python scripts/config_get.py --has <section.key> <item>   exit 0 when the list holds the item

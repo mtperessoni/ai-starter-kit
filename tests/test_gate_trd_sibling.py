@@ -68,11 +68,9 @@ class TrdTest(unittest.TestCase):
         self.assertIn("missing_symbol", report)
         self.assertNotIn("`create_order`", report)
 
-    def test_an_id_the_files_never_mention_is_a_warning(self) -> None:
-        report = full(self.p, self.out)
-        self.assertIn("WARNING G25", report)
-        self.assertIn("ORD-09", report)
-        self.assertNotIn("ORD-02", report)
+    def test_an_id_the_files_never_mention_is_not_printed(self) -> None:
+        self.assertNotIn("G25", full(self.p, self.out))
+        self.assertNotIn("ORD-09", full(self.p, self.out))
 
     def test_a_file_over_budget_is_a_warning_including_part_files(self) -> None:
         write(self.p.root, "docs/trd/orders/part-one.md", "# part\n" + "line\n" * 300)
@@ -193,11 +191,11 @@ class SiblingTest(unittest.TestCase):
         self.share(self.sibling)
         self.assertIn("ERROR G28", self.p.py(GATE, "--sibling").stdout)
 
-    def test_an_absent_sibling_is_a_warning(self) -> None:
+    def test_an_absent_sibling_is_not_printed(self) -> None:
         self.share(self.sibling / "nope")
         r = self.p.py(GATE, "--sibling")
         self.assertEqual(r.returncode, 0, r.stdout)
-        self.assertIn("WARNING G28", full(self.p, r))
+        self.assertNotIn("G28", full(self.p, r))
 
     def test_placeholder_rows_are_ignored(self) -> None:
         r = self.p.py(GATE, "--sibling")
@@ -223,23 +221,26 @@ class GeneratedHtmlTest(unittest.TestCase):
     def page(self, text: str) -> None:
         (self.p.root / "docs/prd/prd.html").write_text(text, encoding="utf-8", newline="\n")
 
-    def test_a_stale_html_is_g29_with_the_hint(self) -> None:
+    def test_a_stale_html_is_g29_with_the_hint_only_under_html(self) -> None:
         self.fake("def is_current(root, cfg):\n    return (root / cfg['html']).read_text(encoding='utf-8') == '<p>fresh</p>\\n'\n")
         self.page("<p>stale</p>\n")
         r = self.p.py(GATE)
         self.assertEqual(r.returncode, 0, r.stdout)
-        self.assertIn("WARNING G29", full(self.p, r))
-        self.assertIn("fix: run /docs-html", full(self.p, r))
+        self.assertNotIn("G29", full(self.p, r))
+        strict = self.p.py(GATE, "--html")
+        self.assertIn("ERROR G29", strict.stdout)
+        self.assertIn("fix: run /docs-html", strict.stdout)
 
-    def test_a_missing_html_is_g29(self) -> None:
+    def test_a_missing_html_is_g29_only_under_html(self) -> None:
         self.fake("def is_current(root, cfg):\n    return False\n")
         (self.p.root / "docs/prd/prd.html").unlink()
         r = self.p.py(GATE)
-        self.assertIn("WARNING G29", full(self.p, r))
+        self.assertNotIn("G29", full(self.p, r))
+        self.assertIn("G29", self.p.py(GATE, "--html").stdout)
 
     def test_an_unimportable_builder_is_reported_not_a_crash(self) -> None:
         self.fake("raise ImportError('boom')\n")
-        r = self.p.py(GATE)
-        self.assertIn("WARNING G29", full(self.p, r))
-        self.assertIn("boom", full(self.p, r))
+        r = self.p.py(GATE, "--html")
+        self.assertIn("G29", r.stdout)
+        self.assertIn("boom", r.stdout)
         self.assertNotIn("Traceback", r.stderr)

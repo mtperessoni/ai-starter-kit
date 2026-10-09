@@ -189,11 +189,26 @@ def changelog_entry(slug, approver, folder, ids, files_old, rows, sources=None) 
     return "\n".join(out) + "\n"
 
 
+def entry_match(text: str, slug: str, pattern: str | None = None) -> re.Match | None:
+    return re.search(pattern or rf"^## (?:\d+-)?{re.escape(slug)} \(.*?(?=^## |\Z)", text, re.M | re.S)
+
+
+def release_hold(text: str, sources: dict[str, str]) -> str | None:
+    """The CHANGELOG text with a 'Held planned' paragraph of promote turned into 'Released', or None when there is none."""
+    m = re.search(r"^Held planned: ([^\n]*?)\. Reason: [^\n]*$", text, re.M)
+    if not m:
+        return None
+    ids = [i.strip() for i in m.group(1).split(",") if i.strip()]
+    given = "; ".join(f"{i}: {sources[i]}" for i in ids if i in sources)
+    line = f"Released: {', '.join(ids)} ({date.today().isoformat()})." + (f" Sources: {given}." if given else "")
+    return text[:m.start()] + line + text[m.end():]
+
+
 def complete_entry(text: str, slug: str, ids, files_old, rows, sources, pattern: str | None = None, strict: bool = False) -> str | None:
     """The CHANGELOG text with the entry of slug completed, or None when there is none or promote already did it.
 
     strict (new route): an old-text block is skipped only when the entry already holds `**ID**` (a bare ID is on its IDs: line)."""
-    m = re.search(pattern or rf"^## {re.escape(slug)} \(.*?(?=^## |\Z)", text, re.M | re.S)
+    m = entry_match(text, slug, pattern)
     if not m or PROMOTED in m.group(0):
         return None
     section = m.group(0).rstrip("\n") + "\n"
@@ -291,8 +306,8 @@ def plan_edits(root, cfg, slug, files, old, approver, sources, change, state, ho
             raise PromoteError(f"{name}: PRD file not found", "docs rules", "docs rules (correct the PRD file heading in approved-rules.md), then executor close")
     log = root / cfg["prd_dir"] / "CHANGELOG.md"
     log_text = log.read_text(encoding="utf-8") if log.is_file() else ""
-    pattern = entry_pattern(slug) if new_route else rf"^## {re.escape(slug)} \(.*?(?=^## |\Z)"
-    entry = re.search(pattern, log_text, re.M | re.S)
+    pattern = entry_pattern(slug) if new_route else None
+    entry = entry_match(log_text, slug, pattern)
     done = entry is not None and PROMOTED in entry.group(0)
     writes: dict[Path, str] = {}
     stats = {"src": 0, "dropped": 0, "missing": [], "own": []}
@@ -317,13 +332,19 @@ def plan_edits(root, cfg, slug, files, old, approver, sources, change, state, ho
         if items:
             files_old[path.relative_to(prd_dir).as_posix() if prd_dir in path.parents else path.name] = items
     stats["unmatched"] = [] if done else sorted(superseded - seen)
+    if done and not hold:
+        released = release_hold(entry.group(0), sources)
+        if released:
+            writes[log] = log_text[:entry.start()] + released + log_text[entry.end():]
     if not done:
-        rows = state_record.decision_rows(state, change)
+        rows = list(dict.fromkeys(state_record.decision_rows(state, change)))
         all_ids = sorted((approved_ids - hold) | superseded)
         entry_text = complete_entry(log_text, slug, all_ids, files_old, rows, sources, pattern, new_route) or insert_entry(
             log, changelog_entry(slug, approver, folder, all_ids, files_old, rows, sources))
-        if hold and PROMOTED in entry_text:
-            entry_text = entry_text.replace(PROMOTED, f"{PROMOTED}\n\nHeld planned: {', '.join(sorted(hold))}. Reason: {reason}.", 1)
+        own = entry_match(entry_text, slug, pattern) if hold else None
+        if own and PROMOTED in own.group(0):
+            held = own.group(0).replace(PROMOTED, f"{PROMOTED}\n\nHeld planned: {', '.join(sorted(hold))}. Reason: {reason}.", 1)
+            entry_text = entry_text[:own.start()] + held + entry_text[own.end():]
         writes[log] = entry_text
     return writes, stats, approved_ids, superseded, folder, log
 

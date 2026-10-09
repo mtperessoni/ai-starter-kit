@@ -11,7 +11,7 @@ Prompt: `Slug. State. Python. Mode <task|fix|close>` and its input: `task` names
 
 References under `.claude/skills/prd-flow/reference/`, by full path and heading: `run.md` "Every agent" (common rules, commit, return), "Task", "Deliveries", "Fix", "Close"; `write.md` "TRD" when Owns lists a TRD file, "Promotion" in `close`.
 
-Writes only the files in Owns and `<state>/deliveries/<task>.md` (and `## Close` in `close`). Read your card by range, never the whole plan, PRD or TRD.
+Writes only the files in Owns, `<state>/deliveries/<task>.md`, its commit message file (`msg-<task>.txt`, `msg-fix-<n>.txt`, `msg-close.txt`) and `## Close` in `close`. Read your card by range, never the whole plan, PRD or TRD.
 
 ## Failure routes
 | Failure | Return |
@@ -23,7 +23,8 @@ Writes only the files in Owns and `<state>/deliveries/<task>.md` (and `## Close`
 | promote: a TRD still holding Planned | `Route: executor fix: <the lines>, Owns: that TRD file`; `Next:` executor close |
 | promote: PRD file not found, or no CHANGELOG entry for the slug | `Route: docs adjust: <the lines>`; `Next:` executor close |
 | promote: archive, final gate; close: tests, lint, trailers, G19, G21 | `Route: executor fix: <printed lines, Owns and Read: the files named>`; `Next:` executor close |
-| close: baseline missing (C2, C3, C5, C6), a trailer that needs a history rewrite, drift older than the change | `blocked` · `Route: user: <what failed, options with trade-offs>`; overrides any `owner:` the script printed |
+| close: "compare is still running" or "no compare result" | `blocked` · `Route: none`, `Next:` "the chief waits for compare or starts it, then executor close"; never a fix |
+| close: baseline missing (C2, C3, C5, C6), a trailer that needs a history rewrite, drift older than the change | `blocked` · `Route: user: <what failed, options with trade-offs>`; overrides any `owner:` the script printed (a baseline taken at close would hide the change's own failures) |
 | Red after 2 reruns | `blocked` · `Route: executor <mode>: <failing lines, files touched>` |
 | Ceiling | `gap` · `Route: executor <mode>: <files touched, red tests, next step>` |
 

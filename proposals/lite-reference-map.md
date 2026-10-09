@@ -120,3 +120,53 @@ Companion of [`plan-prd-flow-lite.md`](plan-prd-flow-lite.md) (decision L18). Ol
 | One interpreter (`Python:` from `gates.sh python`) | dispatch.md "Prompt"; run.md "Every agent" "Interpreter" |
 | Reap on a background-work notice | SKILL.md "Chief card" Orphans |
 | Cleanup never in the same message as a suite start | SKILL.md "Chief card" Cleanup |
+
+## Ported from main
+Merge of `origin/main` (one-pass interview fixes, base `a979cd6`) into the lite structure. One line per ported change, then the lite decisions that won.
+
+| Change on main (old home) | Lite home |
+|---|---|
+| One follow-up, hard stop: no sheet after `Answers 2`, what stays open is a `Q-` row with the default (interview.md "Answers", agents/docs `apply`) | sheet.md "Answers"; write.md "Apply" step 1; SKILL.md "C5 route" step 3 |
+| TRD-only decision: the one `sheet-2.md` while unused, else a `Q-` row, never a second sheet (trd-planned.md TP06, agents/docs Plan step 4) | write.md TP06; agents/docs "Failure routes" |
+| Gate red meaning an unclear rule: fix once, then a `Q-` row, never `sheet-2.md` for a gate (agents/docs) | agents/docs "Failure routes" |
+| Unclear answer routes to `sheet-2.md` only before `Answers 2` (agents/docs) | agents/docs "Failure routes" |
+| Approval by chat reply, no AskUserQuestion: docs returns `Route: none` and `Next:` print and wait (SKILL.md step 5, agents/docs Return) | SKILL.md "C5 route" step 4; write.md "Apply" step 7; agents/docs "Return" |
+| Short sheets in their own file `sheet-short-<k>.md`, never over `sheet.md`; linted with the others (interview.md "Short sheet", agents/surveyor `short`) | sheet.md intro and "Lint"; agents/surveyor `short` and "Return"; run.md "Short C5" step 2; SKILL.md "Chief card" Tools |
+| A short C5 ends at its sheet reply, which is its approval (SKILL.md "Returns", execution.md E09) | SKILL.md "Returns"; run.md "Short C5" step 3; sheet.md "Answers"; write.md modes `short` |
+| Sheet limits and shape checks live only in "Lint"; the duplicated Context, One topic and Numbers rows and the "at most 8" counts leave "Sheet rules" (interview.md) | sheet.md "Sheet rules" intro and "Lint" |
+| C4 close needs no baseline and no compare; `close <slug> --case <C>` (dispatch.md DP06, execution.md E20, agents/executor close) | dispatch.md DP06 and executor task line; run.md "Close" step 3; repo.md "Commands"; kit/AGENTS.md |
+| Baseline taken at close would hide the change's own failures (DP06, agents/executor) | dispatch.md DP06; agents/executor "Failure routes" |
+| Wave end: reap as its own call, verify and reviewer in the next message (DP07) | dispatch.md DP07; SKILL.md "Chief card" Wave |
+| The reviewer and recheck never read the wave verify, which runs beside them (DP07, review.md V09, agents/reviewer, agents/recheck) | dispatch.md DP07; run.md "Review" and V09; agents/reviewer; agents/recheck |
+| Restart `compare` after the last fix; close on "compare is still running" waits, on "no compare result" starts it (DP07, E20) | dispatch.md DP07; run.md "Close" step 3 and V09; agents/executor "Failure routes" |
+| Recheck all resolved: `Next:` "the wave is closed: next wave or executor close" (agents/recheck) | agents/recheck and agents/reviewer "Failure routes" |
+| Commit message files `msg-<task>.txt`, `msg-fix-<n>.txt`, `msg-close.txt` (agents/executor) | agents/executor intro; run.md "Every agent" Commit |
+| `fix-files <file>...`, `lint-files <file>...`, `verify`, `python`, `close --case`, `settings-check` listed (kit/AGENTS.md) | kit/AGENTS.md (main's lines kept); repo.md "Commands" |
+| `settings-check` for the access check of the files the flow writes | agents/surveyor batch 1 (`full`); repo.md "Commands" Surveyor |
+| `move <source> <start> <end> <destination> [--at LINE]` signature (execution.md E19, repo.md, agents/executor) | run.md "Task" step 3; repo.md "Commands" |
+| `next_change_number.py` with the prompt's `Python:` interpreter (agents/surveyor Preflight) | agents/surveyor batch 1 (`full`) |
+| Unclear repository: the surveyor returns `Route: user: <which repository>` before any survey (SKILL.md step 0, agents/surveyor) | agents/surveyor batch 1; SKILL.md "C5 route" step 0 |
+| A second slug in one tree: tell the user to use its own worktree and stop (SKILL.md step 0) | SKILL.md "C5 route" step 0 |
+| `Python:` run once by the chief (dispatch.md "Prompt template") | dispatch.md "Prompt" |
+| Fresh session only past about 120k tokens; the "more than 2 waves left" trigger and the fast-model offer leave (E01, E02) | SKILL.md "State"; dispatch.md DP03 |
+| R09: "several rules" alone sends a full C5 (no "new dimension") | SKILL.md "Rules" |
+| Fold wording "moved into <files>", never the removed word (prd-writing.md P3) | write.md P3 |
+| Stale HTML is printed only under `gate.py --html` (G29, G32) (prd-writing.md "HTML", repo.md) | write.md "Promotion"; repo.md key table |
+| G25 is gone: TP05 no longer cites it (trd-planned.md TP05) | write.md TP05 |
+| "interview" becomes "decision sheet" in descriptions (SKILL.md, classification.md, prd-writing.md, repo.md) | SKILL.md description; lite files already said "sheet" |
+| Guard hook unescapes backslashes in the configured interpreter (`sed 's/\\\\/\\/g'`, agents frontmatter) | not ported here: lite moved the guard to `kit/.claude/settings.json` (L12), owned by another agent; that file must carry the fix |
+
+Lite decisions that won over main:
+
+| Main | Lite, kept |
+|---|---|
+| Docs returns the rule diff and wave table inline in the return | `<state>/diff.md`, printed verbatim by the chief (write.md "Apply" step 7); only the approval by chat reply was ported |
+| Docs `apply` writes `answers.md`, `rules.md`, renders with `state_record.py`; promote fails without `approved-rules.md` | L3, L4: the PRD diff and the CHANGELOG entry are the approved set; no such route in agents/executor |
+| Several docs commits (rules, prose, TRD, changes) | L6: one `docs(prd): <sentence>` commit |
+| Short C5 through docs `apply` with `Case short` and items `s<k>.<n>` in `answers.md` | docs `short <YYYY-MM-DD>` with the reply verbatim (`answers.md` retired) |
+| C2 over one task routes to docs `short` | `Route: docs plan` (docs `plan` mode) |
+| promote "PRD file not found" routes to docs `fold` | docs `adjust` (the entry or rows are wrong, nothing to fold) |
+| `general-purpose` fallback agent; `hooks:` frontmatter in each agent | L12: `prd-flow-<role>` only; the guard runs from `settings.json` |
+| Verify failures mapped by the chief alone | Kept main's "reviewer never reads verify", and lite's warm fix: finding lines by `Task:` to warm executors, verify failures with the `Task: none` lines to one executor `fix` |
+| CHANGELOG entry heading `## <slug> (...)` | `## <Name of the change> (...)`, the plan's "Formats" (write.md "CHANGELOG") |
+| Agents' own "Common rules" tables and ceilings | run.md "Every agent" and V08, the one home |

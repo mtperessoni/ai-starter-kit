@@ -1,6 +1,6 @@
 # Decision sheet (surveyor writes, docs reads)
 
-The surveyor writes `sheet.md` (and `short` a sheet of only the touched rows); the chief prints it verbatim and ends the turn; docs `apply` reads the reply. Examples are illustrative.
+The surveyor writes `sheet.md` (`short`: `sheet-short-<k>.md`, k = 1, 2, ..., only the touched rows, never over `sheet.md`); the chief prints it verbatim and ends the turn; docs `apply` reads the reply. Examples are illustrative.
 
 ## Format
 Headings and labels come from `repo.md` `sheet_labels` (prose in the repo `language`; the `Kind` tokens stay English).
@@ -43,23 +43,22 @@ Interacts with: 1
 ```
 
 ## Sheet rules
+Limits and shape checks (counts, one topic per rule, plain words in titles and options, numbers in options) live in "Lint", the one home.
+
 | Rule | Detail |
 |---|---|
 | Diff first | Every rule the change touches is a diff row with the literal text; `Kind` is `rewrites`, `adds`, `supersedes` or `removes`; `Today` of `adds` is `(none)`; sweep conflicts (K01, K11, K14) are rows, never questions |
 | Scope | "What does not change" has at least one line |
-| Assumed | At most 8 lines. Each `Decided in conversation:` and `Preferences:` item is an assumed line, never a decision |
-| Decisions | Real alternatives only, at most 8 (more: recommend splitting the change). Each has a title, `rule <ID>` (or `mechanism`), `Today:`, `Why it matters:`, at least two options with their consequence, exactly one `(Recommended)`, `Example:`; `Interacts with:` optional |
+| Assumed | Each `Decided in conversation:` and `Preferences:` item is an assumed line, never a decision |
+| Decisions | Real alternatives only. Each has a title, `rule <ID>` (or `mechanism`), `Today:`, `Why it matters:`, at least two options with their consequence, exactly one `(Recommended)`, `Example:`; `Interacts with:` optional |
 | Mechanism | A rollback, switch, configuration key, environment variable, table, column or endpoint the change needs is a decision of the sheet, surveyed here; docs never adds one |
-| Plain words | Titles and options in product language; IDs and code names only in `Today:`, `Why it matters:`, `Example:` |
 | Order | Protected rule and rule owner items first |
-| One topic | Two items never decide the same rule and scope |
 | Recommendation | Cites the stated preference it follows, or says "no stated preference" |
-| Numbers | A rule that depends on a number or a category names it in the option |
 | Owner | When the approver is not the owner of a touched section, an item asks whether the owner agreed; the CHANGELOG records `decided by <owner>, written by <approver>` |
 | Blind spots | Before writing, check failure paths, requests in flight during the deploy, consumers of the data, tenant variation, safety, privacy, cost and latency, audit, rollback and systems being migrated; ask only where a real alternative exists. A rollback not obvious from the pack is an assumed line, or a decision when the alternatives differ in cost |
 
 ## Lint
-`gate.py --sheet <slug>`, once, after writing (`sheet-2.md` too).
+`gate.py --sheet <slug>`, once, after writing (`sheet-2.md` and every `sheet-short-*.md` too). Titles and options use plain words; IDs and code names only in `Today:`, `Why it matters:`, `Example:`. More than 8 decisions: the sheet recommends splitting the change.
 
 | Code | Check | Level |
 |---|---|---|
@@ -79,7 +78,7 @@ Interacts with: 1
 | `A2: <correction>` | assumption 2 corrected |
 | `scope: <correction>` | "What does not change" corrected |
 
-Docs checks the combination of the answers along every `Interacts with:` line before writing. An unclear answer, or one that opens a decision the sheet does not hold, gets one `sheet-2.md` (same format, only those items) and `Route: user: sheet-2.md`; an open TRD-only design choice is a `sheet-2.md` item too. After its reply, an item still open becomes a `Q-` row with the recommended default, visibly open. One follow-up at most.
+Docs checks the combination of the answers along every `Interacts with:` line before writing. An unclear answer, or one that opens a decision the sheet does not hold, gets one `sheet-2.md` (same format, only those items) and `Route: user: sheet-2.md`; an open TRD-only design choice is a `sheet-2.md` item too. One follow-up, hard stop: after its reply docs never writes another sheet, and an item still open (a TRD-only decision or a gate-red unclear rule included) becomes a `Q-` row with the recommended default, visibly open. A short sheet's reply is the short C5's approval.
 
 ## decisions.md
 `changes/NNN-<slug>/decisions.md` (template `docs/templates/change-decisions.md`), written by docs `apply`, the only home of `DEC-` rows; promote copies them once into the CHANGELOG entry under `Decisions:`.

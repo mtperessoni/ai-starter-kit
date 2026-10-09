@@ -1,4 +1,4 @@
-"""prd_sweep.py: the deterministic sweep and functional proof of prd-flow (WF75)."""
+"""prd_sweep.py: the deterministic sweep and functional proof of prd-flow (WF83)."""
 
 import subprocess
 import sys
