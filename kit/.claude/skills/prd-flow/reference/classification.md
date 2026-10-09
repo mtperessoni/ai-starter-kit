@@ -13,7 +13,7 @@ Read by the surveyor, which classifies. The chief never reads this page nor a PR
 | C5 rule change | Changed rule, new rule, gap in the PRD, or a fix to a defect the PRD documents as current behavior | "change", "it should", "from now on", "add", "fix" something the PRD describes as today's behavior | C5 route of `SKILL.md`, from surveyor `full`. Includes a new product, module or incoming spec document in a repository with PRDs: size L, new PRD variant (below) |
 | C6 refactor | Structure changes and behavior does not | "rename", "extract", "move", "split", "clean up" | Surveyor `light` (area TRD and invariants in the card; TRD update when files, entry points or tests move), executor `task`, reviewer, executor `close` |
 
-## Size (LT04)
+## Size
 Stated in the case line: `C5 · size L · <one line>`. It decides which files the change folder holds (`agent-plan.md`, "Where the plan lives") and how wide the surveyor sweeps (`impact.md`, "Sweep by size").
 
 | Size | When | Change folder |
@@ -23,6 +23,8 @@ Stated in the case line: `C5 · size L · <one line>`. It decides which files th
 | L | C5 with any of: a new data model, a new contract, an external integration, a technical unknown, a new feature area, a new PRD | `brief.md`, `design.md`, `plan.md` |
 
 A C5 is size M or L, never S: a one-row change is size M.
+
+A one-rule C5 (one rule row touched, one task) is the short path: sheet, PRD row, one card, close. A `brief.md` is written only for size L.
 
 ## A new context is a new PRD
 When the repository already has PRDs and the request is a new product context (a product, module or incoming spec document that runs on its own), it is C5 size L, new PRD variant, never C0. The surveyor sweeps it against every existing PRD of `docs/prd/INDEX.md` (`impact.md` K11). The variant writes only approved rows, after the interview: the docs agent lays out the new PRD folder with the anatomy of `.claude/skills/prd-create/reference/anatomy.md` and adds its INDEX section (its HTML tab appears the next time someone runs `/docs-html`). Only `/prd-create` (C0) writes `*(proposed)*` rules (Source `planned`); prd-flow confronts and interviews them per section and replaces the marker with `*(approved YYYY-MM-DD, pending code)*`. A proposed rule is C5 input, never C2.
@@ -37,7 +39,7 @@ When the repository already has PRDs and the request is a new product context (a
 | A row marked `(superseded: ...)` and the request cites the old one | Ask | The requester may not know the amendment, or the amendment may not be deployed yet |
 | A request with no matching rule in the PRD | C5 (gap) | Behavior without a written rule is a new rule; it enters the PRD before the code |
 | A request with several items | One case per item | Each item follows its route; a C5 gets its own slug; a C3 of the same request can be fixed first, after confirmation, if it does not touch the C5 rules |
-| "Diagnose", "understand why", "plan" | C1 until the user asks for a change | A diagnosis is only a diagnosis: show the cause and the options and wait (R01) |
+| "Diagnose", "understand why", "plan" | C1 until the user asks for a change | A diagnosis is only a diagnosis: show the cause and the options and wait |
 | A `pending code` rule whose code is already committed | C2 | Code without a caller outside the tests is not wired; the rule is still pending |
 | A `*(proposed)*` rule | C5, never C2 | It came from a document and nobody confronted it; it enters the confrontation and the interview first |
 | A new product, module or spec document in a repository with PRDs | C5 size L | Not C0: C0 is only for a repository without `docs/prd/INDEX.md` |
