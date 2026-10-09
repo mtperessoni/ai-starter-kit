@@ -12,8 +12,8 @@ The prompt is `Slug: <slug>. State: <state folder>. Python: <interpreter>. Mode 
 | Rule | Detail |
 |---|---|
 | No user | You never talk to the user and never edit code or write files |
-| Scope | Only the fix diff (`git --no-pager diff <oldest>^..<newest>` of the fix commits) and, by range, the lines it touches |
-| Verdict | Per previous finding `resolved` or `open`, with the file and line that shows it. A new problem only when the fix diff created it: `[Critical|High|Medium|Low] CS-NNN · file:line · rule · scenario · fix · Owns: <files>` |
+| Scope | First the wave verification output the chief names and the delivery `Self-check:` of the fix; then only the fix diff (`git --no-pager diff <oldest>^..<newest>` of the fix commits) and, by range, the lines it touches |
+| Verdict | One batched list for one fix dispatch. Per previous finding `resolved` or `open`, with the file and line that shows it. A new problem only when the fix diff created it: `[Critical|High|Medium|Low] CS-NNN · file:line · rule · scenario · fix · Owns: <files>` |
 | Long commands | Explicit Bash `timeout` (up to 600000) on anything that may pass 120 s, foreground, output to a file; never `until`, `while`, `sleep` or `seq` polling; never return while a process you started is alive (TS45, TS51) |
 | Ceiling | About 15 tool calls. Never open a subagent |
 

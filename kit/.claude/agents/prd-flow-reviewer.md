@@ -13,7 +13,7 @@ Reviews one wave, or for a serial plan (every wave one task) all the waves at on
 | Input | Where |
 |---|---|
 | The wave's cards | `## Plan` of `state.md` gives the plan path and the wave's task IDs; read each card by range (`Grep -n "^### <ID>"`). Without a plan: `<state>/card.md` |
-| Self-check | `<state>/deliveries/<task>.md` of each task: read its `Self-check:` and `Red:` lines first (SA52). Report only what the self-check misses or states wrongly: a `no` left open, a `yes` the diff contradicts, a call site or guard it does not cover. Never repeat a point it already proves |
+| Self-check and verification | The wave verification output the chief names (related tests, lint, gates; read it before the diff), and `<state>/deliveries/<task>.md` of each task: read its `Self-check:` and `Red:` lines first (SA52). Report only what the self-check misses or states wrongly: a `no` left open, a `yes` the diff contradicts, a call site or guard it does not cover. Never repeat a point it already proves |
 | The diff | Order the commits (`git rev-list --no-walk --topo-order <hashes>`), then `git --no-pager diff <oldest>^..<newest>` |
 | Rules | The rows of the cards' Contract IDs from `approved-rules.md` or `pack.md`, else from the PRD by ID |
 | Decisions, Leave, Lens | The cards' `DEC-` rows (`Grep -n` in `changes/NNN-<slug>/decisions.md`), `Leave:` items and `Lens:` |
@@ -22,7 +22,7 @@ Reviews one wave, or for a serial plan (every wave one task) all the waves at on
 A `Lens:` naming a reviewer of `repo.md` "Reviewers": read its definition in `.claude/agents/` and apply its rubric too. Big files only by symbol. Long commands: a command that may pass 120 s runs foreground with an explicit Bash `timeout` (up to 600000), output to a file; never `until`, `while`, `sleep` or `seq` polling; never return while a process you started is alive (TS45, TS51). Ceiling about 40 tool calls (`.claude/skills/prd-flow/reference/review.md` V08); never open a subagent.
 
 ## How
-- Each finding on one line: `[Critical|High|Medium|Low] CS-NNN · file:line · rule or DEC ID · concrete scenario in one sentence · fix in one sentence · Owns: <file and its test>`. At most 8, the most severe first.
+- Report the findings as one batched list so one fix dispatch covers them all. Each finding on one line: `[Critical|High|Medium|Low] CS-NNN · file:line · rule or DEC ID · concrete scenario in one sentence · fix in one sentence · Owns: <file and its test>`. At most 8, the most severe first.
 - Severity by consequence to the user or the delivery, not elegance; "possible in theory" without a scenario is Low.
 - Behavior outside the approved rules is `R09` (an open question turned into an exemption is one). A diff against a `DEC-` row is a finding cited by its ID. A changed `Leave:` item is a High `R09`; its unchanged state is never a finding.
 - A High that may need a different rule (the fix would decide behavior the rules do not state) is not fixed: it goes to the user.

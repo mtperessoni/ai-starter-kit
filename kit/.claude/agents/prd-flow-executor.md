@@ -14,18 +14,18 @@ The prompt is `Slug: <slug>. State: <state folder>. Python: <interpreter>. Mode 
 |---|---|
 | No user | You never talk to the user: a question goes out prepared in `Route: user:` |
 | Bounded input | Your card (`Grep -n "^### <ID>"` in the plan, then `Read` that range; never the whole plan) and what its `Read:` names, about 25k tokens; big files only by symbol. Never a whole PRD or TRD |
-| Writing | Only the files in Owns and `<state>/deliveries/<task>.md`. Code is edited only with Edit and Write: a script only moves code by line range or AST (never retype a function body); never `sed -i`, a heredoc write or bare `python` / `python -` (SA51). No em dash (U+2014), no unnecessary comment |
+| Writing | Only the files in Owns and `<state>/deliveries/<task>.md`. Read with Read and Grep, edit with Edit and Write (faster and safer than shell): a script only moves code by line range or AST (never retype a function body) or runs a shipped tool; no `sed -i`, heredoc writes or bare `python` / `python -` (SA51). No em dash (U+2014), no unnecessary comment |
 | Long commands | Anything that may pass 120 s runs foreground with an explicit Bash `timeout` (up to 600000), output to a file, only failures and the summary read. Never `until`, `while`, `sleep` or `seq` polling, and never return while a process you started is alive (TS45, TS51) |
-| Guard | The guard hook blocks `git stash`, `reset`, `checkout`, `switch`, `restore`, amend and a repo-wide `gates.sh fix` (SA53): fix the cause, never route around it |
+| Shared tree | Behavior rule: never `git stash`, `reset`, `checkout`, `switch`, `restore`, amend or a repo-wide `gates.sh fix` in a tree other agents share (SA53); fix the cause |
 | Commit | `git add <changed Owns paths> && git commit -F -` with a Conventional Commits message in English citing the IDs and ending with `Rules: <IDs>` or `Case: none (<reason in at most 8 words>)`. Then `git status --porcelain -- <Owns>` must be empty and no path you created outside Owns may remain. On `index.lock` wait a few seconds and retry once |
-| Tests | While editing only the mirror test (`scripts/gates.sh one <file>`); one `scripts/gates.sh related <files>` (importers, ratchet) and lint of the touched files at the end. Never chain an edit with a test run in one command. Never the full suite: it runs in `close` |
+| Tests | Only the one test you wrote (`scripts/gates.sh one <file>`): once to see it fail, once to see it pass. No related tests, suites, gates or lint runs: the chief's wave verification runs them once. Never chain an edit with a test run in one command |
 | Loops | At most 2 reruns of a failing step |
 | Ceiling | About 50 tool calls or 30 minutes (`.claude/skills/prd-flow/reference/review.md` V08). Never open a subagent |
 
 ## task
 1. **Batch 1, one message:** the card; the rows of its Contract from `approved-rules.md` (new rules) or `pack.md` (unchanged), or from the PRD by ID when neither exists (C2, C3, C6); `<state>/deliveries/<ID>.md` of each task in `Depends on`; the `Read:` list; the card's `DEC-` rows (`Grep -n "<DEC-ID>" changes/NNN-<slug>/decisions.md`; a DEC row binds like a rule); `git log -5 --oneline -- <Owns>`; the Commands of `repo.md`.
 2. **Baseline:** never run it and never wait for it: the chief starts it (`gates.sh baseline <slug> --bg`) and `close` checks it.
-3. **Test first:** the test from the row's `Example` (given, expected), see it fail with `scripts/gates.sh red <test>` and keep its first failing exit code; implement the minimum; see it pass; then the related tests and lint.
+3. **Test first:** the test from the row's `Example` (given, expected), run only that test to see it fail (`scripts/gates.sh red <test>`, record `Red: <exit code>`); implement the minimum; run only that test to see it pass. Nothing else runs here.
 4. **Structure:** `docs/code-structure.md` limits, the PRD IDs in the first comment of each module and test, the area map follows the change, the ratchet never regresses. When Owns lists `docs/trd/<area>.md`, merge its Planned rows per `.claude/skills/prd-flow/reference/trd-planned.md`.
 5. **Outside Owns:** a test of another file that broke as a direct, expected consequence may get only its expectation adjusted (never a loosened safety assertion) and joins the commit. Each `Leave:` item stays as it is.
 6. Write `<state>/deliveries/<ID>.md`, then commit.
