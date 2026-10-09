@@ -91,7 +91,8 @@ To bring kit improvements into a project later: `git pull` in the kit, `./instal
 ```
 CLAUDE.md                       constitution index, the gate rule, code structure summary
 AGENTS.md                       commands, critical constraints, finding things, handing work to subagents
-ai-kit.json                     stack commands, structure limits, ratchet allowlist
+ai-kit.json                     stack commands, structure limits
+ai-kit.allowlist.json           ratchet allowlist (shrink-only)
 .ai-kit/manifest.json           kit version and the files it owns
 .specify/memory/constitution.md binding principles: the project's own plus the kit's process principles
 .claude/skills/                 prd-create, trd-create, prd-flow (with repo.md, the project adapter), adr, docs-html
@@ -121,7 +122,7 @@ scripts/                        gates.sh (including `close`, `verify`, `baseline
 Hooks record every tool call, subagent, compaction and wait of a run in `.ai-kit/runs/<change>/` (git-ignored), and `scripts/gates.sh` adds the time, memory and disk of each test and build. Outputs are never stored and secrets are redacted. At the end of a delivery `scripts/gates.sh retro` writes `retro.md`: findings only for what passed a threshold of `ai-kit.json` `telemetry` (slow calls, heavy subagents, loops, big outputs, memory, disk), none when the run stayed within all of them. The final report lists them. Rules: [rules/11-telemetry.md](rules/11-telemetry.md).
 
 ## Run speed
-Lessons of a 432 minute run ([LS31](rules/09-lessons.md)). `scripts/gates.sh baseline <slug>` (run by the chief as a background Bash) records the failures once per plan commit, in a worktree; `scripts/gates.sh red <test>` proves a test fails first; `scripts/gates.sh docs <slug>` runs every docs check in one cached call. Verification is per batch: executors run only their own new test, and the chief runs one `scripts/gates.sh verify <slug>` per wave (TS53); gates are reminders run once per phase. There is no guard hook: editing with Edit and Write and never running `git stash`, `reset` or `checkout` in a shared tree are behavior rules in the agent files. The chief never polls: dispatches run in the background, and the retro flags polling loops and processes left alive. Rules: TS43 to TS53, SA48 to SA55, WF65 to WF74 in [rules/](rules/README.md); the prompt contract is `kit/.claude/skills/prd-flow/reference/dispatch.md`.
+Lessons of a 432 minute run ([LS31](rules/09-lessons.md)). `scripts/gates.sh baseline <slug>` (run by the chief as a background Bash) records the failures once per plan commit, in a worktree; `scripts/gates.sh red <test>` proves a test fails first; `scripts/gates.sh docs <slug>` runs every docs check in one cached call. Verification is per batch: executors run only their own new test, and the chief runs one `scripts/gates.sh verify <slug>` per wave (TS53); gates are reminders run once per phase. A guard hook registered in `settings.json` runs for every subagent (never for the main thread): editing with Edit and Write and never running `git stash`, `reset` or `checkout` in a shared tree are behavior rules in the agent files, enforced there. The chief never polls: dispatches run in the background, and the retro flags polling loops and processes left alive. Rules: TS43 to TS53, SA48 to SA55, WF65 to WF74 in [rules/](rules/README.md); the prompt contract is `kit/.claude/skills/prd-flow/reference/dispatch.md`.
 
 ## The rules, in short
 
