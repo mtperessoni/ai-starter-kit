@@ -26,23 +26,24 @@ The prompt is `Slug: <slug>. State: <state folder>. Python: <interpreter>. Mode 
 |---|---|
 | No user | You never talk to the user: a question goes out prepared in `Route: user:` |
 | Bounded input | Your card (`Grep -n "^### <ID>"` in the plan, then `Read` that range; never the whole plan) and what its `Read:` names, about 25k tokens; big files only by symbol. Never a whole PRD or TRD |
-| Writing | Only the files in Owns and `<state>/deliveries/<task>.md`. Read with Read and Grep, edit with Edit and Write (faster and safer than shell): a script only moves code by line range or AST (never retype a function body) or runs a shipped tool; no `sed -i`, heredoc writes or bare `python` / `python -` (SA51). No em dash (U+2014), no unnecessary comment |
-| Long commands | Anything that may pass 120 s runs foreground with an explicit Bash `timeout` (up to 600000), output to a file, only failures and the summary read. Never `until`, `while`, `sleep` or `seq` polling, and never return while a process you started is alive (TS45, TS51) |
-| Shared tree | Behavior rule: never `git stash`, `reset`, `checkout`, `switch`, `restore`, amend or a repo-wide `gates.sh fix` in a tree other agents share (SA53); fix the cause |
-| Commit | `git add <changed Owns paths> && git commit -F -` with a Conventional Commits message in English citing the IDs and ending with `Rules: <IDs>` or `Case: none (<reason in at most 8 words>)`. Then `git status --porcelain -- <Owns>` must be empty and no path you created outside Owns may remain. On `index.lock` wait a few seconds and retry once |
-| Tests | Only the one test you wrote (`scripts/gates.sh one <file>`): once to see it fail, once to see it pass. No related tests, suites, gates or lint runs: the chief's wave verification runs them once. Never chain an edit with a test run in one command |
+| Writing | Only the files in Owns and `<state>/deliveries/<task>.md`. Read with Read and Grep, edit with Edit and Write; no `sed -i`, heredoc writes or bare `python` / `python -`. Moving code by script (`scripts/gates.sh move <src> <start>-<end> <dst> [<line>]`) applies only to C6 refactors; elsewhere Edit. No em dash (U+2014), no unnecessary comment |
+| Long commands | A command that may pass 120 s goes in the background with an explicit timeout longer than the run, output to a file, woken by the completion notice; only failures and the summary are read. Never a foreground wait near 600 s, never `tail -f`, `until`, `while`, `sleep` or `seq` polling |
+| Shared tree | Never `git stash`, `reset`, `checkout`, `switch`, `restore`, amend or a repo-wide `gates.sh fix` in a tree other agents share; fix the cause |
+| One command per call | Never chain an edit, a format, a test and a commit with `&&` in one call |
+| Commit | Write the message with Write to `<state>/msg-<task>.txt` (Conventional Commits, English, citing the IDs, ending with `Rules: <IDs>` or `Case: none (<reason in at most 8 words>)`; the project's own commit rules in its `CLAUDE.md` or `AGENTS.md` win over any harness attribution reminder), then `git add <changed Owns paths>` and `git commit -F <state>/msg-<task>.txt` as separate calls; never `-F -`. Then `git status --porcelain -- <Owns>` must be empty and no path you created outside Owns may remain. On `index.lock` wait a few seconds and retry once |
+| Tests and format | Your one test (`scripts/gates.sh one <file>`): once to see it fail, once to see it pass. Before the commit `scripts/gates.sh fix-files <your files>`, then `scripts/gates.sh lint-files <your files>`. Nothing else: no related tests, suites or gates; the chief's wave verification runs them once |
 | Loops | At most 2 reruns of a failing step |
 | Ceiling | About 50 tool calls or 30 minutes (`.claude/skills/prd-flow/reference/review.md` V08). Never open a subagent |
 
 ## task
 1. **Batch 1, one message:** the card; the rows of its Contract from `approved-rules.md` (new rules) or `pack.md` (unchanged), or from the PRD by ID when neither exists (C2, C3, C6); `<state>/deliveries/<ID>.md` of each task in `Depends on`; the `Read:` list; the card's `DEC-` rows (`Grep -n "<DEC-ID>" changes/NNN-<slug>/decisions.md`; a DEC row binds like a rule); `git log -5 --oneline -- <Owns>`; the Commands of `repo.md`.
-2. **Baseline:** never run it and never wait for it: the chief starts it (`gates.sh baseline <slug>` as a background Bash) and `close` checks it.
-3. **Test first:** the test from the row's `Example` (given, expected), run only that test to see it fail (`scripts/gates.sh red <test>`, record `Red: <exit code>`); implement the minimum; run only that test to see it pass. Nothing else runs here.
+2. **Baseline:** never run it and never wait for it: the chief starts it.
+3. **Test first:** the test from the row's `Example` (given, expected), run only that test to see it fail (`scripts/gates.sh red <test>`, record `Red: <exit code>`); implement the minimum; run only that test to see it pass; then fix-files and lint-files on your files.
 4. **Structure:** `docs/code-structure.md` limits, the PRD IDs in the first comment of each module and test, the area map follows the change, the ratchet never regresses. When Owns lists `docs/trd/<area>.md`, merge its Planned rows per `.claude/skills/prd-flow/reference/trd-planned.md`.
 5. **Outside Owns:** a test of another file that broke as a direct, expected consequence may get only its expectation adjusted (never a loosened safety assertion) and joins the commit. Each `Leave:` item stays as it is.
 6. Write `<state>/deliveries/<ID>.md`, then commit.
 
-`deliveries/<ID>.md` (at most 16 lines; a dependent task reads it instead of your code; promotion reads `Source:`; the reviewer reads `Self-check:` first, SA52):
+`deliveries/<ID>.md` (at most 16 lines; a dependent task reads it instead of your code; promotion reads `Source:`; the reviewer reads `Self-check:` first):
 ```markdown
 ## T07 · <result in one line>
 Red: 1 (test_call_provider_reads_timeout)
@@ -52,23 +53,18 @@ Source: CHK-02: src/features/checkout/payment_call.py::call_provider
 Leaves for: T08 to pass timeout= from the mobile flow
 Self-check:
 - wired: yes, the card's `Reached from:` (POST /checkout) reaches the new symbol
-- structure and architecture tests: ran, green
-- size caps: ok
-- feature key off: behavior unchanged, test_x
-- PII in logs, prompts, errors: none
-- queries: soft-delete and tenant scope respected
-- guard and counter-example test: <guard>, test_y
+- <one line per item the card's Lens or rules ask for, e.g. feature key off: behavior unchanged, test_x>
 ```
-`Red:` is the first failing exit code of `gates.sh red`. Each Self-check line is `yes`, `no` or `n/a` with its evidence in a few words; a `no` is fixed before the commit or routed. One `Source: <ID>: <path::symbol>` line per approved rule of the Contract whose Change via is `code` (rewritten rules included): one ID and one path per line, never a list or a range. Rules via config, env, prompt, data or a handoff get none.
+`Red:` is the first failing exit code of `gates.sh red`. Self-check keeps only the lines the card's `Lens:` or rules ask for, never a claim that structure tests, size caps or other gates ran (the chief's verification runs them). Each line is `yes`, `no` or `n/a` with its evidence in a few words; a `no` is fixed before the commit or routed. One `Source: <ID>: <path::symbol>` line per approved rule of the Contract whose Change via is `code` (rewritten rules included): one ID and one path per line, never a list or a range. Rules via config, env, prompt, data or a handoff get none.
 
 ## fix
 Fix only what the handoff names, inside its Owns, under the rules of `task` (test first for a behavior finding). Commit `fix(<scope>): <sentence>` with the trailer. A missing `Source:` line: `Grep` the rule ID in the source folders, append the line to the implementing task's `deliveries/<ID>.md`, no commit.
 
 ## close
-0. Rerun: when `## Chief` of `<state>/state.md` logs `closed: <commit>` for a passing close, or the state folder is gone after a pass (C2, C3, C4, C6, no archive), return `Status: done` · `Commit: <that commit>` · `Route: none` without rerunning anything; a missing baseline is then never a failure.
+0. Rerun: when `## Chief` of `<state>/state.md` logs `closed: <commit>` for a passing close, or the state folder is gone after a pass (C2, C3, C4, C6, no archive), return `Status: done` · `Commit: <that commit>` · `Route: none` without rerunning anything; a missing baseline is then never a failure. C4 close does not require a baseline.
 1. C5 only (C2, C3, C4, C6 have no promote): `<python> .claude/skills/prd-flow/scripts/promote.py <slug>`. On error, route it (table below). On success commit the paths it changed (`git status --porcelain -- docs changes`) as `docs(prd): promote <slug>` before step 3; the tree must be clean in `docs` and `changes`. Never `git add` anything under `.claude/prd-flow/` (git-ignored). A WARN line on success is routed before step 3: an amendment file is `Route: docs fold: <the WARN lines>`; a TRD still holding Planned is `Route: executor fix: <the WARN lines, Owns: that TRD file>` (merge per `trd-planned.md`).
 2. Write `## Close` of `state.md` (the promote result only) now: a passing close deletes the state folder, so nothing is written into it after close starts.
-3. `scripts/gates.sh close <slug>` with its stdout read directly (or redirected to a file under `.ai-kit/runs/`, never inside the state folder); read its summary block. The close summary and the top retro findings go in the return only. Never rerun close to recover output: a rerun after a pass finds no state folder.
+3. `scripts/gates.sh close <slug>` with its stdout read directly (or redirected to a file under `.ai-kit/runs/`, never inside the state folder); read its summary block. It reuses the chief's compare result and never runs the suite inline. The close summary and the top retro findings go in the return only. Never rerun close to recover output: a rerun after a pass finds no state folder.
 
 ## Failure routes
 | Failure | Return |
@@ -81,7 +77,7 @@ Fix only what the handoff names, inside its Owns, under the rules of `task` (tes
 | promote: no `approved-rules.md` | `Status: blocked` · `Route: user: the run lost its scaffold / Restart the C5 (surveyor full) / Stop`; restarting is the user's call |
 | promote: archive, final gate | `Route: executor fix: <printed lines, Owns: the files named>`; `Next:` executor close |
 | close: tests, lint, trailers, G19, G21 | `Route: executor fix: <printed lines, Owns and Read: the files named>`; `Next:` executor close |
-| close: baseline missing (the chief did not start it); a trailer that needs a history rewrite; drift that predates the change | `Status: blocked` · `Route: user: <what failed, options with trade-offs>`; this row overrides any `owner:` the script printed (a baseline taken at close hides the change's own failures) |
+| close: baseline missing in C2, C3, C5, C6 (the chief did not start it); a trailer that needs a history rewrite; drift that predates the change | `Status: blocked` · `Route: user: <what failed, options with trade-offs>`; this row overrides any `owner:` the script printed (a baseline taken at close hides the change's own failures) |
 | Red after 2 reruns | `Status: blocked` · `Route: executor <mode>: <failing lines, files touched>` |
 | Ceiling | `Status: gap` · `Route: executor <mode>: <files touched, red tests, next step>` |
 

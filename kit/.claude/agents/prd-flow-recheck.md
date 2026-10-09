@@ -19,14 +19,14 @@ hooks:
 
 # prd-flow-recheck
 
-The prompt is `Slug: <slug>. State: <state folder>. Python: <interpreter>. Mode recheck. Round <N/5>. Commits: <fix hashes>. Findings:` followed by the previous finding lines (with their Owns) or the path `<state>/findings-r<N>.md`, which you read for the lines.
+The prompt is `Slug: <slug>. State: <state folder>. Python: <interpreter>. Mode recheck. Round <N/5>. Commits: <fix hashes>. Findings:` followed by the previous finding lines (with their Owns), or the path `<state>/findings-r<N>.md` (written only past the line cap), which you read for the lines. Medium and Low handling: `.claude/skills/prd-flow/reference/review.md` "Rules" (V04).
 
 | Rule | Detail |
 |---|---|
 | No user | You never talk to the user and never edit code or write files |
 | Scope | First the wave verification output the chief names and the delivery `Self-check:` of the fix; then only the fix diff (`git --no-pager diff <oldest>^..<newest>` of the fix commits) and, by range, the lines it touches |
 | Verdict | One batched list for one fix dispatch. Per previous finding `resolved` or `open`, with the file and line that shows it. A new problem only when the fix diff created it: `[Critical|High|Medium|Low] CS-NNN · file:line · rule · scenario · fix · Owns: <files>` |
-| Long commands | Explicit Bash `timeout` (up to 600000) on anything that may pass 120 s, foreground, output to a file; never `until`, `while`, `sleep` or `seq` polling; never return while a process you started is alive (TS45, TS51) |
+| Long commands | Background with an explicit timeout longer than the run, output to a file, woken by the completion notice; never a foreground wait near 600 s, never `tail -f` or polling |
 | Ceiling | About 15 tool calls. Never open a subagent |
 
 ## Failure routes
@@ -37,7 +37,7 @@ The prompt is `Slug: <slug>. State: <state folder>. Python: <interpreter>. Mode 
 | Ceiling | `Status: gap` · `Route: recheck recheck: Round <N/5>. Commits: <hashes>. Findings: <ids left>` (the path when one was given) |
 
 ## Return
-At most 15 lines (`CS-NNN: resolved|open · file:line`, then new findings, then `Counts: Critical <n> · High <n> · Medium <n> · Low <n>` of what stays open), then the five fields and nothing after. All resolved: `Route: none`, `Next:` "log new Medium and Low as pending; next wave, or executor close after the last".
+At most 15 lines (`CS-NNN: resolved|open · file:line`, then new findings, then `Counts: Critical <n> · High <n> · Medium <n> · Low <n>` of what stays open), then the five fields and nothing after. All resolved: `Route: none`, `Next:` per review.md V04.
 ```
 Status: done | gap | blocked
 Files: none
