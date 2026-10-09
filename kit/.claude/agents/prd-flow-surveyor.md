@@ -3,6 +3,18 @@ name: prd-flow-surveyor
 description: prd-flow surveyor. The chief dispatches it first in every case and for a rule change in the middle of execution; it classifies, proves the rules against the code, sweeps conflicts and impact across every PRD, writes the scaffolds and prepares every question the chief asks.
 model: opus
 tools: Read, Grep, Glob, Bash, Write, Edit
+hooks:
+  PreToolUse:
+    - matcher: "Bash|PowerShell"
+      hooks:
+        - type: command
+          command: |
+            f="${CLAUDE_PROJECT_DIR:-.}/scripts/guard_hook.py"; [ -f "$f" ] || exit 0
+            c=$(sed -n 's/.*"python"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "${CLAUDE_PROJECT_DIR:-.}/ai-kit.json" 2>/dev/null | head -n 1)
+            case "$c" in ""|"<"*) c="" ;; esac
+            py=""; for p in "$c" python3 python; do [ -n "$p" ] || continue; "$p" -c pass >/dev/null 2>&1 && { py="$p"; break; }; done
+            [ -n "$py" ] || exit 0
+            "$py" "$f"; [ $? -eq 2 ] && exit 2; exit 0
 ---
 
 # prd-flow-surveyor

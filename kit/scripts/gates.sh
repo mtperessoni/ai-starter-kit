@@ -39,6 +39,9 @@ usage: scripts/gates.sh <target> [args]
                    one verification per wave or batch: related tests of every file changed since the ref (default: the last verification,
                    else the plan commit, else the base branch), the structure tests and the docs gate; log, short summary and
                    verify.stamp; a rerun with nothing changed reruns only what failed
+  reap [--older-than <min>] [--dry-run]
+                   kill, by PID tree, this session's stdin-waiting or older-than-N-minutes (default 20) processes; never a baseline|compare|verify tree;
+                   prints "reaped: <n>" and "left: 0" or the survivors
   python           print the resolved interpreter (the one every target uses)
   lint             verify lint, format and types, as CI does; one line: lint ok, or lint FAILED (exit N), log <path>
   fix              repair lint and format; same one-line result (then run lint)
@@ -249,6 +252,9 @@ baseline)
 verify)
     [ $# -ge 1 ] || { echo "usage: gates.sh verify <slug> [--since REF]" >&2; exit 2; }
     GATES_BASH="$(cygpath -w "$BASH" 2>/dev/null || printf %s "$BASH")" "$PY" scripts/verify.py "$@"
+    ;;
+reap)
+    "$PY" scripts/reap.py "$@"
     ;;
 python)
     echo "$PY"

@@ -10,6 +10,7 @@ When nothing changed since the last verification (the stamp holds HEAD plus a ha
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -20,6 +21,7 @@ from close_gate import tree_stamp, valid_slug
 from kit_config import repo_root
 
 DETAIL_LINES = 6
+STUCK_LOOKBACK = 1048576
 BASES = ("origin/main", "origin/staging", "origin/master", "main", "staging", "master")
 
 
@@ -58,6 +60,56 @@ def gates(root: Path, *args: str) -> subprocess.CompletedProcess:
         return subprocess.CompletedProcess([bash], 127, "", f"cannot run bash: {exc}")
 
 
+def stuck_agents(root: Path) -> list[str]:
+    """Agents of the run's events that have an agent_stuck event and no SubagentStop after it."""
+    runs = root / ".ai-kit" / "runs"
+    try:
+        name = re.sub(r"[^\w.-]", "-", (runs / "current").read_text(encoding="utf-8").splitlines()[0].strip())
+    except (OSError, IndexError):
+        name = ""
+    path = runs / name / "events.jsonl"
+    if not path.is_file():
+        found = sorted(runs.glob("*/events.jsonl"), key=lambda p: p.stat().st_mtime) if runs.is_dir() else []
+        if not found:
+            return []
+        path = found[-1]
+    try:
+        with path.open("rb") as handle:
+            handle.seek(0, os.SEEK_END)
+            handle.seek(max(0, handle.tell() - STUCK_LOOKBACK))
+            lines = handle.read().decode("utf-8", errors="replace").splitlines()
+    except OSError:
+        return []
+    stuck: dict[str, None] = {}
+    for line in lines:
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        agent = event.get("agent") if isinstance(event, dict) else None
+        if event.get("ev") == "agent_stuck" and agent:
+            stuck[agent] = None
+        elif event.get("ev") == "SubagentStop":
+            stuck.pop(agent, None)
+    return list(stuck)
+
+
+def preflight(root: Path) -> tuple[list[str], str]:
+    """Reap this session's stuck processes first, then name the stuck agents: (lines for the screen, text for the log)."""
+    result = gates(root, "reap")
+    text = (result.stdout + result.stderr).strip()
+    lines = []
+    if "reaped:" in text:
+        reaped = re.search(r"reaped:\s*(\d+)", text)
+        left = re.search(r"left:\s*(.*)", text)
+        if (reaped and int(reaped.group(1))) or (left and left.group(1).strip() != "0"):
+            lines.append(f"reap: reaped {reaped.group(1) if reaped else '?'}, left {left.group(1).strip() if left else '?'}")
+    stuck = stuck_agents(root)
+    if stuck:
+        lines.append("stuck agents: " + ", ".join(stuck))
+    return lines, "$ gates.sh reap\n" + text
+
+
 def read_stamp(path: Path) -> dict:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -81,17 +133,18 @@ def main(argv: list[str]) -> int:
     folder = root / ".claude" / "prd-flow" / "state" / slug
     folder.mkdir(parents=True, exist_ok=True)
     stamp_path, log = folder / "verify.stamp", folder / "verify.log"
+    notes, reap_text = preflight(root)
     stamp = read_stamp(stamp_path)
     tree = tree_stamp(root)
     unchanged = stamp.get("tree") == tree and since is None
     previous = list(stamp.get("failed", [])) if unchanged else None
     if unchanged and not previous:
-        print(f"verify {slug}: ok, nothing changed since the last verification")
+        print("\n".join([f"verify {slug}: ok, nothing changed since the last verification", *notes]))
         return 0
     ref = since or default_ref(root, slug, stamp)
     files = changed_files(root, ref)
     steps = [("tests", ["related", *files]) if files else ("tests", None), ("docs", ["docs", slug])]
-    out, failed, chunks = [f"verify {slug}: {len(files)} changed file(s) since {ref[:8]}"], [], []
+    out, failed, chunks = [f"verify {slug}: {len(files)} changed file(s) since {ref[:8]}", *notes], [], [reap_text]
     for name, args in steps:
         if previous is not None and name not in previous:
             out.append(f"{name} ok (unchanged since the last verification)")
@@ -111,7 +164,7 @@ def main(argv: list[str]) -> int:
     log.write_text("\n".join(chunks), encoding="utf-8")
     stamp_path.write_text(json.dumps({"head": git(root, "rev-parse", "HEAD"), "tree": tree_stamp(root), "failed": failed, "ts": int(time.time())}), encoding="utf-8")
     out.append(f"verify {'FAILED' if failed else 'ok'}, log {log.relative_to(root).as_posix()}")
-    print("\n".join(out[:12]))
+    print("\n".join(out[:11] + out[-1:] if len(out) > 12 else out))
     return 1 if failed else 0
 
 

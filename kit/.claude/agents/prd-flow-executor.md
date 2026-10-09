@@ -3,6 +3,18 @@ name: prd-flow-executor
 description: prd-flow executor. The chief dispatches one per task card, per fix (review findings or a routed failure) and once to close a delivery; it implements test first, commits its own work with the trailer and routes what it cannot fix.
 model: sonnet
 tools: Read, Grep, Glob, Edit, Write, Bash
+hooks:
+  PreToolUse:
+    - matcher: "Bash|PowerShell"
+      hooks:
+        - type: command
+          command: |
+            f="${CLAUDE_PROJECT_DIR:-.}/scripts/guard_hook.py"; [ -f "$f" ] || exit 0
+            c=$(sed -n 's/.*"python"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "${CLAUDE_PROJECT_DIR:-.}/ai-kit.json" 2>/dev/null | head -n 1)
+            case "$c" in ""|"<"*) c="" ;; esac
+            py=""; for p in "$c" python3 python; do [ -n "$p" ] || continue; "$p" -c pass >/dev/null 2>&1 && { py="$p"; break; }; done
+            [ -n "$py" ] || exit 0
+            "$py" "$f"; [ $? -eq 2 ] && exit 2; exit 0
 ---
 
 # prd-flow-executor
