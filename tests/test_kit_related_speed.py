@@ -111,6 +111,18 @@ class NativeAlwaysTest(RelatedSpeedBase):
         self.assertIn("tests/test_architecture.py", (self.p.root / "plain.txt").read_text(encoding="utf-8"))
 
 
+class DocsOnlyTest(RelatedSpeedBase):
+    def test_a_docs_only_change_runs_nothing_and_caches_nothing(self) -> None:
+        (self.p.root / "native.py").write_text("open('native.txt','a').write('n')\nprint('1 passed')\n", encoding="utf-8")
+        self.configure(native_related=f'"{PY}" native.py {{changed}}')
+        write(self.p.root, "README.md", "# x\n")
+        r = self.related("README.md", "--run")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("no related tests", r.stdout)
+        self.assertFalse((self.p.root / "native.txt").exists())
+        self.assertEqual(list(self.p.root.glob("**/related.cache*.json")), [])
+
+
 class NativeFilterTest(RelatedSpeedBase):
     def test_native_related_gets_only_code_extension_paths(self) -> None:
         (self.p.root / "native.py").write_text(

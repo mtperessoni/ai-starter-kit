@@ -21,6 +21,8 @@ WRITTEN = (
     "changes/001-slug/plan.md",
     ".claude/prd-flow/state/slug/state.md",
 )
+GATE_TARGETS = ("related", "one", "verify", "baseline", "compare", "close", "reap", "docs", "ratchet", "lint", "move", "settings-check")
+GATE_COMMANDS = tuple(f"{launcher}scripts/gates.sh {target}" for launcher in ("", "bash ") for target in GATE_TARGETS)
 RULE = re.compile(r"^(\w+)(?:\((.*)\))?$")
 
 
@@ -47,11 +49,28 @@ def glob_regex(pattern: str) -> re.Pattern[str]:
         else:
             out += re.escape(pattern[i])
             i += 1
-    return re.compile(rf"^{out}(?:/.*)?$")
+    anywhere = "(?:.*/)?" if "/" not in pattern else ""
+    return re.compile(rf"^{anywhere}{out}(?:/.*)?$")
+
+
+def bash_blocks(spec: str | None) -> str | None:
+    """The gates.sh command a Bash deny pattern would block, if any."""
+    if spec in (None, "", "*", "**"):
+        return GATE_COMMANDS[0]
+    for command in GATE_COMMANDS:
+        if spec.endswith(":*"):
+            prefix = spec[:-2]
+            if command == prefix or command.startswith(prefix + " "):
+                return command
+        elif re.fullmatch(".*".join(re.escape(part) for part in spec.split("*")), command):
+            return command
+    return None
 
 
 def blocked(rule: str) -> str | None:
     m = RULE.match(rule.strip())
+    if m and m.group(1) == "Bash":
+        return bash_blocks(m.group(2))
     if not m or m.group(1) not in TOOLS:
         return None
     if m.group(2) in (None, "", "*", "**"):
@@ -74,7 +93,8 @@ def check(root: Path) -> list[str]:
         for rule in (data.get("permissions") or {}).get("deny") or []:
             hit = blocked(str(rule))
             if hit:
-                lines.append(f".claude/{name}: deny {rule} blocks files the flow writes (for example {hit}); remove it or narrow it")
+                what = f"runs the flow needs (for example {hit})" if hit.endswith(GATE_TARGETS) else f"files the flow writes (for example {hit})"
+                lines.append(f".claude/{name}: deny {rule} blocks {what}; remove it or narrow it")
     return lines
 
 

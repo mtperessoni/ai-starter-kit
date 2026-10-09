@@ -63,7 +63,7 @@ The interview becomes one decision sheet answered in the chat. List first, then 
 | State files | `interview.md` and `delta.md` are no longer produced (`sheet.md`, `answers.md`, `rules.md` replace them); a change in flight finishes as it is, a folder already in `.claude/prd-flow/state/` is never rewritten |
 | `ai-kit.json` keys | `commands.fix_file` and `commands.lint_file` (with `{files}`; unset means `fix-files` and `lint-files` run the repo-wide command with a note) and `tests.summary_regex` `""`, `tests.fast_flags` `[]`, `tests.test_dirs` `[]` added with these defaults; fill `fix_file` and `lint_file` from the recipe and run each once (K05) |
 | Scripts | `guard_hook.py`, `reap.py`, `next_change_number.py` and `settings_check.py` added (kit-owned); `gates.sh` gains `fix-files`, `lint-files`, `move`, `reap` and `settings-check` |
-| Guard hook | Declared in the frontmatter `hooks:` of the five `prd-flow-*` agents (replaced per U3), never in `.claude/settings.json`; the telemetry launcher is replaced by the cheaper one (`commands.python` used directly, no `-c pass` probe) |
+| Guard hook | Declared in the frontmatter `hooks:` of the five `prd-flow-*` agents (replaced per U3), never in `.claude/settings.json`; the telemetry launcher is replaced by the current one (`commands.python` with a JSON path unescaped, probed once, then `python3` and `python`; fails open) |
 | Changes folder | A new change is reserved with `python scripts/next_change_number.py <slug>`, which prints `changes/NNN-<slug>` |
 | Settings | Run `scripts/gates.sh settings-check`; a deny rule it reports is shown to the user, never removed silently |
 

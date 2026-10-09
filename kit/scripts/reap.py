@@ -128,9 +128,13 @@ def stuck(procs, self_pid, limit):
         if PROTECTED.search(p["cmd"]):
             safe.update(ancestors(p["pid"], by_pid))
             safe.update(descendants(p["pid"], children))
+    for p in procs:
+        if DEV_SERVER.search(p["cmd"]):
+            safe.update(descendants(p["pid"], children))
+    own = re.compile(r"(?<![\w-])" + re.escape(sid) + r"(?=\.sh\b|[\s'\"]|$)")
     session = set()
     for p in procs:
-        if sid in p["cmd"]:
+        if own.search(p["cmd"]):
             session.add(p["pid"])
             session.update(descendants(p["pid"], children))
     matched = {pid for pid in session - safe if is_stuck(by_pid[pid], limit)}

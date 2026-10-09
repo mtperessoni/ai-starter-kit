@@ -191,10 +191,39 @@ class AnswersTest(SheetBase):
         self.assertIn("REOPEN_ORDERS", out)
 
     def test_an_unasked_backticked_switch_is_q3(self) -> None:
-        write(self.p.root, f"{STATE}/rules.md", RULES_MD.replace("Orders can be reopened.", "Orders can be reopened when the flag `reopenEnabled` is set."))
+        write(self.p.root, f"{STATE}/rules.md", RULES_MD.replace("Orders can be reopened.", "Orders can be reopened when the feature flag `reopenEnabled` is set."))
         out = self.gate()
         self.assertIn("ERROR Q3", out)
         self.assertIn("reopenEnabled", out)
+
+    def test_a_generic_word_elsewhere_on_the_row_does_not_make_a_token_a_mechanism(self) -> None:
+        text = "Orders can be reopened. The Kind column, a table of options and the flag of the order id `OrderRef` stay."
+        write(self.p.root, f"{STATE}/rules.md", RULES_MD.replace("Orders can be reopened.", text))
+        self.assertNotIn("Q3", self.gate())
+
+    def test_the_mechanism_word_in_another_cell_than_the_token_is_not_a_hit(self) -> None:
+        row = "| ORD-03 | Orders can be reopened by `reopenedAt`. | planned, new endpoint later | code |"
+        write(self.p.root, f"{STATE}/rules.md", RULES_MD.replace(ROW, row))
+        self.assertNotIn("Q3", self.gate())
+
+    def test_new_table_and_add_a_column_are_mechanisms(self) -> None:
+        for phrase in ("adds a new table `order_reopen`", "will add a column `reopenedAt`"):
+            with self.subTest(phrase=phrase):
+                write(self.p.root, f"{STATE}/rules.md", RULES_MD.replace("Orders can be reopened.", f"Orders can be reopened and it {phrase}."))
+                self.assertIn("ERROR Q3", self.gate())
+
+    def test_short_sheets_are_keyed_s_k_and_linted(self) -> None:
+        short = SHEET_2.replace("`REOPEN_WINDOW`", "window") + "\n## Assumed (holds unless you correct it)\n- A1 Same tenants.\n\n## What does not change\n- Receipts.\n"
+        write(self.p.root, f"{STATE}/sheet-short-1.md", short)
+        out = self.gate()
+        for key in ("s1.1", "s1.A1", "s1.scope"):
+            self.assertIn(f"item {key}", out)
+        rows = "| s1.1 | A | ok |\n| s1.A1 | accepted | ok |\n| s1.scope | accepted | ok |\n"
+        write(self.p.root, f"{STATE}/answers.md", ANSWERS + rows)
+        self.assertNotIn("Q3", self.gate())
+        write(self.p.root, f"{STATE}/sheet-short-1.md", short.replace("Today: days.\n", ""))
+        write(self.p.root, f"{STATE}/pack.md", PACK)
+        self.assertIn("ERROR S1", self.p.py(GATE, "--sheet", "orders").stdout)
 
     def test_a_mechanism_present_in_the_sheet_is_fine(self) -> None:
         write(self.p.root, f"{STATE}/rules.md", RULES_MD.replace("Orders can be reopened.", "Orders can be reopened by the switch `reopenEnabled`."))

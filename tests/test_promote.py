@@ -400,6 +400,19 @@ class PromoteTest(unittest.TestCase):
         self.assertEqual(len(re.findall(r"^## (?:001-)?disc \(", log, re.M)), 1, log)
         self.assertEqual(log.count("DEC-01"), 1, log)
 
+    def test_the_hold_note_lands_only_in_its_own_entry_even_after_an_older_promoted_one(self) -> None:
+        (self.p.root / "docs/trd/orders.md").unlink()
+        (self.p.root / STATE / "deliveries.md").write_text("Source: ORD-02, ORD-03: src/a.py" + chr(10), encoding="utf-8")
+        write(self.p.root, "docs/prd/CHANGELOG.md",
+              "# CHANGELOG\n\n## older (2026-01-01, X, y)\n\nSources: none set.\nPromoted: sources set.\n\n"
+              "## disc (2026-10-04, Ana, changes/001-disc)\n\nReason: orders.\n")
+        r = self.promote("--hold", "ORD-04", "--reason", "front repo delivers it")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        log = self.text("docs/prd/CHANGELOG.md")
+        older, own = log.split("## disc (")
+        self.assertNotIn("Held planned", older)
+        self.assertIn("Held planned: ORD-04", own)
+
     def test_decision_rows_from_rules_md_and_the_change_folder_are_copied_once(self) -> None:
         (self.p.root / STATE / "approved-rules.md").unlink()
         rules = APPROVED.replace("# Approved rules", "# Rules") + "## Decisions\n" + DECISIONS.split("\n", 2)[2]

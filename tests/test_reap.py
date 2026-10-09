@@ -91,6 +91,18 @@ class SelectionTest(unittest.TestCase):
         fake, _, _ = reap_with(table(server, sb, other))
         self.assertEqual(fake.killed, [])
 
+    def test_a_child_of_a_dev_server_is_spared_even_when_old(self):
+        server = wrapper(500, "yarn dev", age=90.0)
+        child = proc(501, 500, "node /repo/node_modules/next/dist/server/lib/start-server.js", age=90.0)
+        fake, _, _ = reap_with(table(server, child))
+        self.assertEqual(fake.killed, [])
+
+    def test_a_snapshot_id_that_is_a_prefix_of_another_is_not_this_session(self):
+        longer = SNAP + "9"
+        stranger = wrapper(500, "pytest -q", snap=longer, age=90.0)
+        fake, _, _ = reap_with(table(stranger))
+        self.assertEqual(fake.killed, [])
+
     def test_gates_close_is_protected(self):
         root = wrapper(500, "scripts/gates.sh close s1", age=90.0)
         fake, _, _ = reap_with(table(root, proc(501, 500, "python -m pytest", age=90.0)))

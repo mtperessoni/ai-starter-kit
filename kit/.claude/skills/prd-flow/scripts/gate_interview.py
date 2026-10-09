@@ -13,7 +13,12 @@ ITEM = re.compile(r"^\*\*\s*(\d+)\.\s*(.+?)\s*\*\*(.*)$")
 OPTION = re.compile(r"^\s*-\s+([A-Z])\)\s+(.*)$")
 INTERACTS = re.compile(r"^\s*Interacts with:\s*(.*)$")
 ASSUMED = re.compile(r"^\s*-\s+(A\d+)\b")
-MECHANISM = re.compile(r"(?i)\b(env var|environment variable|switch|flag|configuration|config key|table|column|endpoint)s?\b")
+MECHANISM = re.compile(
+    r"(?i)\b(?:env(?:ironment)?\s+var(?:iable)?|switch|feature\s+flag|config(?:uration)?\s+key|endpoint"
+    r"|(?:new|add(?:s|ed|ing)?)\s+(?:an?\s+|the\s+)?(?:\w+\s+)?(?:table|column|flag|configuration))(?:e?s)?\b"
+)
+SENTENCE = re.compile(r"(?<=[.!?;])\s+")
+SHORT_SHEET = re.compile(r"^sheet-short-(\w+)\.md$")
 CODE_TOKEN = re.compile(r"`([^`\n]+)`|\b([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)\b")
 MAX_ITEMS = 8
 
@@ -159,20 +164,30 @@ def check_sheet(target: Path, cfg: dict[str, str]) -> None:
     second = read(sheet.parent / "sheet-2.md")
     if second is not None:
         lint_decisions("sheet-2.md", heading_body(second, lab["decisions"]) or second, lab, cfg)
+    for short in short_sheet_names(sheet.parent):
+        text_short = read(sheet.parent / short)
+        if text_short is not None:
+            lint_decisions(short, heading_body(text_short, lab["decisions"]) or text_short, lab, cfg)
+
+
+def short_sheet_names(state: Path) -> list[str]:
+    return sorted(p.name for p in state.glob("sheet-short-*.md") if SHORT_SHEET.match(p.name)) if state.is_dir() else []
 
 
 def sheet_items(state: Path, lab: dict[str, str]) -> list[str]:
     items: list[str] = []
-    for name in ("sheet.md", "sheet-2.md"):
+    for name in ("sheet.md", "sheet-2.md", *short_sheet_names(state)):
         text = read(state / name)
         if text is None:
             continue
         body = heading_body(text, lab["decisions"]) or ""
-        prefix = "2." if name == "sheet-2.md" else ""
+        short = SHORT_SHEET.match(name)
+        prefix = "2." if name == "sheet-2.md" else f"s{short.group(1)}." if short else ""
         items += [prefix + d["n"] for d in decisions(body, lab)]
-        if name == "sheet.md":
-            items += [m.group(1) for ln in (heading_body(text, lab["assumed"]) or "").splitlines() if (m := ASSUMED.match(ln))]
-            items.append("scope")
+        if name == "sheet.md" or short:
+            items += [prefix + m.group(1) for ln in (heading_body(text, lab["assumed"]) or "").splitlines() if (m := ASSUMED.match(ln))]
+            if name == "sheet.md" or heading_body(text, lab["scope"]) is not None:
+                items.append(prefix + "scope")
     return list(dict.fromkeys(items))
 
 
@@ -190,7 +205,8 @@ def check_answers(state: Path, cfg: dict[str, str]) -> None:
     for item in items:
         if item.lower() not in answered:
             err("Q3", f"item {item} of the sheet has no row in answers.md '## Resolution'", "add the row: | Item | Answer | From |")
-    known = " ".join(read(state / n) or "" for n in ("sheet.md", "sheet-2.md", "answers.md")).lower()
+    names = ("sheet.md", "sheet-2.md", *short_sheet_names(state), "answers.md")
+    known = " ".join(read(state / n) or "" for n in names).lower()
     for token in sorted(mechanism_tokens("\n".join(read(state / n) or "" for n in ("rules.md", "decisions.md")))):
         if token.lower() not in known:
             err("Q3", f"the mechanism `{token}` appears in rules.md or decisions.md and in neither the sheet nor the answers", "ask it in a sheet decision or remove it")
@@ -199,10 +215,12 @@ def check_answers(state: Path, cfg: dict[str, str]) -> None:
 def mechanism_tokens(written: str) -> set[str]:
     found: set[str] = set()
     for line in written.splitlines():
-        if not MECHANISM.search(line):
-            continue
-        for m in CODE_TOKEN.finditer(line):
-            token = (m.group(1) or m.group(2)).strip()
-            if token and "/" not in token and not re.fullmatch(ID, token):
-                found.add(token)
+        for cell in line.split("|"):
+            for segment in SENTENCE.split(cell):
+                if not MECHANISM.search(segment):
+                    continue
+                for m in CODE_TOKEN.finditer(segment):
+                    token = (m.group(1) or m.group(2)).strip()
+                    if token and "/" not in token and not re.fullmatch(ID, token):
+                        found.add(token)
     return found

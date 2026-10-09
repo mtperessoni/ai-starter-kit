@@ -250,6 +250,9 @@ def run(root: Path, cfg: dict, files: list[str], changed: list[str]) -> int:
     native = cfg["tests"].get("native_related", "")
     exts = set(cfg["code_extensions"])
     changed = [f for f in changed if Path(f).suffix in exts]
+    if not changed:
+        print("related: no related tests")
+        return 0
     always = always_files(root, cfg) & set(files)
     plan = []
     if native:

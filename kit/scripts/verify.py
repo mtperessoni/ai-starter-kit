@@ -21,7 +21,7 @@ from close_gate import tree_stamp, valid_slug
 from kit_config import load, repo_root
 
 DETAIL_LINES = 6
-STUCK_ALIVE_S, STUCK_IDLE_S = 1800, 600
+STUCK_ALIVE_S, STUCK_IDLE_S, STUCK_FORGET_S = 1800, 600, 6 * 3600
 TOOL_EVENTS = ("PreToolUse", "PostToolUse", "PostToolUseFailure")
 BASES = ("origin/main", "origin/staging", "origin/master", "main", "staging", "master")
 
@@ -100,7 +100,9 @@ def stuck_agents(root: Path) -> list[str]:
         return []
     now = time.time()
     for agent, seen in live.items():
-        if now - seen["last"] > STUCK_IDLE_S or now - seen["start"] > STUCK_ALIVE_S:
+        if now - seen["start"] > STUCK_FORGET_S:
+            stuck.pop(agent, None)
+        elif now - seen["last"] > STUCK_IDLE_S or now - seen["start"] > STUCK_ALIVE_S:
             stuck[agent] = None
     return list(stuck)
 

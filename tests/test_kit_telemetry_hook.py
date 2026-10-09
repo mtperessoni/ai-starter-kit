@@ -399,7 +399,7 @@ class LauncherTest(unittest.TestCase):
         if not bash:
             self.skipTest("bash not available")
         env = dict(os.environ, CLAUDE_PROJECT_DIR=proj.as_posix())
-        return subprocess.run([bash, "-c", self.launcher()], capture_output=True, text=True, env=env, timeout=30)
+        return subprocess.run([bash, "-s"], input=self.launcher() + "\n", capture_output=True, text=True, env=env, timeout=30)
 
     def test_commands_python_from_ai_kit_json_runs_the_hook(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -436,7 +436,7 @@ class LauncherTest(unittest.TestCase):
             if not bash:
                 self.skipTest("bash not available")
             env = dict(os.environ, CLAUDE_PROJECT_DIR=proj.as_posix(), PATH=bindir.as_posix() + os.pathsep + os.environ["PATH"])
-            r = subprocess.run([bash, "-c", self.launcher()], capture_output=True, text=True, env=env, timeout=30)
+            r = subprocess.run([bash, "-s"], input=self.launcher() + "\n", capture_output=True, text=True, env=env, timeout=30)
             self.assertEqual((r.returncode, r.stdout), (0, ""))
 
     def test_a_failing_stub_is_skipped_for_the_next_interpreter(self):
@@ -458,7 +458,7 @@ class LauncherTest(unittest.TestCase):
             if not bash:
                 self.skipTest("bash not available")
             env = dict(os.environ, CLAUDE_PROJECT_DIR=proj.as_posix(), PATH=bindir.as_posix() + os.pathsep + os.environ["PATH"])
-            r = subprocess.run([bash, "-c", self.launcher()], capture_output=True, text=True, env=env, timeout=30)
+            r = subprocess.run([bash, "-s"], input=self.launcher() + "\n", capture_output=True, text=True, env=env, timeout=30)
             self.assertEqual(r.returncode, 0)
             self.assertTrue((proj / "marker").is_file())
 

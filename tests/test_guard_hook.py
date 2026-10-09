@@ -66,6 +66,19 @@ class DenyTest(unittest.TestCase):
         self.assertIn("-F", run("git commit --amend").stderr)
 
 
+class WrapperBodyTest(unittest.TestCase):
+    def test_heredoc_and_stdin_interpreter_inside_a_wrapper_are_denied(self):
+        for cmd in ["bash -c 'cat <<EOF\nx\nEOF'", "bash -c 'python - <<E\nprint(1)\nE'", "sh -c \"python -\"", 'cmd /c "echo > a.py"',
+                    "cmd /c \"echo x > b.md\""]:
+            with self.subTest(cmd=cmd):
+                self.assertEqual(run(cmd).returncode, 2, cmd)
+
+    def test_quoted_wrapper_bodies_that_only_mention_the_shapes_pass(self):
+        for cmd in ["bash -c 'python -c \"print(1<<3)\"'", "bash -c 'echo hi > out.log'", 'cmd /c "echo hi"']:
+            with self.subTest(cmd=cmd):
+                self.assertEqual(run(cmd).returncode, 0, cmd)
+
+
 class AllowTest(unittest.TestCase):
     def test_allowed_commands_pass_silently(self):
         for cmd in ALLOWED:

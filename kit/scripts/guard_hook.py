@@ -26,7 +26,7 @@ HEREDOC = (re.compile(r"<<<|<<-?[ \t]*(?:''|\"\"|[A-Za-z_\\])"),
            "A heredoc or here-string waits on stdin forever when its delimiter is off, and the process outlives the call. "
            "Put the text in a file with Write, then run the command on that file (a commit message: Write it to a file, then git commit -F <file>).")
 RULES = [
-    (re.compile(B + INTERP + r"\s+(?:-[A-Za-z]+\s+)*-(?:\s|$)"),
+    (re.compile(B + INTERP + r"\s+(?:-[A-Za-z]+\s+)*-(?=[\s'\"]|$)"),
      "An interpreter reading its program from stdin hangs the call. Write the script to a file with Write and run python <file>, or use python -m <module> or python -c."),
     (re.compile(r"\|\s*(?:\S*[/\\])?" + INTERP + r"\s*(?:$|[;&|)])"),
      "Piping into a bare interpreter reads the program from stdin. Write the script to a file with Write and run python <file>, or use python -m <module>."),
@@ -53,7 +53,7 @@ RULES = [
     (re.compile(GIT + r"commit\b[^;&|\n]*(?:-F\s*-|--file(?:=|\s+)-)(?:\s|$)"),
      "git commit reading its message from stdin hangs the call. Write the message to a file with Write, then git commit -F <file>."),
 ]
-WRAPPED_RULES = range(2, len(RULES))
+WRAPPED_RULES = range(len(RULES))
 
 
 def strip_quoted(command):
@@ -80,7 +80,7 @@ def strip_quoted(command):
 
 def redirect_reason(text):
     for target in REDIRECT.findall(text):
-        if CODE_TARGET.search(target):
+        if CODE_TARGET.search(target.rstrip("'\"")):
             return "A shell redirect writes a source or doc file. " + WRITE_WAY
     return None
 
@@ -94,6 +94,8 @@ def blocked_reason(command):
         return HEREDOC[1]
     scans = [(text, range(len(RULES)))]
     if WRAPPER.search(command):
+        if HEREDOC[0].search(command):
+            return HEREDOC[1]
         scans.append((command, WRAPPED_RULES))
     for body, indexes in scans:
         for i in indexes:

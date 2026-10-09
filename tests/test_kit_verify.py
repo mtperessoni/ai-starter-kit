@@ -63,9 +63,10 @@ class VerifyTest(GatesBase):
         self.assertIn("gates.sh reap", self.state("demo", "verify.log").read_text(encoding="utf-8"))
 
     def test_verify_prints_the_stuck_agents_of_the_run(self) -> None:
-        self.events([{"ev": "SubagentStart", "agent": "a1", "ts": 1}, {"ev": "agent_stuck", "agent": "a1", "reason": "alive", "ts": 2},
-                     {"ev": "SubagentStart", "agent": "a2", "ts": 1}, {"ev": "agent_stuck", "agent": "a2", "reason": "idle", "ts": 2},
-                     {"ev": "SubagentStop", "agent": "a2", "ts": 3}])
+        now = time.time()
+        self.events([{"ev": "SubagentStart", "agent": "a1", "ts": now - 60}, {"ev": "agent_stuck", "agent": "a1", "reason": "alive", "ts": now - 50},
+                     {"ev": "SubagentStart", "agent": "a2", "ts": now - 60}, {"ev": "agent_stuck", "agent": "a2", "reason": "idle", "ts": now - 50},
+                     {"ev": "SubagentStop", "agent": "a2", "ts": now - 40}, {"ev": "PreToolUse", "agent": "a1", "ts": now - 30}])
         write(self.p.root, "src/a.py", "x = 1\n")
         r = self.gates("verify", "demo", "--since", "HEAD")
         self.assertIn("stuck agents: a1", r.stdout)
@@ -81,6 +82,14 @@ class VerifyTest(GatesBase):
                      {"ev": "SubagentStop", "agent": "done", "ts": now - 4000}, *pad])
         self.assertGreater((self.p.root / ".ai-kit" / "runs" / "run1" / "events.jsonl").stat().st_size, 1048576)
         self.assertEqual(sorted(verify.stuck_agents(self.p.root)), ["idle", "old"])
+
+    def test_an_agent_that_started_over_six_hours_ago_without_a_stop_is_ignored(self) -> None:
+        verify = script_module("verify")
+        now = time.time()
+        self.events([{"ev": "SubagentStart", "agent": "crashed", "ts": now - 7 * 3600}, {"ev": "PreToolUse", "agent": "crashed", "ts": now - 5},
+                     {"ev": "SubagentStart", "agent": "crashed2", "ts": now - 7 * 3600}, {"ev": "agent_stuck", "agent": "crashed2", "ts": now - 3},
+                     {"ev": "SubagentStart", "agent": "idle", "ts": now - 1000}])
+        self.assertEqual(verify.stuck_agents(self.p.root), ["idle"])
 
     def test_the_nothing_changed_path_skips_reap_unless_something_is_stuck(self) -> None:
         verify = script_module("verify")

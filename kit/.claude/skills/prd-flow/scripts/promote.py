@@ -313,8 +313,10 @@ def plan_edits(root, cfg, slug, files, old, approver, sources, change, state, ho
         all_ids = sorted((approved_ids - hold) | superseded)
         entry_text = complete_entry(log_text, slug, all_ids, files_old, rows, sources) or insert_entry(
             log, changelog_entry(slug, approver, folder, all_ids, files_old, rows, sources))
-        if hold and PROMOTED in entry_text:
-            entry_text = entry_text.replace(PROMOTED, f"{PROMOTED}\n\nHeld planned: {', '.join(sorted(hold))}. Reason: {reason}.", 1)
+        own = entry_match(entry_text, slug) if hold else None
+        if own and PROMOTED in own.group(0):
+            held = own.group(0).replace(PROMOTED, f"{PROMOTED}\n\nHeld planned: {', '.join(sorted(hold))}. Reason: {reason}.", 1)
+            entry_text = entry_text[:own.start()] + held + entry_text[own.end():]
         writes[log] = entry_text
     return writes, stats, approved_ids, superseded, folder, log
 
