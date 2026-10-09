@@ -102,8 +102,9 @@ def read_transcript(path) -> dict | None:
 def human_waits(events: list[dict]) -> list[tuple[float, float, str]]:
     waits = []
     for i, e in enumerate(events):
-        if str(e.get("tool", "")).lower() == "askuserquestion" and e.get("ms") is not None and e.get("ev") != "PreToolUse":
-            waits.append((e["ts"] - e["ms"] / 1000.0, e["ts"], e.get("agent", "main")))
+        dur = e["wait_ms"] if e.get("wait_ms") is not None else e.get("ms")
+        if str(e.get("tool", "")).lower() == "askuserquestion" and dur is not None and e.get("ev") != "PreToolUse":
+            waits.append((e["ts"] - dur / 1000.0, e["ts"], e.get("agent", "main")))
         elif e.get("ev") == "Notification":
             for n in events[i + 1:]:
                 if n.get("ev") in ("UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure"):
@@ -199,9 +200,11 @@ def summarize(run, findings, cov) -> dict:
     subs = [s for s in spans if s["kind"] == "subagent"]
     top_calls = sorted(det.calls(run), key=lambda c: -c["eff"])[:5]
     mt = run["transcripts"].get("main")
+    main_calls = sum(c["eff"] for c in det.calls(run) if c["e"].get("agent", "main") == "main")
     return {
         "coverage": cov, "findings": findings, "kpis": det.kpi_values(run),
         "totals": {"wall_s": main["wall_s"], "human_wait_s": main["human_wait_s"], "agent_work_s": main["work_s"],
+                   "chief_gen_s": round(max(0.0, main["work_s"] - main_calls), 1),
                    "tokens_main": mt["tokens"] if mt else None,
                    "tokens_subagents": sum(s["tokens"] or 0 for s in subs),
                    "context_peak": max(run["ctx_peaks"].values(), default=None)},

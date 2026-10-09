@@ -15,7 +15,16 @@ SECRET_KV = re.compile(r"\b(\w*(?:TOKEN|SECRET|PASSWORD|KEY|AUTH)\w*)=(\"[^\"]*\
 BEARER = re.compile(r"\bBearer\s+[\w.~+/=-]+", re.I)
 PREFIXED = re.compile(r"\b(?:sk-[\w-]+|gh[po]_\w+|AKIA[0-9A-Z]{8,})")
 GATE_CLASS = {"related": "test.related", "one": "test.related", "offline": "test.full",
-              "integration": "test.full", "full": "test.full", "build": "docker.build"}
+              "integration": "test.full", "full": "test.full", "build": "docker.build", "baseline": "wait.test"}
+POLLING = re.compile(r"\b(?:until|while)\b[^\n]*\bsleep\b|(?:^|[;&|(]|\n)\s*sleep\s+\d|\bseq\s+\d")
+EDIT_CMD = re.compile(r"\bsed\s+(?:-\w+\s+)*-i|\bperl\s+(?:-\w+\s+)*-\w*i|\bcat\s*>|\bgit\s+apply\b|\bpatch\s|\bapply_patch\b"
+                      r"|\bwrite_text\(|\bopen\([^)]*['\"]w")
+CD_TARGET = re.compile(r"(?:\bcd\s+(?:/d\s+)?|\bgit\s+-C\s+|\s-C\s+)(\"[^\"]+\"|'[^']+'|[^\s;&|]+)")
+FIELD = {"mode": re.compile(r"\bmode\s*[:=]\s*`?([\w-]+)", re.I),
+         "task": re.compile(r"\btask\s*[:=]?\s*`?([A-Za-z]*\d[\w.-]*)", re.I),
+         "slug": re.compile(r"\bslug\s*[:=]\s*`?([\w.-]+)", re.I)}
+AUTO_BG_MS = 120000
+LOOKBACK_BYTES = 262144
 RUNNER = re.compile(SEP + r"(?:python\d?\s+-m\s+)?(?:pytest|unittest|jest|vitest|"
                     r"(?:npm|pnpm|yarn)\s+(?:run\s+)?test|go\s+test|cargo\s+test|dotnet\s+test)\b")
 TARGET = re.compile(r"(?:\.(?:py|js|ts|tsx|jsx|go|rs|cs)\b|::|\btest_\w+)")
@@ -34,14 +43,19 @@ def classify(cmd):
     cmd = WRAPPERS.sub(r"\1", cmd)
     m = re.search(r"scripts/gates\.sh\s+(\w+)", cmd)
     if m:
-        return GATE_CLASS.get(m.group(1), "shell")
+        cls = GATE_CLASS.get(m.group(1), "shell")
+        return "chain" if cls.startswith("test.") and EDIT_CMD.search(cmd) else cls
     if re.search(r"\btail\s+-\w*f|\bwhile\s+(?:true|:)\b|\bsleep\s+infinity", cmd):
         return "background.unbounded"
     if re.search(SEP + r"docker(?:-compose)?\b", cmd):
         if re.search(r"\bbuild(?:x)?\b", cmd):
             return "docker.build"
         return "docker.run" if re.search(r"\b(?:run|up)\b", cmd) else "docker.other"
+    if POLLING.search(cmd):
+        return "wait.test"
     if RUNNER.search(cmd):
+        if EDIT_CMD.search(cmd):
+            return "chain"
         args = TARGET_ARGS.search(cmd)
         return "test.single" if args and TARGET.search(args.group(1)) else "test.full"
     if re.search(SEP + r"(?:pip3?|npm|pnpm|yarn|poetry|uv|cargo|go|apt(?:-get)?|brew)\s+(?:install|add|ci|get|sync)\b", cmd):
@@ -49,6 +63,70 @@ def classify(cmd):
     if re.search(SEP + r"git\b", cmd):
         return "git"
     return "shell"
+
+
+def tool_target(p):
+    """Directory a tool call works in: the command's cd or -C target, or the parent of its file path."""
+    ti = p.get("tool_input")
+    if not isinstance(ti, dict):
+        return None
+    base = p.get("cwd") or os.getcwd()
+    raw = None
+    if str(p.get("tool_name", "")).lower() == "bash":
+        m = CD_TARGET.search(str(ti.get("command", "")))
+        raw = m.group(1).strip("\"'") if m else None
+    else:
+        f = ti.get("file_path") or ti.get("path")
+        if f:
+            raw = os.path.dirname(str(f)) or "."
+    if not raw:
+        return None
+    raw = os.path.expanduser(raw)
+    return os.path.normpath(raw if os.path.isabs(raw) else os.path.join(base, raw))
+
+
+def repo_root(p):
+    """The kit root of the call's target; the session root when the target has none."""
+    session = find_root(p.get("cwd"))
+    target = tool_target(p)
+    if target:
+        here = target
+        while True:
+            if os.path.isfile(os.path.join(here, "ai-kit.json")):
+                return here
+            parent = os.path.dirname(here)
+            if parent == here:
+                break
+            here = parent
+    return session
+
+
+def find_back(path, match):
+    """Newest event in the tail of the file that satisfies match."""
+    try:
+        with open(path, "rb") as f:
+            f.seek(0, os.SEEK_END)
+            f.seek(max(0, f.tell() - LOOKBACK_BYTES))
+            lines = f.read().splitlines()
+    except OSError:
+        return None
+    for line in reversed(lines):
+        try:
+            d = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(d, dict) and match(d):
+            return d
+    return None
+
+
+def agent_fields(ti):
+    prompt = str(ti.get("prompt", ""))
+    out = {k: m.group(1) for k, rx in FIELD.items() for m in [rx.search(prompt)] if m}
+    if ti.get("model"):
+        out["model"] = str(ti["model"])
+    out["bg"] = bool(ti.get("run_in_background"))
+    return out
 
 
 def find_root(cwd):
@@ -95,7 +173,7 @@ def context(runs):
     return re.sub(r"[^\w.-]", "-", name or branch(runs) or "default") or "default"
 
 
-def build_event(p, now):
+def build_event(p, now, path=None):
     ev = p.get("hook_event_name", "")
     e = {"ts": now, "ev": ev, "sid": str(p.get("session_id", ""))[:8],
          "agent": p.get("agent_id") or "main"}
@@ -110,10 +188,17 @@ def build_event(p, now):
         if low == "bash":
             raw = str(ti.get("command", ""))
             e["cls"] = classify(raw)
+            e["bg"] = bool(ti.get("run_in_background"))
+            if ti.get("timeout") is not None:
+                e["timeout"] = ti["timeout"]
+            elif not e["bg"] and (p.get("duration_ms") or 0) > AUTO_BG_MS:
+                e["auto_bg"] = True
         else:
             e["cls"] = "wait.human" if low == "askuserquestion" else low
             raw = str(ti.get("file_path") or ti.get("path") or ti.get("pattern") or ti.get("url")
                       or ti.get("description") or "")
+        if tool == "Agent":
+            e.update(agent_fields(ti))
         e["cmd"] = redact(raw)[:160]
         same = {k: v for k, v in ti.items() if k not in NOT_IN_HASH}
         e["h"] = hashlib.sha1(json.dumps(same, sort_keys=True).encode()).hexdigest()[:12]
@@ -121,6 +206,10 @@ def build_event(p, now):
             e["files"] = [ti["file_path"]]
     if "duration_ms" in p:
         e["ms"] = p["duration_ms"]
+    if path and ev == "PostToolUse" and str(tool).lower() == "askuserquestion":
+        pre = find_back(path, lambda d: d.get("ev") == "PreToolUse" and d.get("tuid") == p.get("tool_use_id"))
+        if pre:
+            e["wait_ms"] = max(0, int((now - pre["ts"]) * 1000))
     if ev == "PostToolUseFailure":
         e["err"] = True
         e["intr"] = bool(p.get("is_interrupt"))
@@ -139,6 +228,11 @@ def build_event(p, now):
         e["tp"] = p.get("transcript_path")
     if ev == "SubagentStop":
         e["tp"] = p.get("agent_transcript_path")
+        start = path and find_back(path, lambda d: d.get("ev") == "SubagentStart" and d.get("agent") == e["agent"])
+        if start:
+            e["dur_ms"] = max(0, int((now - start["ts"]) * 1000))
+        if "background_tasks" in p:
+            e["bg"] = len(p.get("background_tasks") or [])
     if p.get("trigger"):
         e["trigger"] = p["trigger"]
     if ev == "PreCompact":
@@ -233,15 +327,16 @@ class Lock:
 
 def main():
     p = json.loads(sys.stdin.read())
-    root = find_root(p.get("cwd"))
+    root = repo_root(p)
     runs = os.path.join(root, ".ai-kit", "runs")
     os.makedirs(runs, exist_ok=True)
     ctx = context(runs)
     folder = os.path.join(runs, ctx)
     os.makedirs(folder, exist_ok=True)
     now = time.time()
-    e = build_event(p, now)
     path = os.path.join(folder, "events.jsonl")
+    e = build_event(p, now, path)
+    e["repo"] = root
     max_mb = 5
     try:
         with open(os.path.join(root, "ai-kit.json"), encoding="utf8") as f:

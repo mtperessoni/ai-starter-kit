@@ -242,5 +242,87 @@ class FoundInTheRealEvaluation(HookCase):
         return self.events("h")[-1]
 
 
+class RunSpeedTelemetryTest(HookCase):
+    """W5.3: repo routing, agent fields, Bash timeout and bg, waits, durations and chains."""
+
+    def other_repo(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        repo = Path(tmp.name)
+        (repo / "ai-kit.json").write_text("{}", encoding="utf8")
+        return repo
+
+    def send(self, ev, tool=None, ti=None, ctx="t", read=True, **kw):
+        p = {"session_id": "s1", "hook_event_name": ev, **kw}
+        if tool:
+            p.update(tool_name=tool, tool_input=ti or {}, tool_use_id=kw.get("tool_use_id", "tu"))
+        self.run_hook(p, {"AI_KIT_CONTEXT": ctx})
+        return self.events(ctx) if read else None
+
+    def test_bash_cd_target_routes_the_event_to_that_repo(self):
+        other = self.other_repo()
+        self.send("PreToolUse", "Bash", {"command": f'cd "{other.as_posix()}" && git status'}, read=False)
+        path = other / ".ai-kit" / "runs" / "t" / "events.jsonl"
+        e = json.loads(path.read_text(encoding="utf8").splitlines()[-1])
+        self.assertEqual(Path(e["repo"]).resolve(), other.resolve())
+        self.assertFalse((self.proj / ".ai-kit" / "runs" / "t" / "events.jsonl").exists())
+
+    def test_git_dash_c_and_file_paths_route_too(self):
+        other = self.other_repo()
+        self.send("PreToolUse", "Bash", {"command": f"git -C {other.as_posix()} log"}, read=False)
+        self.send("PostToolUse", "Edit", {"file_path": str(other / "src" / "a.py")}, tool_use_id="t2", read=False)
+        lines = (other / ".ai-kit" / "runs" / "t" / "events.jsonl").read_text(encoding="utf8").splitlines()
+        self.assertEqual(len(lines), 2)
+
+    def test_no_target_falls_back_to_the_session_root(self):
+        self.send("PreToolUse", "Bash", {"command": "echo hi"})
+        e = self.events("t")[-1]
+        self.assertEqual(Path(e["repo"]).resolve(), self.proj.resolve())
+
+    def test_agent_event_fields(self):
+        prompt = "Task K3, item W5.3.\nmode: close\nslug: run-speed\ntask: K3"
+        self.send("PreToolUse", "Agent", {"prompt": prompt, "model": "sonnet", "run_in_background": True,
+                                          "subagent_type": "prd-flow-executor"})
+        e = self.events("t")[-1]
+        self.assertEqual((e["mode"], e["task"], e["slug"], e["model"], e["bg"]), ("close", "K3", "run-speed", "sonnet", True))
+
+    def test_bash_bg_timeout_and_auto_bg(self):
+        e = self.send("PostToolUse", "Bash", {"command": "make", "timeout": 600000}, duration_ms=300000)[-1]
+        self.assertEqual((e["bg"], e["timeout"], e.get("auto_bg", False)), (False, 600000, False))
+        e = self.send("PostToolUse", "Bash", {"command": "make"}, duration_ms=130000, tool_use_id="b")[-1]
+        self.assertNotIn("timeout", e)
+        self.assertTrue(e["auto_bg"])
+        e = self.send("PostToolUse", "Bash", {"command": "make"}, duration_ms=5000, tool_use_id="c")[-1]
+        self.assertFalse(e.get("auto_bg", False))
+        e = self.send("PreToolUse", "Bash", {"command": "make", "run_in_background": True}, tool_use_id="d")[-1]
+        self.assertTrue(e["bg"])
+
+    def test_askuserquestion_wait_ms_comes_from_the_pre_event(self):
+        pre = self.send("PreToolUse", "AskUserQuestion", {"questions": []}, tool_use_id="q1")[-1]
+        time.sleep(0.3)
+        post = self.send("PostToolUse", "AskUserQuestion", {"questions": []}, tool_use_id="q1", duration_ms=1)[-1]
+        self.assertGreaterEqual(post["wait_ms"], 250)
+        self.assertNotIn("wait_ms", pre)
+
+    def test_wait_test_class_for_polling_and_baseline(self):
+        for cmd in ("until grep -q done out.txt; do sleep 5; done", "sleep 30", "for i in $(seq 1 20); do ls; done",
+                    "scripts/gates.sh baseline my-slug"):
+            with self.subTest(cmd=cmd):
+                self.assertEqual(self.bash(cmd)["cls"], "wait.test")
+        self.assertEqual(self.bash("sleep infinity")["cls"], "background.unbounded")
+
+    def test_subagent_stop_carries_dur_ms_and_bg(self):
+        self.send("SubagentStart", agent_id="ag1", agent_type="x")
+        time.sleep(0.3)
+        e = self.send("SubagentStop", agent_id="ag1", agent_type="x", background_tasks=[{"id": "b"}])[-1]
+        self.assertGreaterEqual(e["dur_ms"], 250)
+        self.assertEqual(e["bg"], 1)
+
+    def test_edit_plus_test_is_a_chain(self):
+        self.assertEqual(self.bash("sed -i 's/a/b/' src/x.py && pytest tests/test_x.py")["cls"], "chain")
+        self.assertEqual(self.bash("cat > t.py <<EOF\nx\nEOF\npython -m unittest tests.t")["cls"], "chain")
+        self.assertEqual(self.bash("pytest tests/test_x.py > out.txt")["cls"], "test.single")
+
+
 if __name__ == "__main__":
     unittest.main()

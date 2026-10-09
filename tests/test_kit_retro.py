@@ -478,5 +478,58 @@ class KpiTests(unittest.TestCase):
         self.assertFalse([k for k in f if k.startswith("kpi_")])
 
 
+class RunSpeedDetectorTests(unittest.TestCase):
+    def test_polling_calls_are_flagged(self):
+        log = Log()
+        a = log.call(cls="wait.test", cmd="until grep -q done out.txt; do sleep 5; done", dur=30)
+        b = log.call(cls="wait.test", cmd="sleep 30", dur=30)
+        log.call(cls="wait.test", cmd="scripts/gates.sh baseline x", dur=30)
+        f, _ = findings(project(log.ev))
+        self.assertEqual(f["poll_calls"]["value"], 2)
+        self.assertEqual(f["poll_calls"]["evidence"]["seq"], [a, b])
+
+    def test_background_alive_at_handback(self):
+        log = Log()
+        log.add("SubagentStart", agent="ag1", atype="x")
+        seq = log.add("SubagentStop", agent="ag1", atype="x", bg=2)
+        log.add("SubagentStart", agent="ag2", atype="x")
+        log.add("SubagentStop", agent="ag2", atype="x", bg=0)
+        f, _ = findings(project(log.ev))
+        self.assertEqual((f["bg_alive_at_return"]["value"], f["bg_alive_at_return"]["evidence"]["seq"]), (2, [seq]))
+
+    def test_long_bash_without_timeout(self):
+        log = Log()
+        seq = log.call(dur=150, cmd="make", auto_bg=True)
+        log.call(dur=150, cmd="make", timeout=600000)
+        f, _ = findings(project(log.ev))
+        self.assertEqual(f["no_timeout"]["evidence"]["seq"], [seq])
+        self.assertEqual(f["no_timeout"]["value"], 1)
+
+    def test_baseline_inside_a_non_chief_agent(self):
+        log = Log()
+        log.call(cmd="scripts/gates.sh baseline s", agent="main")
+        seq = log.call(cmd="scripts/gates.sh baseline s", agent="ag1")
+        f, _ = findings(project(log.ev))
+        self.assertEqual(f["baseline_in_agent"]["evidence"]["seq"], [seq])
+        self.assertEqual(f["baseline_in_agent"]["evidence"]["agent"], "ag1")
+
+    def test_chief_generation_time_in_the_report(self):
+        log = Log()
+        log.add("SessionStart")
+        log.call(dur=10)
+        log.add("Stop", gap=100)
+        f, s = findings(project(log.ev))
+        self.assertAlmostEqual(s["totals"]["chief_gen_s"], 100.0, delta=5)
+        md = retro.render("c", s)
+        self.assertIn("chief_gen_s", md)
+
+    def test_ask_wait_uses_wait_ms_when_present(self):
+        log = Log()
+        log.add("PreToolUse", tool="AskUserQuestion", tuid="q", cls="wait.human")
+        log.add("PostToolUse", gap=60, tool="AskUserQuestion", tuid="q", cls="wait.human", ms=1, wait_ms=60000)
+        _, s = findings(project(log.ev))
+        self.assertAlmostEqual(s["totals"]["human_wait_s"], 60.0, delta=1)
+
+
 if __name__ == "__main__":
     unittest.main()

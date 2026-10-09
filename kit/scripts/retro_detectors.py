@@ -1,5 +1,6 @@
 """Retro detectors (RT12): each takes the parsed run and the thresholds, returns findings only past a threshold."""
 
+import re
 import subprocess
 import time
 from pathlib import Path
@@ -9,6 +10,7 @@ DEFAULTS = {
     "subagent_tools": 50, "context_peak_tokens": 200000, "big_output_kb": 20, "loop_repeats": 3,
     "edit_repeats": 8, "error_rate": 0.15, "memory_mb": 2048, "disk_drop_mb": 1024, "dead_mb": 500,
     "max_events_mb": 5, "keep_days": 14, "doc_reads": 3,
+    "poll_calls": 0, "no_timeout_s": 120,
     "kpi_main_calls": 30, "kpi_inline_reads": 0, "kpi_gate_runs_main": 4, "kpi_parallel_factor_min": 1.5,
 }
 EDIT_TOOLS = {"edit", "write", "multiedit"}
@@ -262,6 +264,55 @@ def doc_reads(run, th):
     yield finding("doc_reads", len(ranked[0][1]), th["doc_reads"], ranked[0][1], "main", "; ".join(parts), sev="medium")
 
 
+def _tool_calls(run, tool="bash"):
+    """One event per call: the Post when it exists, else the Pre."""
+    seen, out = {}, []
+    for e in run["events"]:
+        if str(e.get("tool", "")).lower() != tool or e.get("ev") not in ("PreToolUse", "PostToolUse", "PostToolUseFailure"):
+            continue
+        key = e.get("tuid") or id(e)
+        if key not in seen:
+            seen[key] = len(out)
+            out.append(e)
+        elif e["ev"] != "PreToolUse":
+            out[seen[key]] = e
+    return out
+
+
+POLL_CMD = re.compile(r"\b(?:until|while)\b[^\n]*\bsleep\b|(?:^|[;&|(]|\n)\s*sleep\s+\d|\bseq\s+\d")
+
+
+def poll_calls(run, th):
+    polls = [e for e in _tool_calls(run) if POLL_CMD.search(e.get("cmd") or "")]
+    if len(polls) > th["poll_calls"]:
+        yield finding("poll_calls", len(polls), th["poll_calls"], [e["seq"] for e in polls], polls[0].get("agent", "main"),
+                      _cmd(polls[0]), "TS45", "medium", "until, sleep or seq loops wait on a process the harness can notify")
+
+
+def bg_alive_at_return(run, th):
+    alive = [e for e in run["events"] if e.get("ev") == "SubagentStop" and (e.get("bg") or 0) > 0]
+    if alive:
+        yield finding("bg_alive_at_return", sum(e["bg"] for e in alive), 0, [e["seq"] for e in alive], alive[0].get("agent", "main"),
+                      alive[0].get("atype", ""), "TS51", "medium", "background processes alive when an agent handed back")
+
+
+def no_timeout(run, th):
+    slow = [e for e in _tool_calls(run) if e.get("ev") != "PreToolUse" and not e.get("bg") and e.get("timeout") is None
+            and (e.get("auto_bg") or (e.get("ms") or 0) > th["no_timeout_s"] * 1000)]
+    if slow:
+        yield finding("no_timeout", len(slow), 0, [e["seq"] for e in slow], slow[0].get("agent", "main"), _cmd(slow[0]), "TS45",
+                      "medium", f"Bash calls over {th['no_timeout_s']} s with no timeout set")
+
+
+def baseline_in_agent(run, th):
+    seen = set()
+    for e in _tool_calls(run):
+        if e.get("agent", "main") != "main" and re.search(r"gates\.sh\s+baseline|baseline\.py", e.get("cmd") or "") and e.get("tuid") not in seen:
+            seen.add(e.get("tuid"))
+            yield finding("baseline_in_agent", 1, 0, [e["seq"]], e["agent"], _cmd(e), "TS45", "medium",
+                          "the chief records the baseline once, in the background")
+
+
 GATE_CMD = ("gate.py", "gates.sh")
 
 
@@ -305,4 +356,4 @@ def kpis(run, th):
 
 DETECTORS = [long_call, slow_test, full_suite_mid_task, long_subagent, heavy_subagent, context_peak, auto_compaction,
              big_output, loop, error_rate, memory, disk_drop, docker_outside_gates, unbounded_background, dead_files,
-             killed_call, doc_reads, kpis]
+             killed_call, doc_reads, kpis, poll_calls, bg_alive_at_return, no_timeout, baseline_in_agent]
