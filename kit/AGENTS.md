@@ -33,6 +33,7 @@ scripts/gates.sh clean-outputs     # Delete old or oversized background task out
 scripts/gates.sh context NAME      # Name the run for telemetry (prd-flow does it with the slug)
 scripts/gates.sh retro             # End of a delivery: what was slow, expensive, looping or wasteful
 scripts/gates.sh reap              # Kill stuck processes of this session by PID tree, never by image name
+scripts/gates.sh cleanup [slug]    # Start and end of every prd-flow case: reap, task outputs, stale state; prints left: 0
 ```
 
 The stack commands behind each target are in `ai-kit.json`.
@@ -40,6 +41,7 @@ The stack commands behind each target are in `ai-kit.json`.
 ### Testing while working
 - For a person: `scripts/gates.sh related` finds the mirror test of each changed module and every test that imports it, runs them, and prints only failures and the summary. Add lint of the touched files.
 - A prd-flow executor runs only its own test, then `scripts/gates.sh fix-files <its files>` and `lint-files <its files>`; the chief runs one `scripts/gates.sh verify <slug>` per wave.
+- Subagents never run a command in the background: a long one runs in the foreground with an explicit timeout under 600 s, output to a file. Only the prd-flow chief starts background work (baseline, verify, compare, watch).
 - Never kill processes by image name (`taskkill /IM`, `pkill`, `killall`); use `scripts/gates.sh reap`.
 - The full suite runs once, at the end of a delivery, compared with the recorded baseline of failures. A failure unrelated to what you touched waits for the end.
 - Redirect test output to a file and read only the failures and the summary.
@@ -77,7 +79,7 @@ Violating any of these breaks the architecture or the safety model. Follow stric
 
 - `<folder>/`: `<its role, the areas with files there and its map>`; one line per real folder, filled at install (layout in `docs/code-structure.md`; feature folders are recommended, not required)
 - `tests/integration/`, `tests/eval/`, and unit tests where `docs/trd/testing.md` says
-- `changes/NNN-<slug>/`: one folder per change in flight (`brief.md` for size M and L, `design.md` for size L, `plan.md`). Holds intent, plan and state, never truth
+- `changes/NNN-<slug>/`: one folder per change in flight (`decisions.md` and `plan.md`; `brief.md` and `design.md` for size L). Holds intent, plan and decisions, never truth
 - `changes/archive/`: finished changes, moved there with `git mv` when promoted. History only, never read for current behavior
 - `docs/prd/`, `docs/trd/`, `docs/adr/`, `docs/code-structure.md`, `docs/flow.md`
 
@@ -86,7 +88,7 @@ Violating any of these breaks the architecture or the safety model. Follow stric
 Living truth plus change folders, in this order. Do not skip steps.
 
 1. `/prd-flow` classifies the request; a rule change updates PRD and TRD and produces the plan. Product changes run through prd-flow, whose main thread coordinates the agents (`.claude/agents/prd-flow-*`) and executes no task; the executor `close` mode promotes, commits and runs the closing gate
-2. The change folder by size, decided at classification: **S** no folder or only `plan.md`; **M** `brief.md` and `plan.md`; **L** `brief.md`, `design.md` and `plan.md`. The plan header carries a `## Constitution check`
+2. The change folder by size, decided at classification: **S** no folder (a task card in the state folder); **M** `decisions.md` and `plan.md`; **L** also `brief.md` and `design.md`. The plan header carries a `## Constitution check`
 3. Implementation test first, one task per agent, one commit per task. A commit that touches source folders ends with a trailer naming the rule IDs it serves (`Rules: CHK-02, CHK-05`) or, when it serves none, the reason in at most 8 words (`Case: none (dependency bump)`); `scripts/gates.sh trailers` checks it
 4. Gates before merge: lint, type check, full suite green, coverage not decreasing, ratchet green
 5. Promote: what is durable goes to its living home (PRD, TRD, ADR, schema or contract) and the folder is archived with `git mv changes/NNN-<slug> changes/archive/NNN-<slug>`
@@ -110,4 +112,4 @@ Keeping it true:
 
 ## Handing work to a subagent
 
-Paste the rule rows it must implement (its contract) and point to files for everything else: the PRD file, the TRD feature file, the files it owns and the commands to run. Never paste whole documents. It returns at most 20 lines with the five fields `Status`, `Files:`, `Commit:`, `Route:`, `Next:`, writes longer output to files, never opens another subagent, and stops at about 50 tool calls or 30 minutes to report.
+Paste the rule rows it must implement (its contract) and point to files for everything else: the PRD file, the TRD feature file, the files it owns and the commands to run. Never paste whole documents. A prd-flow agent follows the cap in `.claude/skills/prd-flow/reference/run.md` "Every agent"; any other subagent returns at most 20 lines with the five fields `Status`, `Files:`, `Commit:`, `Route:`, `Next:`, writes longer output to files, never opens another subagent, and stops at about 50 tool calls or 30 minutes to report.

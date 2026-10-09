@@ -1,10 +1,10 @@
 # prd-flow · repository adapter
 
-The only repository-specific file of the skill. Every other file of the skill is generic and reads its values from here. Filled by `/ai-kit install`; fill any remaining `<...>`; delete rows that do not apply rather than leaving them empty.
+The only repository-specific file of the skill. Filled by `/ai-kit install`; fill any remaining `<...>`; delete rows that do not apply.
 
 ## Gate config
 
-Parsed by `scripts/gate.py`. Keep the two-column table format and the key names.
+Parsed by the scripts. Keep the two-column table format and the key names.
 
 | Key | Value |
 |---|---|
@@ -33,45 +33,29 @@ Parsed by `scripts/gate.py`. Keep the two-column table format and the key names.
 | trd_budget_lines | 250 |
 | prd_section_budget_lines | 200 |
 
-`sheet_labels`: the headings and field labels of `sheet.md` in this order (comma list); the sheet lint reads them, so a repository in another `language` translates them here. `plain_words`: words the user never says; the sheet lint (S4) flags them in a decision title or option. `plan_strict`: `yes` makes the plan alignment checks P11 and P13 to P16 errors instead of warnings. `shared_files`: comma-separated files several tasks tend to touch (settings, allowlists, config modules); the wave gate P17 fails when two tasks of one wave touch the same one.
-
-`prd_section_budget_lines`: lines a PRD section file may have before G31 warns; a section over it splits into smaller section files, so the rows a change reads stay bounded as the product grows.
-
-`proposed_marker`: the word inside `*(proposed)*`, the marker of a rule that comes only from documents. G30 fails `--final` while one is left.
-
-`html_mode`: `generated` (the pages are built by `/docs-html`; the default gate warns when one is stale, G29 and G32, and `gate.py --html` fails) or `hand` (not built nor checked; one G5 warning until `/ai-kit update` migrates it). Absent key means `hand`. No prd-flow step ever touches the HTML.
-
-`html_template`: the template both builds render into (`html` and `trd_html`).
-
-`trd_html`: the TRD reading page, rendered from `trd_dir` and `docs/flow.md` by `/docs-html`. `none` opts out.
-
-`trd_budget_lines`: lines a TRD file may have before G26 warns; an area over it splits into parts (`reference/trd-planned.md`).
-
-`language`: language of the PRD and TRD prose, the interview and the gate output. IDs, code, commits and file names stay English. The installer sets it from the language of the existing docs.
-
-`planned_heading`: the level-2 TRD heading that lists rules not built yet; G8 checks the IDs under it and G20 fails `--final` while it exists. Set it to the project's own word (for example `Planejado`).
-
-`via_header`: the last header column of a rule table (for example `Muda via`). Only rows of tables with this column are rules: `--trace`, `--status` and G3 skip the IDs of other tables, such as open questions.
-
-`html`: the PRD reading page (one tab per PRD), rendered from `docs/prd/` by `/docs-html` and never edited. `none` only for a repository that explicitly opts out.
+| Key | Meaning |
+|---|---|
+| `language` | Prose of PRD, TRD, sheet and gate output; IDs, code, commits and file names stay English |
+| `sheet_labels` | Headings and labels of `sheet.md`, in order; translate them for another `language` |
+| `plain_words` | Words the user never says; S4 flags them in a decision title or option |
+| `plan_strict` | `yes` makes the shared-file wave check P17 an error |
+| `shared_files` | Files several tasks tend to touch; P17 when two tasks of one wave touch one |
+| `planned_heading`, `via_header` | The TRD heading of rules not built yet (G8, G20), and the last column that marks a rule table (G3) |
+| `proposed_marker`, `pending_marker`, `planned_source` | Marker words of rule rows; G30 fails `--final` while a proposed row is left |
+| `prd_section_budget_lines`, `trd_budget_lines`, `pack_budget_lines`, `plan_budget_kb` | Size warnings (G31, G26, pack, plan); over budget, split |
+| `html`, `trd_html`, `html_template`, `html_mode` | Reading pages built only by `/docs-html`; `generated` warns when stale (G29, G32), `hand` (default) warns once (G5); `none` opts out |
 
 ## Commands
 
 Always through `scripts/gates.sh`; the stack commands behind each target are in `ai-kit.json` ("commands", "tests").
 
-| Purpose | Command |
+| Who | `scripts/gates.sh` targets |
 |---|---|
-| Related tests of a change (a diagnostic for a person; agents use `verify`) | `scripts/gates.sh related [files]` (ratchet, then mirror tests and importers; only failures and the summary are printed, the log goes to `.claude/prd-flow/state/_tests/`) |
-| One test file, no coverage | `scripts/gates.sh one <file>` |
-| Wave verification (chief, once per wave) | `scripts/gates.sh verify <slug>` |
-| Baseline, started by the chief after the plan commit (background Bash) | `scripts/gates.sh baseline <slug>` |
-| Full suite, once at the end, against the baseline | `scripts/gates.sh compare <slug>` |
-| Lint, verify only | `scripts/gates.sh lint` |
-| Lint, repair | `scripts/gates.sh fix`, then `lint` |
-| Import and cycle check | `scripts/gates.sh imports` |
-| Structure ratchet | `scripts/gates.sh ratchet` |
-| Python interpreter | the output of `scripts/gates.sh python` |
-| Move code by line range (C6 only) | `scripts/gates.sh move <source> <start>-<end> <destination> [<line>]` |
+| A person | `related [files]` (agents rely on `verify`) |
+| Executor | `one <file>`, `red <test>`, `fix-files <files>` then `lint-files <files>`, `move <src> <start>-<end> <dst> [<line>]` (C6 only) |
+| Surveyor | `prd-sweep --ids <IDs> --terms "<words>" --out <state>/sweep.md` |
+| Chief | background: `baseline`, `verify`, `compare`, `watch <slug> [--minutes N]`; foreground: `cleanup [<slug>]`, `reap` |
+| Anyone | `python` (the interpreter), `lint`, `fix` then `lint`, `imports`, `ratchet` |
 
 ## Layout
 
@@ -97,7 +81,7 @@ Always through `scripts/gates.sh`; the stack commands behind each target are in 
 
 ## Reviewers
 
-Findings-only agents in `.claude/agents/`. The docs agent assigns one per task in the plan as the lens of the wave reviewer; `none` is valid.
+Findings-only agents in `.claude/agents/`, assigned per card as `Lens:`; `none` is valid.
 
 | The task touches | Reviewer agent |
 |---|---|
@@ -107,14 +91,14 @@ Findings-only agents in `.claude/agents/`. The docs agent assigns one per task i
 
 ## Protected rules
 
-What a request cannot change by itself. Used by `reference/impact.md`.
+What a request cannot change by itself (`reference/survey.md` "Protected rules").
 
 | Protection | Source | Right path |
 |---|---|---|
 | `<principle>` | constitution `<numeral>` | `<ADR / constitution amendment / no exception>` |
 | Invariant covered by a structural test | `docs/trd/invariants.md` | Changing it is a repository rule change: ADR or constitution amendment |
 
-## Variants and tenants (impact K03, K04)
+## Variants and tenants (K03, K04)
 
 | Item | Where it is documented | Notes |
 |---|---|---|
@@ -123,7 +107,7 @@ What a request cannot change by itself. Used by `reference/impact.md`.
 
 ## Rule owners
 
-Who decides on a section. When a change touches an owned section and the approver is not the owner, the sheet carries an owner item and the change does not proceed until the user states the owner agreed, and the CHANGELOG records `decided by <owner>, written by <approver>`. Delete the rows when nobody owns a section.
+Who decides on a section (K13, `sheet.md` "Owner"). Delete the rows when nobody owns one.
 
 | PRD files (glob) | Owner | How they approve |
 |---|---|---|
@@ -131,19 +115,17 @@ Who decides on a section. When a change touches an owned section and the approve
 
 ## Shared PRDs
 
-PRD folders kept identical in a sibling repository. `gate.py --sibling` fails G28 when they differ (line endings normalized) and warns when the sibling path is absent locally. Delete the rows when none is shared.
+PRD folders kept identical in a sibling repository (G28). Delete the rows when none is shared.
 
 | PRD folder | Sibling repository path | Source of truth |
 |---|---|---|
 | `<docs/prd/triage-documents>` | `<C:/Projects/backend/docs/prd/triage-documents>` | `<this repository or the sibling>` |
 
-## Consumers in sibling repositories (impact K08)
+## Consumers in sibling repositories (K08; `scripts/gates.sh contracts` when snapshots exist)
 
 | Repository | Local path | What to check |
 |---|---|---|
 | `<backend>` | `<C:/Projects/backend>` | `git -C <path> grep -n "<field>" origin/<branch> -- src` (DTO validation, enums) |
-
-K08 uses `scripts/gates.sh contracts` when snapshots are configured. A row here with no snapshot configured is a prompt for trd-create and `/ai-kit install` to propose configuring them.
 
 ## Change routing (docs agent, plan)
 
@@ -155,7 +137,7 @@ K08 uses `scripts/gates.sh contracts` when snapshots are configured. A row here 
 | prompt | `<publish path>`; no code |
 | backend, frontend | Handoff note to `<repo>` with the rule rows; outside this plan |
 
-## Evidence of real sessions (classification)
+## Evidence of real sessions (survey)
 
 | Evidence | Where |
 |---|---|
