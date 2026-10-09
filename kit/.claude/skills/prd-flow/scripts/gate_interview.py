@@ -146,7 +146,12 @@ def check_sheet(target: Path, cfg: dict[str, str]) -> None:
     sheet = target if target.is_file() else target / "sheet.md"
     text = read(sheet)
     if text is None:
-        err("S0", f"{sheet} not found", "write sheet.md with the surveyor in full mode")
+        shorts = short_sheet_names(sheet.parent)
+        if not shorts:
+            err("S0", f"{sheet} not found", "write sheet.md with the surveyor in full mode")
+        for short in shorts:
+            text_short = read(sheet.parent / short) or ""
+            lint_decisions(short, heading_body(text_short, lab["decisions"]) or text_short, lab, cfg)
         return
     if not next((ln for ln in text.splitlines() if ln.strip()), "").startswith("# "):
         err("S0", "sheet without the '# <the change in one line>' title line")
