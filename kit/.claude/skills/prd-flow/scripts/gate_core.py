@@ -230,8 +230,17 @@ def is_proposed(cell: str, cfg: dict[str, str]) -> bool:
 
 
 NON_CODE_ROUTES = {"config", "env", "prompt", "data", "backend", "frontend"}
+OWN_ROUTES = {"config", "env", "prompt", "data"}
 
 
 def is_code_route(via: str) -> bool:
     words = [w for w in re.split(r"[^a-z]+", via.lower()) if w]
     return not words or "code" in words or any(w not in NON_CODE_ROUTES for w in words)
+
+
+def needs_source(via: str) -> bool:
+    """A delivered rule must carry a Source unless its change closes by its own route (config, env, prompt, data).
+
+    backend and frontend are code in another repository: they still need a Source or an explicit hold."""
+    words = [w for w in re.split(r"[^a-z]+", via.lower()) if w]
+    return not words or any(w not in OWN_ROUTES for w in words)

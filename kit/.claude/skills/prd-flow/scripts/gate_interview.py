@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 
 from gate_core import Rules, cells, err, hint, is_table_line
+from state_record import interview_text
 
 STATES = {"user", "doc", "assumed-confirmed", "n/a", "question"}
 BASE_DIMENSIONS = [f"D{n:02d}" for n in range(1, 16)]
@@ -59,12 +60,11 @@ def interview_skeleton() -> None:
 
 
 def check_interview(rules_path: Path, prd: Path, rules: Rules) -> None:
-    path = rules_path.parent / "interview.md"
-    if not path.exists():
-        err("Q3", f"{path.name} not found beside {rules_path.name}")
+    text = interview_text(rules_path.parent)
+    if text is None:
+        err("Q3", f"interview.md not found beside {rules_path.name}")
         interview_skeleton()
         return
-    text = path.read_text(encoding="utf-8")
     blocks = sections(text)
     first = HEADING.search(text)
     short_scope = bool(blocks and blocks[0][0] and first and SHORT_SCOPE.search(text[:first.start()]))
