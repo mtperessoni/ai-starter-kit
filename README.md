@@ -118,6 +118,9 @@ scripts/                        gates.sh (including `close`: suite, lint, traile
 ## Run telemetry
 Hooks record every tool call, subagent, compaction and wait of a run in `.ai-kit/runs/<change>/` (git-ignored), and `scripts/gates.sh` adds the time, memory and disk of each test and build. Outputs are never stored and secrets are redacted. At the end of a delivery `scripts/gates.sh retro` writes `retro.md`: findings only for what passed a threshold of `ai-kit.json` `telemetry` (slow calls, heavy subagents, loops, big outputs, memory, disk), none when the run stayed within all of them. The final report lists them. Rules: [rules/11-telemetry.md](rules/11-telemetry.md).
 
+## Run speed
+Lessons of a 432 minute run ([LS31](rules/09-lessons.md)). `scripts/gates.sh baseline <slug> --bg` records the failures once per plan commit, in a worktree and in the background; `scripts/gates.sh red <test>` proves a test fails first; `scripts/gates.sh docs <slug>` runs every docs check in one cached call. A PreToolUse guard hook (`scripts/agent_guard_hook.py`) stops prd-flow agents from `git stash`, `reset`, `checkout`, `restore` and `commit --amend` in the shared tree and warns on code edits made with `sed -i` or heredocs. The chief never polls: dispatches run in the background, and the retro flags polling loops and processes left alive. Rules: TS43 to TS52, SA48 to SA55, WF65 to WF74 in [rules/](rules/README.md); the prompt contract is `kit/.claude/skills/prd-flow/reference/dispatch.md`.
+
 ## The rules, in short
 
 The full catalog, with the reason for each rule and the file that enforces it, is in [rules/](rules/README.md).

@@ -17,7 +17,7 @@ Read-only. Reports, in at most 25 lines, what drifted from the kit and from its 
 | Change folders | `changes/archive/` exists; no stale folder in `changes/` outside `archive/` on the base branch (`gate.py --final`) |
 | State folder | `.claude/prd-flow/` ignored by git |
 | Container hygiene | A `Dockerfile` or compose file without the `docker` section in `ai-kit.json`, or a compose service, volume or network without the repo label, is drift. Run `scripts/gates.sh guard` (read-only) and report its refusals, the Docker disk file warning and the unlabelled images it lists |
-| Telemetry hooks | `.claude/settings.json` registers `scripts/telemetry_hook.py` for the 12 events of TM03; `.ai-kit/runs/` is git-ignored; the `telemetry` section exists in `ai-kit.json` |
+| Telemetry hooks | `.claude/settings.json` registers `scripts/telemetry_hook.py` (through the launcher command of the kit, never the bare `python scripts/telemetry_hook.py`) for the 12 events of TM03 and `scripts/agent_guard_hook.py` as a PreToolUse hook on `Bash` (SA51, SA53); `tests.failure_regex` captures a real failure line (IN17); `rg` is on PATH (IN18); `.ai-kit/runs/` is git-ignored; the `telemetry` section exists in `ai-kit.json` |
 | Last run's coverage | In `.ai-kit/runs/<latest>/retro.md` (or `summary.json`): the Coverage line; a low share of calls with a duration or no probes means the hook or `run_probe.py` is not wired |
 | Last retro findings | Count and titles of the Findings section of that `retro.md`; none is reported as within every threshold |
 | Leftover prd-gate | `.claude/skills/prd-gate/` or `.claude/prd-gate/` exists, or `Grep "prd-gate"` hits CLAUDE.md, AGENTS.md, the constitution, settings, `ai-kit.json` or `docs/`: drift, fixed by `/ai-kit update` |

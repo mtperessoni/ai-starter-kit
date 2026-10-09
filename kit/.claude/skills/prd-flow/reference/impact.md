@@ -47,10 +47,10 @@ Every conflict K01, K11 or K14 finds is recorded with the same IDs in:
 |---|---|
 | `impact.md` of the state folder and `## Survey` | The `Conflicts:` line, each ID with why it conflicts and the proposed resolution (`rewrite`, `supersede`, or `compatible: <why>`) |
 | `pack.md` | The header line `Conflicts: <IDs>`, or `Conflicts: none` |
-| `approved-rules.md` | One row per ID in the `## Conflicts` table, Resolution and Note left empty for the docs agent in `rules` mode; a conflict to rewrite also gets its row under its file heading with the current text |
+| `rules.md` (rendered to `approved-rules.md`, CE29) | One row per ID in the `## Conflicts` table, Resolution and Note left empty for the docs agent in `rules` mode; a conflict to rewrite also gets its row under its file heading with the current text |
 
 ## Pre-interview states
-The surveyor writes them into the `interview.md` scaffold, one row per dimension D01 to D15 and the extra ones of `repo.md`:
+The surveyor writes them into `## Dimensions` of `rules.md` (rendered as the `interview.md` scaffold, CE29), one row per dimension D01 to D15 and the extra ones of `repo.md`:
 
 | State | Meaning |
 |---|---|
@@ -79,7 +79,7 @@ Q1 · D05 · "The payment provider takes 45 s to answer: what does the customer 
 | Rounds | At most 4 questions per round; more open dimensions make more rounds, in the order that unblocks the most rows |
 | Never asked | Anything the code or the PRD already answers; what an approved row already states; a question whose premise comes from code alone (WF66) |
 | Option cites its row | Each option ends with `[row: <ID>]` or `[row: none]` (for the docs agent and the question lint, never shown to the user); one decision per option, never two choices joined by "and" |
-| Plain words | No word of the jargon list of `repo.md` "Jargon" (words the user never says) in the quoted text; say the effect for the person instead |
+| Plain words | No word of the `plain_words` list of the `repo.md` Gate config (words the user never says) in the quoted text; say the effect for the person instead |
 | Scenario wrong | Every question ends with one option "The scenario is wrong / explain it differently": picking it re-surveys the model, never a rule |
 | Order | Protected rule and rule owner questions first, then the change question, then the interview rounds |
 
@@ -96,7 +96,7 @@ Contexts: product/04: 3 rows · fan-out: no
 Python: <interpreter>
 Protected: none   [or: <rule or invariant> · <source> · <right path>; only a protection the change breaks or touches, an untouched one goes to a Checked: line]
 Owner: none   [or: <owner> owns product/04-*]
-Scaffolds: pack.md, impact.md, interview.md, approved-rules.md, changes/007-checkout-timeout/decisions.md
+Scaffolds: pack.md, impact.md, rules.md, delta.md (rendered: interview.md, approved-rules.md, changes/007-checkout-timeout/decisions.md)
 Confrontation
   <the confrontation, at most 25 lines, 15 in short mode>
 Questions
@@ -170,7 +170,7 @@ Conflicts: <IDs, or "none">
 - out of scope: <path::symbol> <what it does today> (<rule ID>)
 
 ## Pre-interview
-- States in `interview.md`
+- States in `rules.md` `## Dimensions`
 ```
 
 An out-of-scope divergence is listed so the plan copies it under `Leave:` and no task changes it silently.

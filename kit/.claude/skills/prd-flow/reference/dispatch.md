@@ -1,6 +1,6 @@
 # Dispatch (the chief's prompts, background, resume, cross-repo)
 
-Read once by the chief at the start of a run, with `repo.md`; it is the only reference the chief reads. The chief never reads the plan, a diff or a PRD row. Planned rule IDs: WF65, WF67, WF71 (premise, round 0, delta), SA48 (resume), SA50 (ledger), SA54 (background), SA55 (cross-repo).
+Read once by the chief at the start of a run, with `repo.md`; it is the only reference the chief reads. The chief never reads the plan, a diff or a PRD row. Rule IDs (`rules/`): DP01 WF65, DP02 SA54, DP03 SA48, DP04 SA50, DP05 WF71, DP06 TS43, DP07 TS50, DP08 WF73 and DS46, DP09 WF72, DP10 to DP13 SA55; round 0 is WF67.
 
 ## Prompt template
 Short form, one line per dispatch:

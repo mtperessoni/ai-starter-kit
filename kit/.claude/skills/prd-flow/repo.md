@@ -23,11 +23,17 @@ Parsed by `scripts/gate.py`. Keep the two-column table format and the key names.
 | pack_budget_lines | 120 |
 | plan_budget_kb | 60 |
 | proposed_marker | proposed |
+| plain_words | flag, key, handler, payload, endpoint, enum |
+| plan_strict | no |
+| question_lint | warn |
+| shared_files |  |
 | html_mode | generated |
 | html_template | docs/templates/prd.html |
 | trd_html | docs/trd/trd.html |
 | trd_budget_lines | 250 |
 | prd_section_budget_lines | 200 |
+
+`plain_words`: words the user never says; the question lint (Q8) flags them in a prepared question. `plan_strict`: `yes` makes the plan alignment checks P11 and P13 to P16 errors instead of warnings. `question_lint`: `error` makes Q6 to Q9 errors instead of warnings. `shared_files`: comma-separated files several tasks tend to touch (settings, allowlists, config modules); the wave gate P17 fails when two tasks of one wave touch the same one.
 
 `prd_section_budget_lines`: lines a PRD section file may have before G31 warns; a section over it splits into smaller section files, so the rows a change reads stay bounded as the product grows.
 

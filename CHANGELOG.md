@@ -2,6 +2,19 @@
 
 User-visible changes to the kit, newest first. Projects receive them through `/ai-kit update`.
 
+## run speed: one baseline, no polling, a guarded shared tree
+
+Lessons of a 432 minute run (LS31). Rules: TS43 to TS52, SA48 to SA55, CE29, RV18, WF65 to WF74, DS46, IN17, IN18, TM14 to TM16 ([rules/](rules/README.md)).
+
+- Tests: `gates.sh baseline <slug> --bg` runs once per plan commit in a git worktree, cached by commit and lockfile hash, with a lock and a no-progress watchdog; `gates.sh close` fails when it was never started. `related` is exact (full dotted import path, capped, args file), skips an unchanged selection and always adds `tests.always`; `gates.sh red <test>` proves the red step; `gates.sh` resolves one interpreter (`commands.python`).
+- Gates: `gate.py --docs <slug>` (and `gates.sh docs`) runs the docs checks in one cached process; `--final --change <slug>` and `--snapshot <slug>` keep older drift out of a close; `--questions` lints prepared questions (Q6 to Q9); the plan gate checks alignment and `Reached from:` (P11 to P17); `promote.py` reads markers from `repo.md`, takes `--hold` and fails on a delivered rule without Source.
+- Protocol: new `reference/dispatch.md` (premise rule, background by default, resume with SendMessage, dispatch ledger, delta re-survey, cross-repo mode with `.ai-kit/repos.json`); round 0 confirms the domain model; the state record is `rules.md` plus `delta.md` with `interview.md`, `approved-rules.md` and `decisions.md` rendered from it; one batched fix per review round; executor self-check and `Red:` line.
+- Hooks: new PreToolUse guard hook `scripts/agent_guard_hook.py` (blocks `git stash`, `reset`, `checkout`, `restore`, `commit --amend` and a repo-wide `gates.sh fix` for prd-flow agents, warns on `sed -i`, `python -` and heredoc code edits); every hook now launches from `CLAUDE_PROJECT_DIR` and fails open.
+- Telemetry: events carry `repo`, agent fields, `bg`, `timeout`, `wait_ms`, `dur_ms`; new retro detectors `poll_calls` (a sleep inside a loop only), `bg_alive_at_return`, `no_timeout`, `baseline_in_agent`.
+- Install and update verify `tests.failure_regex` on a real failure line and check `rg` on PATH.
+
+On update: add to `ai-kit.json` `commands.python` `""`, `tests.baseline_deselect` `[]`, `tests.baseline_idle_seconds` `300`, `tests.always` `[]`; add `plain_words`, `plan_strict` (`no`), `question_lint` (`warn`) and `shared_files` (empty) to the `repo.md` Gate config; merge the launcher hooks and the guard hook into `.claude/settings.json` keeping the project's own (replace a hook that runs `python scripts/telemetry_hook.py`). Project-owned values to set by hand: `tests.baseline_deselect` (a test that hangs offline), `tests.always` (the structure tests), `tests.junit_xml` per stack (`reports/junit.xml` for python and node), and a mangled `tests.failure_regex` fixed from the recipe (for example `^FAILs+(S+)` to `^FAIL\s+(\S+)`); optional, after a rendered preview, `html_mode: generated`.
+
 ## docs-html: the HTML leaves the change flow
 
 prd-flow, prd-create and trd-create write markdown only; a new `docs-html` skill rebuilds the PRD and TRD reading pages when someone wants them (DS45).

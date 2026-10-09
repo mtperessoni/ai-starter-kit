@@ -5,7 +5,7 @@ IDs, texts and paths in the examples are illustrative: always read the real line
 ## Who writes what
 | Artifact | Writer |
 |---|---|
-| `approved-rules.md` rows, conflict resolutions, Supersedes, `interview.md` answers, `DEC-` rows | docs `rules`, from the answers the chief passes |
+| `rules.md` and `delta.md` (rows, conflict resolutions, Supersedes, answers, `DEC-` rows; `approved-rules.md`, `interview.md` and `decisions.md` are rendered from them, CE29) | docs `rules`, from the answers the chief passes |
 | PRD files, CHANGELOG entry, INDEX, README, ADR | docs `prd-plan` (`short` for a dated section, `c4` for a stale PRD, `context` for one context of a fan-out) |
 | Promotion (markers out, Source in, CHANGELOG excerpts, archive) | `promote.py`, run by `executor close` |
 | An amendment fold or superseded mismatch promote could not decide | docs `fold` |
@@ -13,7 +13,7 @@ IDs, texts and paths in the examples are illustrative: always read the real line
 ## Writer steps (docs `prd-plan`)
 | Step | What the docs agent does |
 |---|---|
-| 1 | Writes the PRD files from `approved-rules.md` (rows literal, with the Example cell when present) |
+| 1 | Writes the PRD files from the rendered `approved-rules.md` (rows literal, with the Example cell when present) |
 | 2 | Updates CHANGELOG and INDEX (never the HTML, section "HTML" below) |
 | 3 | Writes the `Decisions:` block of the CHANGELOG entry from `changes/NNN-<slug>/decisions.md`, and the contract and transition lines (below) |
 | 4 | Runs `gate.py --step prd --rules <approved-rules.md> --applied` once: the default checks, Q4 (a row of the file not in the PRD with identical cells) and G28 |
