@@ -274,6 +274,21 @@ class RunSpeedTelemetryTest(HookCase):
         lines = (other / ".ai-kit" / "runs" / "t" / "events.jsonl").read_text(encoding="utf8").splitlines()
         self.assertEqual(len(lines), 2)
 
+    @unittest.skipUnless(os.name == "nt", "MSYS drive paths exist on Windows only")
+    def test_git_bash_drive_paths_route(self):
+        other = self.other_repo().resolve()
+        msys = "/" + other.drive[0].lower() + other.as_posix()[2:]
+        self.send("PreToolUse", "Bash", {"command": f"cd {msys} && git status"}, read=False)
+        e = json.loads((other / ".ai-kit" / "runs" / "t" / "events.jsonl").read_text(encoding="utf8").splitlines()[-1])
+        self.assertEqual(Path(e["repo"]).resolve(), other)
+
+    def test_dash_c_of_other_tools_does_not_route(self):
+        other = self.other_repo()
+        for cmd in (f"grep -C 3 foo {other.as_posix()}", f"grep -rn -C {other.as_posix()} x"):
+            self.send("PreToolUse", "Bash", {"command": cmd}, read=False)
+        self.assertFalse((other / ".ai-kit").exists())
+        self.assertEqual(len(self.events("t")), 2)
+
     def test_no_target_falls_back_to_the_session_root(self):
         self.send("PreToolUse", "Bash", {"command": "echo hi"})
         e = self.events("t")[-1]
@@ -305,11 +320,16 @@ class RunSpeedTelemetryTest(HookCase):
         self.assertNotIn("wait_ms", pre)
 
     def test_wait_test_class_for_polling_and_baseline(self):
-        for cmd in ("until grep -q done out.txt; do sleep 5; done", "sleep 30", "for i in $(seq 1 20); do ls; done",
+        for cmd in ("until grep -q done out.txt; do sleep 5; done", "for i in 1 2 3; do ls; sleep 2; done",
                     "scripts/gates.sh baseline my-slug"):
             with self.subTest(cmd=cmd):
                 self.assertEqual(self.bash(cmd)["cls"], "wait.test")
         self.assertEqual(self.bash("sleep infinity")["cls"], "background.unbounded")
+
+    def test_a_single_sleep_or_seq_is_not_polling_and_bg_baseline_is_no_wait(self):
+        for cmd in ("sleep 2 && curl x", "seq 1 5", "scripts/gates.sh baseline my-slug --bg"):
+            with self.subTest(cmd=cmd):
+                self.assertNotEqual(self.bash(cmd)["cls"], "wait.test")
 
     def test_subagent_stop_carries_dur_ms_and_bg(self):
         self.send("SubagentStart", agent_id="ag1", agent_type="x")

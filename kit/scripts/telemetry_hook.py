@@ -16,10 +16,11 @@ BEARER = re.compile(r"\bBearer\s+[\w.~+/=-]+", re.I)
 PREFIXED = re.compile(r"\b(?:sk-[\w-]+|gh[po]_\w+|AKIA[0-9A-Z]{8,})")
 GATE_CLASS = {"related": "test.related", "one": "test.related", "offline": "test.full",
               "integration": "test.full", "full": "test.full", "build": "docker.build", "baseline": "wait.test"}
-POLLING = re.compile(r"\b(?:until|while)\b[^\n]*\bsleep\b|(?:^|[;&|(]|\n)\s*sleep\s+\d|\bseq\s+\d")
+POLLING = re.compile(r"\b(?:until|while|for)\b[^\n]*\bsleep\s+\d")
 EDIT_CMD = re.compile(r"\bsed\s+(?:-\w+\s+)*-i|\bperl\s+(?:-\w+\s+)*-\w*i|\bcat\s*>|\bgit\s+apply\b|\bpatch\s|\bapply_patch\b"
                       r"|\bwrite_text\(|\bopen\([^)]*['\"]w")
-CD_TARGET = re.compile(r"(?:\bcd\s+(?:/d\s+)?|\bgit\s+-C\s+|\s-C\s+)(\"[^\"]+\"|'[^']+'|[^\s;&|]+)")
+CD_TARGET = re.compile(r"(?:\bcd\s+(?:/d\s+)?|\bgit\s+-C\s+)(\"[^\"]+\"|'[^']+'|[^\s;&|]+)")
+MSYS_DRIVE = re.compile(r"^/([A-Za-z])(?:/|$)")
 FIELD = {"mode": re.compile(r"\bmode\s*[:=]\s*`?([\w-]+)", re.I),
          "task": re.compile(r"\btask\s*[:=]?\s*`?([A-Za-z]*\d[\w.-]*)", re.I),
          "slug": re.compile(r"\bslug\s*[:=]\s*`?([\w.-]+)", re.I)}
@@ -44,6 +45,8 @@ def classify(cmd):
     m = re.search(r"scripts/gates\.sh\s+(\w+)", cmd)
     if m:
         cls = GATE_CLASS.get(m.group(1), "shell")
+        if cls == "wait.test" and re.search(r"(?:^|\s)--bg\b", cmd):
+            cls = "shell"
         return "chain" if cls.startswith("test.") and EDIT_CMD.search(cmd) else cls
     if re.search(r"\btail\s+-\w*f|\bwhile\s+(?:true|:)\b|\bsleep\s+infinity", cmd):
         return "background.unbounded"
@@ -81,6 +84,10 @@ def tool_target(p):
             raw = os.path.dirname(str(f)) or "."
     if not raw:
         return None
+    if os.name == "nt":
+        m = MSYS_DRIVE.match(raw)
+        if m:
+            raw = m.group(1).upper() + ":" + raw[2:]
     raw = os.path.expanduser(raw)
     return os.path.normpath(raw if os.path.isabs(raw) else os.path.join(base, raw))
 

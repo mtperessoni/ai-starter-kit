@@ -2,19 +2,16 @@
 """PreToolUse guard for Bash inside prd-flow subagents.
 
 Blocks commands that destroy sibling work in a shared tree and warns on code
-edits made through scripts. Applies when the hook input names a prd-flow agent
-(`agent_type`). When a subagent cannot be identified (`agent_id` without
-`agent_type`), only the block list applies, and only in a linked git worktree
-(`.git` is a file). The main thread and other agents are never touched.
-Fails open on any unreadable input.
+edits made through scripts. Applies only when the hook input names a prd-flow
+agent (`agent_type`); the main thread, other agents and unidentified subagents
+are never touched. Fails open on any unreadable input or internal error.
 """
 import json
-import os
 import re
 import sys
 
 OPT = r"(?:\s+(?:-[Cc]\s+\S+|-c\s+\S+|--\S+))*"
-GIT = r"(?:^|[\s;&|(])git" + OPT + r"\s+"
+GIT = r"(?:^|[\s;&|(/])git(?:\.exe)?" + OPT + r"\s+"
 BLOCKS = [
     (re.compile(GIT + r"stash\b"),
      "git stash hides work from sibling agents in the shared tree. Commit your own paths, or leave the file and report it as a gap."),
@@ -53,15 +50,31 @@ def heredoc_free(cmd):
     return "".join(out)
 
 
-def scan_text(cmd):
-    return QUOTED.sub("''", heredoc_free(cmd))
+NESTED = [
+    re.compile(r"(?:^|[\s;&|(])(?:ba|z|da|k)?sh\s+(?:-\w+\s+)*-\w*c\s+(\"(?:[^\"\\]|\\.)*\"|'[^']*')"),
+    re.compile(r"(?:^|[\s;&|(])eval\s+([^\n;&|]+)"),
+    re.compile(r"\$\(([^()\n]*)\)"),
+    re.compile(r"`([^`\n]*)`"),
+]
 
 
-def is_worktree(cwd):
-    try:
-        return os.path.isfile(os.path.join(cwd, ".git"))
-    except OSError:
-        return False
+def nested_payloads(cmd):
+    for rx in NESTED:
+        for m in rx.finditer(cmd):
+            yield m.group(1).strip("\"'")
+
+
+def blocked_reason(cmd, depth=0):
+    text = QUOTED.sub("''", heredoc_free(cmd))
+    for rx, why in BLOCKS:
+        if rx.search(text):
+            return why
+    if depth < 3:
+        for inner in nested_payloads(heredoc_free(cmd)):
+            why = blocked_reason(inner, depth + 1)
+            if why:
+                return why
+    return None
 
 
 def main():
@@ -70,21 +83,13 @@ def main():
         if p.get("tool_name") != "Bash":
             return 0
         cmd = (p.get("tool_input") or {}).get("command") or ""
-        atype = p.get("agent_type") or ""
-        if atype:
-            if not atype.startswith("prd-flow"):
-                return 0
-            warn = True
-        elif p.get("agent_id") and is_worktree(p.get("cwd") or os.getcwd()):
-            warn = False
-        else:
+        if not str(p.get("agent_type") or "").startswith("prd-flow"):
             return 0
-        text = scan_text(cmd)
-        for rx, why in BLOCKS:
-            if rx.search(text):
-                sys.stderr.write("Blocked: " + why + "\n")
-                return 2
-        if warn and any(rx.search(heredoc_free(cmd)) for rx in WARNS):
+        why = blocked_reason(cmd)
+        if why:
+            sys.stderr.write("Blocked: " + why + "\n")
+            return 2
+        if any(rx.search(heredoc_free(cmd)) for rx in WARNS):
             print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": WARN_MSG}}))
     except Exception:
         return 0
@@ -92,4 +97,7 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except Exception:
+        sys.exit(0)

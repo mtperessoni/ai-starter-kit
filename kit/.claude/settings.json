@@ -21,17 +21,17 @@
     "deny": []
   },
   "hooks": {
-    "SessionStart": [{"hooks": [{"type": "command", "command": "python scripts/telemetry_hook.py", "async": true}]}],
-    "UserPromptSubmit": [{"hooks": [{"type": "command", "command": "python scripts/telemetry_hook.py", "async": true}]}],
-    "PreToolUse": [{"matcher": "Bash", "hooks": [{"type": "command", "command": "python scripts/agent_guard_hook.py"}]}, {"matcher": "*", "hooks": [{"type": "command", "command": "python scripts/telemetry_hook.py", "async": true}]}],
-    "PostToolUse": [{"matcher": "*", "hooks": [{"type": "command", "command": "python scripts/telemetry_hook.py", "async": true}]}],
-    "PostToolUseFailure": [{"matcher": "*", "hooks": [{"type": "command", "command": "python scripts/telemetry_hook.py", "async": true}]}],
-    "SubagentStart": [{"hooks": [{"type": "command", "command": "python scripts/telemetry_hook.py", "async": true}]}],
-    "SubagentStop": [{"hooks": [{"type": "command", "command": "python scripts/telemetry_hook.py", "async": true}]}],
-    "Notification": [{"hooks": [{"type": "command", "command": "python scripts/telemetry_hook.py", "async": true}]}],
-    "PreCompact": [{"hooks": [{"type": "command", "command": "python scripts/telemetry_hook.py", "async": true}]}],
-    "PostCompact": [{"hooks": [{"type": "command", "command": "python scripts/telemetry_hook.py", "async": true}]}],
-    "Stop": [{"hooks": [{"type": "command", "command": "python scripts/telemetry_hook.py", "async": true}]}],
-    "SessionEnd": [{"hooks": [{"type": "command", "command": "python scripts/telemetry_hook.py", "async": true}]}]
+    "SessionStart": [{"hooks": [{"type": "command", "command": "f=\"${CLAUDE_PROJECT_DIR:-.}/scripts/telemetry_hook.py\"; py=$(command -v python || command -v python3) || exit 0; [ -f \"$f\" ] || exit 0; exec \"$py\" \"$f\"", "async": true}]}],
+    "UserPromptSubmit": [{"hooks": [{"type": "command", "command": "f=\"${CLAUDE_PROJECT_DIR:-.}/scripts/telemetry_hook.py\"; py=$(command -v python || command -v python3) || exit 0; [ -f \"$f\" ] || exit 0; exec \"$py\" \"$f\"", "async": true}]}],
+    "PreToolUse": [{"matcher": "Bash", "hooks": [{"type": "command", "command": "f=\"${CLAUDE_PROJECT_DIR:-.}/scripts/agent_guard_hook.py\"; py=$(command -v python || command -v python3) || exit 0; [ -f \"$f\" ] || exit 0; exec \"$py\" \"$f\""}]}, {"matcher": "*", "hooks": [{"type": "command", "command": "f=\"${CLAUDE_PROJECT_DIR:-.}/scripts/telemetry_hook.py\"; py=$(command -v python || command -v python3) || exit 0; [ -f \"$f\" ] || exit 0; exec \"$py\" \"$f\"", "async": true}]}],
+    "PostToolUse": [{"matcher": "*", "hooks": [{"type": "command", "command": "f=\"${CLAUDE_PROJECT_DIR:-.}/scripts/telemetry_hook.py\"; py=$(command -v python || command -v python3) || exit 0; [ -f \"$f\" ] || exit 0; exec \"$py\" \"$f\"", "async": true}]}],
+    "PostToolUseFailure": [{"matcher": "*", "hooks": [{"type": "command", "command": "f=\"${CLAUDE_PROJECT_DIR:-.}/scripts/telemetry_hook.py\"; py=$(command -v python || command -v python3) || exit 0; [ -f \"$f\" ] || exit 0; exec \"$py\" \"$f\"", "async": true}]}],
+    "SubagentStart": [{"hooks": [{"type": "command", "command": "f=\"${CLAUDE_PROJECT_DIR:-.}/scripts/telemetry_hook.py\"; py=$(command -v python || command -v python3) || exit 0; [ -f \"$f\" ] || exit 0; exec \"$py\" \"$f\"", "async": true}]}],
+    "SubagentStop": [{"hooks": [{"type": "command", "command": "f=\"${CLAUDE_PROJECT_DIR:-.}/scripts/telemetry_hook.py\"; py=$(command -v python || command -v python3) || exit 0; [ -f \"$f\" ] || exit 0; exec \"$py\" \"$f\"", "async": true}]}],
+    "Notification": [{"hooks": [{"type": "command", "command": "f=\"${CLAUDE_PROJECT_DIR:-.}/scripts/telemetry_hook.py\"; py=$(command -v python || command -v python3) || exit 0; [ -f \"$f\" ] || exit 0; exec \"$py\" \"$f\"", "async": true}]}],
+    "PreCompact": [{"hooks": [{"type": "command", "command": "f=\"${CLAUDE_PROJECT_DIR:-.}/scripts/telemetry_hook.py\"; py=$(command -v python || command -v python3) || exit 0; [ -f \"$f\" ] || exit 0; exec \"$py\" \"$f\"", "async": true}]}],
+    "PostCompact": [{"hooks": [{"type": "command", "command": "f=\"${CLAUDE_PROJECT_DIR:-.}/scripts/telemetry_hook.py\"; py=$(command -v python || command -v python3) || exit 0; [ -f \"$f\" ] || exit 0; exec \"$py\" \"$f\"", "async": true}]}],
+    "Stop": [{"hooks": [{"type": "command", "command": "f=\"${CLAUDE_PROJECT_DIR:-.}/scripts/telemetry_hook.py\"; py=$(command -v python || command -v python3) || exit 0; [ -f \"$f\" ] || exit 0; exec \"$py\" \"$f\"", "async": true}]}],
+    "SessionEnd": [{"hooks": [{"type": "command", "command": "f=\"${CLAUDE_PROJECT_DIR:-.}/scripts/telemetry_hook.py\"; py=$(command -v python || command -v python3) || exit 0; [ -f \"$f\" ] || exit 0; exec \"$py\" \"$f\"", "async": true}]}]
   }
 }
