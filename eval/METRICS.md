@@ -41,6 +41,7 @@ The single scorecard every eval round uses to judge a change to the kit (MAINTAI
 | M6 Implementation versus plan | `plan_coverage`, `plan_drift`, `first_pass_rate`, `review_rounds`, `findings_by_severity`, `review_weighted` (blind findings weighted Critical 8, High 4, Medium 2, Low 1, per 100 changed lines) |
 | M7 Output quality | `prd_fidelity`, `conflict_found`, `conflict_recall`, `contradiction_left`, `gap_recorded`, `traceability`, `single_source` |
 | M8 Protocol | `dispatch_map`, `review_coverage`, `main_violations`, `docs_first` |
+| M9 Interview and context budgets | the interview fields (see "Interview fields"), listed in the report with the other metrics |
 
 ## Definitions of the flow fields
 | Field | Definition |
@@ -81,6 +82,27 @@ Computed by `eval/protocol.py` (detectors in `eval/speed.py`) from every Bash an
 | `verify_runs` | Bash calls that run `gates.sh verify`, by any agent; the chief runs one per wave, so it is not a baseline run | neutral | support, target one per wave (S10: one wave, one). Goal G1 |
 | `agent_test_runs` | Bash calls inside a non-chief subagent that run a test or gate other than one named test file: `gates.sh related`, `baseline`, `compare`, `close`, `verify`, `lint`, `ratchet`, `docs`, `imports`, a whole suite, a directory or several test files (`gates.sh one <file>` and `pytest <file>` do not count) | lower | gate: 0 for related and suite runs in executors (verification belongs to the chief). Goal G1 |
 | `cold_starts` | subagents spawned (already in M4) | lower | support. Goal G3 |
+
+## Interview fields (I8, plan interview-one-pass)
+Computed by `eval/interview_metrics.py` from the transcript events (main and subagents), wired into `transcript.summarize`; all lower is better, counts add over the phases of a two-phase run. Targets are the "Targets on the next real C5" table of `proposals/plan-interview-one-pass.md`.
+
+| Field | Definition | Direction | Target (today) |
+|---|---|---|---|
+| `user_touchpoints` | main `result` events (the chief ended its turn to wait) plus main AskUserQuestion calls before the first code commit; a code commit is a `git commit` whose message is not `docs(...)` | lower | at most 2, 3 with a follow-up (6 to 13) |
+| `repeated_topics` | questions to the user (AskUserQuestion texts and main-thread sentences ending in `?` with 4 or more words) whose significant words (over 3 letters, no stop words) overlap an earlier question by 60% of the smaller set; per session | lower | 0 (3 to 4) |
+| `post_prd_reversals` | cheap proxy: Edit calls after the PRD commit (`git commit` with `docs(...)` and `prd`) on a `docs/prd/` file other than CHANGELOG, INDEX or README whose old text holds a rule ID and differs from the new; None before a PRD commit | lower | 0 (1) |
+| `sheet_decisions` | `**N.` decision items in `sheet.md` (the last Write of it, or the text passed in) | lower, at most 8 | support |
+| `docs_gate_reruns` | `gate.py` runs before the first executor dispatch that repeat a command whose earlier run failed (is_error or `ERROR ` in the result) | lower | at most 1 (5 to 7) |
+| `heredoc_commands` | Bash calls with a heredoc (`<<EOF`), `cat >` or `python -` reading stdin, any agent | lower | 0 (53) |
+| `stuck_minutes` | per subagent, alive (dispatch to last event) minus the time between each of its tool calls and their results, floored at 0, summed | lower | 0 (about 230) |
+| `orphans_at_wave_end` | sum of `reaped: n` and `left: n` in the output of `gates.sh reap` calls; else distinct agents with an `agent_stuck` telemetry event when telemetry is passed; else None | lower | 0 (6, then 1 more) |
+| `questions_after_plan` | questions (as in `repeated_topics`) after the first executor dispatch | lower | 0 (5) |
+| `agents_over_150k` | subagents whose `tokens` (sum of their message usage) exceed 150000 | lower | 0 (7) |
+| `interview_to_code_tokens` | (surveyor plus docs agent tokens) over executor tokens; None without an executor | lower | below 1 (2.06M / 1.72M) |
+| `budget_violations` | list, one line per agent over its context budget: surveyor over 60000 tokens, docs `apply` (description names apply) over 80000, any agent over 150000 | empty | empty |
+| `budget_violation_count` | length of `budget_violations`, the numeric column of the report (group M9) | lower | 0 |
+
+Limits: `repeated_topics` and `user_touchpoints` are per session (a two-phase run adds them); the phase-2 prompt answers the sheet in one block, so an eval run misses the real user's reply rounds; `post_prd_reversals` flags every rule-row edit after the PRD commit, a reversal or not.
 
 Gate targets are read per scenario from `expect_metrics` in each `expected.json` (S9, S10, S11); the verdict is by hand from `rounds.py` columns, the way `main_violations` was before it became automatic. In headless `claude -p` an AskUserQuestion is answered by the scenario's `decisions.md` only through the prompt, so `question_rounds` and `rejected_answers` are mostly 0 in a round and are measured on real runs; the S9 gate is the round 0 model sentence read from the transcript text.
 
