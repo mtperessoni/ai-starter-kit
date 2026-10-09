@@ -108,7 +108,7 @@ class WaveTest(unittest.TestCase):
         return self.p.py(GATE, "--step", "plan", "--plan", "changes/001-orders/plan.md")
 
     def test_waves_and_the_critical_path_are_printed_and_not_counted(self) -> None:
-        r = self.gate(plan(task("T01", "src/a/a.py"), task("T02", "src/b/b.py"), task("T03", "src/c/c.py", "T01")))
+        r = self.gate(plan(task("T01", "src/a/a.py, src/a/test_a.py"), task("T02", "src/b/b.py, src/b/test_b.py"), task("T03", "src/c/c.py, src/c/test_c.py", "T01")))
         lines = r.stdout.splitlines()
         self.assertIn("WAVE 1: T01, T02", lines, r.stdout)
         self.assertIn("WAVE 2: T03", lines, r.stdout)

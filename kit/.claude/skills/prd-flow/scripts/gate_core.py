@@ -34,6 +34,10 @@ DEFAULTS = {
     "html_template": "docs/templates/prd.html",
     "trd_budget_lines": "250",
     "prd_section_budget_lines": "200",
+    "plan_strict": "no",
+    "question_lint": "warn",
+    "plain_words": "flag, key, handler, payload, endpoint, enum",
+    "shared_files": "",
 }
 
 errors: list[str] = []

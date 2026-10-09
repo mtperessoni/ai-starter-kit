@@ -11,6 +11,7 @@ Usage: python .claude/skills/prd-flow/scripts/gate.py [--base REF]
        python .claude/skills/prd-flow/scripts/gate.py --rules <approved-rules.md> --applied
        python .claude/skills/prd-flow/scripts/gate.py --status [--prd <folder>] [--state <state>]
        python .claude/skills/prd-flow/scripts/gate.py --plan <plan.md>
+       python .claude/skills/prd-flow/scripts/gate.py --questions <survey.md>
        python .claude/skills/prd-flow/scripts/gate.py --trace
        python .claude/skills/prd-flow/scripts/gate.py --change <changes/NNN-slug>
        python .claude/skills/prd-flow/scripts/gate.py --final [--change <slug>]
@@ -24,6 +25,9 @@ Usage: python .claude/skills/prd-flow/scripts/gate.py [--base REF]
        python .claude/skills/prd-flow/scripts/gate.py --step plan --plan <plan.md> [--change <changes/NNN-slug>]
 --step: one run per agent step, one report. prd: default run, --rules and --applied when given, --sibling.
         trd: default run and --trd. plan: --plan and --change, plus the computed WAVE table and CRITICAL PATH (Owns overlap in a wave fails).
+--questions: the prepared questions of a Survey: each option cites a row ID or the rule text (Q6), holds one decision (Q7), plain words from repo.md plain_words (Q8), a "scenario is wrong" option (Q9); warnings unless question_lint is error.
+--plan: P11 to P16 (Contract covers the TRD Planned IDs of the Owns, Reached from, at most 8 Owns files, a test path) warn unless plan_strict is yes; P12 (open TRD-only decision) always fails.
+--rules and --applied read rules.md through state_record (approved-rules.md only as the legacy file).
 --rules also runs Q5 (every conflict of the pack is resolved under '## Conflicts', a rewrite keeps its ID).
 G31: a PRD section file over prd_section_budget_lines (warning).
 --rules: rows against the PRD (Q2), the interview.md beside the file (Q3), and G27 for IDs used on remote branches.
@@ -52,7 +56,8 @@ from pathlib import Path
 from gate_core import (
     EM_DASH, ID, ROW, git, is_proposed, joined, literal_rows, load_config, read_md_rules, rule_table_ids, err, warn,
 )
-from gate_interview import check_interview
+from gate_interview import check_interview, check_questions
+from state_record import approved_text
 from gate_budget import added_lines, names_id, check_sections, strip_markers
 from gate_output import base_ref, changed_paths, report, start
 from gate_plan import check_change, check_final, check_plan, check_trace, snapshot_drift
@@ -68,9 +73,9 @@ from gate_trd import check_trd
 from gate_waves import check_waves
 
 
-def approved_ids(path: Path) -> set[str]:
+def approved_ids(text: str) -> set[str]:
     ids = set()
-    for _, line in literal_rows(path.read_text(encoding="utf-8")):
+    for _, line in literal_rows(text):
         m = ROW.match(line)
         if m:
             ids.add(m.group(1))
@@ -148,8 +153,8 @@ def docs_checks(root: Path, cfg, rules, vias, args, repo_md: Path, rules_checks,
     diff = changed_paths(root, cfg, args.base)
     check_trd(root, cfg, trd_rel, {n for n in diff if n.startswith(trd_rel + "/")}, diff)
     if plan:
-        check_plan(plan, rules, cfg)
-        check_waves(plan)
+        check_plan(plan, rules, cfg, root)
+        check_waves(plan, cfg)
     folder = root / "changes"
     if folder.is_dir() and any(d.is_dir() and d.name.endswith(slug) for d in folder.iterdir()):
         args.change = next(d for d in sorted(folder.iterdir()) if d.is_dir() and d.name.endswith(slug))
@@ -164,6 +169,7 @@ def main() -> int:
     parser.add_argument("--pack", type=Path, help="check a pack.md from the state folder")
     parser.add_argument("--rules", type=Path, help="check an approved-rules.md from the state folder")
     parser.add_argument("--plan", type=Path, help="check a plan for agents")
+    parser.add_argument("--questions", type=Path, help="lint the prepared questions of a Survey file (Q6 to Q9)")
     parser.add_argument("--trace", action="store_true", help="every non-planned PRD rule is cited by a test file")
     parser.add_argument("--change", type=Path, help="check a change folder (brief.md, design.md, plan.md)")
     parser.add_argument("--final", action="store_true", help="nothing planned, pending or open is left")
@@ -185,7 +191,7 @@ def main() -> int:
     prd_rel, trd_rel = cfg["prd_dir"].rstrip("/"), cfg["trd_dir"].rstrip("/")
     prd, trd = root / prd_rel, root / trd_rel
     rules = read_md_rules(prd, cfg["prd_glob"], cfg["via_header"])
-    flags = [n for n in ("pack", "rules", "plan", "trace", "change", "final", "trd", "sibling", "html", "snapshot", "docs") if getattr(args, n)]
+    flags = [n for n in ("pack", "rules", "plan", "questions", "trace", "change", "final", "trd", "sibling", "html", "snapshot", "docs") if getattr(args, n)]
     mode = f"step-{args.step}" if args.step else ("-".join(flags) if flags else "default")
     start(mode, root, capped=mode != "trd")
 
@@ -196,17 +202,27 @@ def main() -> int:
     repo_md = Path(__file__).resolve().parents[1] / "repo.md"
 
     def rules_checks() -> None:
-        check_rules(args.rules, rules, cfg, vias)
-        check_conflicts(args.rules, rules)
+        text = approved_text(args.rules.parent)
+        if text is None and args.rules.is_file():
+            text = args.rules.read_text(encoding="utf-8")
+        if text is None:
+            err("Q2", f"no rules.md and no {args.rules.name} in {args.rules.parent}", "write the state record with the docs agent in rules mode")
+            return
+        check_rules(args.rules, rules, cfg, vias, text)
+        check_conflicts(args.rules, rules, text)
         check_interview(args.rules, prd, rules)
         if args.applied:
-            check_applied(args.rules, rules, cfg)
-        warn_remote_ids(root, prd_rel, approved_ids(args.rules) - set(rules))
+            check_applied(args.rules, rules, cfg, text)
+        warn_remote_ids(root, prd_rel, approved_ids(text) - set(rules))
 
     def change_checks() -> None:
         folder = args.change if args.change.is_absolute() else root / args.change
         check_change(folder, rules)
         warn_remote_change(root, folder)
+
+    if args.questions:
+        check_questions(args.questions.read_text(encoding="utf-8"), cfg)
+        return report()
 
     if args.snapshot:
         path = snapshot_drift(root, rules, cfg, trd, slug_of(args.snapshot))
@@ -227,8 +243,8 @@ def main() -> int:
             check_trd(root, cfg, trd_rel, {n for n in diff if n.startswith(trd_rel + "/")}, diff)
         else:
             if args.plan:
-                check_plan(args.plan, rules, cfg)
-                check_waves(args.plan)
+                check_plan(args.plan, rules, cfg, root)
+                check_waves(args.plan, cfg)
             if args.change:
                 change_checks()
         return report(suffix)
@@ -257,7 +273,7 @@ def main() -> int:
         if args.rules:
             rules_checks()
         if args.plan:
-            check_plan(args.plan, rules, cfg)
+            check_plan(args.plan, rules, cfg, root)
         return report()
 
     return report(default_checks(root, cfg, rules, vias, args.base))

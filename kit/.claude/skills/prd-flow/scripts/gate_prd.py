@@ -138,9 +138,9 @@ def rules_skeleton(cfg: dict[str, str]) -> None:
     ])
 
 
-def check_rules(path: Path, rules: Rules, cfg: dict[str, str], vias: set[str]) -> None:
+def check_rules(path: Path, rules: Rules, cfg: dict[str, str], vias: set[str], text: str | None = None) -> None:
     seen: set[str] = set()
-    rows = literal_rows(path.read_text(encoding="utf-8"))
+    rows = literal_rows(text if text is not None else path.read_text(encoding="utf-8"))
     if not rows:
         err("Q2", "no rule row under a '## <file>' or '### <file>'")
         rules_skeleton(cfg)

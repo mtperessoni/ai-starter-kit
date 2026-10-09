@@ -8,6 +8,8 @@ from gate_core import TASK, err, notes, warn
 
 WAVE_SIZE = 4
 DOC_PATH = re.compile(r"\b(?:docs|changes)/[\w./-]+")
+PATH_TOKEN = re.compile(r"[\w./-]+\.\w+")
+SHARED_NAMES = ("ai-kit.json",)
 LABEL = re.compile(r"(?i)\b(creat\w*|consum\w*)\s*:?")
 
 
@@ -35,6 +37,21 @@ def created(block: str) -> str:
     return " ".join(kept)
 
 
+def is_shared(rel: str, extra: list[str]) -> bool:
+    low = rel.lower()
+    return low.rsplit("/", 1)[-1] in SHARED_NAMES or "allowlist" in low or any(fnmatchcase(low, e.lower()) for e in extra)
+
+
+def shared_clashes(wave: list[str], tasks: dict[str, dict], extra: list[str]) -> list[tuple[str, str, str]]:
+    found = []
+    for i, a in enumerate(wave):
+        for b in wave[i + 1:]:
+            for x in sorted(tasks[a]["touches"]):
+                if x in tasks[b]["touches"] and is_shared(x, extra) and not (x in tasks[a]["owns"] and x in tasks[b]["owns"]):
+                    found.append((a, b, x))
+    return found
+
+
 def parse(text: str) -> dict[str, dict]:
     found = TASK.split(text)
     tasks: dict[str, dict] = {}
@@ -45,6 +62,8 @@ def parse(text: str) -> dict[str, dict]:
             "promote": bool(re.match(r"[^\n]*·\s*Promote", block)),
             "creates": created(block),
         }
+        mentioned = {p.rstrip(".,;:)") for p in PATH_TOKEN.findall(tasks[tid]["creates"])}
+        tasks[tid]["touches"] = {*tasks[tid]["owns"], *mentioned}
     return tasks
 
 
@@ -101,7 +120,8 @@ def make_waves(tasks: dict[str, dict], down: dict[str, int], critical: list[str]
     return waves
 
 
-def check_waves(path: Path) -> None:
+def check_waves(path: Path, cfg: dict[str, str] | None = None) -> None:
+    extra = [e.strip() for e in (cfg or {}).get("shared_files", "").split(",") if e.strip()]
     tasks = parse(path.read_text(encoding="utf-8"))
     if not tasks:
         return
@@ -126,6 +146,9 @@ def check_waves(path: Path) -> None:
                 clash = [(x, y) for x in tasks[a]["owns"] for y in tasks[b]["owns"] if shares(x, y)]
                 if clash:
                     err("P7", f"{a} and {b} are in WAVE {n} and both own {clash[0][0]}")
+        if len(wave) > 1:
+            for a, b, x in shared_clashes(wave, tasks, extra):
+                err("P17", f"{a} and {b} are in WAVE {n} and both touch the shared file {x}", "give the shared file one owner per wave: one task edits it, the other depends on that task")
     notes.append(f"CRITICAL PATH: {' > '.join(critical)}")
     for tid, task in tasks.items():
         if task["promote"]:

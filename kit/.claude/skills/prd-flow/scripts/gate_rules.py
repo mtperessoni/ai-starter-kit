@@ -15,9 +15,9 @@ def norm(cell: str) -> str:
     return " ".join(cell.split())
 
 
-def check_applied(path: Path, rules: Rules, cfg: dict[str, str]) -> None:
+def check_applied(path: Path, rules: Rules, cfg: dict[str, str], text: str | None = None) -> None:
     prd_prefix = cfg["prd_dir"].rstrip("/") + "/"
-    for rel, line in literal_rows(path.read_text(encoding="utf-8")):
+    for rel, line in literal_rows(text if text is not None else path.read_text(encoding="utf-8")):
         m = ROW.match(line)
         if not m:
             continue
@@ -37,8 +37,8 @@ def check_applied(path: Path, rules: Rules, cfg: dict[str, str]) -> None:
                     break
 
 
-def check_conflicts(path: Path, rules: Rules) -> None:
-    text = path.read_text(encoding="utf-8")
+def check_conflicts(path: Path, rules: Rules, text: str | None = None) -> None:
+    text = text if text is not None else path.read_text(encoding="utf-8")
     table: dict[str, list[str]] = {}
     for line in section(text, "Conflicts").splitlines():
         m = CONFLICT_ID.match(line.strip())
