@@ -5,7 +5,7 @@ Usage: python scripts/new_failures.py --extract <log> > <baseline-failures.txt>
        python scripts/new_failures.py --require-summary <log>
 The second form prints the failures in <log> that are not in the baseline and exits 1 when there is any; with --exit-code N it also
 exits 1 when the runner exited N != 0 and the log holds no failure line at all. The third form exits 1 (and says so) when the runner
-output has no summary line: the suite died before it finished.
+output has no summary line in its last 30 lines: the suite died before it finished.
 Failure lines are recognized by tests.failure_regex in ai-kit.json (group 1 is the test id); an ERROR line and a timeout or killed
 outcome also count. The summary line is tests.summary_regex (default below, covering pytest, vitest, jest, unittest, go, cargo).
 """
@@ -17,6 +17,7 @@ from pathlib import Path
 from kit_config import load, repo_root
 
 NO_SUMMARY = "suite ended without its summary line"
+SUMMARY_TAIL_LINES = 30
 DEFAULT_SUMMARY = (r"(?:\b\d+ (?:passed|failed|errors?|skipped|deselected|xfailed|xpassed|tests?)\b|\bno tests ran\b|^\s*Tests?:?\s+\d"
                    r"|Test Files\s+\d|^Ran \d+ tests?\b|\btest result:|^(?:ok|FAIL)\s+\S+\s+[\d.]+s)")
 ERROR_LINE = re.compile(r"^ERROR\b[: ]*(\S.*)?$")
@@ -38,7 +39,8 @@ def failures(log: Path, pattern: re.Pattern) -> set[str]:
 
 def has_summary(log: Path, tests: dict) -> bool:
     pattern = re.compile(tests.get("summary_regex") or DEFAULT_SUMMARY)
-    return any(pattern.search(line) for line in log.read_text(encoding="utf-8", errors="replace").splitlines())
+    tail = log.read_text(encoding="utf-8", errors="replace").splitlines()[-SUMMARY_TAIL_LINES:]
+    return any(pattern.search(line) for line in tail)
 
 
 def main() -> int:

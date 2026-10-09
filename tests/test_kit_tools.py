@@ -2,6 +2,7 @@
 
 import json
 import re
+import shutil
 import subprocess
 import sys
 import unittest
@@ -112,8 +113,23 @@ class SettingsCheckTest(unittest.TestCase):
         self.assertIn("settings.local.json", r.stdout)
 
     def test_unrelated_denies_pass(self) -> None:
-        r = self.deny("Read(.env)", "Edit(src/generated/**)", "Bash(rm:*)")
+        r = self.deny("Read(.env)", "Edit(src/generated/**)", "Bash(rm:*)", "Bash(git stash:*)", "Write(*.env)")
         self.assertEqual(r.returncode, 0, r.stdout)
+
+    def test_a_pattern_without_a_slash_matches_at_any_depth(self) -> None:
+        for rule in ("Write(*.md)", "Read(CHANGELOG.md)", "Edit(plan.md)"):
+            with self.subTest(rule=rule):
+                r = self.deny(rule)
+                self.assertEqual(r.returncode, 1, r.stdout)
+                self.assertIn(rule, r.stdout)
+
+    def test_a_bash_deny_that_blocks_the_gates_targets_is_reported(self) -> None:
+        for rule in ("Bash(scripts/gates.sh:*)", "Bash(bash:*)", "Bash(scripts/gates.sh verify:*)", "Bash"):
+            with self.subTest(rule=rule):
+                r = self.deny(rule)
+                self.assertEqual(r.returncode, 1, r.stdout)
+                self.assertIn(rule, r.stdout)
+                self.assertIn("gates.sh", r.stdout)
 
 
 class NextChangeNumberTest(unittest.TestCase):
@@ -158,10 +174,30 @@ class HookLauncherTest(unittest.TestCase):
     def test_every_entry_has_the_same_launcher(self) -> None:
         self.assertEqual(len(set(self.commands())), 1)
 
-    def test_the_configured_python_is_used_without_a_probe(self) -> None:
+    def test_the_configured_python_is_unescaped_and_probed_with_a_fallback(self) -> None:
         command = self.commands()[0]
-        self.assertEqual(command.count("-c pass"), 1, "the probe stays only for the fallback")
-        self.assertRegex(command, r'\[ -z "\$c" \]')
+        self.assertEqual(command.count("-c pass"), 1, "one probe in one loop")
+        self.assertIn(r"s/\\\\/\\/g", command)
+        self.assertIn('for p in "$c" python3 python', command)
+
+    def test_launcher_falls_back_when_the_configured_python_is_bad(self) -> None:
+        if not BASH:
+            self.skipTest("bash not available")
+        p = Project()
+        try:
+            marker = p.root / "ran.txt"
+            write(p.root, "scripts/telemetry_hook.py", f"open(r'{marker}', 'w').write('x')\n")
+            config = json.loads((p.root / "ai-kit.json").read_text(encoding="utf-8"))
+            config["commands"]["python"] = "no-such-python-xyz"
+            write(p.root, "ai-kit.json", json.dumps(config))
+            path = __import__("os").environ["PATH"]
+            r = subprocess.run([BASH, "-c", self.commands()[0]], cwd=p.root, env={**__import__("os").environ, "CLAUDE_PROJECT_DIR": p.root.as_posix(), "PATH": path},  # noqa: S603
+                               capture_output=True, text=True, check=False)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            if shutil.which("python3") or shutil.which("python"):
+                self.assertTrue(marker.exists())
+        finally:
+            p.close()
 
     def test_launcher_runs_the_hook_with_the_configured_python(self) -> None:
         p = Project()

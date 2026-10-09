@@ -251,6 +251,7 @@ def main(argv: list[str]) -> int:
         return 2
     target = root / ".claude" / "prd-flow" / "state" / args.slug
     target.mkdir(parents=True, exist_ok=True)
+    (target / "baseline-failures.txt").unlink(missing_ok=True)
     if args.bg:
         (target / "baseline.status").write_text("running\n", encoding="utf-8")
         flags = {"creationflags": subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt" else {"start_new_session": True}

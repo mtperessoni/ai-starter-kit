@@ -56,9 +56,10 @@ usage: scripts/gates.sh <target> [args]
   ratchet          structure ratchet (docs/code-structure.md)
   docs [slug|args] the prd-flow docs gate; a slug runs every check of the change in one process (gate.py --docs)
   html [args]      rebuild the PRD and TRD HTML pages (build_prd_html.py, build_trd_html.py); --check verifies both
-  close [slug]     the closing ceremony in one block (retro findings and failure lines included): lint, trailers, docs --final, then the
+  close [slug] [--case C2..C6]
+                   the closing ceremony in one block (retro findings and failure lines included): lint, trailers, docs --final, then the
                    compare result against the baseline (read once, never run inline), retro; full log, written per step, in
-                   .claude/prd-flow/state/_close/<slug>.log; exit 1 on a failure
+                   .claude/prd-flow/state/_close/<slug>.log; exit 1 on a failure; --case C4 skips the compare and baseline steps
   trailers [range] commits touching the source folders carry Rules: or Case: none (default origin/<base>..HEAD)
   context <name>   name the run context (.ai-kit/runs/current) for the telemetry
   retro [args]     the run retrospective (scripts/retro.py): --context <name>, --prune
@@ -95,6 +96,7 @@ resolve_python() {
         return 0
     fi
     [ -f ai-kit.json ] && configured="$(sed -n 's/.*"python"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' ai-kit.json | head -n 1)"
+    configured="${configured//\\\\/\\}"
     case "$configured" in
     "" | "<"*) ;;
     *)
@@ -119,9 +121,24 @@ cmd() {
     "$PY" scripts/config_get.py "commands.$1"
 }
 
-# tests.fast_flags (for example "--no-cov -n auto"): added to baseline and compare only when the project declares them.
-fast_flags() {
-    "$PY" scripts/config_get.py tests.fast_flags ""
+# The run keys, read in one Python process: CFG_TEST, CFG_OFFLINE_ARGS, CFG_FAST (tests.fast_flags, for example "--no-cov -n auto":
+# added to baseline and compare only when the project declares them), CFG_UNSET, CFG_FLAG.
+CFG_LOADED=0
+CFG_TEST="" CFG_OFFLINE_ARGS="" CFG_FAST="" CFG_UNSET="" CFG_FLAG=""
+load_run_config() {
+    local line
+    if [ "$CFG_LOADED" -eq 1 ]; then return 0; fi
+    while IFS= read -r line; do
+        line="${line%$'\r'}"
+        case "$line" in
+        commands.test=*) CFG_TEST="${line#*=}" ;;
+        commands.offline_args=*) CFG_OFFLINE_ARGS="${line#*=}" ;;
+        tests.fast_flags=*) CFG_FAST="${line#*=}" ;;
+        commands.offline_unset=*) CFG_UNSET="${line#*=}" ;;
+        commands.offline_flag=*) CFG_FLAG="${line#*=}" ;;
+        esac
+    done < <("$PY" scripts/config_get.py --many commands.test commands.offline_args tests.fast_flags commands.offline_unset commands.offline_flag)
+    CFG_LOADED=1
 }
 
 gate_has() {
@@ -142,7 +159,7 @@ checked() {
 # files_target <name> <fileKey> <wholeKey> <files...>: commands.<fileKey> with {files} on those files only, in chunks of
 # 25 so a Windows command line stays short; unset (empty or a placeholder) falls back to commands.<wholeKey> with a note.
 files_target() {
-    local name="$1" key="$2" whole="$3" tpl head tail chunk n code=0 log="$LOG_DIR/$1.log"
+    local name="$1" key="$2" whole="$3" tpl line rest chunk n code=0 log="$LOG_DIR/$1.log"
     shift 3
     [ $# -ge 1 ] || { echo "usage: gates.sh $name <file>..." >&2; exit 2; }
     tpl="$("$PY" scripts/config_get.py "commands.$key" "")"
@@ -154,8 +171,6 @@ files_target() {
         ;;
     esac
     case "$tpl" in *'{files}'*) ;; *) tpl="$tpl {files}" ;; esac
-    head="${tpl%%\{files\}*}"
-    tail="${tpl#*\{files\}}"
     : > "$log"
     while [ $# -gt 0 ]; do
         chunk=""
@@ -165,7 +180,13 @@ files_target() {
             shift
             n=$((n + 1))
         done
-        bash -c "$head$chunk$tail" >> "$log" 2>&1 || code=$?
+        line=""
+        rest="$tpl"
+        while [[ "$rest" == *'{files}'* ]]; do
+            line="$line${rest%%\{files\}*}$chunk"
+            rest="${rest#*\{files\}}"
+        done
+        bash -c "$line$rest" >> "$log" 2>&1 || code=$?
     done
     if [ "$code" -eq 0 ]; then echo "$name ok"; else echo "$name FAILED (exit $code), log $log"; fi
     return "$code"
@@ -182,8 +203,9 @@ probe() {
 offline() {
     local label="$1" args=() v
     shift
-    for v in $(cmd offline_unset); do args+=(-u "$v"); done
-    env "${args[@]}" "$(cmd offline_flag)=1" "$PY" scripts/run_probe.py --label "$label" -- "$@"
+    load_run_config
+    for v in $CFG_UNSET; do args+=(-u "$v"); done
+    env "${args[@]}" "${CFG_FLAG:-OFFLINE_ONLY}=1" "$PY" scripts/run_probe.py --label "$label" -- "$@"
 }
 
 # offline_sh <label> <configured command string> <args...>: the string is configuration; the args reach it quoted, as "$@".
@@ -307,25 +329,29 @@ compare)
     slug="${1:?usage: gates.sh compare <slug>}"
     dir=".claude/prd-flow/state/$slug"
     mkdir -p "$dir"
-    rm -f "$dir/final.stamp"
+    rm -f "$dir/final.stamp" "$dir/exit"
+    "$PY" scripts/close_gate.py --stamp > "$dir/final.stamp.pending"
     content="$("$PY" scripts/close_gate.py --hash)"
     cache=".claude/prd-flow/state/_compare/$content"
     compare_code=0
-    if [ -f "$cache/final.log" ]; then
+    load_run_config
+    if [ -f "$cache/final.log" ] && [ -f "$cache/exit" ]; then
         cp "$cache/final.log" "$dir/final.log"
-        compare_code="$(cat "$cache/exit" 2>/dev/null || echo 0)"
+        compare_code="$(cat "$cache/exit")"
         echo "compare: reused the full run of the same test content ${content:0:12}"
     else
         printf 'running\n' > "$dir/compare.status"
         trap 'rm -f "$dir/compare.status"' EXIT
-        offline_sh offline "$(cmd test) $(cmd offline_args) $(fast_flags) $("$PY" scripts/config_get.py --deselect)" > "$dir/final.log" 2>&1 || compare_code=$?
+        offline_sh offline "$CFG_TEST $CFG_OFFLINE_ARGS $CFG_FAST $("$PY" scripts/config_get.py --deselect)" > "$dir/final.log" 2>&1 || compare_code=$?
         if "$PY" scripts/new_failures.py --require-summary "$dir/final.log" > /dev/null; then
             mkdir -p "$cache"
-            cp "$dir/final.log" "$cache/final.log"
             printf '%s\n' "$compare_code" > "$cache/exit"
+            cp "$dir/final.log" "$cache/final.log.tmp"
+            mv -f "$cache/final.log.tmp" "$cache/final.log"
         fi
     fi
-    "$PY" scripts/close_gate.py --stamp > "$dir/final.stamp"
+    printf '%s\n' "$compare_code" > "$dir/exit"
+    mv -f "$dir/final.stamp.pending" "$dir/final.stamp"
     tail -n 1 "$dir/final.log"
     if ! "$PY" scripts/new_failures.py --require-summary "$dir/final.log" > /dev/null; then
         echo "compare FAILED: suite ended without its summary line (runner exit $compare_code), log $dir/final.log"
@@ -339,7 +365,10 @@ rerun)
     dir=".claude/prd-flow/state/$slug"
     mkdir -p "$dir"
     rerun_code=0
-    offline_sh offline "$(cmd test) $(cmd offline_args) $("$PY" scripts/config_get.py --deselect)" "$@" > "$dir/rerun.log" 2>&1 || rerun_code=$?
+    load_run_config
+    rm -f "$dir/rerun.exit"
+    offline_sh offline "$CFG_TEST $CFG_OFFLINE_ARGS $("$PY" scripts/config_get.py --deselect)" "$@" > "$dir/rerun.log" 2>&1 || rerun_code=$?
+    printf '%s\n' "$rerun_code" > "$dir/rerun.exit"
     tail -n 1 "$dir/rerun.log"
     new_code=0
     "$PY" scripts/new_failures.py "$dir/baseline-failures.txt" "$dir/rerun.log" || new_code=$?

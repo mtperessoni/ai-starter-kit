@@ -201,10 +201,12 @@ retro) echo "retro demo: 7 finding(s), wall 10 s, wait 0 s"
 esac
 """)
         write(self.p.root, ".claude/prd-flow/state/demo/baseline-failures.txt", "")
+        write(self.p.root, ".claude/prd-flow/state/demo/baseline.status", "ok abcdef12\n")
         run(self.p.root, "git", "add", "-A", check=True)
         run(self.p.root, "git", "commit", "-q", "-m", "stub gates", check=True)
         key = script_module("close_gate").content_hash(self.p.root)
         write(self.p.root, f".claude/prd-flow/state/_compare/{key}/final.log", "1 passed\n")
+        write(self.p.root, f".claude/prd-flow/state/_compare/{key}/exit", "0\n")
 
     def test_close_runs_lint_trailers_and_docs_before_it_reads_the_compare_result(self) -> None:
         self.stub_gates(trailers_rc=1)
