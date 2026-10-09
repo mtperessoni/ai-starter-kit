@@ -161,9 +161,23 @@ def related(root: Path, cfg: dict, changed: list[str]) -> list[str]:
         )
         picked = {f for f in picked if is_test(f, cfg) and f in changed}
         picked |= {t for t in test_rels if any(t.startswith(folder) for folder in folders)}
-    for pattern in cfg["tests"].get("always", []):
-        picked |= {f for f in listed_files(root) if matches(f, [pattern])}
+    elif len(picked) > cap:
+        print(
+            f"related: {len(picked)} tests selected, over the cap of {cap} (tests.related_max_files): "
+            "no owning test folder, running the mirror tests and the structure tests only",
+            file=sys.stderr,
+        )
+        mirrors = {rel(t, root) for t in tests if any(test_name(t) in mirror_names(m, cfg) or stem(t) in mirror_names(m, cfg) for m in modules)}
+        picked = {f for f in picked if f in changed} | mirrors
+    picked |= always_files(root, cfg)
     return sorted(picked)
+
+
+def always_files(root: Path, cfg: dict) -> set[str]:
+    found: set[str] = set()
+    for pattern in cfg["tests"].get("always", []):
+        found |= {f for f in listed_files(root) if matches(f, [pattern])}
+    return found
 
 
 def snapshot_warnings(cfg: dict, changed: list[str]) -> list[str]:
@@ -233,10 +247,14 @@ def selection_key(root: Path, cfg: dict, files: list[str], changed: list[str]) -
 
 def run(root: Path, cfg: dict, files: list[str], changed: list[str]) -> int:
     native = cfg["tests"].get("native_related", "")
+    plan = []
     if native:
-        template, placeholder, items = native, "{changed}", changed
+        plan.append((native, "{changed}", changed))
+        extra = sorted(always_files(root, cfg) & set(files))
+        if extra:
+            plan.append((cfg["tests"]["runner"], "{files}", extra))
     elif files:
-        template, placeholder, items = cfg["tests"]["runner"], "{files}", files
+        plan.append((cfg["tests"]["runner"], "{files}", files))
     else:
         print("related: no related tests")
         return 0
@@ -258,10 +276,11 @@ def run(root: Path, cfg: dict, files: list[str], changed: list[str]) -> int:
     started = time.monotonic()
     code = 0
     with log.open("w", encoding="utf-8") as out:
-        for argv in chunked_commands(template, placeholder, items, limit):
-            argv[0] = shutil.which(argv[0]) or argv[0]
-            returned = subprocess.run(argv, shell=False, cwd=root, stdout=out, stderr=subprocess.STDOUT, check=False).returncode  # noqa: S603
-            code = code or returned
+        for template, placeholder, items in plan:
+            for argv in chunked_commands(template, placeholder, items, limit):
+                argv[0] = shutil.which(argv[0]) or argv[0]
+                returned = subprocess.run(argv, shell=False, cwd=root, stdout=out, stderr=subprocess.STDOUT, check=False).returncode  # noqa: S603
+                code = code or returned
     elapsed = time.monotonic() - started
     failure = re.compile(cfg["tests"]["failure_regex"])
     lines = log.read_text(encoding="utf-8", errors="replace").splitlines()
@@ -288,11 +307,15 @@ def main() -> int:
     parser.add_argument("files", nargs="*")
     parser.add_argument("--base", default=None)
     parser.add_argument("--run", action="store_true")
+    parser.add_argument("--args-file", default=None, help="a file with one changed path per line")
     args = parser.parse_args()
     root = repo_root()
     cfg = load(root)
+    given = list(args.files)
+    if args.args_file:
+        given += [line.strip() for line in Path(args.args_file).read_text(encoding="utf-8").splitlines() if line.strip()]
     try:
-        changed = args.files or changed_files(root, resolve_base(root, args.base))
+        changed = given or changed_files(root, resolve_base(root, args.base))
     except BaseError as e:
         print(f"related: ERROR {e}", file=sys.stderr)
         return 2

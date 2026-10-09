@@ -1,9 +1,12 @@
 """W1.2 to W1.5: the related-tests finder is precise, capped, chunked, extensible and cached."""
 
 import json
+import sys
+import tempfile
 import unittest
+from pathlib import Path
 
-from tests.test_kit_scripts import PY, Project, write
+from tests.test_kit_scripts import KIT, PY, Project, write
 
 
 class RelatedSpeedBase(unittest.TestCase):
@@ -62,6 +65,68 @@ class CapTest(RelatedSpeedBase):
     def test_under_the_cap_prints_no_note(self) -> None:
         r = self.related("src/features/orders/order_service.py")
         self.assertNotIn("owning test folder", r.stderr + r.stdout)
+
+
+class TopLevelTestsCapTest(RelatedSpeedBase):
+    def test_over_the_cap_with_only_a_top_level_tests_folder_keeps_the_mirrors_with_a_note(self) -> None:
+        write(self.p.root, "lib/widget.py", "x = 1\n")
+        write(self.p.root, "tests/test_widget.py", "x = 1\n")
+        write(self.p.root, "tests/test_architecture.py", "x = 1\n")
+        for i in range(5):
+            write(self.p.root, f"tests/test_user{i}.py", "from lib.widget import x\n")
+        self.configure(related_max_files=3, always=["tests/test_architecture.py"])
+        r = self.related("lib/widget.py")
+        out = r.stdout.split()
+        self.assertIn("tests/test_widget.py", out)
+        self.assertIn("tests/test_architecture.py", out)
+        self.assertNotIn("tests/test_user0.py", out)
+        self.assertIn("over the cap", r.stderr + r.stdout)
+
+
+class ArgsFileTest(RelatedSpeedBase):
+    def test_args_file_lists_the_changed_files_one_per_line(self) -> None:
+        listing = self.p.root / "args.txt"
+        listing.write_text("src/features/orders/order_service.py\n\n", encoding="utf-8")
+        r = self.related("--args-file", str(listing))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertTrue(r.stdout.split(), r.stderr)
+        self.assertEqual(r.stdout, self.related("src/features/orders/order_service.py").stdout)
+
+
+class NativeAlwaysTest(RelatedSpeedBase):
+    def test_always_files_still_run_when_native_related_is_set(self) -> None:
+        write(self.p.root, "tests/test_architecture.py", "x = 1\n")
+        (self.p.root / "native.py").write_text("open('native.txt','a').write('n')\nprint('1 passed')\n", encoding="utf-8")
+        (self.p.root / "plain.py").write_text(
+            "import sys\nopen('plain.txt','a').write(' '.join(sys.argv[1:]))\nprint('1 passed')\n", encoding="utf-8"
+        )
+        self.configure(
+            native_related=f'"{PY}" native.py {{changed}}',
+            runner=f'"{PY}" plain.py {{files}}',
+            always=["tests/test_architecture.py"],
+        )
+        r = self.related("src/features/orders/order_service.py", "--run")
+        self.assertIn("exit 0", r.stdout, r.stdout + r.stderr)
+        self.assertEqual((self.p.root / "native.txt").read_text(encoding="utf-8"), "n")
+        self.assertIn("tests/test_architecture.py", (self.p.root / "plain.txt").read_text(encoding="utf-8"))
+
+
+class ListedFilesFallbackTest(unittest.TestCase):
+    def test_the_fallback_walk_skips_the_git_folder(self) -> None:
+        scripts = str(KIT / "scripts")
+        sys.path.insert(0, scripts)
+        try:
+            from kit_config import listed_files
+
+            with tempfile.TemporaryDirectory() as d:
+                root = Path(d)
+                (root / ".git").mkdir()
+                (root / ".git" / "config").write_text("x", encoding="utf-8")
+                (root / "a.py").write_text("x", encoding="utf-8")
+                self.assertEqual(listed_files(root), ["a.py"])
+        finally:
+            sys.path.remove(scripts)
+            sys.modules.pop("kit_config", None)
 
 
 class AlwaysTest(RelatedSpeedBase):

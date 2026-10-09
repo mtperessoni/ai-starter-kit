@@ -83,7 +83,9 @@ def listed_files(root: Path) -> list[str]:
     if out.returncode == 0 and out.stdout:
         names = sorted({n for n in out.stdout.decode("utf-8", errors="replace").split("\0") if n and (root / n).is_file()})
     else:
-        names = sorted(p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file())
+        names = sorted(
+            p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file() and ".git" not in p.relative_to(root).parts
+        )
     return names
 
 
