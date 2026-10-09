@@ -53,7 +53,10 @@ def load(root: Path) -> dict:
 
 
 def rel(path: Path, root: Path) -> str:
-    return path.resolve().relative_to(root.resolve()).as_posix()
+    try:
+        return path.relative_to(root).as_posix()
+    except ValueError:
+        return path.resolve().relative_to(root.resolve()).as_posix()
 
 
 def matches(relpath: str, patterns: list[str]) -> bool:
@@ -69,30 +72,40 @@ def is_generated(relpath: str, cfg: dict) -> bool:
     return matches(relpath, cfg.get("generated_patterns", []))
 
 
+def listed_files(root: Path) -> list[str]:
+    """Every file of the work tree, tracked or not yet added, minus the git-ignored: one git call, no per-file resolve."""
+    out = subprocess.run(  # noqa: S603
+        ["git", "ls-files", "-co", "--exclude-standard", "-z"],  # noqa: S607
+        cwd=root,
+        capture_output=True,
+        check=False,
+    )
+    if out.returncode == 0 and out.stdout:
+        names = sorted({n for n in out.stdout.decode("utf-8", errors="replace").split("\0") if n and (root / n).is_file()})
+    else:
+        names = sorted(p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file())
+    return names
+
+
 def code_files(root: Path, cfg: dict) -> list[Path]:
-    found: list[Path] = []
     exts = set(cfg["code_extensions"])
-    for src in cfg["source_dirs"]:
-        base = root / src
-        if not base.exists():
-            continue
-        for p in base.rglob("*"):
-            if p.is_file() and p.suffix in exts and not matches(rel(p, root), cfg["ignore"]):
-                found.append(p)
+    prefixes = ["" if src in (".", "./", "") else src.strip("/") + "/" for src in cfg["source_dirs"]]
+    found = [
+        root / r
+        for r in listed_files(root)
+        if Path(r).suffix in exts and any(r.startswith(p) for p in prefixes) and not matches(r, cfg["ignore"])
+    ]
     return sorted(found)
 
 
 def test_files(root: Path, cfg: dict) -> list[Path]:
     exts = set(cfg["code_extensions"])
     found = []
-    for p in root.rglob("*"):
-        if not p.is_file() or p.suffix not in exts:
-            continue
-        r = rel(p, root)
-        if r.startswith(".") or matches(r, cfg["ignore"]):
+    for r in listed_files(root):
+        if Path(r).suffix not in exts or r.startswith(".") or matches(r, cfg["ignore"]):
             continue
         if is_test(r, cfg):
-            found.append(p)
+            found.append(root / r)
     return sorted(found)
 
 

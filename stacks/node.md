@@ -24,7 +24,8 @@ Prefer the project's own scripts in `package.json` (`test`, `lint`, `typecheck`)
 | `commands.lint` | `npx eslint . && npx prettier --check . && npx tsc --noEmit` | same |
 | `commands.fix` | `npx eslint . --fix && npx prettier --write .` | same |
 | `commands.import_check` | `npx tsc --noEmit` (plus `npx madge --circular src` for cycles) | same |
-| `tests.runner` | `npx vitest run {files}` | `npx jest {files}` |
+| `tests.runner` | `npx vitest run {files} --reporter=default --reporter=junit --outputFile.junit=reports/junit.xml` | `npx jest {files} --reporters=default --reporters=jest-junit` |
+| `tests.junit_xml` | `reports/junit.xml` (default on) | `reports/junit.xml` (default on, with `JEST_JUNIT_OUTPUT_FILE`) |
 | `tests.native_related` | `npx vitest related {changed} --run` | `npx jest --findRelatedTests {changed}` |
 | `tests.failure_regex` | `^\s*(?:FAIL\|×)\s+(\S+)` | `^FAIL\s+(\S+)` |
 

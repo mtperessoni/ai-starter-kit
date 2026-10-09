@@ -20,7 +20,8 @@
 | `commands.lint` | `uv run ruff check . && uv run ruff format --check . && uv run mypy src` |
 | `commands.fix` | `uv run ruff check --fix . && uv run ruff format .` |
 | `commands.import_check` | `uv run python -c "import <entry module>"` with `PYTHONPATH` set as the app runs |
-| `tests.runner` | `uv run pytest {files} --no-cov -q` |
+| `tests.runner` | `uv run pytest {files} --no-cov -q --junitxml=reports/junit.xml` (pytest keeps its cache provider on: `-p no:cacheprovider` is not used) |
+| `tests.junit_xml` | `reports/junit.xml` (default on) |
 | `tests.native_related` | empty (use `scripts/related_tests.py`) |
 | `tests.failure_regex` | `^(?:FAILED\|ERROR)\s+(\S+)` (pytest's short summary) |
 
