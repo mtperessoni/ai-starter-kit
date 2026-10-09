@@ -2,6 +2,7 @@
 
 Usage: python scripts/config_get.py <section.key> [default]      lists are joined with spaces
        python scripts/config_get.py --has <section.key> <item>   exit 0 when the list holds the item
+       python scripts/config_get.py --deselect                   the shell-quoted tests.baseline_deselect flags ("" when none)
 """
 
 import sys
@@ -26,6 +27,11 @@ def main(argv: list[str]) -> int:
     if not argv:
         print(__doc__)
         return 2
+    if argv == ["--deselect"]:
+        from baseline import deselect_args
+
+        print(deselect_args(config.get("tests", {})))
+        return 0
     value = lookup(config, argv[0])
     if value is None:
         if len(argv) > 1:

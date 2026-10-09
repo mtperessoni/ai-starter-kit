@@ -26,6 +26,7 @@ class Removal:
     path: Path
     size: int
     reason: str
+    verb: str = "removed"
 
 
 def project_slug(path: Path) -> str:
@@ -51,6 +52,7 @@ def clean(
     done: set[Path] = set()
 
     def remove(output: Path, size: int, reason: str) -> None:
+        verb = "removed"
         try:
             if not dry_run:
                 try:
@@ -59,11 +61,12 @@ def clean(
                     if size <= hard_max_mb * 1024 * 1024:
                         raise
                     output.write_bytes(b"")
+                    verb = "truncated"
         except OSError as error:
             errors.append(f"{output}: {error}")
             return
         done.add(output)
-        removed.append(Removal(output, size, reason))
+        removed.append(Removal(output, size, reason, verb))
 
     for slug in dict.fromkeys(slugs):
         for output in sorted((root / slug).glob("**/*.output")):
@@ -97,7 +100,7 @@ def main(argv: Sequence[str]) -> int:
     removed, errors = clean(args.root, slugs, args.max_age_days, args.max_mb, dry_run=args.dry_run, hard_max_mb=args.hard_max_mb)
     verb = "would remove" if args.dry_run else "removed"
     for item in removed:
-        print(f"{verb} {item.path} ({item.size / 1024 / 1024:.1f} MB, {item.reason})")
+        print(f"{verb if args.dry_run else item.verb} {item.path} ({item.size / 1024 / 1024:.1f} MB, {item.reason})")
     print(f"{verb} {len(removed)} files, {sum(i.size for i in removed) / 1024 / 1024:.1f} MB")
     for line in errors:
         print(f"could not remove {line}", file=sys.stderr)

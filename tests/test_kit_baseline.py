@@ -252,7 +252,7 @@ class RedAndRelatedTest(GatesBase):
 
 class CloseReuseTest(GatesBase):
     def prepare(self, env: dict) -> None:
-        self.configure(commands={"lint": f'"{PY}" -c "pass"'})
+        self.configure(commands={"lint": f'"{PY}" -c "pass"'}, tests={"rerun_ids": True})
         from tests.test_kit_scripts import KIT as kit
 
         import shutil

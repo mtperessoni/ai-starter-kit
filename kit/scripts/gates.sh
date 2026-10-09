@@ -238,14 +238,15 @@ clean-outputs)
     ;;
 baseline)
     [ $# -ge 1 ] || { echo "usage: gates.sh baseline <slug> [--bg] [--commit REF]" >&2; exit 2; }
-    "$PY" scripts/baseline.py "$@"
+    GATES_BASH="$(cygpath -w "$BASH" 2>/dev/null || printf %s "$BASH")" "$PY" scripts/baseline.py "$@"
     ;;
 compare)
     slug="${1:?usage: gates.sh compare <slug>}"
     dir=".claude/prd-flow/state/$slug"
     mkdir -p "$dir"
-    printf '%s %s\n' "$(git rev-parse HEAD)" "$(git status --porcelain --untracked-files=no | git hash-object --stdin)" > "$dir/final.stamp"
-    offline_sh offline "$(cmd test) $(cmd offline_args)" > "$dir/final.log" 2>&1 || true
+    rm -f "$dir/final.stamp"
+    offline_sh offline "$(cmd test) $(cmd offline_args) $("$PY" scripts/config_get.py --deselect)" > "$dir/final.log" 2>&1 || true
+    "$PY" scripts/close_gate.py --stamp > "$dir/final.stamp"
     tail -n 1 "$dir/final.log"
     "$PY" scripts/new_failures.py "$dir/baseline-failures.txt" "$dir/final.log"
     ;;
@@ -254,9 +255,16 @@ rerun)
     shift
     dir=".claude/prd-flow/state/$slug"
     mkdir -p "$dir"
-    offline_sh offline "$(cmd test) $(cmd offline_args)" "$@" > "$dir/rerun.log" 2>&1 || true
+    rerun_code=0
+    offline_sh offline "$(cmd test) $(cmd offline_args) $("$PY" scripts/config_get.py --deselect)" "$@" > "$dir/rerun.log" 2>&1 || rerun_code=$?
     tail -n 1 "$dir/rerun.log"
-    "$PY" scripts/new_failures.py "$dir/baseline-failures.txt" "$dir/rerun.log"
+    new_code=0
+    "$PY" scripts/new_failures.py "$dir/baseline-failures.txt" "$dir/rerun.log" || new_code=$?
+    if [ "$rerun_code" -ne 0 ] && [ "$new_code" -eq 0 ]; then
+        echo "rerun FAILED (exit $rerun_code): the runner failed without a failure line, log $dir/rerun.log"
+        exit 1
+    fi
+    exit "$new_code"
     ;;
 lint)
     checked lint "$(cmd lint)"

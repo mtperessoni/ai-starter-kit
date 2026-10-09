@@ -30,6 +30,7 @@ HEARTBEAT_SECONDS = 5
 DEFAULT_IDLE_SECONDS = 300
 DEFAULT_WAIT_SECONDS = 1800
 HUNG = 3
+NODE_RUNNER = re.compile(r"\b(vitest|jest|mocha|yarn|npm|pnpm|npx|bun)\b")
 
 
 class SetupError(Exception):
@@ -50,19 +51,76 @@ def cache_key(root: Path, commit: str, command: str, deselect: list[str]) -> str
     return f"{commit[:12]}-{digest.hexdigest()[:12]}"
 
 
+REPARSE_POINT = 0x400
+
+
 def is_link(path: Path) -> bool:
-    return path.is_symlink() or (hasattr(os.path, "isjunction") and os.path.isjunction(path))
+    if path.is_symlink():
+        return True
+    if hasattr(os.path, "isjunction"):
+        return os.path.isjunction(path)
+    if os.name == "nt":
+        try:
+            return bool(getattr(os.lstat(path), "st_file_attributes", 0) & REPARSE_POINT)
+        except OSError:
+            return False
+    return False
 
 
 def drop_links(tree: Path) -> None:
     """Remove only the link itself, so deleting a worktree never reaches a real node_modules or .venv behind it."""
     for name in LINKED_DIRS:
         path = tree / name
-        if is_link(path):
-            try:
-                path.unlink()
-            except OSError:
+        if not is_link(path):
+            continue
+        try:
+            if os.name == "nt":
                 os.rmdir(path)
+            else:
+                path.unlink()
+        except OSError:
+            os.rmdir(path)
+
+
+def make_link(source: Path, link: Path) -> bool:
+    if os.name == "nt":
+        made = subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(source)], capture_output=True, check=False)  # noqa: S603, S607
+        return made.returncode == 0
+    try:
+        os.symlink(source, link, target_is_directory=True)
+    except OSError:
+        return False
+    return True
+
+
+def lockfiles_match(root: Path, commit: str) -> bool:
+    """True when every lockfile of the commit equals the one in the main tree, and no other lockfile exists there."""
+    for name in LOCKFILES:
+        shown, current = git(root, "show", f"{commit}:{name}"), root / name
+        if shown.returncode != 0:
+            if current.is_file():
+                return False
+            continue
+        if not current.is_file() or current.read_text(encoding="utf-8", errors="replace") != shown.stdout:
+            return False
+    return True
+
+
+def link_dependencies(root: Path, tree: Path, commit: str) -> bool:
+    """Link the main tree's installed dependency folders into the worktree when the lockfiles agree: no install per baseline."""
+    if not lockfiles_match(root, commit):
+        return False
+    linked = False
+    for name in LINKED_DIRS:
+        source = root / name
+        if source.is_dir() and not is_link(source) and not (tree / name).exists():
+            linked = make_link(source, tree / name) or linked
+    return linked
+
+
+def deselect_args(tests: dict) -> str:
+    flag = tests.get("baseline_deselect_flag", "--deselect")
+    return "".join(f" {flag} {shlex_quote(item)}" for item in tests.get("baseline_deselect", [])).strip()
 
 
 def remove_worktree(root: Path, tree: Path) -> None:
@@ -145,8 +203,9 @@ def publish(source: Path, target: Path, status: str) -> int:
 def run_suite(root: Path, config: dict, commit: str, work: Path) -> tuple[int, bool]:
     commands, tests = config["commands"], config.get("tests", {})
     command = " ".join(filter(None, [str(commands["test"]), str(commands.get("offline_args", ""))]))
-    flag = tests.get("baseline_deselect_flag", "--deselect")
-    command += "".join(f" {flag} {shlex_quote(item)}" for item in tests.get("baseline_deselect", []))
+    if tests.get("baseline_deselect") and "baseline_deselect_flag" not in tests and NODE_RUNNER.search(command):
+        raise SetupError("tests.baseline_deselect is set but tests.baseline_deselect_flag is not: --deselect is pytest only")
+    command += " " + deselect_args(tests) if tests.get("baseline_deselect") else ""
     env = {k: v for k, v in os.environ.items() if k not in set(commands.get("offline_unset", []))}
     env[str(commands.get("offline_flag", "OFFLINE_ONLY"))] = "1"
     idle = float(tests.get("baseline_idle_seconds", DEFAULT_IDLE_SECONDS))
@@ -157,7 +216,8 @@ def run_suite(root: Path, config: dict, commit: str, work: Path) -> tuple[int, b
         raise SetupError(f"git worktree add: {added.stderr.strip()}")
     try:
         setup = str(commands.get("setup", ""))
-        if tests.get("baseline_setup", True) and setup and not setup.startswith("<"):
+        linked = tests.get("baseline_link_deps", True) and link_dependencies(root, tree, commit)
+        if not linked and tests.get("baseline_setup", True) and setup and not setup.startswith("<"):
             code, hung = watched(setup, tree, env, work / "setup.log", max(idle, 600))
             if code != 0:
                 raise SetupError(f"setup exit {code}, log {(work / 'setup.log').as_posix()}")
@@ -192,6 +252,18 @@ def main(argv: list[str]) -> int:
                              cwd=root, stdout=out, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, **flags)
         print(f"baseline {args.slug}: started in the background, status in {target.as_posix()}/baseline.status; gates.sh close checks it")
         return 0
+    status = target / "baseline.status"
+    try:
+        code = execute(args, root, target)
+    except BaseException as error:
+        status.write_text(f"failed {type(error).__name__}\n", encoding="utf-8")
+        raise
+    if code not in (0, HUNG) and status.is_file() and status.read_text(encoding="utf-8").startswith("running"):
+        status.write_text(f"failed exit {code}\n", encoding="utf-8")
+    return code
+
+
+def execute(args: argparse.Namespace, root: Path, target: Path) -> int:
     commit = git(root, "rev-parse", "--verify", f"{args.commit}^{{commit}}").stdout.strip()
     if not commit:
         print(f"baseline FAILED: {args.commit} is not a commit", file=sys.stderr)
