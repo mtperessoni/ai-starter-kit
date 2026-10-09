@@ -1,11 +1,11 @@
-"""PRD structure checks: INDEX, HTML, pack and approved-rules rows."""
+"""PRD structure checks: INDEX, pack and approved-rules rows."""
 
 import re
 from pathlib import Path
 
 from gate_core import (
     ID, PACK_SECTIONS, ROW, SEPARATOR, Rules, baseline, cells, drift, ends_with_path, err, expand, git, is_table_line, joined,
-    hint, literal_rows, read_html_rules, section, tokens, warn,
+    hint, literal_rows, section, tokens, warn,
 )
 
 
@@ -162,35 +162,3 @@ def check_rules(path: Path, rules: Rules, cfg: dict[str, str], vias: set[str]) -
         owner = rules.get(rid)
         if owner and not ends_with_path(owner[0], rel.removeprefix(prd_prefix)):
             err("Q2", f"{rid} already exists in {owner[0].name}; do not reuse the ID in {rel}")
-
-
-def check_html(page_path: Path, rules: Rules, old, new, touched, plain, vias) -> None:
-    page = read_html_rules(page_path)
-    page_rel = page_path.resolve().as_posix().lower()
-    for rid in sorted(set(rules) - set(page)):
-        if rid in new:
-            err("G5", f"{rid} is in the markdown and missing from the HTML")
-        else:
-            drift("G5", "in the markdown and not in the HTML", rid)
-    for rid in sorted(set(page) - set(rules)):
-        if rid in old:
-            err("G5", f"{rid} is in the HTML and not in the markdown")
-        else:
-            drift("G5", "in the HTML and not in the markdown", rid)
-    for rid, row in sorted(new.items()):
-        if rid in page and tokens(row[0]) != tokens(page[rid]):
-            err("G6", f"{rid}: markdown text differs from the HTML")
-    if plain:
-        page_text = joined(page_path.read_text(encoding="utf-8"))
-        for rel, line in plain:
-            row = [c for c in cells(line.strip().strip("|")) if c]
-            if row and row[0].lower() == "id":
-                continue
-            if row and row[-1].lower() in vias:
-                row = row[:-1]
-            if joined(" | ".join(row)) not in page_text:
-                err("G10", f"changed table row in {rel} does not appear in the HTML: {line[:70]}")
-    names = {t.replace("\\", "/").lstrip("/").lower() for t in touched}
-    if (new or old or plain) and not any(page_rel == t or page_rel.endswith("/" + t) for t in names):
-        err("G5", "PRD tables changed and the HTML was not touched")
-

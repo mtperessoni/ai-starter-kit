@@ -1,6 +1,6 @@
 # prd-create workers
 
-Read only the section with your name. You do not talk to the user: anything missing becomes a **gap** in the return, never an assumption. Parallel batches when reads are independent; code only by symbol (`Grep -n`, then `Read` with offset and limit); big files listed in `.claude/skills/prd-flow/repo.md` never whole; the HTML never read. Write docs with Write and Edit only, never through a script; the only scripts you run are the gate and, for the `html-writer`, the HTML builder. Everything you write is in English, product language, no em dash (U+2014). State: `.claude/prd-flow/state/<slug>/`. Format rules: `reference/anatomy.md`.
+Read only the section with your name. You do not talk to the user: anything missing becomes a **gap** in the return, never an assumption. Parallel batches when reads are independent; code only by symbol (`Grep -n`, then `Read` with offset and limit); big files listed in `.claude/skills/prd-flow/repo.md` never whole; the HTML never read. Write docs with Write and Edit only, never through a script; the only script you run is the gate; no worker builds the HTML (`/docs-html` does). Everything you write is in English, product language, no em dash (U+2014). State: `.claude/prd-flow/state/<slug>/`. Format rules: `reference/anatomy.md`.
 
 Stay inside the folders, documents and read budget of your assignment; do not explore beyond it, and do not call ToolSearch.
 
@@ -78,14 +78,8 @@ Return: files, ID ranges, the 5 heaviest problems in one line each, gaps.
 
 ## index-writer
 
-Writes `docs/prd/INDEX.md`, `docs/prd/README.md` and `docs/prd/CHANGELOG.md` (header only when new), following `reference/anatomy.md`. In M4, adds the new PRD to the existing files without touching the other PRDs' rows. Runs `python .claude/skills/prd-flow/scripts/gate.py` until it has no error other than the missing HTML.
-
-Return: files, the gate's last line, gaps.
-
-## html-writer
-
-Produces the HTML reading version. Never writes or edits it: run `python .claude/skills/prd-flow/scripts/build_prd_html.py` (it renders `docs/prd/` into the `html_template` and writes the `html` path of `repo.md`), then the gate. If the build or the gate reports a markdown problem, fix the markdown, not the HTML, and rebuild. What the builder renders and the template classes it uses: `reference/html.md`. When `repo.md` has `html_mode: hand`, follow the `hand` row of prd-flow `reference/prd-writing.md` "HTML".
+Writes `docs/prd/INDEX.md`, `docs/prd/README.md` and `docs/prd/CHANGELOG.md` (header only when new), following `reference/anatomy.md`. In M4, adds the new PRD to the existing files without touching the other PRDs' rows. Runs `python .claude/skills/prd-flow/scripts/gate.py` until it has no error (a WARNING that the HTML is missing or stale is expected: the page is built later by `/docs-html`, never here). Never builds, edits or reads the HTML.
 
 Then commit all the PRD files with `docs(prd): <scope> PRD from <source>` (the chief gives scope and source in the handoff) and return the hash in `Commit`.
 
-Return: file, tabs and sections rendered, the gate's last line.
+Return: files, the gate's last line, gaps.

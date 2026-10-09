@@ -25,6 +25,7 @@ Parsed by `scripts/gate.py`. Keep the two-column table format and the key names.
 | proposed_marker | proposed |
 | html_mode | generated |
 | html_template | docs/templates/prd.html |
+| trd_html | docs/trd/trd.html |
 | trd_budget_lines | 250 |
 | prd_section_budget_lines | 200 |
 
@@ -32,9 +33,11 @@ Parsed by `scripts/gate.py`. Keep the two-column table format and the key names.
 
 `proposed_marker`: the word inside `*(proposed)*`, the marker of a rule that comes only from documents. G30 fails `--final` while one is left.
 
-`html_mode`: `generated` (the HTML is built by `scripts/build_prd_html.py`, G29 checks it is current) or `hand` (maintained by hand, G5, G6 and G10 check it). Absent key means `hand`.
+`html_mode`: `generated` (the pages are built by `/docs-html`; the default gate warns when one is stale, G29 and G32, and `gate.py --html` fails) or `hand` (not built nor checked; one G5 warning until `/ai-kit update` migrates it). Absent key means `hand`. No prd-flow step ever touches the HTML.
 
-`html_template`: the template the build renders into `html`.
+`html_template`: the template both builds render into (`html` and `trd_html`).
+
+`trd_html`: the TRD reading page, rendered from `trd_dir` and `docs/flow.md` by `/docs-html`. `none` opts out.
 
 `trd_budget_lines`: lines a TRD file may have before G26 warns; an area over it splits into parts (`reference/trd-planned.md`).
 
@@ -44,7 +47,7 @@ Parsed by `scripts/gate.py`. Keep the two-column table format and the key names.
 
 `via_header`: the last header column of a rule table (for example `Muda via`). Only rows of tables with this column are rules: `--trace`, `--status` and G3 skip the IDs of other tables, such as open questions.
 
-`html`: the reading version (one tab per PRD). With `html_mode` `generated` it is rendered from `docs/prd/` and never edited; with `hand` it is maintained by hand and the gate checks that every rule row has the same words there. `none` only for a repository that explicitly opts out.
+`html`: the PRD reading page (one tab per PRD), rendered from `docs/prd/` by `/docs-html` and never edited. `none` only for a repository that explicitly opts out.
 
 ## Commands
 

@@ -8,7 +8,7 @@ docs/prd/
   INDEX.md            entry for agents: every file, its section, its ID ranges, its TRD
   README.md           overview for people: what the product is, how to read, what weighs most, decisions
   CHANGELOG.md        superseded wording, literal, newest first
-  prd.html            reading version, one tab per PRD (path in repo.md `html`)
+  prd.html            reading version, one tab per PRD (path in repo.md `html`; built only by /docs-html)
   <prd-a>/            one folder per PRD, kebab-case (for example `checkout`, `outcome-run`)
     01-summary.md
     02-glossary.md

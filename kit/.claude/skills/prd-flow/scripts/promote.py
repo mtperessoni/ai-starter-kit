@@ -1,4 +1,4 @@
-"""The mechanical part of Promote: markers, Source, CHANGELOG, HTML, archive, state, final gate.
+"""The mechanical part of Promote: markers, Source, CHANGELOG, archive, state, final gate.
 
 Usage: python .claude/skills/prd-flow/scripts/promote.py <slug> [--dry-run] [--root <repo>]
 Reads .claude/prd-flow/state/<slug>/approved-rules.md, deliveries/*.md (or an older single deliveries.md) and changes/NNN-<slug>/decisions.md.
@@ -286,17 +286,6 @@ def plan_edits(root, cfg, slug, files, old, approver, sources, change):
     return writes, stats, approved_ids, superseded, folder, log
 
 
-def rebuild_html(root: Path, dry: bool) -> tuple[str, int]:
-    if dry:
-        return "html: would rebuild", 0
-    script = Path(__file__).with_name("build_prd_html.py")
-    r = subprocess.run([sys.executable, str(script), "--root", str(root)], capture_output=True, text=True,  # noqa: S603
-                       check=False, cwd=root, encoding="utf-8")
-    if r.returncode == 0:
-        return "html: rebuilt", 0
-    return f"html: ERROR {(r.stdout or r.stderr).strip()[-120:]}", 1
-
-
 def finish(lines: list[str], done: list[str], left: list[str]) -> tuple[list[str], int]:
     return lines + [f"done: {', '.join(done) or 'nothing'}", f"left: {', '.join(left)}; fix the cause and rerun promote", *OWNER_FIX], 1
 
@@ -332,12 +321,6 @@ def promote(root: Path, slug: str, dry: bool) -> tuple[list[str], int]:
     if not dry:
         for path, text in writes.items():
             path.write_text(text, encoding="utf-8", newline="\n")
-    if cfg.get("html_mode") == "generated":
-        line, bad = rebuild_html(root, dry)
-        lines.append(line)
-        if bad:
-            return finish(lines, done, ["html rebuild", "archive", "gate --final"])
-        done.append("html")
     if change:
         lines.append(f"archive: {change.relative_to(root).as_posix()} -> {folder}")
         if not dry:
@@ -365,8 +348,6 @@ def promote(root: Path, slug: str, dry: bool) -> tuple[list[str], int]:
             lines += list(OWNER_FIX)
     if not code:
         changed = sorted(p.relative_to(root).as_posix() for p in writes)
-        if cfg.get("html_mode") == "generated":
-            changed.append(cfg.get("html", "docs/prd/prd.html"))
         if change:
             changed.append(folder)
         ids = ", ".join(sorted(approved_ids | superseded))

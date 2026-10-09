@@ -220,45 +220,23 @@ class GeneratedHtmlTest(unittest.TestCase):
     def page(self, text: str) -> None:
         (self.p.root / "docs/prd/prd.html").write_text(text, encoding="utf-8", newline="\n")
 
-    def test_html_in_sync_with_render_passes_without_g5_g6_g10(self) -> None:
-        self.fake("def is_current(root, cfg):\n    return (root / cfg['html']).read_text(encoding='utf-8') == '<p>fresh</p>\\n'\n")
-        self.page("<p>fresh</p>\n")
-        sec = self.p.root / "docs/prd/shop/05-orders.md"
-        sec.write_text(sec.read_text(encoding="utf-8").replace("at least one item", "two items"), encoding="utf-8")
-        write(self.p.root, "docs/prd/CHANGELOG.md", "# CHANGELOG\n\nORD-01 reworded.\n")
-        r = self.p.py(GATE, "--base", "HEAD")
-        self.assertNotIn("G29", r.stdout)
-        self.assertNotIn("G5", r.stdout)
-        self.assertNotIn("G6", r.stdout)
-
     def test_a_stale_html_is_g29_with_the_hint(self) -> None:
         self.fake("def is_current(root, cfg):\n    return (root / cfg['html']).read_text(encoding='utf-8') == '<p>fresh</p>\\n'\n")
         self.page("<p>stale</p>\n")
         r = self.p.py(GATE)
-        self.assertEqual(r.returncode, 1, r.stdout)
-        self.assertIn("ERROR G29", r.stdout)
-        self.assertIn("build_prd_html.py", r.stdout)
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("WARNING G29", r.stdout)
+        self.assertIn("fix: run /docs-html", r.stdout)
 
     def test_a_missing_html_is_g29(self) -> None:
         self.fake("def is_current(root, cfg):\n    return False\n")
         (self.p.root / "docs/prd/prd.html").unlink()
         r = self.p.py(GATE)
-        self.assertIn("ERROR G29", r.stdout)
+        self.assertIn("WARNING G29", r.stdout)
 
     def test_an_unimportable_builder_is_reported_not_a_crash(self) -> None:
         self.fake("raise ImportError('boom')\n")
         r = self.p.py(GATE)
-        self.assertIn("ERROR G29", r.stdout)
+        self.assertIn("WARNING G29", r.stdout)
         self.assertIn("boom", r.stdout)
         self.assertNotIn("Traceback", r.stderr)
-
-    def test_hand_mode_keeps_the_old_checks(self) -> None:
-        repo = self.p.root / REPO_MD
-        repo.write_text(repo.read_text(encoding="utf-8").replace("| html_mode | generated |", "| html_mode | hand |"), encoding="utf-8")
-        self.fake("def is_current(root, cfg):\n    return False\n")
-        r = self.p.py(GATE)
-        self.assertNotIn("G29", r.stdout)
-
-
-if __name__ == "__main__":
-    unittest.main()

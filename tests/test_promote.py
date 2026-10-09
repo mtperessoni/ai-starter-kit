@@ -216,11 +216,13 @@ class PromoteTest(unittest.TestCase):
         self.assertIn("ORD-77", r.stdout)
         self.assertTrue((self.p.root / "changes/001-disc").is_dir())
 
-    def test_the_html_is_rebuilt_when_generated(self) -> None:
+    def test_promote_has_no_html_step_and_never_mentions_html(self) -> None:
+        (self.p.root / "docs/trd/orders.md").unlink()
+        (self.p.root / STATE / "deliveries.md").write_text("Source: ORD-02, ORD-03, ORD-04: src/a.py" + chr(10), encoding="utf-8")
         r = self.promote()
-        html = self.text("docs/prd/prd.html")
-        self.assertIn("ORD-03", html, r.stdout)
-        self.assertNotIn("ORD-01<", html)
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertNotIn("html", r.stdout.lower())
+        self.assertNotIn("ORD-03", self.text("docs/prd/prd.html"))
 
     def test_it_runs_the_final_gate_and_prints_its_last_line(self) -> None:
         r = self.promote()

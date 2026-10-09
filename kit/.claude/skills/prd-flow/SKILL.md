@@ -46,7 +46,7 @@ Every agent ends with `Status`, `Files:`, `Commit:`, `Route: none|user: <questio
 | Failure | Dispatch |
 |---|---|
 | gate red after 2 reruns | its Route |
-| promote: missing Source; HTML, archive, final gate; close: a failing step | executor `fix` with the printed lines, then `close`; missing baseline, history-rewrite trailer, older drift: its `Route: user` |
+| promote: missing Source; archive, final gate; close: a failing step | executor `fix` with the printed lines, then `close`; missing baseline, history-rewrite trailer, older drift: its `Route: user` |
 | promote: fold needed | docs `fold`, then executor `close` |
 | agent ceiling | same role, new agent, its handoff |
 | Critical or High | executor `fix`, recheck; Medium, Low pending |

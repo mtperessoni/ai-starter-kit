@@ -56,7 +56,7 @@ Fix only what the handoff names, inside its Owns, under the rules of `task` (tes
 | promote: fold or superseded mismatch | `Route: docs fold: <error or warning lines>`; `Next:` executor close |
 | promote: PRD file not found | `Route: docs rules: <error line>`; `Next:` executor close |
 | promote: no `approved-rules.md` | `Status: blocked` · `Route: user: the run lost its scaffold / Restart the C5 (surveyor full) / Stop`; restarting is the user's call |
-| promote: HTML build, archive, final gate | `Route: executor fix: <printed lines, Owns: the files named>`; `Next:` executor close |
+| promote: archive, final gate | `Route: executor fix: <printed lines, Owns: the files named>`; `Next:` executor close |
 | close: tests, lint, trailers, G19, G21 | `Route: executor fix: <printed lines, Owns and Read: the files named>`; `Next:` executor close |
 | close: missing baseline; a trailer that needs a history rewrite; drift that predates the change | `Status: blocked` · `Route: user: <what failed, options with trade-offs>`; this row overrides any `owner:` the script printed (a baseline taken at close hides the change's own failures) |
 | Red after 2 reruns | `Status: blocked` · `Route: executor <mode>: <failing lines, files touched>` |

@@ -16,6 +16,7 @@ Brings kit improvements into a project that already has the kit, without overwri
 | U6c | Telemetry: copy `telemetry_hook.py`, `run_probe.py` and `retro.py` (kit-owned, U3 rules); merge the kit's hooks into `.claude/settings.json` keeping the project's own; add the `telemetry` section and the `.ai-kit/runs/` gitignore line; run the hook once on the sample payload of `install.md`. `.ai-kit/runs/` is never touched |
 | U6d | Migration from `prd-gate`, when `.claude/skills/prd-gate/` exists. List first, then ask; apply only after yes. See the table below |
 | U6e | Migration from the prd-flow workers, when `.claude/skills/prd-flow/reference/workers/` exists. List first, then ask; apply only after yes. See the second table below |
+| U6f | Migration to docs-html, when `.claude/skills/docs-html/` does not exist yet. List first, then ask; apply only after yes. See the third table below |
 | U7 | Plan table (K03): replace, merge, propose, skip; wait for yes |
 | U8 | Apply, run the Verify list of `install.md`, update the manifest (version, date, hashes) |
 | U9 | Commit `chore: update ai-starter-kit to <new>` with the kit log lines in the body; report |
@@ -51,3 +52,17 @@ List first, then ask; apply only after yes. A kit-owned file edited since instal
 | `ai-kit.json` keys | `limits.skill_md_bytes` `6144` and `allowlist.skill_md_bytes` added; the allowlist is computed from the project's current `SKILL.md` sizes (every `.claude/skills/*/SKILL.md` over 6144 bytes, at its current size) so the ratchet stays green; then `python scripts/ratchet.py` to confirm |
 | `settings.json` | Allow entry `Bash(python .claude/skills/prd-flow/scripts/promote.py:*)` added |
 | References | Mentions of `reference/workers` in project files are rewritten to the matching agent, each as a shown diff |
+
+## Migration to docs-html
+The HTML leaves the change flow: prd-flow, prd-create and trd-create stop building it, and the `docs-html` skill builds the PRD and TRD pages on request. List first, then ask; apply only after yes.
+
+| Change | How |
+|---|---|
+| Skill | `.claude/skills/docs-html/` added (kit-owned); `.claude/skills/prd-create/reference/html.md` removed (moved into it) |
+| Scripts and template | `build_trd_html.py` added beside `build_prd_html.py`; `gate.py` (HTML only warns by default, new `--html`), `promote.py` (no HTML step), `scripts/gates.sh` (`html` builds and checks both pages) and `docs/templates/prd.html` (new slots, same PRD output) replaced per U3 |
+| `repo.md` key | `trd_html` `docs/trd/trd.html` added |
+| `html_mode` `hand` | Offer the HTML row of "Migration from prd-gate" (preview, then `generated`); declined: keep `hand`, the gate warns once (G5) and `/docs-html` refuses to build |
+| `settings.json` | Allow entry `Bash(python .claude/skills/prd-flow/scripts/build_trd_html.py:*)` added |
+| CI | A step named "Docs gate (PRD, TRD, HTML parity)" is proposed renamed to "Docs gate (PRD, TRD)"; nothing else changes, the HTML no longer fails it |
+| References | Project sentences saying prd-flow or prd-create builds the HTML are rewritten to name `/docs-html`, each as a shown diff |
+| First build | After the update commit, offer `/docs-html` once to create `docs/trd/trd.html` |

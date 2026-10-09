@@ -2,6 +2,18 @@
 
 User-visible changes to the kit, newest first. Projects receive them through `/ai-kit update`.
 
+## docs-html: the HTML leaves the change flow
+
+prd-flow, prd-create and trd-create write markdown only; a new `docs-html` skill rebuilds the PRD and TRD reading pages when someone wants them (DS45).
+
+- New skill `.claude/skills/docs-html/` (its `reference/html.md` moved from prd-create). It runs `scripts/gates.sh html` and the strict `gate.py --html`, then commits the pages alone. Generated mode only.
+- New TRD reading page `docs/trd/trd.html`, built by `build_trd_html.py` from `docs/trd/` and `docs/flow.md` with the same template (`repo.md` key `trd_html`).
+- The docs agent no longer builds the HTML in `prd-plan`, `c4` or `merge`; `promote.py` no longer rebuilds it; the prd-create `html-writer` step is gone (the `index-writer` commits).
+- Gate: a stale page is a WARNING by default and in CI (G29 PRD, G32 TRD); `--html` makes it an ERROR. `html_mode: hand` is no longer checked row by row (G6 and G10 removed): one G5 warning until migrated.
+- `docs/templates/prd.html` gains slots for the page labels; the PRD page renders byte for byte as before.
+
+On update: run the "Migration to docs-html" table of `installer/ai-kit/reference/update.md`; add `trd_html` to the `repo.md` Gate config; then offer `/docs-html` once.
+
 ## prd-flow gate: localized rule tables
 
 A project whose PRD is not in English passes `--trace` with the same rules it passed before.
