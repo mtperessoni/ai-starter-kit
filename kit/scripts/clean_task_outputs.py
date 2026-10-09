@@ -3,6 +3,8 @@
 Task outputs (*.output) live under <temp>/claude/<project slug>/<session>/tasks/. An unbounded one filled the
 C: drive once (44 GB). This removes the ones older than 2 days or larger than 200 MB for this repository's
 session folders and reports what it removed. Run it by hand, from a hook, or from a scheduler.
+A hard cap (default 500 MB) applies to every output under the root, whatever the project: a runaway one is deleted,
+or truncated when it is still open and cannot be deleted.
 """
 
 import argparse
@@ -16,6 +18,7 @@ from pathlib import Path
 
 DEFAULT_MAX_AGE_DAYS = 2.0
 DEFAULT_MAX_MB = 200.0
+DEFAULT_HARD_MAX_MB = 500.0
 
 
 @dataclass(frozen=True)
@@ -40,10 +43,28 @@ def clean(
     max_mb: float,
     now: float | None = None,
     dry_run: bool = False,
+    hard_max_mb: float = DEFAULT_HARD_MAX_MB,
 ) -> tuple[list[Removal], list[str]]:
     moment = time.time() if now is None else now
     removed: list[Removal] = []
     errors: list[str] = []
+    done: set[Path] = set()
+
+    def remove(output: Path, size: int, reason: str) -> None:
+        try:
+            if not dry_run:
+                try:
+                    output.unlink()
+                except OSError:
+                    if size <= hard_max_mb * 1024 * 1024:
+                        raise
+                    output.write_bytes(b"")
+        except OSError as error:
+            errors.append(f"{output}: {error}")
+            return
+        done.add(output)
+        removed.append(Removal(output, size, reason))
+
     for slug in dict.fromkeys(slugs):
         for output in sorted((root / slug).glob("**/*.output")):
             stat = output.stat()
@@ -52,15 +73,14 @@ def clean(
                 reasons.append(f"older than {max_age_days:g} days")
             if stat.st_size > max_mb * 1024 * 1024:
                 reasons.append(f"larger than {max_mb:g} MB")
-            if not reasons:
-                continue
-            try:
-                if not dry_run:
-                    output.unlink()
-            except OSError as error:
-                errors.append(f"{output}: {error}")
-                continue
-            removed.append(Removal(output, stat.st_size, " and ".join(reasons)))
+            if reasons:
+                remove(output, stat.st_size, " and ".join(reasons))
+    for output in sorted(root.glob("**/*.output")):
+        if output in done:
+            continue
+        size = output.stat().st_size
+        if size > hard_max_mb * 1024 * 1024:
+            remove(output, size, f"over the hard cap of {hard_max_mb:g} MB")
     return removed, errors
 
 
@@ -70,10 +90,11 @@ def main(argv: Sequence[str]) -> int:
     parser.add_argument("--slug", action="append", help="project folder name under the root (repeatable)")
     parser.add_argument("--max-age-days", type=float, default=DEFAULT_MAX_AGE_DAYS)
     parser.add_argument("--max-mb", type=float, default=DEFAULT_MAX_MB)
+    parser.add_argument("--hard-max-mb", type=float, default=DEFAULT_HARD_MAX_MB)
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
     slugs = args.slug or default_slugs(Path(__file__).resolve().parents[1])
-    removed, errors = clean(args.root, slugs, args.max_age_days, args.max_mb, dry_run=args.dry_run)
+    removed, errors = clean(args.root, slugs, args.max_age_days, args.max_mb, dry_run=args.dry_run, hard_max_mb=args.hard_max_mb)
     verb = "would remove" if args.dry_run else "removed"
     for item in removed:
         print(f"{verb} {item.path} ({item.size / 1024 / 1024:.1f} MB, {item.reason})")

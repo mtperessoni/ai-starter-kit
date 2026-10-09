@@ -114,6 +114,7 @@
       "DATABASE_URL"
     ],
     "offline_flag": "OFFLINE_ONLY",
+    "python": "",
     "project_targets": []
   },
   "tests": {
@@ -136,6 +137,9 @@
     "related_budget_seconds": 60,
     "junit_xml": "",
     "flaky": [],
+    "baseline_deselect": [],
+    "baseline_idle_seconds": 300,
+    "always": [],
     "snapshot_patterns": [
       "**/__snapshots__/**",
       "**/*.snap",

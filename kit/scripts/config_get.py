@@ -1,0 +1,41 @@
+"""Prints one value of ai-kit.json for gates.sh (TS48: no inline interpreter heredocs in the shell script).
+
+Usage: python scripts/config_get.py <section.key> [default]      lists are joined with spaces
+       python scripts/config_get.py --has <section.key> <item>   exit 0 when the list holds the item
+"""
+
+import sys
+
+from kit_config import load, repo_root
+
+
+def lookup(config: dict, dotted: str) -> object:
+    value: object = config
+    for part in dotted.split("."):
+        if not isinstance(value, dict) or part not in value:
+            return None
+        value = value[part]
+    return value
+
+
+def main(argv: list[str]) -> int:
+    config = load(repo_root())
+    if len(argv) == 3 and argv[0] == "--has":
+        listed = lookup(config, argv[1])
+        return 0 if isinstance(listed, list) and argv[2] in listed else 1
+    if not argv:
+        print(__doc__)
+        return 2
+    value = lookup(config, argv[0])
+    if value is None:
+        if len(argv) > 1:
+            print(argv[1])
+            return 0
+        print(f"ai-kit.json has no {argv[0]}", file=sys.stderr)
+        return 1
+    print(" ".join(map(str, value)) if isinstance(value, list) else value)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
