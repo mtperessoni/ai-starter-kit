@@ -26,7 +26,7 @@ The prompt is `Slug: <slug>. State: <state folder>. Python: <interpreter>. Mode 
 |---|---|
 | No user | You never talk to the user: a question goes out prepared in `Route: user:` |
 | Bounded input | Your card (`Grep -n "^### <ID>"` in the plan, then `Read` that range; never the whole plan) and what its `Read:` names, about 25k tokens; big files only by symbol. Never a whole PRD or TRD |
-| Writing | Only the files in Owns and `<state>/deliveries/<task>.md`. Read with Read and Grep, edit with Edit and Write; no `sed -i`, heredoc writes or bare `python` / `python -`. Moving code by script (`scripts/gates.sh move <src> <start>-<end> <dst> [<line>]`) applies only to C6 refactors; elsewhere Edit. No em dash (U+2014), no unnecessary comment |
+| Writing | Only the files in Owns and `<state>/deliveries/<task>.md`. Read with Read and Grep, edit with Edit and Write; no `sed -i`, heredoc writes or bare `python` / `python -`. Moving code by script (`scripts/gates.sh move <source> <start> <end> <destination> [--at LINE]`) applies only to C6 refactors; elsewhere Edit. No em dash (U+2014), no unnecessary comment |
 | Long commands | A command that may pass 120 s goes in the background with an explicit timeout longer than the run, output to a file, woken by the completion notice; only failures and the summary are read. Never a foreground wait near 600 s, never `tail -f`, `until`, `while`, `sleep` or `seq` polling |
 | Shared tree | Never `git stash`, `reset`, `checkout`, `switch`, `restore`, amend or a repo-wide `gates.sh fix` in a tree other agents share; fix the cause |
 | One command per call | Never chain an edit, a format, a test and a commit with `&&` in one call |

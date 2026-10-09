@@ -6,6 +6,7 @@
     "**I. <Principle name> (NON-NEGOTIABLE).** <One line.>": "**I. Exact Money (NON-NEGOTIABLE).** Money is Decimal, rounded half up to cents; never float.",
     "**II. <Principle name>.** <One line.>": "**II. Deterministic Pricing.** The same cart, customer and coupon always give the same receipt; no clock, no randomness, no IO.",
     "**V. <Principle name>.** <One line.>": "**V. Stable Public API.** `from orders import checkout, Cart, CartItem, Customer, Coupon, Receipt` keeps its names and signatures.",
+    "**VI. <Principle name>.** <One line.>": "**VI. Deterministic Pricing and Stable Public API.** The same cart, customer and coupon always give the same receipt (no clock, no randomness, no IO); `from orders import checkout, Cart, CartItem, Customer, Coupon, Receipt` keeps its names and signatures.",
     "<src>/app/": "src/orders/",
     "<src>/features/": "src/orders/features/",
     "<src>/infra/": "src/orders/infra/",

@@ -71,7 +71,7 @@ Always through `scripts/gates.sh`; the stack commands behind each target are in 
 | Import and cycle check | `scripts/gates.sh imports` |
 | Structure ratchet | `scripts/gates.sh ratchet` |
 | Python interpreter | the output of `scripts/gates.sh python` |
-| Move code by line range (C6 only) | `scripts/gates.sh move <source> <start>-<end> <destination> [<line>]` |
+| Move code by line range (C6 only) | `scripts/gates.sh move <source> <start> <end> <destination> [--at LINE]` |
 
 ## Layout
 

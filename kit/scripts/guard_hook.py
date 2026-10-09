@@ -14,7 +14,7 @@ INTERP = r"(?:python[\d.]*|py|node|perl|ruby|bash|sh)(?:\.exe)?"
 GIT = B + r"git(?:\.exe)?(?:\s+(?:-[Cc]\s+\S+|-c\s+\S+|--\S+))*\s+"
 QUOTED = re.compile(r"'[^'\n]*'|\"[^\"\n]*\"")
 
-WRITE_WAY = "Create or change files with Edit and Write (to move code: scripts/gates.sh move <src> <start>-<end> <dst>)."
+WRITE_WAY = "Create or change files with Edit and Write (to move code: scripts/gates.sh move <source> <start> <end> <destination>)."
 RAW = [
     (re.compile(r"<<"), "A heredoc or here-string waits on stdin forever when its delimiter is off, and the process outlives the call. "
                         "Put the text in a file with Write, then run the command on that file (a commit message: Write it to a file, then git commit -F <file>)."),

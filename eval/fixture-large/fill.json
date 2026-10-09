@@ -6,6 +6,7 @@
     "**I. <Principle name> (NON-NEGOTIABLE).** <One line.>": "**I. Exact Money (NON-NEGOTIABLE).** Money is Decimal built from strings, rounded half up to cents only where a rule says so; never float.",
     "**II. <Principle name>.** <One line.>": "**II. Deterministic Behavior.** The same inputs always give the same result; time comes from `infra.clock` and ids from `infra.ids`, never from the system.",
     "**V. <Principle name>.** <One line.>": "**V. Stable Public API.** `from market import api` keeps its names and signatures.",
+    "**VI. <Principle name>.** <One line.>": "**VI. Deterministic Behavior and Stable Public API.** The same inputs always give the same result (time from `infra.clock`, ids from `infra.ids`, never from the system); `from market import api` keeps its names and signatures.",
     "<src>/app/": "src/market/",
     "<src>/features/": "src/market/features/",
     "<src>/infra/": "src/market/infra/",

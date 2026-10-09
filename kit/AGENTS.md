@@ -39,7 +39,7 @@ The stack commands behind each target are in `ai-kit.json`.
 
 ### Testing while working
 - For a person: `scripts/gates.sh related` finds the mirror test of each changed module and every test that imports it, runs them, and prints only failures and the summary. Add lint of the touched files.
-- A prd-flow executor runs only its own test, then `scripts/gates.sh fix-files <its files>` and `lint-files <its files>`; the chief runs one `scripts/gates.sh verify <slug>` per wave.
+- A prd-flow executor runs only its own test, then `scripts/gates.sh fix-files <file>...` and `lint-files <file>...` on its own files; the chief runs one `scripts/gates.sh verify <slug>` per wave.
 - Never kill processes by image name (`taskkill /IM`, `pkill`, `killall`); use `scripts/gates.sh reap`.
 - The full suite runs once, at the end of a delivery, compared with the recorded baseline of failures. A failure unrelated to what you touched waits for the end.
 - Redirect test output to a file and read only the failures and the summary.
