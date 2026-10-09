@@ -5,7 +5,8 @@ import json
 import re
 from pathlib import Path
 
-from gate_core import ROW, errors, literal_rows, notes, warnings
+from gate_core import ROW, errors, git, literal_rows, notes, warnings
+from state_record import approved_text
 
 STATE = ".claude/prd-flow/state"
 
@@ -19,11 +20,11 @@ def state_dir(root: Path, slug: str) -> Path:
 
 
 def approved_scope(root: Path, slug: str) -> set[str]:
-    path = state_dir(root, slug) / "approved-rules.md"
-    if not path.exists():
+    text = approved_text(state_dir(root, slug))
+    if text is None:
         return set()
     ids = set()
-    for _, line in literal_rows(path.read_text(encoding="utf-8")):
+    for _, line in literal_rows(text):
         m = ROW.match(line)
         if m:
             ids.add(m.group(1))
@@ -57,6 +58,21 @@ def write_snapshot(root: Path, slug: str, keys: set[str]) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(sorted(keys), indent=2) + "\n", encoding="utf-8", newline="\n")
     return path
+
+
+def code_state(root: Path) -> str:
+    """Hash of the tracked file list, the uncommitted diff and the untracked files, outside the prd-flow state."""
+    skip = f":(exclude){STATE}"
+    digest = hashlib.sha256()
+    digest.update(git(root, "ls-files", "--", ".", skip).encode("utf-8"))
+    digest.update(git(root, "diff", "HEAD", "--", ".", skip).encode("utf-8"))
+    for rel in git(root, "ls-files", "--others", "--exclude-standard", "--", ".", skip).splitlines():
+        try:
+            st = (root / rel).stat()
+        except OSError:
+            continue
+        digest.update(f"{rel}|{st.st_mtime_ns}|{st.st_size}|".encode("utf-8"))
+    return digest.hexdigest()
 
 
 def inputs_key(root: Path, rels: list[str], extra: str) -> str:

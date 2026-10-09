@@ -382,7 +382,7 @@ def promote(root: Path, slug: str, dry: bool, hold: frozenset[str] = frozenset()
         code = 0
     else:
         gate = Path(__file__).with_name("gate.py")
-        r = subprocess.run([sys.executable, str(gate), "--final"], capture_output=True, text=True, check=False,  # noqa: S603
+        r = subprocess.run([sys.executable, str(gate), "--final", "--change", slug], capture_output=True, text=True, check=False,  # noqa: S603
                            cwd=root, encoding="utf-8")
         tail = (r.stdout.strip().splitlines() or [""])[-1]
         lines.append(f"gate --final: {tail} (exit {r.returncode})")

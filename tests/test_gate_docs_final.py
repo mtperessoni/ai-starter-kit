@@ -17,6 +17,9 @@ APPROVED = """\
 """
 
 
+RULES_ONLY = APPROVED.replace("# Approved rules", "# Rules · mine · 2026-10-07 · Ana")
+
+
 class ScopedFinalTest(unittest.TestCase):
     def setUp(self) -> None:
         self.p = Project()
@@ -31,6 +34,14 @@ class ScopedFinalTest(unittest.TestCase):
 
     def final(self) -> object:
         return self.p.py(GATE, "--final", "--change", SLUG)
+
+    def test_a_rules_md_only_state_still_scopes_the_final_gate(self) -> None:
+        (self.p.root / f".claude/prd-flow/state/{SLUG}/approved-rules.md").unlink()
+        write(self.p.root, f".claude/prd-flow/state/{SLUG}/rules.md", RULES_ONLY)
+        self.plan_row("ORD-02", "src/features/orders/order_service.py | config")
+        r = self.final()
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("ERROR G19", r.stdout)
 
     def test_another_changes_planned_row_is_a_warning(self) -> None:
         self.plan_row("ORD-01", "src/features/orders/order_service.py::create_order | code")
@@ -99,6 +110,21 @@ class DocsTest(unittest.TestCase):
         r = self.p.py(GATE, "--docs", SLUG)
         self.assertIn("Q3", r.stdout)
         self.assertEqual(r.stdout.count("gate:"), 1, r.stdout)
+
+    def test_a_rules_md_only_state_runs_the_rules_checks(self) -> None:
+        write(self.p.root, f".claude/prd-flow/state/{SLUG}/rules.md", RULES_ONLY)
+        r = self.p.py(GATE, "--docs", SLUG)
+        self.assertIn("Q3", r.stdout)
+
+    def test_a_code_file_change_invalidates_the_cache(self) -> None:
+        self.p.py(GATE, "--docs", SLUG)
+        write(self.p.root, "src/features/orders/order_service.py", "def create_order():" + chr(10) + "    pass" + chr(10))
+        r = self.p.py(GATE, "--docs", SLUG)
+        self.assertNotIn("cache hit", r.stdout)
+        write(self.p.root, "src/features/orders/order_service.py", "def renamed():" + chr(10) + "    pass" + chr(10))
+        again = self.p.py(GATE, "--docs", SLUG)
+        self.assertNotIn("cache hit", again.stdout)
+        self.assertIn("cache hit", self.p.py(GATE, "--docs", SLUG).stdout)
 
     def test_one_run_prints_one_summary(self) -> None:
         r = self.p.py(GATE, "--docs", SLUG)

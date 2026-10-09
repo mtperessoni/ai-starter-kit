@@ -224,6 +224,13 @@ class PromoteTest(unittest.TestCase):
         self.assertNotIn("html", r.stdout.lower())
         self.assertNotIn("ORD-03", self.text("docs/prd/prd.html"))
 
+    def test_the_final_gate_is_scoped_to_the_slug_so_another_changes_planned_section_only_warns(self) -> None:
+        (self.p.root / "docs/trd/orders.md").unlink()
+        (self.p.root / STATE / "deliveries.md").write_text("Source: ORD-02, ORD-03, ORD-04: src/a.py" + chr(10), encoding="utf-8")
+        write(self.p.root, "docs/trd/billing.md", "# Billing" + chr(10) + chr(10) + "## Planned (002-other)" + chr(10) + "BIL-01 moves." + chr(10))
+        r = self.promote()
+        self.assertEqual(r.returncode, 0, r.stdout)
+
     def test_it_runs_the_final_gate_and_prints_its_last_line(self) -> None:
         r = self.promote()
         self.assertIn("gate --final:", r.stdout)

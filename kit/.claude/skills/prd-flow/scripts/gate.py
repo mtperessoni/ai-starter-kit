@@ -61,7 +61,7 @@ from state_record import approved_text
 from gate_budget import added_lines, names_id, check_sections, strip_markers
 from gate_output import base_ref, changed_paths, report, start
 from gate_plan import check_change, check_final, check_plan, check_trace, snapshot_drift
-from gate_scope import cache_load, cache_replay, cache_store, find_plan, inputs_key, slug_of, state_dir
+from gate_scope import code_state, cache_load, cache_replay, cache_store, find_plan, inputs_key, slug_of, state_dir
 from gate_core import notes
 from gate_prd import changed_rows, check_index, check_pack, check_rules
 from gate_html_build import check_html_flow, check_html_strict
@@ -134,19 +134,20 @@ def docs_checks(root: Path, cfg, rules, vias, args, repo_md: Path, rules_checks,
     slug = slug_of(args.docs)
     state = state_dir(root, slug)
     approved = state / "approved-rules.md"
+    has_rules = approved_text(state) is not None
     plan = find_plan(root, slug)
     prd_rel, trd_rel = cfg["prd_dir"].rstrip("/"), cfg["trd_dir"].rstrip("/")
     base = base_ref(root, cfg, args.base)
     head = git(root, "rev-parse", "HEAD").strip()
     watched = [prd_rel, trd_rel, state.relative_to(root).as_posix(), f"changes/{slug}", "ai-kit.json", repo_md.relative_to(root).as_posix()]
-    key = inputs_key(root, watched, f"{base}|{head}|{args.docs}|{args.base}")
+    key = inputs_key(root, watched, f"{base}|{head}|{args.docs}|{args.base}|{code_state(root)}")
     cache = state.parent / "_gate" / f"docs-{slug}.json"
     if not args.fresh:
         hit = cache_load(cache, key)
         if hit:
             return cache_replay(hit)
     suffix = default_checks(root, cfg, rules, vias, args.base, True)
-    if approved.exists():
+    if has_rules:
         args.rules, args.applied = approved, True
         rules_checks()
     check_sibling(root, repo_md)
