@@ -2,12 +2,12 @@
 
 IDs, texts and paths in the examples are illustrative: always read the real line.
 
-The TRD says where each feature lives in the code and what must not break; the rules stay in the PRD and the TRD never repeats them. Before code, it receives the design of the target state, so the plan and the agents start from an approved map and not from the current code. The docs agent writes Planned in `trd-plan` mode (or `context` for one area of a fan-out, `short` for a dated section), after the PRD commit; in `c4` mode it updates the body instead. The symbols come from `pack.md`: the docs agent never reads source.
+The TRD says where each feature lives in the code and what must not break; the rules stay in the PRD and the TRD never repeats them. Before code, it receives the design of the target state, so the plan and the agents start from an approved map and not from the current code. The docs agent writes Planned in `apply` mode (or `context` for one area of a fan-out, `short` for a dated section), after the PRD commit; in `c4` mode it updates the body instead. The symbols come from `pack.md`: the docs agent never reads source.
 
 ## "Planned" section
 The heading text is `repo.md` `planned_heading` (default `Planned`); the gate reads it from there.
 
-At the end of the area file (`docs/trd/<area>.md`, 1:1 with the area, rule AR13). When the area is split (section "Size and split"), Planned goes to the part file that owns the rules, not to the folder README. Proposed paths and names follow the repository's layout in `docs/code-structure.md`; the paths in the example are illustrative:
+At the end of the area file (`docs/trd/<area>.md`, 1:1 with the area). When the area is split (section "Size and split"), Planned goes to the part file that owns the rules, not to the folder README. Proposed paths and names follow the repository's layout in `docs/code-structure.md`; the paths in the example are illustrative:
 
 ```markdown
 ## Planned (<name of the change>, <branch>)
@@ -37,8 +37,8 @@ Must not break: <what of the "Must not break" section the change touches>.
 | TP03 | Contracts live only in `design.md`; Planned links to it |
 | TP04 | Plan tasks point to the Planned row by file instead of describing it again (`reference/agent-plan.md`) |
 | TP05 | Every cited ID must exist in the PRD, and the module will cite the IDs it implements (G25 checks the IDs column against the files) |
-| TP06 | An open TRD-only decision (a design choice no PRD row or `DEC-` row settles) is routed to the user as a question before the plan is written: the docs agent returns it as a prepared question and writes no plan until it is answered (WF69) |
-| TP07 | Each plan card's Contract covers the TRD IDs of the Planned rows of its Owns files, and each created symbol has a non-test caller owned by a card (WF70) |
+| TP06 | An open TRD-only decision (a design choice no PRD row or `DEC-` row settles) is an item of `sheet-2.md` before the plan is written: the docs agent writes no plan until it is answered |
+| TP07 | Each plan card's Contract covers the TRD IDs of the Planned rows of its Owns files, and each created symbol has a non-test caller owned by a card |
 
 ## Size and split
 | Rule | Detail |
@@ -58,4 +58,4 @@ Create `docs/trd/<area>.md` with the sections of the existing files (Where it li
 The executor of the last code task owns `docs/trd/<area>.md` and does the merge in its own commit: it moves "Planned" into the body sections, with the names the code actually used, and removes the section. Promotion (`promote.py`, run by `executor close`) then reads the file column for the PRD Source.
 
 ## Gate and commit
-The docs agent runs `gate.py --step trd` (the default checks and `--trd` in one run) and commits `docs(trd): <sentence>`, after the PRD commit, no push.
+The one `scripts/gates.sh docs <slug>` run after the plan checks the TRD (C4: `gate.py --step trd` once). The docs agent commits `docs(trd): <sentence>`, after the PRD commit, no push.
