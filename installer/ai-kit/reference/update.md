@@ -17,6 +17,7 @@ Brings kit improvements into a project that already has the kit, without overwri
 | U6d | Migration from `prd-gate`, when `.claude/skills/prd-gate/` exists. List first, then ask; apply only after yes. See the table below |
 | U6e | Migration from the prd-flow workers, when `.claude/skills/prd-flow/reference/workers/` exists. List first, then ask; apply only after yes. See the second table below |
 | U6f | Migration to docs-html, when `.claude/skills/docs-html/` does not exist yet. List first, then ask; apply only after yes. See the third table below |
+| U6g | Migration to the one-pass interview. List first, then ask; apply only after yes. See "Migration to the one-pass interview" below |
 | U7 | Plan table (K03): replace, merge, propose, skip; wait for yes |
 | U8 | Apply, run the Verify list of `install.md` (it includes `tests.failure_regex` on a real failure line, IN17, and the `rg` and proxy checks, IN18), update the manifest (version, date, hashes) |
 | U9 | Commit `chore: update ai-starter-kit to <new>` with the kit log lines in the body; report |
@@ -52,6 +53,19 @@ List first, then ask; apply only after yes. A kit-owned file edited since instal
 | `ai-kit.json` keys | `limits.skill_md_bytes` `6144` and `allowlist.skill_md_bytes` added; the allowlist is computed from the project's current `SKILL.md` sizes (every `.claude/skills/*/SKILL.md` over 6144 bytes, at its current size) so the ratchet stays green; then `python scripts/ratchet.py` to confirm |
 | `settings.json` | Allow entry `Bash(python .claude/skills/prd-flow/scripts/promote.py:*)` added |
 | References | Mentions of `reference/workers` in project files are rewritten to the matching agent, each as a shown diff |
+
+## Migration to the one-pass interview
+The interview becomes one decision sheet answered in the chat. List first, then ask; apply only after yes.
+
+| Change | How |
+|---|---|
+| `repo.md` Gate config | `question_lint` removed (the sheet lint replaces Q6 to Q9); `sheet_labels` added with the kit's default (English labels; translate them when `language` is not English); `plain_words` kept (S4 reads it) |
+| State files | `interview.md` and `delta.md` are no longer produced (`sheet.md`, `answers.md`, `rules.md` replace them); a change in flight finishes as it is, a folder already in `.claude/prd-flow/state/` is never rewritten |
+| `ai-kit.json` keys | `commands.fix_file` and `commands.lint_file` (with `{files}`; unset means `fix-files` and `lint-files` run the repo-wide command with a note) and `tests.summary_regex` `""`, `tests.fast_flags` `[]`, `tests.test_dirs` `[]` added with these defaults; fill `fix_file` and `lint_file` from the recipe and run each once (K05) |
+| Scripts | `guard_hook.py`, `reap.py`, `next_change_number.py` and `settings_check.py` added (kit-owned); `gates.sh` gains `fix-files`, `lint-files`, `move`, `reap` and `settings-check` |
+| Guard hook | Declared in the frontmatter `hooks:` of the five `prd-flow-*` agents (replaced per U3), never in `.claude/settings.json`; the telemetry launcher is replaced by the cheaper one (`commands.python` used directly, no `-c pass` probe) |
+| Changes folder | A new change is reserved with `python scripts/next_change_number.py <slug>`, which prints `changes/NNN-<slug>` |
+| Settings | Run `scripts/gates.sh settings-check`; a deny rule it reports is shown to the user, never removed silently |
 
 ## Migration to docs-html
 The HTML leaves the change flow: prd-flow, prd-create and trd-create stop building it, and the `docs-html` skill builds the PRD and TRD pages on request. List first, then ask; apply only after yes.

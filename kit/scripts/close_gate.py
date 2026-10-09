@@ -81,7 +81,7 @@ def content_hash(root: Path) -> str:
     configuration, and the dirty diff and untracked files of those paths. A docs-only commit leaves it unchanged."""
     config = load(root)
     tests = config.get("tests", {})
-    paths = [*config.get("source_dirs", []), *tests.get("test_dirs", ["tests", "test", "__tests__", "spec", "e2e"]), *LOCKFILES]
+    paths = [*config.get("source_dirs", []), *(tests.get("test_dirs") or ["tests", "test", "__tests__", "spec", "e2e"]), *LOCKFILES]
     digest = hashlib.sha1(usedforsecurity=False)
     digest.update(json.dumps([config.get("commands"), tests], sort_keys=True).encode())
     for path in paths:

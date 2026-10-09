@@ -47,6 +47,11 @@ usage: scripts/gates.sh <target> [args]
   python           print the resolved interpreter (the one every target uses)
   lint             verify lint, format and types, as CI does; one line: lint ok, or lint FAILED (exit N), log <path>
   fix              repair lint and format; same one-line result (then run lint)
+  fix-files <file>...   fix only those files (commands.fix_file with {files}, in chunks); unset runs fix with a note
+  lint-files <file>...  lint only those files (commands.lint_file with {files}, in chunks); unset runs lint with a note
+  move <source> <start> <end> <destination> [--at LINE]
+                   move lines by script (scripts/move_lines.py, same arguments), never retyped
+  settings-check   .claude/settings*.json deny rules that block files the flow writes (docs/prd, docs/trd, changes, state); exit 1 with the lines
   imports          the import check (catches cycles); same one-line result
   ratchet          structure ratchet (docs/code-structure.md)
   docs [slug|args] the prd-flow docs gate; a slug runs every check of the change in one process (gate.py --docs)
@@ -130,6 +135,38 @@ gate_has() {
 checked() {
     local name="$1" log="$LOG_DIR/$1.log" code=0
     bash -c "$2" > "$log" 2>&1 || code=$?
+    if [ "$code" -eq 0 ]; then echo "$name ok"; else echo "$name FAILED (exit $code), log $log"; fi
+    return "$code"
+}
+
+# files_target <name> <fileKey> <wholeKey> <files...>: commands.<fileKey> with {files} on those files only, in chunks of
+# 25 so a Windows command line stays short; unset (empty or a placeholder) falls back to commands.<wholeKey> with a note.
+files_target() {
+    local name="$1" key="$2" whole="$3" tpl head tail chunk n code=0 log="$LOG_DIR/$1.log"
+    shift 3
+    [ $# -ge 1 ] || { echo "usage: gates.sh $name <file>..." >&2; exit 2; }
+    tpl="$("$PY" scripts/config_get.py "commands.$key" "")"
+    case "$tpl" in
+    "" | "<"*)
+        echo "gates.sh: commands.$key is not set in ai-kit.json, running commands.$whole on the whole repository" >&2
+        checked "$name" "$(cmd "$whole")"
+        return
+        ;;
+    esac
+    case "$tpl" in *'{files}'*) ;; *) tpl="$tpl {files}" ;; esac
+    head="${tpl%%\{files\}*}"
+    tail="${tpl#*\{files\}}"
+    : > "$log"
+    while [ $# -gt 0 ]; do
+        chunk=""
+        n=0
+        while [ $# -gt 0 ] && [ "$n" -lt 25 ]; do
+            chunk="$chunk $(printf '%q' "$1")"
+            shift
+            n=$((n + 1))
+        done
+        bash -c "$head$chunk$tail" >> "$log" 2>&1 || code=$?
+    done
     if [ "$code" -eq 0 ]; then echo "$name ok"; else echo "$name FAILED (exit $code), log $log"; fi
     return "$code"
 }
@@ -317,6 +354,18 @@ lint)
     ;;
 fix)
     checked fix "$(cmd fix)"
+    ;;
+fix-files)
+    files_target fix-files fix_file fix "$@"
+    ;;
+lint-files)
+    files_target lint-files lint_file lint "$@"
+    ;;
+move)
+    "$PY" scripts/move_lines.py "$@"
+    ;;
+settings-check)
+    "$PY" scripts/settings_check.py "$@"
     ;;
 imports)
     checked imports "$(cmd import_check)"
