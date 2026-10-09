@@ -40,9 +40,9 @@ G31: a PRD section file over prd_section_budget_lines (warning).
 --final --change <slug>: G19 to G21 only for the slug's approved rows, its '## Planned (<slug>' heading and its folder; the rest is a warning (gate_scope).
 --snapshot <slug>: records the older G19 to G21 drift (final-snapshot.json in the slug state) so a scoped final reports it as pre-existing.
 --docs <slug>: default prd checks, --rules --applied when approved-rules.md exists, trd and plan in one run; cached by input mtimes (--fresh reruns).
---trd: backticked paths exist (G23), symbols (G24) and IDs (G25) are in the row's files, files within trd_budget_lines (G26).
+--trd: backticked paths exist (G23), symbols (G24) are in the row's files, files within trd_budget_lines (G26).
 --sibling: PRD folders listed under "Shared PRDs" of repo.md equal the sibling repository's (G28).
-The default run and --step never fail on the HTML: html_mode generated warns G29 (PRD) and G32 (TRD) when a page is missing or out of date, hand warns G5.
+The default run and --step never print a stale page (G29, G32 only under --html); html_mode hand warns G5. G25 and the G28 absent-sibling warning are not printed.
 --html: the strict HTML check of the docs-html skill, html_mode generated only (G29, G32 and G4 on the pages are errors, hand is an error G5).
 Modules: gate_output (capped stdout, artifact .claude/prd-flow/state/_gate/last-<mode>.txt, --step trd scoped to TRD files changed since the base).
 Exits with 1 when there is an ERROR. A WARNING does not fail.
@@ -150,6 +150,8 @@ def docs_checks(root: Path, cfg, rules, vias, args, repo_md: Path, rules_checks,
     if has_rules:
         args.rules, args.applied = approved, True
         rules_checks()
+    if (state / "sheet.md").is_file():
+        check_sheet(state, cfg)
     check_sibling(root, repo_md)
     diff = changed_paths(root, cfg, args.base)
     check_trd(root, cfg, trd_rel, {n for n in diff if n.startswith(trd_rel + "/")}, diff)
@@ -165,30 +167,35 @@ def docs_checks(root: Path, cfg, rules, vias, args, repo_md: Path, rules_checks,
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--base", default=None, help="comparison ref; default: merge-base with origin/<base_branch>")
-    parser.add_argument("--pack", type=Path, help="check a pack.md from the state folder")
-    parser.add_argument("--rules", type=Path, help="check an approved-rules.md from the state folder")
-    parser.add_argument("--plan", type=Path, help="check a plan for agents")
+    parser = argparse.ArgumentParser(
+        description="prd-flow structural gate. No flag: the default PRD run. Exit 1 on an ERROR.",
+        formatter_class=lambda prog: argparse.HelpFormatter(prog, max_help_position=30, width=200),
+    )
+    parser.add_argument("--base", default=None, metavar="REF", help="comparison ref (default: merge-base with origin/<base_branch>)")
+    parser.add_argument("--pack", type=Path, metavar="FILE", help="check a pack.md of the state folder (Q1)")
+    parser.add_argument("--rules", type=Path, metavar="FILE|SLUG", help="check the approved rules of a state folder: rows, conflicts, answers (Q2 to Q5)")
+    parser.add_argument("--plan", type=Path, metavar="FILE", help="check a plan for agents (P1 to P17)")
     parser.add_argument("--sheet", "--questions", dest="sheet", metavar="SLUG", help="lint sheet.md and sheet-2.md of a change (S0 to S6); --questions is the old name")
     parser.add_argument("--trace", action="store_true", help="every non-planned PRD rule is cited by a test file")
-    parser.add_argument("--change", type=Path, help="check a change folder (brief.md, design.md, plan.md)")
-    parser.add_argument("--final", action="store_true", help="nothing planned, pending or open is left")
-    parser.add_argument("--applied", action="store_true", help="with --rules: the rows were written to the PRD literally")
-    parser.add_argument("--trd", action="store_true", help="check the TRD paths, symbols, IDs and size against the tracked files")
-    parser.add_argument("--html", action="store_true", help="strict check of the generated PRD and TRD pages (docs-html skill)")
-    parser.add_argument("--sibling", action="store_true", help="check the shared PRD folders against the sibling repositories")
-    parser.add_argument("--snapshot", metavar="SLUG", help="record the older planned and open-folder drift of the final gate for this change")
-    parser.add_argument("--docs", metavar="SLUG", help="rules, prd, trd and plan checks of one change in one run, cached by input mtimes")
+    parser.add_argument("--change", type=Path, metavar="FOLDER", help="check a change folder (brief.md, design.md, plan.md)")
+    parser.add_argument("--final", action="store_true", help="nothing planned, pending, proposed or open is left (with --change: scoped to the slug)")
+    parser.add_argument("--applied", action="store_true", help="with --rules: the approved rows exist in the PRD, identical (Q4)")
+    parser.add_argument("--trd", action="store_true", help="check TRD paths, symbols and size against the tracked files (G23, G24, G26)")
+    parser.add_argument("--html", action="store_true", help="strict check of the generated PRD and TRD pages (G29, G32; docs-html skill)")
+    parser.add_argument("--sibling", action="store_true", help="check the shared PRD folders against the sibling repositories (G28)")
+    parser.add_argument("--snapshot", metavar="SLUG", help="record the older final-gate drift so a scoped final reports it as pre-existing")
+    parser.add_argument("--docs", metavar="SLUG", help="sheet, rules, prd, trd and plan checks of one change in one run (cached)")
     parser.add_argument("--fresh", action="store_true", help="with --docs: ignore the cache")
     parser.add_argument("--status", action="store_true", help="print the state of every rule")
-    parser.add_argument("--prd", help="with --status: only this PRD folder")
+    parser.add_argument("--prd", metavar="FOLDER", help="with --status: only this PRD folder")
     parser.add_argument("--state", choices=STATES, help="with --status: only this state")
-    parser.add_argument("--step", choices=("prd", "trd", "plan"), help="every check of one agent step in one run and one report")
+    parser.add_argument("--step", choices=("prd", "trd", "plan"), metavar="STEP", help="prd, trd or plan: every check of one agent step in one report")
     args = parser.parse_args()
     cfg = load_config()
     vias = {v.strip().lower() for v in cfg["change_via"].split(",") if v.strip()}
     root = Path(git(Path.cwd(), "rev-parse", "--show-toplevel").strip() or ".")
+    if args.rules and args.rules.suffix != ".md":
+        args.rules = state_dir(root, slug_of(str(args.rules))) / "approved-rules.md"
     prd_rel, trd_rel = cfg["prd_dir"].rstrip("/"), cfg["trd_dir"].rstrip("/")
     prd, trd = root / prd_rel, root / trd_rel
     rules = read_md_rules(prd, cfg["prd_glob"], cfg["via_header"])

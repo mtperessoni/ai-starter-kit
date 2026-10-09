@@ -43,6 +43,16 @@ Example: the customer asks, under (A) support answers.
 ## How to answer
 `ok` accepts every recommendation and assumption.
 """
+SHEET_2 = """# Follow-up
+
+## Decisions (answer by number)
+**1. Which `REOPEN_WINDOW` unit** · rule ORD-03
+Today: days.
+Why it matters: clarity.
+- A) Days (Recommended): simple
+- B) Hours: precise
+Example: 20 days under (A).
+"""
 ANSWERS = "## Reply 1\nok\n\n## Resolution\n| Item | Answer | From |\n|---|---|---|\n| 1 | A | ok |\n| 2 | A | ok |\n| A1 | accepted | ok |\n| scope | accepted | ok |\n"
 
 
@@ -120,6 +130,30 @@ class SheetLintTest(SheetBase):
     def test_a_missing_sheet_is_an_error(self) -> None:
         self.assertIn("ERROR", self.p.py(GATE, "--sheet", "orders").stdout)
 
+    def test_s0_a_sheet_without_a_title_line(self) -> None:
+        self.assertIn("ERROR S0", self.sheet(SHEET.replace("# Orders can be reopened\n\n", "", 1)))
+
+    def test_s0_a_sheet_without_how_to_answer(self) -> None:
+        out = self.sheet(SHEET.replace("## How to answer\n`ok` accepts every recommendation and assumption.\n", ""))
+        self.assertIn("ERROR S0", out)
+        self.assertIn("How to answer", out)
+
+    def test_s0_an_adds_row_needs_none_as_today(self) -> None:
+        out = self.sheet(SHEET.replace("| ORD-03 | (none) |", '| ORD-03 | "Orders stay closed" |'))
+        self.assertIn("ERROR S0", out)
+        self.assertIn("ORD-03", out)
+
+    def test_s0_a_missing_pack_warns_that_s2_cannot_run(self) -> None:
+        out = self.sheet(SHEET, pack=None)
+        self.assertIn("WARNING S0", out)
+        self.assertIn("pack.md", out)
+        self.assertNotIn("ERROR", out)
+
+    def test_the_sheet_two_items_are_keyed_two_dot_n(self) -> None:
+        write(self.p.root, f"{STATE}/sheet-2.md", SHEET_2)
+        out = self.sheet()
+        self.assertIn("0 error(s)", out)
+
 
 class AnswersTest(SheetBase):
     def setUp(self) -> None:
@@ -151,15 +185,54 @@ class AnswersTest(SheetBase):
         self.assertIn("ERROR Q3", self.gate())
 
     def test_an_unasked_mechanism_is_q3(self) -> None:
-        write(self.p.root, f"{STATE}/rules.md", RULES_MD.replace("Orders can be reopened.", "Orders can be reopened while the environment variable REOPEN is on."))
+        write(self.p.root, f"{STATE}/rules.md", RULES_MD.replace("Orders can be reopened.", "Orders can be reopened while the environment variable REOPEN_ORDERS is on."))
         out = self.gate()
         self.assertIn("ERROR Q3", out)
-        self.assertIn("environment variable", out)
+        self.assertIn("REOPEN_ORDERS", out)
+
+    def test_an_unasked_backticked_switch_is_q3(self) -> None:
+        write(self.p.root, f"{STATE}/rules.md", RULES_MD.replace("Orders can be reopened.", "Orders can be reopened when the flag `reopenEnabled` is set."))
+        out = self.gate()
+        self.assertIn("ERROR Q3", out)
+        self.assertIn("reopenEnabled", out)
 
     def test_a_mechanism_present_in_the_sheet_is_fine(self) -> None:
-        write(self.p.root, f"{STATE}/rules.md", RULES_MD.replace("Orders can be reopened.", "Orders can be reopened by a switch."))
-        write(self.p.root, f"{STATE}/sheet.md", SHEET.replace("Support only", "A switch for support only"))
+        write(self.p.root, f"{STATE}/rules.md", RULES_MD.replace("Orders can be reopened.", "Orders can be reopened by the switch `reopenEnabled`."))
+        write(self.p.root, f"{STATE}/sheet.md", SHEET.replace("Support only", "A switch `reopenEnabled` for support only"))
         self.assertNotIn("Q3", self.gate())
+
+    def test_plain_words_are_not_mechanisms(self) -> None:
+        text = "Orders can be reopened: a red flag in the Kind column, an acceptable table of options, many endpoints."
+        write(self.p.root, f"{STATE}/rules.md", RULES_MD.replace("Orders can be reopened.", text))
+        write(self.p.root, f"{STATE}/decisions.md", "# Decisions\n\n| DEC-01 | the Kind column is a table of switches |\n")
+        self.assertNotIn("Q3", self.gate())
+
+    def test_sheet_two_items_are_keyed_two_dot_n(self) -> None:
+        write(self.p.root, f"{STATE}/sheet-2.md", SHEET_2)
+        out = self.gate()
+        self.assertIn("item 2.1", out)
+        write(self.p.root, f"{STATE}/answers.md", ANSWERS + "| 2.1 | A | Reply 2 |\n")
+        self.assertNotIn("Q3", self.gate())
+
+    def test_backticks_in_the_item_cell_are_ignored(self) -> None:
+        write(self.p.root, f"{STATE}/answers.md", ANSWERS.replace("| 2 | A | ok |", "| `2` | A | ok |"))
+        self.assertNotIn("Q3", self.gate())
+
+    def test_rules_accepts_the_slug(self) -> None:
+        write(self.p.root, f"{STATE}/answers.md", ANSWERS.replace("| 2 | A | ok |\n", ""))
+        out = self.p.py(GATE, "--rules", "orders").stdout
+        self.assertIn("ERROR Q3", out)
+        self.assertIn("item 2", out)
+
+    def test_docs_runs_the_sheet_checks_when_sheet_md_exists(self) -> None:
+        write(self.p.root, f"{STATE}/sheet.md", SHEET.replace("Today: nobody.\n", ""))
+        write(self.p.root, f"{STATE}/pack.md", PACK)
+        self.assertIn("ERROR S1", self.p.py(GATE, "--docs", "orders", "--fresh").stdout)
+
+    def test_help_has_one_line_per_flag(self) -> None:
+        out = self.p.py(GATE, "--help").stdout
+        for flag in ("--base", "--pack", "--rules", "--plan", "--sheet", "--trace", "--change", "--final", "--applied", "--trd", "--html", "--sibling", "--snapshot", "--docs", "--fresh", "--status", "--prd", "--state", "--step"):
+            self.assertIn(flag, out)
 
     def test_no_sheet_means_no_answers_check(self) -> None:
         (self.p.root / STATE / "sheet.md").unlink()

@@ -1,6 +1,6 @@
 """G29 and G32: with html_mode generated, the PRD and TRD pages equal a fresh render of their builders.
 
-The change flow only warns (check_html_flow); the docs-html skill runs the strict check through gate.py --html.
+The change flow prints nothing about a stale page (check_html_flow warns only G5); the docs-html skill runs the strict check through gate.py --html.
 """
 
 import importlib
@@ -51,10 +51,7 @@ def check_page_em_dash(root: Path, cfg: dict[str, str], path_key: str) -> None:
 
 
 def check_html_flow(root: Path, cfg: dict[str, str]) -> None:
-    if is_generated(cfg):
-        for code, module, key in pages(root, cfg):
-            check_page(root, cfg, code, module, key, False)
-    elif html_on(cfg):
+    if html_on(cfg) and not is_generated(cfg):
         warn("G5", HAND_WARNING)
 
 

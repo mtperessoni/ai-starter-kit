@@ -102,8 +102,6 @@ def check_plan(path: Path, rules: Rules, cfg: dict[str, str], root: Path | None 
     budget = int(cfg["plan_budget_kb"]) * 1000
     if size > budget:
         warn("P1", f"plan with {size // 1000} KB: a new amendment goes in a file of its own")
-    if not re.search(r"^## Plan execution rules", text, re.M):
-        warn("P6", "plan without '## Plan execution rules' (review ceiling)")
     found = TASK.split(text)
     if len(found) < 3:
         err("P1", "plan without '### TNN' tasks")

@@ -13,7 +13,8 @@ ITEM = re.compile(r"^\*\*\s*(\d+)\.\s*(.+?)\s*\*\*(.*)$")
 OPTION = re.compile(r"^\s*-\s+([A-Z])\)\s+(.*)$")
 INTERACTS = re.compile(r"^\s*Interacts with:\s*(.*)$")
 ASSUMED = re.compile(r"^\s*-\s+(A\d+)\b")
-MECHANISM = re.compile(r"(?i)\b(env var|environment variable|switch|flag|configuration key|config key|table|endpoint|column)\b")
+MECHANISM = re.compile(r"(?i)\b(env var|environment variable|switch|flag|configuration|config key|table|column|endpoint)s?\b")
+CODE_TOKEN = re.compile(r"`([^`\n]+)`|\b([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)\b")
 MAX_ITEMS = 8
 
 
@@ -120,8 +121,11 @@ def check_diff(text: str, lab: dict[str, str], pack: Path | None) -> None:
         if len(row) != 4:
             err("S0", f"diff row with {len(row)} columns: {row[0][:40]}")
             continue
-        if row[3].strip("` ").lower() not in KINDS:
+        kind = row[3].strip("` ").lower()
+        if kind not in KINDS:
             err("S0", f"diff row {row[0]}: Kind '{row[3]}' is not one of {sorted(KINDS)}")
+        elif kind == "adds" and row[1].strip("` ").lower() != "(none)":
+            err("S0", f"diff row {row[0]}: an 'adds' row has '(none)' as Today, not '{row[1][:30]}'")
         ids |= set(re.findall(r"\b(" + ID + r")\b", row[0]))
     for rid in sorted((pack_ids(pack) if pack else set()) - ids):
         err("S2", f"{rid} is touched or conflicting in the pack and is not a row of the diff table")
@@ -139,7 +143,14 @@ def check_sheet(target: Path, cfg: dict[str, str]) -> None:
     if text is None:
         err("S0", f"{sheet} not found", "write sheet.md with the surveyor in full mode")
         return
-    check_diff(text, lab, sheet.parent / "pack.md")
+    if not next((ln for ln in text.splitlines() if ln.strip()), "").startswith("# "):
+        err("S0", "sheet without the '# <the change in one line>' title line")
+    if heading_body(text, lab["answer"]) is None:
+        err("S0", f"sheet without the section '## {lab['answer']}'")
+    pack = sheet.parent / "pack.md"
+    if not pack.is_file():
+        warn("S0", "pack.md not found beside the sheet: S2 (pack rules in the diff) was not checked")
+    check_diff(text, lab, pack)
     body = heading_body(text, lab["decisions"])
     if body is None:
         err("S0", f"sheet without the section '## {lab['decisions']}'")
@@ -157,7 +168,8 @@ def sheet_items(state: Path, lab: dict[str, str]) -> list[str]:
         if text is None:
             continue
         body = heading_body(text, lab["decisions"]) or ""
-        items += [d["n"] for d in decisions(body, lab)]
+        prefix = "2." if name == "sheet-2.md" else ""
+        items += [prefix + d["n"] for d in decisions(body, lab)]
         if name == "sheet.md":
             items += [m.group(1) for ln in (heading_body(text, lab["assumed"]) or "").splitlines() if (m := ASSUMED.match(ln))]
             items.append("scope")
@@ -174,12 +186,23 @@ def check_answers(state: Path, cfg: dict[str, str]) -> None:
         err("Q3", f"answers.md not found beside the sheet in {state.name}", "write answers.md with the docs agent in apply mode")
         return
     body = heading_body(answers, "Resolution") or ""
-    answered = {cells(ln.strip().strip("|"))[0].lower() for ln in body.splitlines() if is_table_line(ln.strip())}
+    answered = {cells(ln.strip().strip("|"))[0].replace("`", "").strip().lower() for ln in body.splitlines() if is_table_line(ln.strip())}
     for item in items:
         if item.lower() not in answered:
             err("Q3", f"item {item} of the sheet has no row in answers.md '## Resolution'", "add the row: | Item | Answer | From |")
     known = " ".join(read(state / n) or "" for n in ("sheet.md", "sheet-2.md", "answers.md")).lower()
-    written = " ".join(read(state / n) or "" for n in ("rules.md", "decisions.md"))
-    for term in sorted({m.group(1).lower() for m in MECHANISM.finditer(written)}):
-        if term not in known:
-            err("Q3", f"the mechanism '{term}' appears in rules.md or decisions.md and in neither the sheet nor the answers", "ask it in a sheet decision or remove it")
+    for token in sorted(mechanism_tokens("\n".join(read(state / n) or "" for n in ("rules.md", "decisions.md")))):
+        if token.lower() not in known:
+            err("Q3", f"the mechanism `{token}` appears in rules.md or decisions.md and in neither the sheet nor the answers", "ask it in a sheet decision or remove it")
+
+
+def mechanism_tokens(written: str) -> set[str]:
+    found: set[str] = set()
+    for line in written.splitlines():
+        if not MECHANISM.search(line):
+            continue
+        for m in CODE_TOKEN.finditer(line):
+            token = (m.group(1) or m.group(2)).strip()
+            if token and "/" not in token and not re.fullmatch(ID, token):
+                found.add(token)
+    return found

@@ -11,7 +11,7 @@ PIPE = re.compile(r"(?<!\\)\|")
 SEPARATOR = re.compile(r"^\|[\s|:-]+$")
 RANGE = re.compile(r"([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*)-(\d+)(?:\.\.(\d+))?")
 EM_DASH = chr(0x2014)
-PACK_SECTIONS = ["Rules", "TRD", "Invariants", "Principles", "Divergences", "Pre-interview"]
+PACK_SECTIONS = ["Rules", "TRD", "Invariants", "Principles", "Divergences"]
 TASK = re.compile(r"^### (T\d+[a-z]?)\b", re.M)
 DEFAULTS = {
     "base_branch": "main",

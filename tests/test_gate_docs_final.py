@@ -106,15 +106,15 @@ class DocsTest(unittest.TestCase):
         self.p.close()
 
     def test_approved_rules_run_the_rules_checks(self) -> None:
-        write(self.p.root, f".claude/prd-flow/state/{SLUG}/approved-rules.md", APPROVED)
+        write(self.p.root, f".claude/prd-flow/state/{SLUG}/approved-rules.md", APPROVED.replace("payment timeout", "grace period"))
         r = self.p.py(GATE, "--docs", SLUG)
-        self.assertIn("Q3", r.stdout)
+        self.assertIn("ERROR Q4", r.stdout)
         self.assertEqual(r.stdout.count("gate:"), 1, r.stdout)
 
     def test_a_rules_md_only_state_runs_the_rules_checks(self) -> None:
-        write(self.p.root, f".claude/prd-flow/state/{SLUG}/rules.md", RULES_ONLY)
+        write(self.p.root, f".claude/prd-flow/state/{SLUG}/rules.md", RULES_ONLY.replace("payment timeout", "grace period"))
         r = self.p.py(GATE, "--docs", SLUG)
-        self.assertIn("Q3", r.stdout)
+        self.assertIn("ERROR Q4", r.stdout)
 
     def test_a_code_file_change_invalidates_the_cache(self) -> None:
         self.p.py(GATE, "--docs", SLUG)
