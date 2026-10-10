@@ -106,9 +106,11 @@ class SelectionTest(unittest.TestCase):
         self.assertEqual(fake.killed, [])
 
     def test_gates_close_is_protected(self):
-        root = wrapper(500, "scripts/gates.sh close s1", age=90.0)
-        fake, _, _ = reap_with(table(root, proc(501, 500, "python -m pytest", age=90.0)))
-        self.assertEqual(fake.killed, [])
+        for age in (90.0, 300.0):
+            with self.subTest(age=age):
+                root = wrapper(500, "scripts/gates.sh close s1", age=age)
+                fake, _, _ = reap_with(table(root, proc(501, 500, "python -m pytest", age=age)))
+                self.assertEqual(fake.killed, [])
 
     def test_a_reused_parent_pid_does_not_shield_an_older_child(self):
         shield = proc(600, 1, "bash scripts/gates.sh verify s1", age=1.0)
@@ -173,8 +175,8 @@ class SelectionTest(unittest.TestCase):
                 fake, out, _ = reap_with(table(root, kid), root=self.state("baseline", text), argv=["--older-than", "20"])
                 self.assertEqual(fake.killed, [500])
 
-    def test_close_watch_related_one_cleanup_trees_are_kept_under_the_age_cap_and_reaped_past_it(self):
-        for call in ["close s1", "watch s1", "related a.ts", "one t.test.ts", "cleanup s1"]:
+    def test_watch_related_one_cleanup_trees_are_kept_under_the_age_cap_and_reaped_past_it(self):
+        for call in ["watch s1", "related a.ts", "one t.test.ts", "cleanup s1"]:
             with self.subTest(call=call):
                 young = wrapper(500, f"scripts/gates.sh {call}", age=40.0)
                 fake, _, _ = reap_with(table(young, proc(501, 500, "pytest", age=40.0)))
@@ -183,8 +185,8 @@ class SelectionTest(unittest.TestCase):
                 fake, _, _ = reap_with(table(old))
                 self.assertEqual(fake.killed, [500])
 
-    def test_a_stdin_waiting_shell_is_killed_at_any_age_even_inside_a_protected_name(self):
-        waiting = wrapper(500, "python3 - <<'E'", age=1.0)
+    def test_a_stdin_waiting_shell_past_two_minutes_is_killed(self):
+        waiting = wrapper(500, "python3 - <<'E'", age=3.0)
         fake, _, _ = reap_with(table(waiting))
         self.assertEqual(fake.killed, [500])
 
