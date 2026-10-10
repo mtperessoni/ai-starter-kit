@@ -16,7 +16,7 @@ jobs:
   scripts:
     name: Scripts (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 25  # the Windows runner takes over 10 minutes for the full suite since prd-flow v6
+    timeout-minutes: 40  # the Windows runner passed 25 minutes for the 1121-test suite after the one-pass and lite merges
     strategy:
       fail-fast: false
       matrix:
