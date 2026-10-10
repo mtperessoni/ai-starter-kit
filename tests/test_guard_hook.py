@@ -125,7 +125,7 @@ class FrontmatterTest(unittest.TestCase):
             with self.subTest(agent=path.name):
                 self.assertIsNone(re.search(r"^hooks:", front, re.M))
                 self.assertNotIn("guard_hook.py", front)
-                self.assertNotIn("—", path.read_text(encoding="utf-8"))
+                self.assertNotIn(chr(0x2014), path.read_text(encoding="utf-8"))
 
     def test_settings_carries_the_guard_and_passes_exit_2(self):
         command = self.guard_command()

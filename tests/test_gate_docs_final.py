@@ -109,8 +109,8 @@ class DocsTest(unittest.TestCase):
     def test_approved_rules_run_the_rules_checks(self) -> None:
         write(self.p.root, f".claude/prd-flow/state/{SLUG}/approved-rules.md", APPROVED.replace("payment timeout", "grace period"))
         r = self.p.py(GATE, "--docs", SLUG)
-        self.assertIn("Q3", r.stdout)
-        self.assertEqual(r.stdout.count("gate:"), 1, full(self.p, r))
+        self.assertIn("ERROR Q4 ORD-02", r.stdout)
+        self.assertEqual(full(self.p, r).count("gate:"), 1, full(self.p, r))
 
     def test_a_rules_md_only_state_runs_the_rules_checks(self) -> None:
         write(self.p.root, f".claude/prd-flow/state/{SLUG}/rules.md", RULES_ONLY.replace("payment timeout", "grace period"))

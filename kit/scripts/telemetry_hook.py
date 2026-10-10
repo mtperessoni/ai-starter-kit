@@ -20,7 +20,7 @@ POLLING = re.compile(r"\b(?:until|while|for)\b[^\n]*\bsleep\s+\d")
 EDIT_CMD = re.compile(r"\bsed\s+(?:-\w+\s+)*-i|\bperl\s+(?:-\w+\s+)*-\w*i|\bcat\s*>|\bgit\s+apply\b|\bpatch\s|\bapply_patch\b"
                       r"|\bwrite_text\(|\bopen\([^)]*['\"]w")
 CD_TARGET = re.compile(r"(?:\bcd\s+(?:/d\s+)?|\bgit\s+-C\s+)(\"[^\"]+\"|'[^']+'|[^\s;&|]+)")
-ABS_PATH = re.compile(r"(?<![\w./:-])(?:[A-Za-z]:[\\/]|/[A-Za-z]/)[^\s'\";&|()<>]+")
+ABS_PATH = re.compile(r"(?<![\w./:-])(?:[A-Za-z]:[\\/]|/(?=[\w.-]))[^\s'\";&|()<>]+")
 MSYS_DRIVE = re.compile(r"^/([A-Za-z])(?:/|$)")
 FIELD = {"mode": re.compile(r"\bmode\s*[:=]\s*`?([\w-]+)", re.I),
          "task": re.compile(r"\btask\s*[:=]?\s*`?([A-Za-z]*\d[\w.-]*)", re.I),

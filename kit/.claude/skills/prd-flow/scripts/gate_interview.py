@@ -14,7 +14,7 @@ OPTION = re.compile(r"^\s*-\s+([A-Z])\)\s+(.*)$")
 INTERACTS = re.compile(r"^\s*Interacts with:\s*(.*)$")
 ASSUMED = re.compile(r"^\s*-\s+(A\d+)\b")
 MECHANISM = re.compile(
-    r"(?i)\b(?:env(?:ironment)?\s+var(?:iable)?|switch|feature\s+flag|config(?:uration)?\s+key|endpoint"
+    r"(?i)\b(env(?:ironment)?\s+var(?:iable)?|switch|feature\s+flag|config(?:uration)?\s+key|endpoint"
     r"|(?:new|add(?:s|ed|ing)?)\s+(?:an?\s+|the\s+)?(?:\w+\s+)?(?:table|column|flag|configuration))(?:e?s)?\b"
 )
 SENTENCE = re.compile(r"(?<=[.!?;])\s+")
@@ -146,7 +146,12 @@ def check_sheet(target: Path, cfg: dict[str, str]) -> None:
     sheet = target if target.is_file() else target / "sheet.md"
     text = read(sheet)
     if text is None:
-        err("S0", f"{sheet} not found", "write sheet.md with the surveyor in full mode")
+        shorts = short_sheet_names(sheet.parent)
+        if not shorts:
+            err("S0", f"{sheet} not found", "write sheet.md with the surveyor in full mode")
+        for short in shorts:
+            text_short = read(sheet.parent / short) or ""
+            lint_decisions(short, heading_body(text_short, lab["decisions"]) or text_short, lab, cfg)
         return
     if not next((ln for ln in text.splitlines() if ln.strip()), "").startswith("# "):
         err("S0", "sheet without the '# <the change in one line>' title line")
@@ -193,8 +198,8 @@ def sheet_items(state: Path, lab: dict[str, str]) -> list[str]:
 
 def check_mechanisms(state: Path, written: str, replies: str = "") -> None:
     """New route: a mechanism term in the written decisions or rows must come from sheet.md, sheet-2.md or a Reply line."""
-    known = " ".join([read(state / n) or "" for n in ("sheet.md", "sheet-2.md")] + [replies]).lower()
-    for term in sorted({m.group(1).lower() for m in MECHANISM.finditer(written)}):
+    known = " ".join(" ".join([read(state / n) or "" for n in ("sheet.md", "sheet-2.md")] + [replies]).lower().split())
+    for term in sorted({" ".join(m.group(1).lower().split()) for m in MECHANISM.finditer(written)}):
         if term not in known:
             err("Q3", f"the mechanism '{term}' appears in decisions.md or in the rows of the CHANGELOG IDs and in neither the sheet nor a Reply line",
                 "ask it in a sheet decision or remove it")

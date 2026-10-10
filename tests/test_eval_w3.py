@@ -73,8 +73,8 @@ class ViolationCategoriesTest(unittest.TestCase):
             asst([use("q", "Read", file_path="/p/docs/prd/INDEX.md")])))
         self.assertEqual(a["main_violations"], 0)
 
-    def test_impact_read_is_a_worker_only_read(self):
-        a = self.count(after_surveyor(asst([use("r", "Read", file_path="/p/.claude/prd-flow/state/x/impact.md")])))
+    def test_a_worker_reference_read_is_a_worker_only_read(self):
+        a = self.count(after_surveyor(asst([use("r", "Read", file_path="/p/.claude/skills/prd-flow/reference/survey.md")])))
         self.assertEqual(a["worker_only_reads"], 1)
 
     def test_diff_read_after_surveyor_counts_but_stat_does_not(self):

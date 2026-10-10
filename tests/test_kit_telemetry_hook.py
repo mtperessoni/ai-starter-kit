@@ -386,31 +386,42 @@ if __name__ == "__main__":
 
 
 class LauncherTest(unittest.TestCase):
-    def launcher(self):
+    def launcher(self, python=None):
         settings = json.loads((ROOT / "kit" / ".claude" / "settings.json").read_text(encoding="utf8"))
-        commands = {h["command"] for entries in settings["hooks"].values() for e in entries for h in e["hooks"]}
+        commands = {h["command"] for entries in settings["hooks"].values() for e in entries for h in e["hooks"]
+                    if "telemetry_hook.py" in h["command"]}
         self.assertEqual(len(commands), 1)
-        self.assertNotIn("agent_guard_hook", next(iter(commands)))
-        return next(iter(commands))
+        command = next(iter(commands))
+        self.assertNotIn("agent_guard_hook", command)
+        return command.replace("__AIKIT_PYTHON__", python) if python else command
 
-    def run_launcher(self, proj, extra_path=None):
+    def run_launcher(self, proj, python=None, bindir=None):
         import shutil
         bash = shutil.which("bash")
         if not bash:
             self.skipTest("bash not available")
         env = dict(os.environ, CLAUDE_PROJECT_DIR=proj.as_posix())
-        return subprocess.run([bash, "-s"], input=self.launcher() + "\n", capture_output=True, text=True, env=env, timeout=30)
+        if bindir:
+            env["PATH"] = bindir.as_posix() + os.pathsep + os.environ["PATH"]
+        return subprocess.run([bash, "-s"], input=self.launcher(python) + "\n", capture_output=True, text=True, env=env, timeout=30)
 
-    def test_commands_python_from_ai_kit_json_runs_the_hook(self):
+    def project(self, tmp):
+        proj = Path(tmp)
+        (proj / "scripts").mkdir()
+        (proj / "scripts" / "telemetry_hook.py").write_text("", encoding="utf8")
+        return proj
+
+    def stub(self, path, body):
+        path.parent.mkdir(exist_ok=True)
+        path.write_text("#!/bin/sh\n" + body + "\n", encoding="utf8")
+        path.chmod(0o755)
+        return path
+
+    def test_the_interpreter_filled_at_install_runs_the_hook(self):
         with tempfile.TemporaryDirectory() as tmp:
-            proj = Path(tmp)
-            (proj / "scripts").mkdir()
-            (proj / "scripts" / "telemetry_hook.py").write_text("", encoding="utf8")
-            fake = proj / "fakepy"
-            fake.write_text("#!/bin/sh\necho ran > " + (proj / "marker").as_posix() + "\n", encoding="utf8")
-            fake.chmod(0o755)
-            (proj / "ai-kit.json").write_text(json.dumps({"commands": {"python": fake.as_posix()}}), encoding="utf8")
-            r = self.run_launcher(proj)
+            proj = self.project(tmp)
+            fake = self.stub(proj / "fakepy", "echo ran > " + (proj / "marker").as_posix())
+            r = self.run_launcher(proj, python=fake.as_posix())
             self.assertEqual(r.returncode, 0)
             self.assertTrue((proj / "marker").is_file())
 
@@ -421,44 +432,24 @@ class LauncherTest(unittest.TestCase):
 
     def test_failing_interpreters_on_path_exit_zero(self):
         with tempfile.TemporaryDirectory() as tmp:
-            proj = Path(tmp)
-            (proj / "scripts").mkdir()
-            (proj / "scripts" / "telemetry_hook.py").write_text("", encoding="utf8")
-            (proj / "ai-kit.json").write_text("{}", encoding="utf8")
-            bindir = proj / "bin"
-            bindir.mkdir()
+            proj = self.project(tmp)
             for name in ("python3", "python"):
-                stub = bindir / name
-                stub.write_text("#!/bin/sh\nexit 49\n", encoding="utf8")
-                stub.chmod(0o755)
-            import shutil
-            bash = shutil.which("bash")
-            if not bash:
-                self.skipTest("bash not available")
-            env = dict(os.environ, CLAUDE_PROJECT_DIR=proj.as_posix(), PATH=bindir.as_posix() + os.pathsep + os.environ["PATH"])
-            r = subprocess.run([bash, "-s"], input=self.launcher() + "\n", capture_output=True, text=True, env=env, timeout=30)
+                self.stub(proj / "bin" / name, "exit 49")
+            r = self.run_launcher(proj, bindir=proj / "bin")
             self.assertEqual((r.returncode, r.stdout), (0, ""))
 
-    def test_a_failing_stub_is_skipped_for_the_next_interpreter(self):
+    def test_a_failing_filled_interpreter_exits_zero(self):
         with tempfile.TemporaryDirectory() as tmp:
-            proj = Path(tmp)
-            (proj / "scripts").mkdir()
-            (proj / "scripts" / "telemetry_hook.py").write_text("", encoding="utf8")
-            (proj / "ai-kit.json").write_text("{}", encoding="utf8")
-            bindir = proj / "bin"
-            bindir.mkdir()
-            bad = bindir / "python3"
-            bad.write_text("#!/bin/sh\nexit 49\n", encoding="utf8")
-            bad.chmod(0o755)
-            good = bindir / "python"
-            good.write_text("#!/bin/sh\n[ \"$1\" = -c ] && exit 0\necho ran > " + (proj / "marker").as_posix() + "\n", encoding="utf8")
-            good.chmod(0o755)
-            import shutil
-            bash = shutil.which("bash")
-            if not bash:
-                self.skipTest("bash not available")
-            env = dict(os.environ, CLAUDE_PROJECT_DIR=proj.as_posix(), PATH=bindir.as_posix() + os.pathsep + os.environ["PATH"])
-            r = subprocess.run([bash, "-s"], input=self.launcher() + "\n", capture_output=True, text=True, env=env, timeout=30)
+            proj = self.project(tmp)
+            bad = self.stub(proj / "bin" / "badpy", "exit 49")
+            r = self.run_launcher(proj, python=bad.as_posix())
+            self.assertEqual((r.returncode, r.stdout), (0, ""))
+
+    def test_an_unfilled_placeholder_falls_back_to_python_on_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            proj = self.project(tmp)
+            self.stub(proj / "bin" / "python", "echo ran > " + (proj / "marker").as_posix())
+            r = self.run_launcher(proj, bindir=proj / "bin")
             self.assertEqual(r.returncode, 0)
             self.assertTrue((proj / "marker").is_file())
 

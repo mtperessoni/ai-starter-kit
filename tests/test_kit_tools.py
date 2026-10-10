@@ -171,14 +171,19 @@ class HookLauncherTest(unittest.TestCase):
         settings = json.loads((KIT / ".claude" / "settings.json").read_text(encoding="utf-8"))
         return [h["command"] for entries in settings["hooks"].values() for e in entries for h in e["hooks"]]
 
-    def test_every_entry_has_the_same_launcher(self) -> None:
-        self.assertEqual(len(set(self.commands())), 1)
+    def test_every_telemetry_entry_has_the_same_launcher(self) -> None:
+        self.assertEqual(len({c for c in self.commands() if "telemetry_hook.py" in c}), 1)
 
-    def test_the_configured_python_is_unescaped_and_probed_with_a_fallback(self) -> None:
-        command = self.commands()[0]
-        self.assertEqual(command.count("-c pass"), 1, "one probe in one loop")
-        self.assertIn(r"s/\\\\/\\/g", command)
-        self.assertIn('for p in "$c" python3 python', command)
+    def test_the_launchers_carry_the_install_interpreter_without_a_probe_and_fail_open(self) -> None:
+        for command in self.commands():
+            if "gates.sh cleanup" in command:
+                continue
+            with self.subTest(command=command[:60]):
+                self.assertNotIn("-c pass", command)
+                self.assertIn('py="__AIKIT_PYTHON__"', command)
+                self.assertIn("for p in python python3", command)
+                self.assertIn('[ -f "$f" ] || exit 0', command)
+                self.assertTrue(command.endswith("|| exit 0") or command.endswith("[ $? -eq 2 ] && exit 2; exit 0"), command)
 
     def test_launcher_falls_back_when_the_configured_python_is_bad(self) -> None:
         if not BASH:
@@ -254,7 +259,7 @@ class InstallerNotesTest(unittest.TestCase):
 
     def test_doctor_has_the_new_checks(self) -> None:
         text = self.read("reference/doctor.md")
-        for needle in ("settings-check", "gates.sh setup", "guard hook", "reap.py", "permission prompt"):
+        for needle in ("settings-check", "gates.sh setup", "guard_hook.py", "reap.py", "permission prompt"):
             self.assertIn(needle, text)
 
     def test_update_notes_the_migration(self) -> None:
@@ -264,7 +269,7 @@ class InstallerNotesTest(unittest.TestCase):
 
     def test_no_em_dash(self) -> None:
         for rel in ("SKILL.md", "reference/doctor.md", "reference/update.md", "reference/ownership.md", "reference/install.md"):
-            self.assertNotIn("—", self.read(rel), rel)
+            self.assertNotIn(chr(0x2014), self.read(rel), rel)
 
 
 if __name__ == "__main__":

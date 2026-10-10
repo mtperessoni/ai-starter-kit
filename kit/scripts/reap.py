@@ -4,9 +4,9 @@
 Usage: python scripts/reap.py [--older-than <minutes>] [--dry-run]     (through scripts/gates.sh reap)
 A process belongs to this session when it carries this session's shell snapshot id in its command line (Claude Code shell calls source
 ~/.claude/shell-snapshots/snapshot-*.sh; the id is read from this process's own ancestors) or descends from one that does. It is reaped when
-it reads a program from stdin (python -, a heredoc, cat >) or is older than the limit (default 20 minutes). Never reaped: this process and
-its ancestors, and a tree rooted at a gates.sh baseline|compare|verify call or scripts/baseline.py only while the slug's status file
-(state/<slug>/<kind>.status) says running and the process is younger than 60 minutes.
+it reads a program from stdin (python -, a heredoc, cat >) for at least 2 minutes or is older than the limit (default 20 minutes). Never
+reaped: this process and its ancestors, a tree rooted at a gates.sh close call, and a tree rooted at a gates.sh baseline|compare|verify call
+or scripts/baseline.py only while the slug's status file (state/<slug>/<kind>.status) says running and the process is younger than 60 minutes.
 Prints `reaped: <n>` and `left: 0` or the survivors; exit 1 when a survivor is left.
 """
 import json
@@ -20,6 +20,7 @@ DEFAULT_MINUTES = 20.0
 SNAPSHOT = re.compile(r"snapshot-[\w.-]{6,}?(?=\.sh\b|[\s'\"]|$)")
 PROTECTED = re.compile(r"gates\.sh\s+(?:close|watch|related|one|cleanup|verify|compare|baseline)\b|scripts[/\\]baseline\.py")
 SUITE = re.compile(r"gates\.sh\s+(baseline|compare|verify)\s+(\w[\w.-]*)|scripts[/\\]baseline\.py\s+(\w[\w.-]*)")
+CLOSE = re.compile(r"gates\.sh\s+close\b")
 SUITE_TIMEOUT_MINUTES = 60.0
 PROTECTED_AGE_CAP_MINUTES = 90.0
 ROOT = Path(__file__).resolve().parent.parent
@@ -101,7 +102,9 @@ def session_id(by_pid, self_pid):
 
 
 def suite_live(proc, root):
-    """A gates.sh close|watch|related|one|cleanup|verify|compare|baseline tree is protected: by its status file when it has one, else while younger than the age cap."""
+    """A gates.sh close tree is always protected; a watch|related|one|cleanup|verify|compare|baseline tree by its status file when it has one, else while younger than the age cap."""
+    if CLOSE.search(proc["cmd"]):
+        return True
     found = SUITE.search(proc["cmd"])
     if not found:
         return proc["age"] < PROTECTED_AGE_CAP_MINUTES

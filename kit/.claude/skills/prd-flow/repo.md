@@ -52,8 +52,8 @@ Always through `scripts/gates.sh`; the stack commands behind each target are in 
 | Who | `scripts/gates.sh` targets |
 |---|---|
 | A person | `related [files]` (agents rely on `verify`) |
-| Executor | `one <file>`, `red <test>`, `fix-files <file>...` then `lint-files <file>...`, `move <source> <start> <end> <destination> [--at LINE]` (C6 only); `close <slug> --case <C>` |
-| Surveyor | `prd-sweep --ids <IDs> --terms "<words>" --out <state>/sweep.md`; `settings-check` (deny rules that block files the flow writes) |
+| Executor | `one <file>`, `red <file>`, `fix-files <file>...` then `lint-files <file>...`, `move <source> <start> <end> <destination> [--at LINE]` (C6 only); `close <slug> --case <C>` |
+| Surveyor | `prd-sweep --ids <ID>,<ID> --terms "<subject>" --out .claude/prd-flow/state/<slug>/sweep.md`; `settings-check` (deny rules that block files the flow writes) |
 | Chief | background: `baseline`, `verify`, `compare`, `watch <slug> [--minutes N]`; foreground: `cleanup [<slug>]`, `reap` |
 | Anyone | `python` (the interpreter), `lint`, `fix` then `lint`, `imports`, `ratchet` |
 

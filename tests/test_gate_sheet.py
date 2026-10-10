@@ -133,6 +133,12 @@ class SheetLintTest(SheetBase):
     def test_a_missing_sheet_is_an_error(self) -> None:
         self.assertIn("ERROR", self.p.py(GATE, "--sheet", "orders").stdout)
 
+    def test_only_short_sheets_outside_a_c5_are_linted_without_sheet_md(self) -> None:
+        write(self.p.root, f"{STATE}/sheet-short-1.md", SHEET_2)
+        self.assertNotIn("ERROR S0", self.p.py(GATE, "--sheet", "orders").stdout)
+        write(self.p.root, f"{STATE}/sheet-short-1.md", SHEET_2.replace("Today:", "Now:"))
+        self.assertIn("ERROR S1", self.p.py(GATE, "--sheet", "orders").stdout)
+
     def test_s0_a_sheet_without_a_title_line(self) -> None:
         self.assertIn("ERROR S0", self.sheet(SHEET.replace("# Orders can be reopened\n\n", "", 1)))
 
