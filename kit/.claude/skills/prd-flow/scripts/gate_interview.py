@@ -14,7 +14,7 @@ OPTION = re.compile(r"^\s*-\s+([A-Z])\)\s+(.*)$")
 INTERACTS = re.compile(r"^\s*Interacts with:\s*(.*)$")
 ASSUMED = re.compile(r"^\s*-\s+(A\d+)\b")
 MECHANISM = re.compile(
-    r"(?i)\b(?:env(?:ironment)?\s+var(?:iable)?|switch|feature\s+flag|config(?:uration)?\s+key|endpoint"
+    r"(?i)\b(env(?:ironment)?\s+var(?:iable)?|switch|feature\s+flag|config(?:uration)?\s+key|endpoint"
     r"|(?:new|add(?:s|ed|ing)?)\s+(?:an?\s+|the\s+)?(?:\w+\s+)?(?:table|column|flag|configuration))(?:e?s)?\b"
 )
 SENTENCE = re.compile(r"(?<=[.!?;])\s+")
@@ -198,8 +198,8 @@ def sheet_items(state: Path, lab: dict[str, str]) -> list[str]:
 
 def check_mechanisms(state: Path, written: str, replies: str = "") -> None:
     """New route: a mechanism term in the written decisions or rows must come from sheet.md, sheet-2.md or a Reply line."""
-    known = " ".join([read(state / n) or "" for n in ("sheet.md", "sheet-2.md")] + [replies]).lower()
-    for term in sorted({m.group(1).lower() for m in MECHANISM.finditer(written)}):
+    known = " ".join(" ".join([read(state / n) or "" for n in ("sheet.md", "sheet-2.md")] + [replies]).lower().split())
+    for term in sorted({" ".join(m.group(1).lower().split()) for m in MECHANISM.finditer(written)}):
         if term not in known:
             err("Q3", f"the mechanism '{term}' appears in decisions.md or in the rows of the CHANGELOG IDs and in neither the sheet nor a Reply line",
                 "ask it in a sheet decision or remove it")
