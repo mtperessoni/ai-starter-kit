@@ -41,8 +41,8 @@ class ScopedFinalTest(unittest.TestCase):
         write(self.p.root, f".claude/prd-flow/state/{SLUG}/rules.md", RULES_ONLY)
         self.plan_row("ORD-02", "src/features/orders/order_service.py | config")
         r = self.final()
-        self.assertEqual(r.returncode, 1, r.stdout)
-        self.assertIn("ERROR G19", r.stdout)
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("WARNING G19", full(self.p, r))
 
     def test_another_changes_planned_row_is_a_warning(self) -> None:
         self.plan_row("ORD-01", "src/features/orders/order_service.py::create_order | code")
@@ -51,12 +51,12 @@ class ScopedFinalTest(unittest.TestCase):
         self.assertIn("WARNING G19", full(self.p, r))
         self.assertIn("ORD-01", full(self.p, r))
 
-    def test_this_changes_planned_row_is_an_error(self) -> None:
+    def test_this_changes_planned_row_is_a_warning(self) -> None:
         self.plan_row("ORD-02", "src/features/orders/order_service.py | config")
         r = self.final()
-        self.assertEqual(r.returncode, 1, r.stdout)
-        self.assertIn("ERROR G19", r.stdout)
-        self.assertIn("ORD-02", r.stdout)
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertNotIn("ERROR G19", r.stdout)
+        self.assertIn("ORD-02", full(self.p, r))
 
     def test_other_open_folders_warn_and_this_folder_errors(self) -> None:
         write(self.p.root, "changes/002-other/plan.md", "# other\n")

@@ -1,0 +1,7 @@
+Q1 stale 60 s mentions in PRD/TRD: 1 ['docs/trd/triage.md:117']
+Q2 RECONNECT_WINDOW_MS = 90000 (ok)
+Q3 rule rows added or changed: 5; mentioning the countdown: 3
+Q4 changed tests (2 files): exit 0 ['\x1b[2m Test Files \x1b[22m \x1b[1m\x1b[32m2 passed\x1b[39m\x1b[22m\x1b[90m (2)\x1b[39m', '\x1b[2m      Tests \x1b[22m \x1b[1m\x1b[32m20 passed\x1b[39m\x1b[22m\x1b[90m (20)\x1b[39m']
+Q5 current gate.py: exit 1, 5 error lines ['ERROR G2 CNX-10 exists in conversation-connection/05-drops-and-endings.md and is missing f', 'ERROR G7 CNX-01 was reworded without an added CHANGELOG line naming CNX-01; fix: add a lin', 'ERROR G7 CNX-03 was reworded without an added CHANGELOG line naming CNX-03; fix: add a lin', 'ERROR G7 CNX-04 was reworded without an added CHANGELOG line naming CNX-04; fix: add a lin', 'ERROR G7 CNX-09 was reworded without an added CHANGELOG line naming CNX-09; fix: add a lin']
+Q6 gate_lite: exit 0 gate-lite: 0 errors, 166 rules, 35 cited by tests
+Q7 commits 1; lines/files by kind {'docs': (20, 5), 'code': (88, 8), 'test': (79, 2)}; uncommitted: 0

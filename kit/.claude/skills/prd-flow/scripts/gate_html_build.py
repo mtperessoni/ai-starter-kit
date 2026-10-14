@@ -1,6 +1,6 @@
 """G29 and G32: with html_mode generated, the PRD and TRD pages equal a fresh render of their builders.
 
-The change flow prints nothing about a stale page (check_html_flow warns only G5); the docs-html skill runs the strict check through gate.py --html.
+The change flow checks no HTML; only gate.py --html (the docs-html skill) does.
 """
 
 import importlib
@@ -9,7 +9,6 @@ from pathlib import Path
 from gate_core import EM_DASH, err, warn
 
 HINT = "fix: run /docs-html"
-HAND_WARNING = "html_mode hand: the HTML is not checked; migrate to generated with /ai-kit update, then /docs-html"
 
 
 PAGES = (("G29", "build_prd_html", "html", "prd_dir"), ("G32", "build_trd_html", "trd_html", "trd_dir"))
@@ -49,10 +48,6 @@ def check_page_em_dash(root: Path, cfg: dict[str, str], path_key: str) -> None:
             if EM_DASH in line:
                 err("G4", f"em dash in {page.relative_to(root).as_posix()}:{n}")
 
-
-def check_html_flow(root: Path, cfg: dict[str, str]) -> None:
-    if html_on(cfg) and not is_generated(cfg):
-        warn("G5", HAND_WARNING)
 
 
 def check_html_strict(root: Path, cfg: dict[str, str]) -> None:

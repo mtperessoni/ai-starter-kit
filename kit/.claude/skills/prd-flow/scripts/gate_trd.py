@@ -16,6 +16,13 @@ IDENT = re.compile(r"[A-Za-z_$][\w$]*")
 MAX_ROW_FILES = 20
 
 
+STRICT = {"g23": True}
+
+
+def path_missing(text: str) -> None:
+    (err if STRICT["g23"] else warn)("G23", text)
+
+
 class Tracked:
     def __init__(self, root: Path) -> None:
         self.root = root
@@ -90,7 +97,7 @@ def check_row(rel: str, header: list[str], row: list[str], tracked: Tracked, g23
         found = tracked.matches(p)
         if not found and p not in g23 and not tracked.ignored(p):
             g23.add(p)
-            err("G23", f"{rel}: `{p}` matches no tracked file")
+            path_missing(f"{rel}: `{p}` matches no tracked file")
         files.extend(found)
     if not files or len(set(files)) > MAX_ROW_FILES:
         return
@@ -121,7 +128,7 @@ def check_file(root: Path, f: Path, cfg: dict[str, str], tracked: Tracked) -> No
                 p = path_of(tok, tracked)
                 if p and not tracked.matches(p) and p not in g23 and not tracked.ignored(p):
                     g23.add(p)
-                    err("G23", f"{rel}: `{p}` matches no tracked file")
+                    path_missing(f"{rel}: `{p}` matches no tracked file")
             continue
         if SEPARATOR.match(line):
             continue
@@ -140,7 +147,8 @@ def cites_diff(line: str, diff: set[str]) -> bool:
     return any(d == cited or d.startswith(cited + "/") or d.endswith("/" + cited) for d in diff)
 
 
-def check_trd(root: Path, cfg: dict[str, str], trd_dir: str, changed: set[str] | None = None, diff: set[str] | None = None) -> None:
+def check_trd(root: Path, cfg: dict[str, str], trd_dir: str, changed: set[str] | None = None, diff: set[str] | None = None, strict: bool = True) -> None:
+    STRICT["g23"] = strict
     tracked = Tracked(root)
     for f in trd_files(root, trd_dir):
         rel = f.relative_to(root).as_posix()

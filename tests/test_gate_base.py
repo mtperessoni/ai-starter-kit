@@ -1,4 +1,4 @@
-"""gate.py base resolver, G7 markers, G23 untracked files, G31, error fixes and separate caps."""
+"""gate.py base resolver, marker-only edits, G23 untracked files, G31, error fixes and separate caps."""
 
 import unittest
 
@@ -39,10 +39,10 @@ class BaseTest(unittest.TestCase):
 
     def test_without_origin_the_local_base_branch_is_used(self) -> None:
         run(self.p.root, "git", "checkout", "-q", "-b", "feat", check=True)
-        edit(self.p, ORDERS, "at least one item", "two items")
+        edit(self.p, ORDERS, "at least one item", "one item " + chr(0x2014) + " at least")
         run(self.p.root, "git", "commit", "-qam", "reword", check=True)
         r = self.p.py(GATE)
-        self.assertIn("ERROR G7", r.stdout)
+        self.assertIn("ERROR G4", r.stdout)
         self.assertNotIn("no base", r.stdout)
 
     def test_without_any_base_it_warns_that_results_change_after_commit(self) -> None:
@@ -69,26 +69,11 @@ class ChangelogTest(unittest.TestCase):
         r = self.p.py(GATE)
         self.assertNotIn("G7", r.stdout)
 
-    def test_a_reword_needs_an_added_changelog_line_naming_the_id(self) -> None:
+    def test_a_reword_needs_no_changelog_line_the_changelog_is_frozen(self) -> None:
         edit(self.p, ORDERS, "at least one item", "two items")
-        write(self.p.root, "docs/prd/CHANGELOG.md", "# CHANGELOG\n\nsome unrelated note\n")
         r = self.p.py(GATE)
-        self.assertIn("ERROR G7 ORD-01", r.stdout)
-        self.assertIn("naming ORD-01; fix: ", r.stdout)
-
-    def test_a_changelog_line_naming_the_id_silences_g7_for_that_id_only(self) -> None:
-        edit(self.p, ORDERS, "at least one item", "two items")
-        edit(self.p, ORDERS, "payment timeout", "payment deadline")
-        write(self.p.root, "docs/prd/CHANGELOG.md", "# CHANGELOG\n\n- ORD-01: now two items\n")
-        r = self.p.py(GATE)
-        self.assertNotIn("G7 ORD-01", r.stdout)
-        self.assertIn("ERROR G7 ORD-02", r.stdout)
-
-    def test_g7_matches_the_id_with_boundaries(self) -> None:
-        edit(self.p, ORDERS, "at least one item", "two items")
-        write(self.p.root, "docs/prd/CHANGELOG.md", "# CHANGELOG\n\n- ORD-011: unrelated\n- XORD-01: unrelated\n")
-        r = self.p.py(GATE)
-        self.assertIn("ERROR G7 ORD-01 ", r.stdout)
+        self.assertNotIn("G7", r.stdout)
+        self.assertEqual(r.returncode, 0, r.stdout)
 
     def test_unrelated_histories_warn_instead_of_silently_using_head(self) -> None:
         run(self.p.root, "git", "checkout", "-q", "--orphan", "orphan", check=True)
@@ -168,8 +153,8 @@ class FixAndCapTest(unittest.TestCase):
         self.assertEqual(sum(1 for x in lines if x.startswith("ERROR")), 15, r.stdout)
         self.assertEqual(sum(1 for x in lines if x.startswith("WARNING")), 0, r.stdout)
         self.assertIn(f"... 5 more errors, see {ARTIFACT}", lines)
-        self.assertEqual(lines[-1], f"warnings: 14 (see {ARTIFACT})")
-        self.assertEqual(sum(1 for x in full(self.p, r).splitlines() if x.startswith("WARNING")), 14)
+        self.assertEqual(lines[-1], f"warnings: 13 (see {ARTIFACT})")
+        self.assertEqual(sum(1 for x in full(self.p, r).splitlines() if x.startswith("WARNING")), 13)
 
     def test_a_trd_error_citing_a_path_in_the_diff_stays_an_error_in_an_untouched_file(self) -> None:
         trd = "# T\n\n| File | Role |\n|---|---|\n| `src/features/orders/order_service.py` | svc |\n| `src/nowhere/other.py` | gone |\n"

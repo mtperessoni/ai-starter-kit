@@ -10,7 +10,7 @@ Promotes to: the decisions below, or nothing.
 | <what was not known> | <what was found out> | <link, file::symbol or experiment> |
 
 ## Decisions
-Technical decisions only. Product trade-offs go to `decisions.md` (`DEC-NN`) and from there to the CHANGELOG.
+Technical decisions only. Product trade-offs go to `decisions.md` (`DEC-NN`) and from there to the PRD rows and the commit body.
 Promotes to: `docs/adr/` (one ADR each, via `/adr`).
 
 | Decision | Reason | Consequence |

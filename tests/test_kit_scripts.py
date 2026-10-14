@@ -123,12 +123,11 @@ class GateTest(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stdout)
         self.assertIn("2 rules", full(self.p, r))
 
-    def test_rewording_a_rule_without_changelog_fails(self) -> None:
+    def test_rewording_a_rule_needs_no_changelog_line(self) -> None:
         section = self.p.root / "docs/prd/shop/05-orders.md"
         section.write_text(section.read_text(encoding="utf-8").replace("at least one item", "two items"), encoding="utf-8")
         r = self.p.py(self.gate)
-        self.assertEqual(r.returncode, 1)
-        self.assertIn("G7", r.stdout)
+        self.assertNotIn("G7", r.stdout)
 
     def test_open_questions_table_gets_no_change_via_warning(self) -> None:
         section = self.p.root / "docs/prd/shop/05-orders.md"

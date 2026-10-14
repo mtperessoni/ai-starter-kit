@@ -40,10 +40,10 @@ Parsed by the scripts. Keep the two-column table format and the key names.
 | `plain_words` | Words the user never says; S4 flags them in a decision title or option |
 | `plan_strict` | `yes` makes the shared-file wave check P17 an error |
 | `shared_files` | Files several tasks tend to touch; P17 when two tasks of one wave touch one |
-| `planned_heading`, `via_header` | The TRD heading of rules not built yet (G8, G20), and the last column that marks a rule table (G3) |
-| `proposed_marker`, `pending_marker`, `planned_source` | Marker words of rule rows; G30 fails `--final` while a proposed row is left |
+| `planned_heading`, `via_header` | The heading of an existing `Planned` TRD section (G8, G20; no new change adds one), and the last column that marks a rule table (G3) |
+| `proposed_marker`, `pending_marker`, `planned_source` | Marker words of rule rows. `pending_marker` and `planned_source` only read markers that already exist (a new change never adds one); G30 fails `--final` while a proposed row is left |
 | `prd_section_budget_lines`, `trd_budget_lines`, `pack_budget_lines`, `plan_budget_kb` | Size warnings (G31, G26, pack, plan); over budget, split |
-| `html`, `trd_html`, `html_template`, `html_mode` | Reading pages built only by `/docs-html`; `generated`: a stale page is reported only by `gate.py --html` (G29, G32), `hand` (default) warns once (G5); `none` opts out |
+| `html`, `trd_html`, `html_template`, `html_mode` | Reading pages built only by `/docs-html`; `generated`: a stale page is reported only by `gate.py --html` (G29, G32), as is `hand` (G5, migrate with `/ai-kit update`); the default gate checks no HTML; `none` opts out |
 
 ## Commands
 

@@ -1,9 +1,9 @@
-"""gate.py --sibling: shared PRD folders identical to the sibling repository's (G28)."""
+"""gate.py --sibling: shared PRD folders identical to the sibling repository's (G28). An error under --sibling, a warning in the change gate."""
 
 import re
 from pathlib import Path
 
-from gate_core import PIPE, SEPARATOR, err
+from gate_core import PIPE, SEPARATOR, err, warn
 
 
 def shared_section(text: str) -> str:
@@ -33,18 +33,19 @@ def snapshot(folder: Path) -> dict[str, str]:
     return files
 
 
-def check_sibling(root: Path, repo_md: Path) -> None:
+def check_sibling(root: Path, repo_md: Path, strict: bool = True) -> None:
+    report = err if strict else warn
     for folder, sibling in shared_rows(repo_md):
         mine, theirs = root / folder, root / sibling
         if not theirs.is_dir():
             continue
         if not mine.is_dir():
-            err("G28", f"{folder} does not exist in this repository")
+            report("G28", f"{folder} does not exist in this repository")
             continue
         a, b = snapshot(mine), snapshot(theirs)
         for rel in sorted(set(a) - set(b)):
-            err("G28", f"{folder}/{rel} exists here and not in {sibling}")
+            report("G28", f"{folder}/{rel} exists here and not in {sibling}")
         for rel in sorted(set(b) - set(a)):
-            err("G28", f"{folder}/{rel} exists in {sibling} and not here")
+            report("G28", f"{folder}/{rel} exists in {sibling} and not here")
         for rel in sorted(k for k in set(a) & set(b) if a[k] != b[k]):
-            err("G28", f"{folder}/{rel} differs from {sibling}")
+            report("G28", f"{folder}/{rel} differs from {sibling}")

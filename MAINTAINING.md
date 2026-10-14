@@ -11,6 +11,7 @@ The kit is the source of the rules; projects receive them through `/ai-kit updat
 | M04 | Nothing in `kit/` names a stack. Stack knowledge lives only in `stacks/` |
 | M05 | Everything is in English, tables over prose, no em dash |
 | M06 | Every new rule has a text-level part (works in any language), a recipe part when it needs syntax (`stacks/`), and review as the fallback when no tool exists |
+| M07 | Efficiency is the goal: a change is better only when it lowers tokens, time or errors, or improves output, without worsening the others; a docs-flow change is proved with `/docs-flow-eval` (section "Efficiency is the goal (M07)") |
 
 ## Writing kit instructions
 Lessons of the audit of 2026-10-09 (LS32): ceremony and bare prohibitions cost more than the code they guarded.
@@ -44,6 +45,8 @@ The skills are interactive, so the evaluation is a set of headless runs, one per
 
 ### Efficiency is the goal (M07)
 A change to a skill, template or script is better only when it does at least one of these without worsening the others: fewer tokens, less wall time, better outputs, fewer errors. Every round is graded on the scorecard of `eval/METRICS.md` (headline KPIs, hard gates, supporting metrics, how a round runs, adoption), computed by `eval/run.py` per run and compared across rounds with `python eval/rounds.py <folder>:<arm> ...` (never with ad hoc scripts). The summary below is kept for reference; `eval/METRICS.md` wins when they differ.
+
+A change to the docs flow (rules DS, WF, the prd-flow skill, the gate, the templates) is proved with the `/docs-flow-eval` skill: it runs the same rule change under the old and the new arm in eval worktrees and has a blind reader answer later questions from each result, so the evidence is cost and what a later reader can still find. The skill ships in the kit (`kit/.claude/skills/docs-flow-eval/`).
 
 Rounds are run and audited by the `efficiency-auditor` agent (`.claude/agents/efficiency-auditor.md`): predictions written before the run (`eval/predictions/<round>.md`), the verdict, the per-agent table of `eval/agents_report.py` with subagent management and context flooding as the first lens, causes from the transcripts, and a ranked fix list. Its stop rule: two rounds in a row that miss their predictions end that line of work.
 

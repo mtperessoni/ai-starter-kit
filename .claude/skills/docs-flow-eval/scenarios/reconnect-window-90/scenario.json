@@ -1,0 +1,43 @@
+{
+  "name": "reconnect-window-90",
+  "repo": "C:/Projects/agora-consulta-fe",
+  "base": "46b66879",
+  "slug": "reconnect-window-90",
+  "case": "C5",
+  "size": "M",
+  "request": "Aumentar a janela de reconexão da conversa de 60 s para 90 s e, enquanto estiver reconectando, mostrar ao paciente quantos segundos faltam (ex.: \"Só um instante, estou voltando… 85 s\").",
+  "sheet_answer": "ok",
+  "fixtures": "fixtures/",
+  "stale_patterns": [
+    "\\b60\\s?s\\b",
+    "\\b60 seconds\\b",
+    "60_000",
+    "\\b60000\\b"
+  ],
+  "stale_context": "window|janela|first drop|reconnect|reconex|stops trying|coming back",
+  "stale_allow": [
+    "keeps 60 s",
+    "page open during the deploy",
+    "60 s limit of one spoken answer",
+    "60 s wait of the old farewell",
+    "CNS-09"
+  ],
+  "constant": {
+    "glob": "src/app/triage/*/(internal)/components/conversational/lib/timing.ts",
+    "regex": "RECONNECT_WINDOW_MS\\s*=\\s*([\\d_]+)",
+    "expected": 90000
+  },
+  "new_rule_pattern": "seconds left|countdown|85 s|whole seconds",
+  "decision_regex": "1\\s*=?\\s*A|\\b1A\\b|read(s)? the message once|hear(s)? the message once|screen readers? (hear|read)",
+  "rejected_regex": "reject|every 15 s|every second|not chosen|instead of",
+  "questions": "questions.md",
+  "answer_key": [
+    "90 s; lib/timing.ts::RECONNECT_WINDOW_MS (90_000)",
+    "lib/__tests__/session-connection.test.ts (a 90 s case); optionally reconnect-policy.test.ts and a countdown test",
+    "60 s; changed 2026-10-14; the request to extend to 90 s with the seconds left, and decision 1 = A (screen readers hear the message once; rejected: every 15 s, every second)",
+    "Yes, CNX-10; \"Só um instante, estou voltando… 85 s\" (whole seconds after the text; screen readers read the message once)",
+    "At 0 (90 s after the first drop) the CNX-03 connection-lost message takes the place of the count; a screen reader hears the reconnecting message once, never the seconds (decision 1 = A); decided in CNX-10 and CNX-03"
+  ],
+  "fixture_version": "2026-10-14b (decision 1: how a screen reader hears the countdown)",
+  "decided_in_conversation": "a janela passa a ser 90 s contados da primeira queda; durante a reconexão a tela mostra a contagem regressiva em segundos"
+}

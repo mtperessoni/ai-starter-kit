@@ -1,4 +1,4 @@
-"""G31 (PRD section files over prd_section_budget_lines) and G7 (CHANGELOG lines added by this change)."""
+"""G31 (PRD section files over prd_section_budget_lines) and the lines a diff adds."""
 
 import re
 from pathlib import Path
@@ -26,6 +26,21 @@ def added_lines(root: Path, base: str, rel: str) -> str:
     if git(root, "ls-files", "--others", "--exclude-standard", "--", rel).strip() and (root / rel).exists():
         added += (root / rel).read_text(encoding="utf-8").splitlines()
     return "\n".join(added)
+
+
+def added_by_file(root: Path, base: str, *paths: str) -> dict[str, list[str]]:
+    """The lines the diff against base adds under paths, per file; a new untracked file counts whole."""
+    found: dict[str, list[str]] = {}
+    current = ""
+    for line in git(root, "-c", "core.quotepath=false", "diff", "-U0", base, "--", *paths).splitlines():
+        if line.startswith("+++ "):
+            current = line[6:] if line.startswith("+++ b/") else ""
+        elif line.startswith("+") and current:
+            found.setdefault(current, []).append(line[1:])
+    for rel in git(root, "-c", "core.quotepath=false", "ls-files", "--others", "--exclude-standard", "--", *paths).splitlines():
+        if (root / rel).is_file():
+            found[rel] = (root / rel).read_text(encoding="utf-8", errors="replace").splitlines()
+    return found
 
 
 def check_sections(root: Path, cfg: dict[str, str], prd: Path, changed: set[str] | None) -> None:

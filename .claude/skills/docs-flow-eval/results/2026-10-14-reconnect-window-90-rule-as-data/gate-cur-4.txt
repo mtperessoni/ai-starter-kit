@@ -1,0 +1,2 @@
+warnings: 0 (see .claude/prd-flow/state/_gate/last-default.txt)
+gate exit 0

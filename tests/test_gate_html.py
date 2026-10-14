@@ -75,12 +75,12 @@ class GateHtmlPolicyTest(unittest.TestCase):
             r = self.p.py(GATE, "--step", step)
             self.assertNotIn("ERROR G29", r.stdout, step)
 
-    def test_default_run_hand_mode_emits_the_g5_migration_warning_and_no_html_check(self) -> None:
+    def test_default_run_hand_mode_says_nothing_about_html(self) -> None:
         self.mode("generated", "hand")
         self.page("<p>anything</p>\n")
         r = self.p.py(GATE)
         self.assertEqual(r.returncode, 0, r.stdout)
-        self.assertIn("WARNING G5 html_mode hand: the HTML is not checked; migrate to generated with /ai-kit update, then /docs-html", full(self.p, r))
+        self.assertNotIn("G5", full(self.p, r))
         self.assertNotIn("G6", full(self.p, r))
         self.assertNotIn("G10", full(self.p, r))
 

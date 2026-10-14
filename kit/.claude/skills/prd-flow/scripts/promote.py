@@ -1,4 +1,5 @@
-"""The mechanical part of Promote: markers, Source, CHANGELOG, archive, state, final gate.
+"""The mechanical part of Promote, only for size L and for frozen markers that already exist.
+No CHANGELOG entry and no state record: it only archives changes/NNN-<slug>. With an entry or a record: markers, Source, CHANGELOG, archive, state, final gate.
 
 Usage: python .claude/skills/prd-flow/scripts/promote.py <slug> [--dry-run] [--root <repo>] [--hold ID[,ID] --reason TEXT]
 New route (no approved-rules.md or rules.md in .claude/prd-flow/state/<slug>/): the approved set is the slug's CHANGELOG entry (heading names changes/NNN-<slug>;
@@ -372,11 +373,31 @@ def realign_state(state: Path, writes: dict[Path, str], files: dict[str, list[st
     state_record.replace_rows(state, rows)
 
 
+def archive_only(root: Path, slug: str, dry: bool) -> tuple[list[str], int]:
+    """Rule as data: the rows landed with the code, so promote only archives the change folder of a size L change."""
+    change = find_change(root, slug)
+    if change is None:
+        raise PromoteError(f"no approved-rules.md, no CHANGELOG entry and no changes/NNN-{slug} folder: nothing to promote", "user",
+                           "user decides whether the change is already archived or the slug is wrong")
+    folder = f"changes/archive/{change.name}"
+    lines = [f"promote {slug}{' (dry-run)' if dry else ''}: archive only, the rows landed with the code",
+             f"archive: {change.relative_to(root).as_posix()} -> {folder}"]
+    if dry:
+        return lines, 0
+    (root / "changes" / "archive").mkdir(parents=True, exist_ok=True)
+    r = run_git(root, "mv", change.relative_to(root).as_posix(), folder)
+    if r.returncode != 0:
+        return finish(lines + [f"archive: ERROR {r.stderr.strip()}"], [], ["archive"])
+    return lines + [f"files: {folder}", f"commit: docs(prd): promote {slug}"], 0
+
+
 def promote(root: Path, slug: str, dry: bool, hold: frozenset[str] = frozenset(), reason: str = "") -> tuple[list[str], int]:
     cfg = load_config()
     state = root / ".claude" / "prd-flow" / "state" / slug
     approved_text = state_record.approved_text(state)
     new_route = approved_text is None
+    if new_route and find_entry(root, cfg, slug) is None:
+        return archive_only(root, slug, dry)
     files, old, approver = entry_inputs(root, cfg, slug) if new_route else parse_approved(approved_text)
     unknown = sorted(hold - {i for ids in files.values() for i in ids})
     if unknown:

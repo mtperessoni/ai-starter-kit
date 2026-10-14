@@ -9,44 +9,6 @@ from gate_core import (
 )
 
 
-def check_index(prd: Path, rules: Rules, new: set[str]) -> None:
-    index = prd / "INDEX.md"
-    if not index.exists():
-        err("G2", f"{index} does not exist (run the C0 bootstrap)")
-        return
-    by_file: dict[str, set[str]] = {}
-    for line in index.read_text(encoding="utf-8").splitlines():
-        m = re.match(r"^\|\s*\[[^\]]+\]\(([^)]+)\)\s*\|[^|]*\|([^|]*)\|", line)
-        if m:
-            by_file[m.group(1).strip()] = expand(m.group(2))
-    for rel, ids in by_file.items():
-        f = prd / rel
-        if not f.exists():
-            err("G2", f"INDEX points to a missing file: {rel}")
-            continue
-        own = {rid for rid, (src, _) in rules.items() if src.resolve() == f.resolve()}
-        for rid in sorted(ids - own):
-            if rid not in rules:
-                drift("G2", f"listed in INDEX and missing from the file ({rel})", rid)
-        prefixes = {re.sub(r"-\d+[a-z]?$", "", i) for i in ids}
-        for rid in sorted(own - ids):
-            if re.sub(r"-\d+[a-z]?$", "", rid) in prefixes or not ids:
-                if rid in new:
-                    err("G2", f"{rid} exists in {rel} and is missing from the INDEX IDs column")
-                else:
-                    drift("G2", "missing from the INDEX IDs column", rid)
-    indexed = {(prd / rel).resolve() for rel in by_file}
-    for f in sorted({src for src, _ in rules.values()}):
-        if f.resolve() in indexed:
-            continue
-        rel = f.relative_to(prd).as_posix()
-        ids = {rid for rid, (src, _) in rules.items() if src == f}
-        if ids & new:
-            err("G2", f"{rel} has new rules and no row in INDEX.md")
-        else:
-            drift("G2", f"file without a row in INDEX.md ({rel})", sorted(ids)[0])
-
-
 def changed_rows(root: Path, base: str, prd_rel: str, pattern: str):
     spec = f":(glob){prd_rel}/{pattern}"
     diff = git(root, "diff", "-U0", base, "--", spec)

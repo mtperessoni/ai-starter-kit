@@ -2,6 +2,19 @@
 
 User-visible changes to the kit, newest first. Projects receive them through `/ai-kit update`.
 
+## Rule as data: the rows land with the code, the commit body is the record
+
+An A/B of the docs flow (`proposals/plan-rule-as-data.md`) showed the docs agent, promote and the bookkeeping gate cost more than they protected: promote left stale values behind ("today: 60 s") and the change gate failed 36% of runs on bookkeeping. Rule: the approved PRD rows are written in the commit of the task that implements them, and the commit body (`Request:`, `Decided:`, `Assumed:`, `Red:`, then `Rules:`) is the record. Amended: the docs rules DS and the workflow rules WF that named promote, Planned or a CHANGELOG line ([rules/](rules/README.md)).
+
+- Gate (S3, S4, S6): six change-gate errors (unique IDs, complete row, cited ID exists, changed rule has a test, no em dash added, INDEX current); G7 and the hand-edited INDEX IDs column are gone (`gen_index.py`, `gate.py --fix`); the default gate checks no HTML (only `gate.py --html`, run by `/docs-html`); `gate.py --history <ID>` prints a rule's history from git.
+- Flow (S1, S2, S7, S8, S10): no docs `apply`, no promote, no `pending code` marker or TRD `Planned` section for size S and M; `CHANGELOG.md` is frozen (kept, never appended) and `decisions.md` is for size L only; implementation always goes to the executor agent; size L keeps `plan.md` and `decisions.md`, the rows still land with the code.
+- Promote (S1, D4): `promote.py` only archives `changes/NNN-<slug>` for size L when there is no CHANGELOG entry and no state record; it still reads a CHANGELOG entry or state record that already exists, so a `pending code` marker already in a PRD keeps closing. No new change adds one. `close_gate.py` no longer expects promote's output for S and M.
+- Baseline (S9): ANSI stripped before the summary match; the suite copy lives under `<repo>/.ai-kit/tmp`.
+- Eval (S11): `docs-flow-eval` ships in the kit and `MAINTAINING.md` M07 points to it.
+- Tests: the ones pinning G7 and the promote-for-every-change route were inverted or rewritten (see the commit body).
+
+On update: run "Migration to rule as data" (U6h of `installer/ai-kit/reference/update.md`): the frozen note under the title of `docs/prd/CHANGELOG.md`, the constitution sentence, the CLAUDE.md and AGENTS.md lines; existing markers, CHANGELOG entries and open change folders stay as they are. The eval found that without the note a reader concludes no decision was recorded (4.5 of 5; 5 of 5 with it).
+
 ## Orchestration rules for every session, with or without prd-flow
 
 Audit of the 2026-10-13 sessions (LS34): the slow part was the orchestration pattern, not prd-flow. One Opus session ran audit to 100 dispatches at 540k tokens of context per turn; 47 one-finding tasks in 12 waves, each wave reviewed twice; the cross-repo defects surfaced only in a final review that cost 47 minutes more; two "stuck" agents were foreground evals on a 580 s timeout. Rules: new SA60 to SA66, amended SA40 (one review per delivery) and SA41 (checkpoint for every orchestrator) ([rules/02-subagents.md](rules/02-subagents.md)).

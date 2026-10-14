@@ -9,7 +9,7 @@ ID = r"[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d+[a-z]?"
 ROW = re.compile(r"^\|\s*(" + ID + r")(?:\s*·\s*\w+)?\s*\|(.*)\|\s*$")
 PIPE = re.compile(r"(?<!\\)\|")
 SEPARATOR = re.compile(r"^\|[\s|:-]+$")
-RANGE = re.compile(r"([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*)-(\d+)(?:\.\.(\d+))?")
+RANGE = re.compile(r"([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*)-(\d+)(?:\.\.(\d+)|([a-z])(?![A-Za-z]))?")
 EM_DASH = chr(0x2014)
 PACK_SECTIONS = ["Rules", "TRD", "Invariants", "Principles", "Divergences"]
 TASK = re.compile(r"^### (T\d+[a-z]?)\b", re.M)
@@ -178,11 +178,11 @@ def read_md_rules(prd: Path, pattern: str, via_header: str = DEFAULTS["via_heade
 
 def expand(spec: str) -> set[str]:
     ids: set[str] = set()
-    for prefix, start, end in RANGE.findall(spec):
+    for prefix, start, end, suffix in RANGE.findall(spec):
         width = len(start)
         last = int(end) if end else int(start)
         for n in range(int(start), last + 1):
-            ids.add(f"{prefix}-{n:0{width}d}")
+            ids.add(f"{prefix}-{n:0{width}d}{suffix}")
     return ids
 
 

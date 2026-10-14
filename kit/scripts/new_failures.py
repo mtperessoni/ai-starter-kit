@@ -24,9 +24,16 @@ ERROR_LINE = re.compile(r"^ERROR\b[: ]*(\S.*)?$")
 KILLED = re.compile(r"(\+{3,} Timeout|Timeout >\d|Test timed out|^Killed\b|^Terminated\b|Fatal Python error|\bos\._exit\b)")
 
 
+ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+
+
+def read_plain(log: Path) -> str:
+    return ANSI.sub("", log.read_text(encoding="utf-8", errors="replace"))
+
+
 def failures(log: Path, pattern: re.Pattern) -> set[str]:
     found = set()
-    for line in log.read_text(encoding="utf-8", errors="replace").splitlines():
+    for line in read_plain(log).splitlines():
         m = pattern.search(line)
         if m:
             found.add(m.group(1) if m.groups() else line.strip())
@@ -39,7 +46,7 @@ def failures(log: Path, pattern: re.Pattern) -> set[str]:
 
 def has_summary(log: Path, tests: dict) -> bool:
     pattern = re.compile(tests.get("summary_regex") or DEFAULT_SUMMARY)
-    tail = log.read_text(encoding="utf-8", errors="replace").splitlines()[-SUMMARY_TAIL_LINES:]
+    tail = read_plain(log).splitlines()[-SUMMARY_TAIL_LINES:]
     return any(pattern.search(line) for line in tail)
 
 

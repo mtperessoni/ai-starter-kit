@@ -1,0 +1,12 @@
+Q1 stale old value in docs/: 0 []
+Q2 constant = 90000 (ok)
+Q3 rule rows added or changed: 5; matching the new rule: 1
+Q4 changed tests (3 files): exit 0 Test Files  3 passed (3) Tests  15 passed (15)
+Q5 current gate.py: exit 1, 2 errors ['G7']
+Q6 gate_lite: exit 0 gate-lite: 0 errors, 166 rules, 35 cited by tests
+Q7 commits 1; lines/files by kind {'docs': (28, 6), 'code': (53, 9), 'test': (112, 3)}
+Q8 decision recorded: True; rejected alternative recorded: True
+Q9 red evidence in commit bodies or deliveries: True
+Q10 test files added: 2 ['src/app/triage/[triageId]/(internal)/components/conversational/hooks/__tests__/use-reconnect-seconds-left.test.ts', 'src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/reconnect-countdown.test.ts']
+Q11 INDEX current: True 
+RESULT {"stale": 0, "constant_ok": true, "rows_changed": 5, "new_rule_rows": 1, "tests_pass": true, "gate_current_errors": 2, "gate_lite_errors": 0, "commits": 1, "churn": {"docs": [28, 6], "code": [53, 9], "test": [112, 3]}, "decision_recorded": true, "red_evidence": true, "tests_added": 2, "index_current": true}

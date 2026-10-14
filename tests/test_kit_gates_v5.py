@@ -246,7 +246,7 @@ esac
         self.assertEqual(r.returncode, 1, r.stdout)
         self.assertIn("uncommitted", r.stdout)
         self.assertIn("owner: executor fix", r.stdout)
-        self.assertIn("next: commit promote's output, then executor close", r.stdout)
+        self.assertIn("next: commit the docs and change-folder edits, then executor close", r.stdout)
         self.assertNotIn("compare", r.stdout)
 
     def test_a_dirty_tracked_file_outside_docs_and_changes_is_only_a_note(self) -> None:

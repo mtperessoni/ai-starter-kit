@@ -18,8 +18,8 @@ Mode: C1 `query`; C2, C3, C4, C6 `light`; C5 `full`; mid-execution `short`. With
 | Size | When | Change folder (`write.md` "Change folder") |
 |---|---|---|
 | S | C1, C2, C3, C4, C6; never a C5 | none, or `card.md` in the state folder |
-| M | C5 with an evident design: no new data model, contract, external dependency or technical unknown; a one-row change is M | `decisions.md`, `plan.md` |
-| L | C5 with a new data model, contract, external integration, technical unknown, feature area or PRD | `brief.md`, `design.md`, `decisions.md`, `plan.md` |
+| M | C5 with an evident design: no new data model, contract, external dependency or technical unknown; a one-row change is M | none: the sheet, `card.md` per area and the commit body |
+| L | C5 with a new data model, contract, external integration, technical unknown, feature area or PRD | `brief.md`, `design.md`, `decisions.md`, `plan.md` (docs `plan`) |
 
 A new product context (a product, module or incoming spec that runs on its own) in a repository with PRDs is C5 size L, new PRD variant, never C0: sweep it against every PRD of the INDEX (K11). Only `/prd-create` writes `*(proposed)*` rows; a proposed row is C5 input, never C2.
 
@@ -51,7 +51,7 @@ Diverges: the cited file or symbol is missing; it has no caller outside tests; a
 
 ## Sweep
 1. `scripts/gates.sh prd-sweep --ids <ID,ID> --terms "<entities, actors, states, numbers>" --out <state>/sweep.md` (timeout 300000): in batch 1 with the IDs the request names, else right after the INDEX Grep. It prints the literal Rules, Cited by (K01), Same table (K02), Candidates from INDEX by terms (K11), Unconditional rows (K14 candidates), History (K12), Active changes (K06 local), Tests citing each ID (K05) and Code per Source symbol with its F1 and F2 verdicts and `F3: read path::symbol`.
-2. Read `sweep.md` once, then judge what the script cannot:
+2. Read `sweep.md` once (never reread it: your notes hold it), then judge what the script cannot:
 
 | ID | Judgment |
 |---|---|
@@ -84,10 +84,10 @@ One verdict per rule in scope: `functional` · `diverges: <what the code does, p
 Every conflict of K01, K11 or K14 is, with the same IDs, a `rewrites` or `supersedes` row of the sheet diff (never a separate question) and a line of the pack: `Conflicts: <IDs>` (or `none`), each with why and the proposed resolution (`rewrite`, `supersede`, `compatible: <why>`).
 
 ## Protected rules
-Always protected, besides `repo.md` "Protected rules": an invariant covered by a structural test (`docs/trd/invariants.md`; changing it needs an ADR or a constitution amendment), a registered exception to a principle (a new ADR), a safety control (an ADR and the safety reviewer). Only a protection the change breaks or touches goes to `Protected:` and becomes the first sheet item ("<protection in plain words> still holds? / It holds: <right path> / The document is stale"); one checked and intact goes to a `Checked: <file read>` line. Docs `apply` writes the ADR; a constitution amendment goes back to the user.
+Always protected, besides `repo.md` "Protected rules": an invariant covered by a structural test (`docs/trd/invariants.md`; changing it needs an ADR or a constitution amendment), a registered exception to a principle (a new ADR), a safety control (an ADR and the safety reviewer). Only a protection the change breaks or touches goes to `Protected:` and becomes the first sheet item ("<protection in plain words> still holds? / It holds: <right path> / The document is stale"); one checked and intact goes to a `Checked: <file read>` line. The executor writes the ADR with the code; a constitution amendment goes back to the user.
 
 ## Pack
-`<state>/pack.md`, complete for the docs agent, which never reads source; `gate.py --pack <pack>` checks the sections and that every row is literal. Rows grouped by file:
+`<state>/pack.md`, complete for the executor and docs, which read only the rows and symbols it holds; `gate.py --pack <pack>` checks the sections and that every row is literal. Rows grouped by file:
 ```markdown
 # Pack · <slug>
 Base: <short commit> · Branch: <name> · Behind origin/<base_branch>: <n> (touches the scope: yes|no)
@@ -123,4 +123,4 @@ Protected: none
 Owner: none
 Sheet: <state>/sheet.md · Pack: <state>/pack.md
 ```
-`fan-out: yes` when two or more PRD folders or TRD areas have more than about 5 rows each. `light` holds Case, Approver, Base, Mode, one line per rule (`<ID> · <file> · <verdict>`), the divergence block when there is one (docs `c4` reads it) and `Card: <path>` or `Card: none (<reason>)`.
+`fan-out: yes` when two or more PRD folders or TRD areas have more than about 5 rows each. `light` holds Case, Approver, Base, Mode, one line per rule (`<ID> · <file> · <verdict>`), the divergence block when there is one (docs `c4` reads it) and `Card: <path>` or `Card: none (<reason>)`. A size M `full` adds `Tasks:` (area-sized cards in `card.md`, disjoint Owns) and writes the sheet's "Becomes" column as the exact row text the executor will write.
