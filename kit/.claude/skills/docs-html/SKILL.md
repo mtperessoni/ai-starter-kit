@@ -7,7 +7,7 @@ description: |
   the pages. Builds only, never hand edits; a repository still on `html_mode: hand` is sent to
   `/ai-kit update` to migrate first.
   TRIGGER on: "update the HTML", "rebuild the PRD HTML", "rebuild the TRD HTML", "refresh the reading
-  version", "/docs-html", the gate warning G29 or G32 (page out of date), before sharing the PRD or
+  version", "/docs-html", a `gate.py --html` finding G29 or G32 (page out of date), before sharing the PRD or
   TRD with people, or right after /prd-create or /trd-create.
   DO NOT TRIGGER on: changing a product rule (prd-flow), writing the PRD or TRD (prd-create,
   trd-create), or inside a prd-flow run.
@@ -20,7 +20,7 @@ People read the HTML; agents read only the markdown. The pages are generated, so
 ## Rules
 | ID | Rule |
 |---|---|
-| DH01 | Separate from the change flow: prd-flow (every agent and `promote.py`), prd-create and trd-create never build, edit or read the HTML. The default gate and CI only warn when a page is stale (G29 PRD, G32 TRD); `gate.py --html`, run here, is the strict check |
+| DH01 | Separate from the change flow: prd-flow (every agent and `promote.py`), prd-create and trd-create never build, edit or read the HTML. The default gate checks no HTML; only `gate.py --html`, run here, reports a stale page (G29 PRD, G32 TRD) |
 | DH02 | Generated only: `repo.md` `html_mode` must be `generated`. With `hand` or no key, stop and say: run `/ai-kit update`, whose HTML migration renders a preview and switches the mode when accepted. Nothing else is written |
 | DH03 | `html` set to `none` (or `trd_html` set to `none`) opts that page out: skip it and say so |
 | DH04 | One commit with the pages only, never mixed with a markdown change. Nothing to commit when both were already current |
