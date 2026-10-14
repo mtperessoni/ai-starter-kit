@@ -143,6 +143,7 @@ class PromoteTest(unittest.TestCase):
 
     def test_a_missing_approved_rules_file_names_the_user_as_owner(self) -> None:
         (self.p.root / STATE / "approved-rules.md").unlink()
+        shutil.rmtree(self.p.root / "changes/001-disc")
         r = self.promote()
         self.assertEqual(r.returncode, 2, r.stdout)
         self.assertIn("owner: user", r.stdout)
@@ -544,11 +545,21 @@ class NewRoutePromoteTest(unittest.TestCase):
         self.assertIn("ORD-77", r.stdout)
         self.assertNotIn("Traceback", r.stderr)
 
-    def test_no_entry_and_no_state_record_is_a_clean_error(self) -> None:
+    def test_no_entry_no_state_record_and_no_change_folder_is_a_clean_error(self) -> None:
         write(self.p.root, "docs/prd/CHANGELOG.md", "# CHANGELOG\n")
+        run(self.p.root, "git", "mv", "changes/001-disc", "changes/001-other", check=True)
         r = self.promote()
         self.assertEqual(r.returncode, 2, r.stdout)
         self.assertIn("nothing to promote", r.stdout)
+
+    def test_no_entry_and_no_state_record_archives_the_change_folder_only(self) -> None:
+        write(self.p.root, "docs/prd/CHANGELOG.md", "# CHANGELOG\n")
+        before = self.text("docs/prd/CHANGELOG.md")
+        r = self.promote()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("archive: changes/001-disc -> changes/archive/001-disc", r.stdout)
+        self.assertTrue((self.p.root / "changes/archive/001-disc/plan.md").is_file())
+        self.assertEqual(self.text("docs/prd/CHANGELOG.md"), before)
 
     def test_a_state_folder_with_approved_rules_is_still_the_old_route(self) -> None:
         write(self.p.root, f"{STATE}/approved-rules.md", APPROVED)
