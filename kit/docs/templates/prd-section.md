@@ -16,10 +16,10 @@
 |---|---|---|---|---|
 | <outcome> | <all or variant> | <experience> | <STATE> | <yes or no> |
 
-The Example column is optional (four columns stay valid) but required for a rule with a number, a branch or a failure path. A rule that comes only from documents is `*(proposed)*` with Source `planned`.
+The Example column is optional (four columns stay valid) but required for a rule with a number, a branch or a failure path. A rule that comes only from documents is `*(proposed)*` in the interview, never in the PRD; no new change writes Source `planned`.
 
 | ID | Rule | Source | Change via | Example |
 |---|---|---|---|---|
 | PFX-01 | <One behavior, in product language: trigger, limit, order, failure, who sees what.> | path/to/file.ext::symbol | code | <given> → <expected outcome> |
 | PFX-02 | <A configurable limit names where it is configured: "after the provider timeout (`PaymentConfig.timeout`)".> | path/to/config.ext | config | <A payment that takes longer than the timeout> → <the cart is kept and the user sees "try again"> |
-| PFX-03 | *(proposed)* <A rule taken from a document and not proven by code.> | planned | code | <given> → <outcome> |
+| PFX-03 | <A rule whose code lands in the same commit.> | path/to/file.ext::symbol | code | <given> → <outcome> |

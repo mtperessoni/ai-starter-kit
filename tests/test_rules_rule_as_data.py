@@ -58,5 +58,44 @@ class RuleAsDataRules(unittest.TestCase):
         self.assertIn(D2, CONSTITUTION.read_text(encoding="utf-8"))
 
 
+WF = ROOT / "rules" / "07-workflow.md"
+
+
+def wf_row(text, rid):
+    return re.search(r"^\| %s \|.*$" % rid, text, re.M).group(0)
+
+
+class RuleAsDataWorkflowText(unittest.TestCase):
+    def test_wf_rows_have_no_old_flow(self):
+        text = WF.read_text(encoding="utf-8")
+        for rid, bad in {
+            "WF37": "with Source `planned`",
+            "WF39": "docs/prd/CHANGELOG.md` (collected",
+            "WF47": "Promote copies the rows into the CHANGELOG entry",
+            "WF48": "the CHANGELOG entry reads",
+            "WF59": "of the CHANGELOG entry",
+            "WF70": "Size M has no TRD Planned section",
+            "WF83": "CHANGELOG history",
+            "WF43": "rows of the CHANGELOG entry",
+        }.items():
+            self.assertNotIn(bad, wf_row(text, rid), rid)
+
+    def test_readme_gate_reads_commit_body(self):
+        text = (ROOT / "rules" / "README.md").read_text(encoding="utf-8")
+        self.assertNotIn("read from the CHANGELOG entry", text)
+
+    def test_ds07_ds13_new_changes_add_no_marker(self):
+        rows = ds_rows(RULES.read_text(encoding="utf-8"))
+        self.assertNotIn("has Source `planned`", rows["DS07"])
+        self.assertIn("no new change adds", rows["DS07"])
+        self.assertIn("no new change adds", rows["DS13"])
+
+    def test_templates_have_no_planned_source(self):
+        for name in ("prd-section.md", "change-brief.md"):
+            t = (ROOT / "kit" / "docs" / "templates" / name).read_text(encoding="utf-8")
+            self.assertNotIn("Source `planned`", t, name)
+            self.assertNotIn("| planned |", t, name)
+
+
 if __name__ == "__main__":
     unittest.main()
