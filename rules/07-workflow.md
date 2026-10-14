@@ -6,7 +6,7 @@ Every change to product behavior follows **PRD, then TRD, then plan, then code**
 
 | ID | Rule | Why | Lands in |
 |---|---|---|---|
-| WF01 | Every change and every question about product behavior starts with `/prd-flow`. Skip only for small changes (typo, log line, rename, one-line fix that changes no rule), test fixes, CI, dependency bumps and formatting | One entry point loads the right context every time | CLAUDE.md "Product rules flow" |
+| WF01 | `/prd-flow` runs only when the person explicitly types `/prd-flow`; an agent never starts it on its own (`disable-model-invocation: true` in its SKILL.md). Without it, a rule change is still confirmed by the person and updates PRD and TRD in the same delivery as the code | Auto-invocation made every small task pay the full flow; the person decides when the ceremony is worth it | CLAUDE.md "Product rules flow", skill SKILL.md frontmatter |
 | WF02 | Classify each request into one case, one line; a request with several items gets one case per item | Each case has a different cost and route | skill SKILL.md "Cases" |
 | WF03 | Cases: **C0 no PRD** (`docs/prd/INDEX.md` does not exist: hand over to `/prd-create` and `/trd-create`; WF36), **C1 query**, **C2 implement** an approved rule the code does not meet, **C3 bug** (code diverges, PRD confirmed right), **C4 stale PRD** (code right, PRD wrong, confirmed), **C5 rule change** (changed, new, gap, or defect the PRD documents as current behavior), **C6 refactor** (structure changes, behavior does not) | Named cases make routing deterministic | survey.md "Cases" |
 | WF04 | "Diagnose", "understand why", "plan" are C1 until the user asks for a change: show cause and options and wait | Diagnosis requested is only diagnosis | survey.md "Cases"; R01 |

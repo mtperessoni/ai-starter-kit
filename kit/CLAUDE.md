@@ -16,7 +16,7 @@ Binding, and it wins over everything else in this repository. Full text: `.speci
 
 ## Product rules flow
 
-Every change in this repository and every question about product behavior starts with `/prd-flow` (`.claude/skills/prd-flow/`). Two exceptions skip the gate: small changes (a typo, a log line, a rename, a one-line fix that changes no rule) and fixes to tests. A rule change never goes straight to code: PRD, then TRD, then plan, then code, and only after the person asking has seen the current rule, what would change, and confirmed it. Product changes run through prd-flow, whose main thread coordinates the agents (`.claude/agents/prd-flow-*`) and executes no task; the executor `close` mode promotes, commits and runs the closing gate.
+`/prd-flow` (`.claude/skills/prd-flow/`) runs only when the person explicitly types `/prd-flow`; never start it on your own, whatever the task. Without it, work directly and keep the documents true: a rule change is shown to the person (today's rule and what would change) and confirmed before the code, and it updates the PRD file that owns the rule and the area's TRD in the same delivery as the code. When the person does run prd-flow, its main thread coordinates the agents (`.claude/agents/prd-flow-*`) and executes no task; the executor `close` mode promotes, commits and runs the closing gate.
 
 ## Code structure
 

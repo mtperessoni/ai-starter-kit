@@ -2,6 +2,13 @@
 
 User-visible changes to the kit, newest first. Projects receive them through `/ai-kit update`.
 
+## prd-flow runs only when the person types it
+
+prd-flow was a mandatory gate the model started on its own for every behavior change, so small, already clear changes paid the whole flow. It now runs only on an explicit `/prd-flow`. Rule: amended WF01 ([rules/07-workflow.md](rules/07-workflow.md)).
+
+- `kit/.claude/skills/prd-flow/SKILL.md`: `disable-model-invocation: true`, and the description says it runs only when the user types `/prd-flow`.
+- `kit/CLAUDE.md` "Product rules flow", `kit/AGENTS.md` "Workflow" step 1 and the constitution template "Development Workflow" item 1: no longer route every change through prd-flow. Without it, a rule change is still confirmed by the person and updates PRD and TRD in the same delivery as the code.
+
 ## prd-flow lite: same guarantees, a fraction of the transport
 
 Audit of 2026-10-09 (`eval/AUDIT-prd-flow-end-to-end-2026-10-09.md`, LS33): a plain session beat prd-flow because prd-flow moved understanding through cold agents and copies. The docs phase wrote 394k output tokens against 123k for all executors, a real C5 dispatched 89 agents and took 2 h 20 min to the first code, 3 executors stayed alive about 766 min and one session held 3.7 GB of task output. Plan `proposals/plan-prd-flow-lite.md`. Rules: new SA58, SA59, WF83, IN20, IN21; amended SA05, SA07, SA15, SA22, SA37, SA44, SA53, SA54, SA55, SA56, CE27, CE29, RV03, RV08, RV10, WF21, WF26, WF27, WF38, WF39, WF41, WF43, WF44, WF47, WF51, WF57, WF61, WF68, WF70, WF72, TS34, TS45, TS51, TM03 ([rules/](rules/README.md)). Every orchestration rule is kept (chief, parallel waves, warm resume, review cap, batch verification, reap); what goes is transport.

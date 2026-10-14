@@ -1,6 +1,7 @@
 ---
 name: prd-flow
-description: Mandatory gate for every task that touches product behavior. Checks the PRD rule and TRD map against the code and, for a rule change, confronts, puts one decision sheet to the user and confirms before PRD, TRD, plan and code. Use when someone implements, fixes, changes, refactors or asks about a behavior, ticket, bug or feature ("it should", "/prd-flow"). Not for CI or formatting.
+description: Runs ONLY when the user explicitly types /prd-flow. Never invoke it on your own, not even when a task touches product behavior. Checks the PRD rule and TRD map against the code and, for a rule change, puts one decision sheet to the user and confirms before PRD, TRD, plan and code.
+disable-model-invocation: true
 ---
 
 # prd-flow

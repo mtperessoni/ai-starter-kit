@@ -94,7 +94,7 @@ Violating any of these breaks the architecture or the safety model. Follow stric
 
 Living truth plus change folders, in this order. Do not skip steps.
 
-1. `/prd-flow` classifies the request; a rule change updates PRD and TRD and produces the plan. Product changes run through prd-flow, whose main thread coordinates the agents (`.claude/agents/prd-flow-*`) and executes no task; the executor `close` mode promotes, commits and runs the closing gate
+1. A rule change is confirmed by the person, then updates PRD and TRD before the code. `/prd-flow` runs this step with its agents only when the person explicitly types `/prd-flow`; never start it on your own. When it runs, its main thread coordinates the agents (`.claude/agents/prd-flow-*`) and executes no task; the executor `close` mode promotes, commits and runs the closing gate
 2. The change folder by size, decided at classification: **S** no folder (a task card in the state folder); **M** `decisions.md` and `plan.md`; **L** also `brief.md` and `design.md`. The plan header carries a `## Constitution check`
 3. Implementation test first, one task per agent, one commit per task. A commit that touches source folders ends with a trailer naming the rule IDs it serves (`Rules: CHK-02, CHK-05`) or, when it serves none, the reason in at most 8 words (`Case: none (dependency bump)`); `scripts/gates.sh trailers` checks it
 4. Gates before merge: lint, type check, full suite green, coverage not decreasing, ratchet green
