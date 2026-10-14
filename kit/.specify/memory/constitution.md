@@ -15,7 +15,7 @@ Principles marked [kit] come from the playbook and are recommended as-is; [domai
 Every behavior starts as a failing test. External services and models are replaced by deterministic fakes in the unit suite, which runs with no network and no database; the gate script sets that environment itself. Tests that need a real model or the network carry a marker and never gate a merge. While working, only related tests run; the full suite runs once per delivery against a recorded baseline.
 
 ### III. Documents Are the Source of Truth [kit]
-Product behavior lives in `docs/prd/` as rule rows with permanent IDs; code maps live in `docs/trd/`, one per area. A rule change updates PRD and TRD, and is approved by a person, before any code. Every module and test cites the IDs it implements or proves. Superseded wording moves literally to the CHANGELOG.
+Product behavior lives in `docs/prd/` as rule rows with permanent IDs; code maps live in `docs/trd/`, one per area. A rule change is approved by a person. Rule changes land in the PRD in the same commit as the code that implements them; the commit body records the request and the decision. Every module and test cites the IDs it implements or proves. `git log` is the history of a rule; the CHANGELOG is frozen.
 
 ### IV. AI-Readable Code [kit]
 Code follows `docs/code-structure.md`: one area per PRD area (feature folders recommended, any declared layout), size limits, one responsibility per file with a unique descriptive name, composition over inheritance, explicit state. A structural ratchet enforces it and its allowlist only shrinks.
@@ -33,8 +33,8 @@ No secret in source, prompt, config file or fixture. Configuration is typed and 
 <Stack, persistence ownership, boundaries with other systems.>
 
 ## Development Workflow
-1. **Documents first.** A rule change is confirmed by the person and goes PRD, TRD, plan, code. `/prd-flow` runs this gate only when a person explicitly types `/prd-flow`; an agent never starts it on its own.
-2. **Change folder by size** before code: S none or `plan.md`; M `brief.md` and `plan.md`; L also `design.md`, all under `changes/NNN-<slug>/`. What is durable is promoted to the PRD, TRD or ADR and the folder is archived.
+1. **Confirm, then land with the code.** A rule change is confirmed by the person; its PRD rows land in the commit of the task that implements them. `/prd-flow` runs this gate only when a person explicitly types `/prd-flow`; an agent never starts it on its own.
+2. **Change folder by size** before code: S none; M `plan.md` only when the work has waves; L `plan.md` (waves) and `decisions.md`, also `brief.md` and `design.md`, all under `changes/NNN-<slug>/`. Rows land with the code, so there is no promote for S and M.
 3. **Implement** test first, one commit per task.
 4. **Gates.** Lint, type check, ratchet and the full offline suite pass before any merge. Coverage may not decrease.
 
@@ -49,4 +49,4 @@ This constitution supersedes any other convention in this repository.
 - Versioning is semantic: MAJOR for removing or redefining a principle, MINOR for a new principle or materially new rule, PATCH for wording.
 - Runtime guidance for AI agents lives in `AGENTS.md`. When `AGENTS.md` and this constitution disagree, this constitution wins.
 
-**Version**: 1.0.0 | **Ratified**: <YYYY-MM-DD> | **Last Amended**: <YYYY-MM-DD>
+**Version**: 2.0.0 | **Ratified**: <YYYY-MM-DD> | **Last Amended**: <YYYY-MM-DD>

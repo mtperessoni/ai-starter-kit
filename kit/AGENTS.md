@@ -86,19 +86,19 @@ Violating any of these breaks the architecture or the safety model. Follow stric
 
 - `<folder>/`: `<its role, the areas with files there and its map>`; one line per real folder, filled at install (layout in `docs/code-structure.md`; feature folders are recommended, not required)
 - `tests/integration/`, `tests/eval/`, and unit tests where `docs/trd/testing.md` says
-- `changes/NNN-<slug>/`: one folder per change in flight (`decisions.md` and `plan.md`; `brief.md` and `design.md` for size L). Holds intent, plan and decisions, never truth
-- `changes/archive/`: finished changes, moved there with `git mv` when promoted. History only, never read for current behavior
+- `changes/NNN-<slug>/`: one folder per change in flight (only size L, with `plan.md` (waves) and `decisions.md`; `brief.md` and `design.md` too). Holds intent, plan and decisions, never truth
+- `changes/archive/`: finished size L changes, moved there with `git mv`. History only, never read for current behavior
 - `docs/prd/`, `docs/trd/`, `docs/adr/`, `docs/code-structure.md`, `docs/flow.md`
 
 ## Workflow
 
 Living truth plus change folders, in this order. Do not skip steps.
 
-1. A rule change is confirmed by the person, then updates PRD and TRD before the code. `/prd-flow` runs this step with its agents only when the person explicitly types `/prd-flow`; never start it on your own. When it runs, its main thread coordinates the agents (`.claude/agents/prd-flow-*`) and executes no task; the executor `close` mode promotes, commits and runs the closing gate
-2. The change folder by size, decided at classification: **S** no folder (a task card in the state folder); **M** `decisions.md` and `plan.md`; **L** also `brief.md` and `design.md`. The plan header carries a `## Constitution check`
+1. A rule change is confirmed by the person; its PRD rows and TRD names land in the commit of the task that implements them, and the commit body is the record (`Request:`, `Decided:`, `Assumed:`, `Red:`, then `Rules:`). `/prd-flow` runs this step with its agents only when the person explicitly types `/prd-flow`; never start it on your own. When it runs, its main thread coordinates the agents (`.claude/agents/prd-flow-*`) and executes no task; the executor `close` mode commits and runs the closing gate
+2. The change folder by size, decided at classification: **S** and **M** no folder (a task card in the state folder; M may keep a `plan.md` when it has waves); **L** `plan.md` (waves) and `decisions.md`, also `brief.md` and `design.md`. The plan header carries a `## Constitution check`
 3. Implementation test first, one task per agent, one commit per task. A commit that touches source folders ends with a trailer naming the rule IDs it serves (`Rules: CHK-02, CHK-05`) or, when it serves none, the reason in at most 8 words (`Case: none (dependency bump)`); `scripts/gates.sh trailers` checks it
 4. Gates before merge: lint, type check, full suite green, coverage not decreasing, ratchet green
-5. Promote: what is durable goes to its living home (PRD, TRD, ADR, schema or contract) and the folder is archived with `git mv changes/NNN-<slug> changes/archive/NNN-<slug>`
+5. Close (size L only): the folder is archived with `git mv changes/NNN-<slug> changes/archive/NNN-<slug>`; an ADR, schema or contract that came out of the design is already in its home. Size S and M have no promote
 
 ## Finding things
 
@@ -114,7 +114,7 @@ Load only what the task needs. Every step below is one Glob, Grep or ranged Read
 Keeping it true:
 
 - A code change that moves a file, an entry point or a test of an area updates `docs/trd/<area>.md` and the area's map in the same commit. Names only, never line numbers or default values.
-- A change to product behavior updates the PRD file that owns the rule ID and moves the superseded wording to `docs/prd/CHANGELOG.md`: the PRD body holds only what is valid today.
+- A change to product behavior amends the PRD file that owns the rule ID in place, in the same commit as the code: the PRD body holds only what is valid today. `docs/prd/CHANGELOG.md` is frozen; the history of a rule is `gate.py --history <ID>` and the commit bodies.
 - The `prd-flow` skill runs this flow and checks it with `.claude/skills/prd-flow/scripts/gate.py`.
 
 ## Handing work to a subagent

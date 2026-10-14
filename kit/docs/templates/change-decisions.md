@@ -1,9 +1,11 @@
 # Decisions · <NNN-slug>
 
+Size L only. Sizes S and M record the same facts in the commit body (`Request:`, `Decided:`, `Assumed:`, `Red:`, then `Rules:`) and keep no file.
+
 Reply 1: "<the user's reply to the sheet, verbatim>"
 Reply 2: "<the reply to the follow-up sheet, verbatim; delete this line when there was none>"
 
-Product trade-offs decided on the sheet of this change: one row per answer that chose between real options. Written by docs `apply` and committed in its `docs(prd)` commit; promote copies the rows into the CHANGELOG entry under `Decisions:`. Technical decisions stay in `design.md`.
+Product trade-offs decided on the sheet of this change: one row per answer that chose between real options. Technical decisions stay in `design.md`. The rows of the rules land in the PRD with the code task that implements them; this file never feeds the CHANGELOG, which is frozen.
 
 | ID | Question | Decision | Rejected alternative | Why | Rules |
 |---|---|---|---|---|---|

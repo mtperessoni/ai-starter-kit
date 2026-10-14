@@ -8,7 +8,7 @@ Binding, and it wins over everything else in this repository. Full text: `.speci
 
 - **I. <Principle name> (NON-NEGOTIABLE).** <One line.>
 - **II. Test-First With Deterministic Doubles (NON-NEGOTIABLE).** Failing test first, fakes for external services and models, the unit suite runs offline.
-- **III. Documents Are the Source of Truth.** Behavior lives in `docs/prd/`, code maps in `docs/trd/`; a rule change updates them before the code.
+- **III. Documents Are the Source of Truth.** Behavior lives in `docs/prd/`, code maps in `docs/trd/`; rule changes land in the PRD in the same commit as the code that implements them.
 - **IV. AI-Readable Code.** `docs/code-structure.md`, enforced by the ratchet and the linter rules.
 - **V. Bounded Agent Work.** Contracts, ceilings and review rounds; behavior changes go back to a person.
 - **VI. <Principle name>.** <One line.>
@@ -16,7 +16,7 @@ Binding, and it wins over everything else in this repository. Full text: `.speci
 
 ## Product rules flow
 
-`/prd-flow` (`.claude/skills/prd-flow/`) runs only when the person explicitly types `/prd-flow`; never start it on your own, whatever the task. Without it, work directly and keep the documents true: a rule change is shown to the person (today's rule and what would change) and confirmed before the code, and it updates the PRD file that owns the rule and the area's TRD in the same delivery as the code. When the person does run prd-flow, its main thread coordinates the agents (`.claude/agents/prd-flow-*`) and executes no task; the executor `close` mode promotes, commits and runs the closing gate.
+`/prd-flow` (`.claude/skills/prd-flow/`) runs only when the person explicitly types `/prd-flow`; never start it on your own, whatever the task. Without it, work directly and keep the documents true: a rule change is shown to the person (today's rule and what would change) and confirmed before the code, and the PRD file that owns the rule and the area's TRD change in the commit of the task that implements it; the commit body records `Request:`, `Decided:`, `Assumed:`, `Red:`, then `Rules:`. When the person does run prd-flow, its main thread coordinates the agents (`.claude/agents/prd-flow-*`) and executes no task; the executor `close` mode commits and runs the closing gate.
 
 ## Code structure
 

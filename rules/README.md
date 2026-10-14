@@ -11,7 +11,7 @@ Read only the file of the domain you need. IDs are stable: a new rule takes the 
 | [03-review.md](03-review.md) | RV | Code review with a ceiling of rounds |
 | [04-testing.md](04-testing.md) | TS | Test-first, related tests only, full suite once, baseline, offline gates, containers and disk |
 | [05-code-structure.md](05-code-structure.md) | AR, CX | AI-readable code layout, size limits, the ratchet, code constraints |
-| [06-docs-system.md](06-docs-system.md) | DS | PRD by section, rule rows and Example column, CHANGELOG, TRD by feature, budget and checks, invariants, generated HTML, gate |
+| [06-docs-system.md](06-docs-system.md) | DS | PRD by section, rule rows and Example column, frozen CHANGELOG and commit-body record, TRD by feature, budget and checks, invariants, generated HTML, gate |
 | [07-workflow.md](07-workflow.md) | WF | Cases C0 to C6, survey and sweeps, the decision sheet and its answers, PRD then TRD then plan then code, R09, commits and trailers |
 | [08-writing-style.md](08-writing-style.md) | WS | Language, punctuation, comments, commits, tables |
 | [09-lessons.md](09-lessons.md) | LS | What was measured and why each rule exists |
