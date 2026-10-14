@@ -1,41 +1,44 @@
 <!-- ai-kit:start (managed by ai-starter-kit install; edit the kit, not this block) -->
-## Working with subagents
-- A subagent prompt carries the contract (the rule rows or IDs it must satisfy) and file paths; never whole documents pasted in.
-- A subagent writes its work to files and returns at most 20 lines: Done / Files / Tests / Gaps (prd-flow agents use the five fields `Status`, `Files:`, `Commit:`, `Route:`, `Next:`). The main thread does not reread what it wrote.
-- A subagent never opens another subagent. Parallelism only from the main thread, in waves with disjoint file ownership.
-- Ceiling per agent: about 50 tool calls or 30 minutes, then report what is done and what is left. An agent that hit its ceiling or passed about 150k tokens is replaced by a new one with a handoff of at most 10 lines.
-- Model: sonnet by default; opus only with a written reason.
-- Review: at most 5 rounds per delivery; from round 2, only the previous findings against the fix diff. An open Critical at round 5, or a round worse than the previous one: stop and ask me. Say `review: N/5` every round.
-- Brake: an agent that hits its ceiling twice, or a wave twice as slow as the previous one, stops and reports cost and what is left.
-- No polling loops (`sleep` in a loop): run a long command in the background with an explicit timeout longer than the run, and read its output file once.
-- Never leave a process running when you hand back; stop what you started. Never kill processes by image name (`taskkill /IM`, `pkill`, `killall`); use `scripts/gates.sh reap`.
-- Verification is per batch: an executor runs only its own new test; the chief runs one `gates.sh verify <slug>` per wave and fixes in one batch; the reviewer runs once per delivery (below). Gates are reminders, run once per phase.
+## Scope and slicing
+- Before the first dispatch or the first edit of a delivery, state the goal, what is out of scope and an estimate in minutes, and get my yes.
+- A delivery is one vertical slice: one area or one engine, about 30 changed files or 2 hours, its own PR. Bigger work is cut into slices before any code. When I widen the scope mid-session, answer first with the estimate and the slices, then do what I choose.
+- Defects first, structure later: when an audit or a review finds defects, each one ships first as the smallest fix in the current structure, with its test and its PR. A restructuring is a separate delivery, in slices.
+- Size L (new data model, contract or integration) writes one short plan in `changes/NNN-<slug>/` (about 100 lines: decisions, slices, acceptance items). Size S and M write no plan files.
+- Size L gets a design review before the plan: one reviewer checks every field or frame that crosses a repository boundary, from both sides; the safety nets the change touches; personal data in any new storage, log or prompt; and the rollout path. Its findings change the design, never the code.
+- One code path: a flag decides at the edge (creation or entry point). Keeping the old and the new path alive inside modules needs a written rollback reason.
 
-## Orchestrating a delivery
-Any session that dispatches more than 2 agents for one delivery, with or without prd-flow.
-- One phase per session: audit and design, docs (PRD and TRD) and execution are separate sessions that hand off by file. The orchestrator never writes a long artifact itself (a subagent writes HTML, PRD sections, reports) and checkpoints to a fresh session past about 120k tokens of context.
-- Before the first dispatch, state the goal, the artifact and what is out of scope in three lines and get my yes. A change of direction stops dispatching and rewrites the plan. Parallel sessions use separate worktrees.
-- Tasks are area-sized (several files of one area and their tests, 10 to 30 minutes), never one per finding: 12 or fewer per delivery, at most 4 executors per wave. Cold starts and extra waves cost time; parallel width does not.
-- When the delivery implements a list (audit findings, acceptance criteria, rule IDs), the plan maps each item to a task and a test before any dispatch.
-- Review once per delivery, after the last wave: one reviewer over the combined diff of every repository, checking the list item by item, every message, field and enum that crosses a repository boundary from both sides, and prompt text the change made stale; risk reviewers (clinical, security) go in the same message. A wave gets its own review only when a later wave builds on an interface it created.
-- Executors never run evals, model-backed harnesses or suites over about 2 minutes: the orchestrator runs them once per wave in the background with a timeout longer than the run, never in the foreground.
+## Executing
+- The session that executes a slice writes the code itself. A subagent only for: the final review, a slice that is truly independent (its own worktree, at most 2 executors at once), or heavy reading kept out of the main context.
+- A subagent prompt carries the goal, the acceptance items and at most about 5 paths to read first, never whole documents. It returns at most 15 lines: done, files, tests, gaps, minutes used. It never opens another subagent.
+- Pass `model` on every dispatch: sonnet by default, opus only with a one-line reason.
+- Cadence: keep a running total of minutes against the estimate (agent returns carry their duration). At the end of each slice, and on reaching 1.5 times the estimate, stop and report to me what is done and what is left. Never open a lane for leftovers without my yes. An agent past about 150k tokens hands back instead of continuing.
+- One phase per session for size L: design, then docs, then one session per slice. Checkpoint to a fresh session past about 120k tokens of context.
+- Long commands: a subagent runs them in the foreground with an explicit timeout under 600 s, output to a file; only the main thread starts background work, with a timeout longer than the run. No polling loops.
+- In a shared tree never `git stash`, `reset`, `checkout`, `restore` or `commit --amend`. Commit messages go through a file (`git commit -F <file>`).
+- Never leave a process running when you hand back. Never kill processes by image name (`taskkill /IM`, `pkill`, `killall`); use `scripts/gates.sh reap`.
 
 ## Tests
-- Executors run only their own new test; the related tests (the mirror test of each touched module and the tests that import it) run once per wave in `gates.sh verify`. The full suite runs once, at the end of a delivery, compared against a recorded baseline of failures.
+- Write the failing test first. Unit tests run offline, with fakes and a per-test timeout.
+- Before handing back a slice, run its tests and the tests that import the files it touched (`scripts/gates.sh related`). The full suite runs once per delivery, in the background, against a recorded baseline of failures.
+- Never loosen a safety assertion or regenerate a snapshot to get green. A failing test unrelated to the change is reported, not investigated.
 - Test output goes to a file; only failures and the summary come back into context.
-- Write the failing test first.
-- A token-saving proxy such as `rtk` swallows test-runner output: run test runners and linters through `rtk proxy <cmd>` or the runner's own binary.
+- A token-saving proxy such as `rtk` rewrites command output: run test runners, linters and any command whose output feeds another command (`$(...)`, a file list) through `rtk proxy <cmd>`.
+
+## Docs and review
+- A rule change is shown as today versus proposed and confirmed before the code. The commit that implements it updates the PRD row; its body says what was decided. Git is the history.
+- The TRD and the area maps name files and entry points only, and are updated once per delivery, in its last slice.
+- One review per delivery, over the combined diff of every repository: the acceptance items one by one, every field that crosses a repository boundary from both sides, PRD rows and TRD names. Risk reviewers (clinical, security) go in the same message.
+- Critical and High findings are fixed and rechecked against the fix diff only; Medium and Low ride along. At most 5 rounds; a round worse than the previous one, or an open Critical at round 5, stops and asks me. Say `review: N/5` every round.
+- Safety nets (guardrails, alarms, rollback switches, tenant configuration) change only with my explicit yes, never inside a task, a fix or a test edit.
 
 ## Docker and disk
-- Build an image only when a test must prove services start together; otherwise a throwaway database container or in-process fakes. Ask whether a cheaper test exists before building.
+- Build an image only when a test must prove services start together; otherwise a throwaway database container or in-process fakes.
 - When the repository has `scripts/gates.sh`, build and run integration only through it (`build`, `integration`, `full`): it guards disk and image caps and cleans up on every exit.
-- A one-off container is `--rm`; an image pulled only for it is removed in the same step. Remove spike images when the spike ends.
-- Never start a background command with unbounded output; long runs go to a file, in the background, with a timeout longer than the run, so they are not killed mid-stack.
-- Before ending a session that used Docker, leave nothing of yours running or dangling. Delete only what is clearly yours; other projects' images and volumes are listed for me, never removed.
+- A one-off container is `--rm`; an image pulled only for it is removed in the same step. Never start a background command with unbounded output.
+- Before ending a session that used Docker, leave nothing of yours running or dangling. Other projects' images and volumes are listed for me, never removed.
 
 ## Editing
 - Move code by script (line ranges or AST), never retype a function body.
 - Edit markdown and HTML with Write and Edit directly, never through ad hoc scripts.
-- Count and list with the Grep tool rather than the shell.
 - No push and no pull request without my explicit request.
 <!-- ai-kit:end -->

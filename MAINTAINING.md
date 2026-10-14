@@ -24,6 +24,7 @@ Lessons of the audit of 2026-10-09 (LS32): ceremony and bare prohibitions cost m
 | M11 | Runtime files cite only what the agent can open | A test that every cited ID or heading resolves inside the installed files |
 | M12 | Every instruction is checked against the harness (system reminders, settings deny, permission prompts) | `/ai-kit doctor` |
 | M13 | Read budget per mode: at most 3 reference files before the first action | A test on the agent files |
+| M14 | A rule or gate that adds work to every task or every commit needs a measured defect it prevented; otherwise it is a review item, checked once per delivery. `rules/core.md` stays at about 25 rules: adding one means merging or retiring another | Count of CR rows; review of every new per-commit duty (run 013 of 2026-10-14: the per-commit duties were most of the work) |
 
 ## Bringing an improvement back from a project
 1. Write down what happened and what it cost (time, tokens, rounds); that becomes the "Why" of the rule.

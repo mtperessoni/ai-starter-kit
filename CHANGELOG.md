@@ -2,6 +2,16 @@
 
 User-visible changes to the kit, newest first. Projects receive them through `/ai-kit update`.
 
+## Core rules: one slice per delivery, fewer and clearer rules
+
+Run of 2026-10-14 (LS35): a widened scope with no estimate ran 3 hours of execution with 19 subagents and no PR; about 40% of the calls were re-orienting, every lane left leftovers that became new lanes, and three High findings were design gaps found after the code. The rules that would have stopped it existed but were buried among 434 IDs. Rule: [rules/core.md](rules/core.md) (CR01 to CR22) is the set in force and wins over the domain files; MAINTAINING M14 keeps it small.
+
+- `global/CLAUDE.md` rewritten around the core rules: an estimate before the first dispatch or edit; one vertical slice per delivery (about 30 files or 2 hours, its own PR); defects shipped as small fixes before any restructuring; a design review before the plan for size L; one code path behind a flag at the edge; the session that executes a slice writes the code, subagents only for review, an independent slice (at most 2) or heavy reading; a running total of minutes with a report at each slice end and at 1.5 times the estimate; no lane for leftovers without the person; tests related to the touched files before handing back, with a per-test timeout; TRD and maps once per delivery.
+- Template `CLAUDE.md`, `AGENTS.md` and constitution: principle V is now "Bounded Delivery"; the TRD and area maps are updated once per delivery; executors run the related tests of their files, not only their own new test; the subagent return is 15 lines with the minutes used; the 50-call ceiling is gone, an agent hands back past about 150k tokens.
+- Not in this release: the per-commit gates the core rules make unnecessary (exact counts and uniqueness in the ratchet, per-edge import allowlists, module ID headers, trailers, docs-gate bookkeeping codes, prd-flow card and sheet format checks) still run; they are removed in the next releases (`proposals/audit-rules-cost-2026-10-14.md` section 5).
+
+On update: replace the managed block of `~/.claude/CLAUDE.md` with `global/CLAUDE.md`; in the repository, apply the `CLAUDE.md`, `AGENTS.md` and constitution lines above where the project kept the kit wording.
+
 ## Rule as data: the rows land with the code, the commit body is the record
 
 An A/B of the docs flow (`proposals/plan-rule-as-data.md`) showed the docs agent, promote and the bookkeeping gate cost more than they protected: promote left stale values behind ("today: 60 s") and the change gate failed 36% of runs on bookkeeping. Rule: the approved PRD rows are written in the commit of the task that implements them, and the commit body (`Request:`, `Decided:`, `Assumed:`, `Red:`, then `Rules:`) is the record. Amended: the docs rules DS and the workflow rules WF that named promote, Planned or a CHANGELOG line ([rules/](rules/README.md)).

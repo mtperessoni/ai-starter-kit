@@ -1,11 +1,14 @@
 # Rule catalog
 
-Every rule of the kit, by domain. Each file is one table: `| ID | Rule | Why | Lands in |`. "Lands in" names the file of the target repository (or the skill section) that enforces the rule after `/ai-kit install`, so the catalog doubles as the checklist that nothing was lost.
+**Start with [core.md](core.md) (CR01 to CR22).** It holds the rules in force for a delivery since 2026-10-14 and wins over the domain files below when they disagree. The domain files stay as history and as the record of why each older rule existed; their per-change duties are being removed PR by PR (`proposals/audit-rules-cost-2026-10-14.md`).
+
+Every rule of the kit, by domain. Each file is one table: `| ID | Rule | Why | Lands in |`. "Lands in" names the file of the target repository (or the skill section) that enforces the rule after `/ai-kit install`.
 
 Read only the file of the domain you need. IDs are stable: a new rule takes the next free number of its prefix.
 
 | File | Prefix | Domain |
 |---|---|---|
+| [core.md](core.md) | CR | The rules in force: scope and slicing, executing, tests, docs and review |
 | [01-context-economy.md](01-context-economy.md) | CE | Token efficiency, lazy loading, budgets |
 | [02-subagents.md](02-subagents.md) | SA | Orchestrator and workers, contracts, file-based handoff, caps, models, waves |
 | [03-review.md](03-review.md) | RV | Code review with a ceiling of rounds |
@@ -22,7 +25,7 @@ Read only the file of the domain you need. IDs are stable: a new rule takes the 
 
 | Target file | Holds |
 |---|---|
-| `~/.claude/CLAUDE.md` | The global block: SA, RV, TS and WS rules that hold in any repository ([global/CLAUDE.md](../global/CLAUDE.md), installed by `install.sh`) |
+| `~/.claude/CLAUDE.md` | The global block: the CR rules that hold in any repository ([global/CLAUDE.md](../global/CLAUDE.md), installed by `install.sh`) |
 | `CLAUDE.md` | Constitution index, the gate rule (WF01), code structure summary |
 | `AGENTS.md` | Commands, critical constraints (CX), disk and container hygiene (TS27, TS29, TS33, TS34), directory map, finding things (CE), handing work to a subagent (SA04) |
 | `changes/`, `changes/archive/` | WF26 to WF29, WF34: change folders (brief, design, plan) and their archive; project-owned, never touched by update |

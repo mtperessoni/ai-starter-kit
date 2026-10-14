@@ -15,13 +15,13 @@ Principles marked [kit] come from the playbook and are recommended as-is; [domai
 Every behavior starts as a failing test. External services and models are replaced by deterministic fakes in the unit suite, which runs with no network and no database; the gate script sets that environment itself. Tests that need a real model or the network carry a marker and never gate a merge. While working, only related tests run; the full suite runs once per delivery against a recorded baseline.
 
 ### III. Documents Are the Source of Truth [kit]
-Product behavior lives in `docs/prd/` as rule rows with permanent IDs; code maps live in `docs/trd/`, one per area. A rule change is approved by a person. Rule changes land in the PRD in the same commit as the code that implements them; the commit body records the request and the decision. Every module and test cites the IDs it implements or proves. `git log` is the history of a rule; the CHANGELOG is frozen.
+Product behavior lives in `docs/prd/` as rule rows with permanent IDs; code maps live in `docs/trd/`, one per area. A rule change is approved by a person. Rule changes land in the PRD in the same commit as the code that implements them; the commit body records the request and the decision. Every module and test cites the IDs it implements or proves. The TRD is updated once per delivery, in its last slice. `git log` is the history of a rule; the CHANGELOG is frozen.
 
 ### IV. AI-Readable Code [kit]
 Code follows `docs/code-structure.md`: one area per PRD area (feature folders recommended, any declared layout), size limits, one responsibility per file with a unique descriptive name, composition over inheritance, explicit state. A structural ratchet enforces it and its allowlist only shrinks.
 
-### V. Bounded Agent Work [kit]
-Agents work against a contract and communicate through files; every agent has a ceiling of calls and time; code review has a ceiling of rounds per delivery; decisions that change behavior or weaken a safety control go back to a person.
+### V. Bounded Delivery [kit]
+A delivery is one vertical slice with an estimate agreed before it starts and a report at its end; defects ship as small fixes before any restructuring; the session that executes a slice writes its code, and a subagent works against a contract and hands back instead of growing; code review has a ceiling of rounds per delivery; decisions that change behavior or weaken a safety control go back to a person.
 
 ### VI. <Domain principle: auditability, rollback, configuration as data, safety...> [domain]
 <...>
