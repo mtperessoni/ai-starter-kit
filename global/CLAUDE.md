@@ -9,7 +9,16 @@
 - Brake: an agent that hits its ceiling twice, or a wave twice as slow as the previous one, stops and reports cost and what is left.
 - No polling loops (`sleep` in a loop): run a long command in the background with an explicit timeout longer than the run, and read its output file once.
 - Never leave a process running when you hand back; stop what you started. Never kill processes by image name (`taskkill /IM`, `pkill`, `killall`); use `scripts/gates.sh reap`.
-- Verification is per batch: an executor runs only its own new test; the chief runs one `gates.sh verify <slug>` per wave, with the reviewer, and fixes in one batch. Gates are reminders, run once per phase.
+- Verification is per batch: an executor runs only its own new test; the chief runs one `gates.sh verify <slug>` per wave and fixes in one batch; the reviewer runs once per delivery (below). Gates are reminders, run once per phase.
+
+## Orchestrating a delivery
+Any session that dispatches more than 2 agents for one delivery, with or without prd-flow.
+- One phase per session: audit and design, docs (PRD and TRD) and execution are separate sessions that hand off by file. The orchestrator never writes a long artifact itself (a subagent writes HTML, PRD sections, reports) and checkpoints to a fresh session past about 120k tokens of context.
+- Before the first dispatch, state the goal, the artifact and what is out of scope in three lines and get my yes. A change of direction stops dispatching and rewrites the plan. Parallel sessions use separate worktrees.
+- Tasks are area-sized (several files of one area and their tests, 10 to 30 minutes), never one per finding: 12 or fewer per delivery, at most 4 executors per wave. Cold starts and extra waves cost time; parallel width does not.
+- When the delivery implements a list (audit findings, acceptance criteria, rule IDs), the plan maps each item to a task and a test before any dispatch.
+- Review once per delivery, after the last wave: one reviewer over the combined diff of every repository, checking the list item by item, every message, field and enum that crosses a repository boundary from both sides, and prompt text the change made stale; risk reviewers (clinical, security) go in the same message. A wave gets its own review only when a later wave builds on an interface it created.
+- Executors never run evals, model-backed harnesses or suites over about 2 minutes: the orchestrator runs them once per wave in the background with a timeout longer than the run, never in the foreground.
 
 ## Tests
 - Executors run only their own new test; the related tests (the mirror test of each touched module and the tests that import it) run once per wave in `gates.sh verify`. The full suite runs once, at the end of a delivery, compared against a recorded baseline of failures.

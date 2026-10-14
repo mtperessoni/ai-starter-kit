@@ -121,7 +121,9 @@ Over `trd_budget_lines` (G26) an area splits into `docs/trd/<area>/<part>.md` pl
 ## Plan
 `plan.md`: title, `## Constitution check` (`| Principle touched | How the plan honors it, or the justified violation |`, one row per principle touched), then the cards. No orchestration rule is copied into it. Check with `git log --oneline -- <paths>` which dependencies are done. `code` becomes cards; anything owned by another repository becomes a handoff note with the rule rows, outside the plan.
 
-The docs gate prints the waves (`WAVE n: T01, T02`, critical path first, at most 4 per wave) and `CRITICAL PATH`, and errors when two tasks of a wave own one file. Replace `## Plan` of `state.md` with `Plan: <path>`, the `WAVE n:` and `CRITICAL PATH` lines verbatim, each task's model (`sonnet` unless the card gives a reason) and lens, and a last line `Review: per wave` when any wave has 2 or more tasks, else `Review: once after the last wave`.
+The docs gate prints the waves (`WAVE n: T01, T02`, critical path first, at most 4 per wave) and `CRITICAL PATH`, and errors when two tasks of a wave own one file. Replace `## Plan` of `state.md` with `Plan: <path>`, the `WAVE n:` and `CRITICAL PATH` lines verbatim, each task's model (`sonnet` unless the card gives a reason) and lens, and a last line `Review: once after the last wave`, extended with `and after wave <n>` for each wave whose created interface a later wave builds on.
+
+Cards are area-sized: several files of one area and their tests, about 10 to 30 minutes of work, 12 or fewer per delivery. When the change implements a list (audit findings, acceptance criteria, rule IDs), `plan.md` carries a table with the columns Item, Task, Test, one row per item; an item without a test is a gap before any dispatch.
 
 ## Card
 A card has at most 25 lines; every field is mandatory. The surveyor `light` writes one to `<state>/card.md` for a one-task C2, C3 or C6.

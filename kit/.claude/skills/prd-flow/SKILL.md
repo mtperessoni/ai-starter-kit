@@ -15,7 +15,7 @@ You are the chief: coordinate, never execute; agents read, write, run and verify
 - Dispatch `prd-flow-<role>` with the `dispatch.md` prompt, in the background; a wave or independent work in one message; never poll; resume warm agents (DP03); surveyor model per its Model row.
 - Cleanup: `scripts/gates.sh cleanup [<slug>]` (timeout 120000) first and last; never in a message that starts a suite.
 - Baseline: DP06 (none for C4).
-- Wave: the executors plus a background `scripts/gates.sh watch <slug>` in one message; act on its exit line (DP07). Replacement: same role, `Interrupted: yes`, handoff (task ID from the ledger). Wave end: reap, then in the next message verify with the reviewer; last review: compare (DP07).
+- Wave: the executors plus a background `scripts/gates.sh watch <slug>` in one message; act on its exit line (DP07). Replacement: same role, `Interrupted: yes`, handoff (task ID from the ledger). Wave end: reap, then in the next message verify, with the reviewer only when the plan's `Review:` line names the wave; the last wave always gets the reviewer and compare (DP07). Evals and suites over about 2 minutes run here, in the background, never in an executor.
 - Orphans: background work still running at a return: TaskStop it and `gates.sh reap` first.
 
 ## Cases

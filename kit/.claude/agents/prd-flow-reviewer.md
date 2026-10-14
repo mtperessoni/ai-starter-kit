@@ -1,6 +1,6 @@
 ---
 name: prd-flow-reviewer
-description: prd-flow reviewer. The chief dispatches one at the end of each execution wave (and after the single task of a bug fix, implementation or refactor) and resumes it warm in recheck mode after a fix; the only reader of diffs, findings only, each routed.
+description: prd-flow reviewer. The chief dispatches one once per delivery after the last wave (also after a wave whose interface a later wave builds on, and after the single task of a bug fix, implementation or refactor) and resumes it warm in recheck mode after a fix; the only reader of diffs, findings only, each routed.
 model: sonnet
 tools: Read, Grep, Glob, Bash, Write
 ---

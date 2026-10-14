@@ -2,6 +2,13 @@
 
 User-visible changes to the kit, newest first. Projects receive them through `/ai-kit update`.
 
+## Orchestration rules for every session, with or without prd-flow
+
+Audit of the 2026-10-13 sessions (LS34): the slow part was the orchestration pattern, not prd-flow. One Opus session ran audit to 100 dispatches at 540k tokens of context per turn; 47 one-finding tasks in 12 waves, each wave reviewed twice; the cross-repo defects surfaced only in a final review that cost 47 minutes more; two "stuck" agents were foreground evals on a 580 s timeout. Rules: new SA60 to SA66, amended SA40 (one review per delivery) and SA41 (checkpoint for every orchestrator) ([rules/02-subagents.md](rules/02-subagents.md)).
+
+- `global/CLAUDE.md`: new section "Orchestrating a delivery" (one phase per session, scope in three lines before the first dispatch, area-sized tasks, item map, one cross-repo review per delivery, evals and long suites only in the background from the orchestrator). It is the always-loaded home, since prd-flow now runs only on `/prd-flow`.
+- prd-flow: `run.md` "Review", `write.md` "Plan" (`Review: once after the last wave`, area-sized cards, the Item, Task, Test map), SKILL.md wave end, `prd-flow-reviewer.md` description.
+
 ## prd-flow runs only when the person types it
 
 prd-flow was a mandatory gate the model started on its own for every behavior change, so small, already clear changes paid the whole flow. It now runs only on an explicit `/prd-flow`. Rule: amended WF01 ([rules/07-workflow.md](rules/07-workflow.md)).
