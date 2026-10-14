@@ -233,28 +233,31 @@ class FinalTest(unittest.TestCase):
         r = self.p.py(GATE, "--final")
         self.assertEqual(r.returncode, 0, r.stdout)
 
-    def test_a_planned_code_rule_is_an_error(self) -> None:
+    def test_a_planned_code_rule_is_a_warning(self) -> None:
         section = self.p.root / ORDERS
         text = section.read_text(encoding="utf-8").replace("src/features/orders/order_service.py::create_order | code", "planned | code")
         section.write_text(text, encoding="utf-8")
         r = self.p.py(GATE, "--final")
-        self.assertEqual(r.returncode, 1, r.stdout)
-        self.assertIn("ERROR G19", r.stdout)
-        self.assertIn("ORD-01", r.stdout)
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertNotIn("ERROR G19", r.stdout)
+        self.assertIn("WARNING G19", full(self.p, r))
+        self.assertIn("ORD-01", full(self.p, r))
 
-    def test_a_mixed_route_with_code_is_still_code(self) -> None:
+    def test_a_mixed_route_with_code_is_a_warning(self) -> None:
         section = self.p.root / ORDERS
         text = section.read_text(encoding="utf-8").replace("src/features/orders/order_service.py | config", "planned | code, adr")
         section.write_text(text, encoding="utf-8")
         r = self.p.py(GATE, "--final")
-        self.assertEqual(r.returncode, 1, r.stdout)
-        self.assertIn("ERROR G19", r.stdout)
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("WARNING G19", full(self.p, r))
 
-    def test_an_unknown_route_counts_as_code(self) -> None:
+    def test_an_unknown_route_is_a_warning(self) -> None:
         section = self.p.root / ORDERS
         text = section.read_text(encoding="utf-8").replace("src/features/orders/order_service.py | config", "planned | code (see T02)")
         section.write_text(text, encoding="utf-8")
-        self.assertIn("ERROR G19", self.p.py(GATE, "--final").stdout)
+        r = self.p.py(GATE, "--final")
+        self.assertNotIn("ERROR G19", r.stdout)
+        self.assertIn("WARNING G19", full(self.p, r))
 
     def test_a_planned_rule_closed_by_another_route_is_a_warning(self) -> None:
         section = self.p.root / ORDERS
@@ -265,13 +268,13 @@ class FinalTest(unittest.TestCase):
         self.assertIn("WARNING G19", full(self.p, r))
         self.assertIn("ORD-02", full(self.p, r))
 
-    def test_the_pending_marker_is_an_error(self) -> None:
+    def test_the_pending_marker_is_a_warning(self) -> None:
         section = self.p.root / ORDERS
         text = section.read_text(encoding="utf-8").replace("An order is created", "*(approved 2026-01-01, pending code)* An order is created")
         section.write_text(text, encoding="utf-8")
         r = self.p.py(GATE, "--final")
-        self.assertEqual(r.returncode, 1, r.stdout)
-        self.assertIn("ERROR G19", r.stdout)
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("WARNING G19", full(self.p, r))
 
     def test_a_planned_section_in_the_trd_is_an_error(self) -> None:
         write(self.p.root, "docs/trd/orders.md", "# Orders\n\n## Planned\nORD-02 moves.\n")

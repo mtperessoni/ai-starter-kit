@@ -40,15 +40,18 @@ Output: stdout carries the errors and one line 'warnings: N (see .claude/prd-flo
 --trace: every PRD rule not planned is cited by a test file (test_patterns of ai-kit.json);
          untested rules are held to allowlist.untested_rules, which only shrinks.
 --change: brief.md of a change folder against the PRD and its plan.md.
---final: nothing planned, pending, proposed (G30) or open is left (CI, on pushes to the base branch).
---final --change <slug>: G19 to G21 only for the slug's approved rows, its '## Planned (<slug>' heading and its folder; the rest is a warning (gate_scope).
+--final: errors on a proposed rule (G30), a '## Planned' TRD section (G20) and an open change folder (G21); a rule still planned or marked pending code (G19) is a warning (D4), it closes when its code lands.
+--final --change <slug>: G20 and G21 only for the slug's '## Planned (<slug>' heading and its folder; the rest is a warning (gate_scope).
 --snapshot <slug>: records the older G19 to G21 drift (final-snapshot.json in the slug state) so a scoped final reports it as pre-existing.
 --docs <slug>: default prd checks, --rules --applied when the slug has a state record (old route) or a CHANGELOG entry (new route), trd and plan in one run; cached by input mtimes (--fresh reruns).
 --trd: backticked paths exist (G23), symbols (G24) are in the row's files, files within trd_budget_lines (G26).
 --sibling: PRD folders listed under "Shared PRDs" of repo.md equal the sibling repository's (G28).
 The default run and --step check no HTML (G29, G32, G5 only under --html). G25 and the G28 absent-sibling warning are not printed.
-The change gate (default, --step, --docs) errors on G1, G3, G8 and G15, G12 (a changed rule has a test), G4 (em dash) and G2 (INDEX IDs column equals what gen_index.py generates);
-G23, G24 and G28 are warnings there (errors under --trd and --sibling); G7 is gone (CHANGELOG.md is frozen); a pending marker or '## Planned' TRD section added by the diff warns D4.
+The six change errors: G1 (duplicate ID), G3 (row without Source or Change via), G8 (a rule ID added to a TRD file or a test that no PRD row defines, or a '## Planned' block citing one),
+G12 (a changed rule has a test), G4 (em dash added by the diff) and G2 (INDEX: IDs column equals what gen_index.py generates, every section file has a row, no row points to a missing file), plus G0 (base ref missing).
+They run in the default run, --step prd, --step trd and --docs (--step plan runs none of them). --docs adds its own sheet, rules (Q), plan (P) and change (G15) checks and --step trd adds the strict TRD checks (G23 error);
+none of them errors on S or M bookkeeping (no G7, no '## Planned' section, no CHANGELOG entry needed). G23, G24 and G28 are warnings in the change gate (errors under --trd and --sibling);
+G7 is gone (CHANGELOG.md is frozen); a pending marker or '## Planned' TRD section added by the diff warns D4.
 --fix: regenerate the INDEX IDs column with gen_index.py, then run the selected checks.
 --history <ID>: commits (newest first) whose diff touched the rule's PRD row or whose Rules: trailer names it, with date, sha, subject and the Request:, Decided:, Assumed: body lines.
 --html: the strict HTML check of the docs-html skill, html_mode generated only (G29, G32 and G4 on the pages are errors, hand is an error G5).
@@ -62,12 +65,12 @@ import sys
 from pathlib import Path
 
 from gate_core import (
-    EM_DASH, ID, ROW, git, is_proposed, joined, literal_rows, load_config, read_md_rules, rule_table_ids, err, warn,
+    ID, ROW, git, is_proposed, joined, literal_rows, load_config, read_md_rules, rule_table_ids, err, warn,
 )
 from gate_interview import check_answers, check_sheet
 from state_record import approved_text
 from gate_budget import check_sections
-from gate_changed import check_changed_rules_tested, check_index_current, warn_added_planned
+from gate_changed import check_changed_rules_tested, check_cited_ids, check_em_dash_added, check_index_current, kit_tests, warn_added_planned
 from gate_history import history
 from gen_index import write as write_index
 from gate_output import base_ref, changed_paths, report, start
@@ -98,16 +101,14 @@ def default_checks(root: Path, cfg: dict[str, str], rules, vias: set[str], base_
     prd, trd = root / prd_rel, root / trd_rel
     base = base_ref(root, cfg, base_arg)
     old, new, touched, plain = changed_rows(root, base, prd_rel, cfg["prd_glob"])
-    check_index_current(prd)
+    check_index_current(prd, rules)
+    check_cited_ids(root, base, rules, trd_rel, kit_tests(root), changed_paths(root, cfg, base_arg))
     check_changed_rules_tested(root, rules, cfg, vias, set(new))
     warn_added_planned(root, cfg, base, old, new, trd_rel)
     check_sections(root, cfg, prd, changed_paths(root, cfg, base_arg) if scoped else None)
 
     if cfg["forbid_em_dash"].lower() in {"yes", "true", "on"}:
-        for f in [*prd.rglob("*.md"), *trd.rglob("*.md")]:
-            for n, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
-                if EM_DASH in line:
-                    err("G4", f"em dash in {f.relative_to(root).as_posix()}:{n}")
+        check_em_dash_added(root, base, prd_rel, trd_rel)
 
     for rid, row in sorted(new.items()):
         rule_row = rid in rule_table_ids and len(row) >= 3

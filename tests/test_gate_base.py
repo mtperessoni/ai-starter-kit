@@ -39,7 +39,7 @@ class BaseTest(unittest.TestCase):
 
     def test_without_origin_the_local_base_branch_is_used(self) -> None:
         run(self.p.root, "git", "checkout", "-q", "-b", "feat", check=True)
-        edit(self.p, ORDERS, "at least one item", "one item — at least")
+        edit(self.p, ORDERS, "at least one item", "one item " + chr(0x2014) + " at least")
         run(self.p.root, "git", "commit", "-qam", "reword", check=True)
         r = self.p.py(GATE)
         self.assertIn("ERROR G4", r.stdout)

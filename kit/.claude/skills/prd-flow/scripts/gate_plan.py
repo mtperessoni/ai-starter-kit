@@ -209,8 +209,8 @@ def check_final(root: Path, rules: Rules, cfg: dict[str, str], trd: Path, change
     older = read_snapshot(root, slug) if slug else set()
     for d in final_drift(root, rules, cfg, trd):
         message = final_message(d, cfg)
-        if d["code"] == "G19" and not d["code_route"]:
-            warn("G19", f"{next(iter(d['ids']))} is still planned; it changes via {d['via']} and closes by that route")
+        if d["code"] == "G19":
+            warn("G19", f"{next(iter(d['ids']))} is still planned or pending code (via {d['via']}); it closes when its code lands")
             continue
         if slug is None:
             err(d["code"], message)
