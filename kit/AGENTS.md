@@ -46,9 +46,8 @@ scripts/gates.sh cleanup [slug]    # Start and end of every prd-flow case: reap,
 The stack commands behind each target are in `ai-kit.json`.
 
 ### Testing while working
-- For a person: `scripts/gates.sh related` finds the mirror test of each changed module and every test that imports it, runs them, and prints only failures and the summary. Add lint of the touched files.
-- A prd-flow executor runs only its own test, then `scripts/gates.sh fix-files <file>...` and `lint-files <file>...` on its own files; the chief runs one `scripts/gates.sh verify <slug>` per wave.
-- Subagents never run a command in the background: a long one runs in the foreground with an explicit timeout under 600 s, output to a file. Only the prd-flow chief starts background work (baseline, verify, compare, watch).
+- Before handing back a slice: `scripts/gates.sh related <files>` (the mirror test of each changed module and every test that imports it; failures and the summary only), then `scripts/gates.sh fix-files <file>...` and `lint-files <file>...` on the touched files. Every test runs with a per-test timeout, so a hang fails instead of holding the run.
+- Subagents never run a command in the background: a long one runs in the foreground with an explicit timeout under 600 s, output to a file. Only the main thread starts background work (baseline, compare), with a timeout longer than the run.
 - Never kill processes by image name (`taskkill /IM`, `pkill`, `killall`); use `scripts/gates.sh reap`.
 - The full suite runs once, at the end of a delivery, compared with the recorded baseline of failures. A failure unrelated to what you touched waits for the end.
 - Redirect test output to a file and read only the failures and the summary.
@@ -96,7 +95,7 @@ Living truth plus change folders, in this order. Do not skip steps.
 
 1. A rule change is confirmed by the person; its PRD rows and TRD names land in the commit of the task that implements them, and the commit body is the record (`Request:`, `Decided:`, `Assumed:`, `Red:`, then `Rules:`). `/prd-flow` runs this step with its agents only when the person explicitly types `/prd-flow`; never start it on your own. When it runs, its main thread coordinates the agents (`.claude/agents/prd-flow-*`) and executes no task; the executor `close` mode commits and runs the closing gate
 2. The change folder by size, decided at classification: **S** and **M** no folder (the sheet, pack and cards live in the prd-flow state folder, never in `changes/`); **L** `plan.md` (waves) and `decisions.md`, also `brief.md` and `design.md`. The plan header carries a `## Constitution check`
-3. Implementation test first, one task per agent, one commit per task. A commit that touches source folders ends with a trailer naming the rule IDs it serves (`Rules: CHK-02, CHK-05`) or, when it serves none, the reason in at most 8 words (`Case: none (dependency bump)`); `scripts/gates.sh trailers` checks it
+3. Implementation test first, one vertical slice per delivery (about 30 files or 2 hours, its own PR), written by the session that executes it; defects found by an audit ship first as small fixes, a restructuring comes after, in slices. A commit that touches source folders ends with a trailer naming the rule IDs it serves (`Rules: CHK-02, CHK-05`) or, when it serves none, the reason in at most 8 words (`Case: none (dependency bump)`); `scripts/gates.sh trailers` checks it
 4. Gates before merge: lint, type check, full suite green, coverage not decreasing, ratchet green
 5. Close (size L only): the folder is archived with `git mv changes/NNN-<slug> changes/archive/NNN-<slug>`; an ADR, schema or contract that came out of the design is already in its home. Size S and M have no promote
 
@@ -113,10 +112,10 @@ Load only what the task needs. Every step below is one Glob, Grep or ranged Read
 
 Keeping it true:
 
-- A code change that moves a file, an entry point or a test of an area updates `docs/trd/<area>.md` and the area's map in the same commit. Names only, never line numbers or default values.
+- A delivery that moves a file, an entry point or a test of an area updates `docs/trd/<area>.md` and the area's map once, in its last slice. Names only, never line numbers or default values.
 - A change to product behavior amends the PRD file that owns the rule ID in place, in the same commit as the code: the PRD body holds only what is valid today. `docs/prd/CHANGELOG.md` is frozen; the history of a rule is `gate.py --history <ID>` and the commit bodies.
 - The `prd-flow` skill runs this flow and checks it with `.claude/skills/prd-flow/scripts/gate.py`.
 
 ## Handing work to a subagent
 
-Paste the rule rows it must implement (its contract) and point to files for everything else: the PRD file, the TRD feature file, the files it owns and the commands to run. Never paste whole documents. A prd-flow agent follows the cap in `.claude/skills/prd-flow/reference/run.md` "Every agent"; any other subagent returns at most 20 lines with the five fields `Status`, `Files:`, `Commit:`, `Route:`, `Next:`, writes longer output to files, never opens another subagent, and stops at about 50 tool calls or 30 minutes to report.
+By default the session that executes a slice writes the code itself; a subagent is for the final review, a truly independent slice in its own worktree (at most 2 at once), or heavy reading kept out of the main context. Its prompt carries the goal, the acceptance items (or the rule rows it must implement) and at most about 5 paths to read first; never paste whole documents. A prd-flow agent follows the cap in `.claude/skills/prd-flow/reference/run.md` "Every agent"; any other subagent returns at most 15 lines (done, files, tests, gaps, minutes used), writes longer output to files, never opens another subagent, and hands back past about 150k tokens instead of continuing. Leftovers go back to the person, never to a new lane opened on its own.
