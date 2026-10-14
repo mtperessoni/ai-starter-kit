@@ -1,0 +1,7 @@
+Q1 stale 60 s mentions in PRD/TRD: 1 ['docs/prd/conversation-connection/05-drops-and-endings.md:14']
+Q2 RECONNECT_WINDOW_MS = 90000 (ok)
+Q3 rule rows added or changed: 6; mentioning the countdown: 3
+Q4 changed tests (3 files): exit 0 ['\x1b[2m Test Files \x1b[22m \x1b[1m\x1b[32m3 passed\x1b[39m\x1b[22m\x1b[90m (3)\x1b[39m', '\x1b[2m      Tests \x1b[22m \x1b[1m\x1b[32m49 passed\x1b[39m\x1b[22m\x1b[90m (49)\x1b[39m']
+Q5 current gate.py: exit 0, 0 error lines []
+Q6 gate_lite: exit 1 gate-lite: 1 errors, 166 rules, 35 cited by tests
+Q7 commits 5; lines/files by kind {'docs': (148, 9), 'code': (135, 9), 'test': (175, 3)}; uncommitted: 0

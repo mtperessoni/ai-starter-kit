@@ -1,0 +1,173 @@
+info Using tsconfig paths for react-docgen
+No story files found for the specified pattern: src\**\*.mdx
+info Using tsconfig paths for react-docgen
+
+ RUN  v3.2.4 C:/Projects/ab-eval/reconnect-window-90/v2-1
+
+ ✓ |unit| src/app/document-upload/[token]/(internal)/lib/__tests__/prepare-photo.test.ts (7 tests) 21ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/audio/__tests__/voiced-timeline.test.ts (7 tests) 11ms
+ ✓ |unit| src/infra/document-upload/__tests__/conditional-fetch.test.ts (7 tests) 17ms
+ ✓ |unit| src/infra/document-upload/__tests__/public-document-upload-client.test.ts (21 tests) 22ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/screen/__tests__/screen-machine.test.ts (8 tests) 29ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/audio/__tests__/voice-activity.test.ts (14 tests) 48ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/session-protocol.test.ts (51 tests) 18ms
+ ✓ |unit| src/lib/feature-flags/__tests__/posthog-server.test.ts (15 tests) 23ms
+ ✓ |unit| src/app/document-upload/[token]/(internal)/hooks/__tests__/use-public-document-link.ssr.test.ts (1 test) 256ms
+stderr | src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/session-connection.test.ts > the reconnect is bounded from the first drop (CNX-01, CNX-03, CNX-04, CNX-09) > keeps the backoff and stops 90 s after the first drop when the service never answers
+{"level":"warn","message":"conversation reconnect window ended","timestamp":"2026-10-14T14:30:43.300Z","service":"agora-consulta-fe","data":{"attempts":15}}
+
+stderr | src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/session-connection.test.ts > the reconnect is bounded from the first drop (CNX-01, CNX-03, CNX-04, CNX-09) > retries a 1011 close inside the window and then ends
+{"level":"warn","message":"conversation reconnect window ended","timestamp":"2026-10-14T14:30:43.320Z","service":"agora-consulta-fe","data":{"attempts":15}}
+
+stderr | src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/session-connection.test.ts > the reconnect is bounded from the first drop (CNX-01, CNX-03, CNX-04, CNX-09) > counts a wait for another open socket of the triage inside the same window
+{"level":"warn","message":"conversation reconnect window ended","timestamp":"2026-10-14T14:30:43.332Z","service":"agora-consulta-fe","data":{"attempts":15}}
+
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/session-connection.test.ts (9 tests) 45ms
+ ✓ |unit| src/app/document-upload/[token]/(internal)/lib/__tests__/document-upload-validation.test.ts (13 tests) 10ms
+ ✓ |unit| src/infra/document-upload/__tests__/upload-file-with-progress.test.ts (10 tests) 16ms
+ ✓ |unit| src/app/document-upload/[token]/(internal)/hooks/__tests__/use-expiry-timer.test.ts (7 tests) 13ms
+ ✓ |unit| src/infra/journey/__tests__/journey-request-policy.test.ts (8 tests) 13ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/assessment-flow/__tests__/resolve-assessment-flow.test.ts (16 tests) 16ms
+ ✓ |unit| src/infra/__tests__/api-requester.test.ts (4 tests) 16ms
+ ✓ |unit| src/lib/auth/__tests__/token-source.test.ts (8 tests) 10ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/audio/__tests__/audio-format.test.ts (15 tests) 14ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/bank-question.test.ts (35 tests) 13ms
+ ✓ |unit| src/app/document-upload/[token]/(internal)/lib/__tests__/document-upload-copy.test.ts (4 tests) 12ms
+ ✓ |unit| src/app/onepage/[id]/(internal)/lib/__tests__/onepage-portal-adapter.test.ts (19 tests) 12ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/answer-payload.test.ts (14 tests) 7ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/close-reason.test.ts (27 tests) 9ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/audio/__tests__/audio-played.test.ts (9 tests) 9ms
+ ✓ |unit| src/app/document-upload/[token]/(internal)/hooks/__tests__/use-file-uploads.test.ts (19 tests) 1108ms
+ ✓ |unit| src/lib/__tests__/triage-block-error.test.ts (7 tests) 7ms
+ ✓ |unit| src/lib/__tests__/auscultation-positions.test.ts (20 tests) 8ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/failure-copy.test.ts (22 tests) 8ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/transcript-pipeline.test.ts (4 tests) 7ms
+ ✓ |unit| src/app/document-upload/[token]/(internal)/lib/__tests__/document-upload-view-state.test.ts (26 tests) 9ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/privacy.test.ts (12 tests) 10ms
+ ✓ |unit| src/lib/validators/__tests__/strong-password.test.ts (10 tests) 7ms
+ ✓ |unit| src/lib/validators/__tests__/height.test.ts (7 tests) 7ms
+ ✓ |unit| src/app/triage/(internal)/components/strategies/__tests__/handle-patient-found.test.ts (8 tests) 8ms
+ ✓ |unit| src/app/patient/register/(internal)/__tests__/schema.test.ts (19 tests) 15ms
+ ✓ |unit| src/lib/analytics/__tests__/scrub-url-secrets.test.ts (15 tests) 7ms
+ ✓ |unit| src/hooks/__tests__/use-patient-identifier.test.ts (60 tests) 15ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/clinical-exam/hooks/__tests__/use-document-upload-status.test.ts (13 tests) 21ms
+ ✓ |unit| src/lib/validators/__tests__/frame-domain.test.ts (12 tests) 7ms
+ ✓ |unit| src/stores/__tests__/auth-store.test.ts (6 tests) 7ms
+ ✓ |unit| src/lib/validators/__tests__/phone.test.ts (7 tests) 7ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/error-writes-go-through-the-machine.test.ts (7 tests) 6ms
+ ✓ |unit| src/lib/validators/__tests__/health-card.test.ts (14 tests) 7ms
+ ✓ |unit| src/infra/__tests__/portal-roles.test.ts (7 tests) 5ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/turn/__tests__/open-question.test.ts (11 tests) 7ms
+ ✓ |unit| src/infra/journey/__tests__/journey-frame-ancestors.test.ts (14 tests) 7ms
+ ✓ |unit| src/lib/__tests__/unit-routine-repeat.test.ts (12 tests) 6ms
+ ✓ |unit| src/app/admin/units/[unitId]/assessment/(internal)/hooks/__tests__/use-clone-assessment-request.test.ts (13 tests) 7ms
+ ✓ |unit| src/app/admin/units/[unitId]/assessment/(internal)/hooks/__tests__/use-unit-search.test.ts (7 tests) 11ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/assessment/components/__tests__/question-kind.test.ts (26 tests) 8ms
+ ✓ |unit| src/app/admin/organizations/[orgId]/api-clients/(internal)/components/__tests__/domain-allowlist.test.ts (9 tests) 6ms
+ ✓ |unit| src/lib/validators/__tests__/mandatory-core.test.ts (8 tests) 8ms
+ ✓ |unit| src/lib/validators/__tests__/patient-identifier.test.ts (12 tests) 7ms
+ ✓ |unit| src/lib/validators/__tests__/optional.test.ts (9 tests) 8ms
+ ✓ |unit| src/app/admin/users/(internal)/components/__tests__/user-search.test.ts (10 tests) 7ms
+ ✓ |unit| src/app/patient/[patientId]/view/(internal)/lib/__tests__/assessment-answer-display.test.ts (9 tests) 6ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/input-modes.test.ts (9 tests) 8ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/utterance-id.test.ts (9 tests) 6ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/iots/hook/__tests__/use-start-iot-measurement.test.ts (5 tests) 5ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/farewell.test.ts (12 tests) 6ms
+ ✓ |unit| src/types/__tests__/attendance-status.test.ts (5 tests) 6ms
+ ✓ |unit| src/types/__tests__/portal.test.ts (8 tests) 6ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/turn-error.test.ts (16 tests) 5ms
+ ✓ |unit| src/lib/__tests__/clara-analysis.test.ts (7 tests) 6ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/audio/__tests__/audio-unlock.test.ts (9 tests) 7ms
+ ✓ |unit| src/__tests__/document-upload-headers.test.ts (3 tests) 7ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/iots/hook/__tests__/use-exam-polling.test.ts (3 tests) 4ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/document-upload.test.ts (6 tests) 7ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/commit-patient-caption.test.ts (4 tests) 6ms
+ ✓ |unit| src/lib/validators/__tests__/cpf.test.ts (7 tests) 7ms
+ ✓ |unit| src/types/__tests__/portal-vitals.test.ts (8 tests) 7ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/turn-machine.test.ts (11 tests) 5ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/suggested-devices.test.ts (5 tests) 6ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/audio/__tests__/late-audio.test.ts (7 tests) 5ms
+ ✓ |unit| src/lib/validators/__tests__/cep.test.ts (6 tests) 7ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/strict-mode-double-mount.test.ts (3 tests) 5ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/token-refresh-policy.test.ts (13 tests) 6ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/spoken-options.test.ts (6 tests) 5ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/session-gate.test.ts (9 tests) 6ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/option-reveal.test.ts (7 tests) 6ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/caption-reveal.test.ts (8 tests) 6ms
+ ✓ |unit| src/infra/document-upload/__tests__/api-base-url.test.ts (4 tests) 5ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/scroll-stick.test.ts (16 tests) 6ms
+ ✓ |unit| src/lib/__tests__/option-search.test.ts (5 tests) 6ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/turn/__tests__/turn-latency.test.ts (6 tests) 6ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/clinical-exam/hooks/__tests__/use-attach-clinical-exam.test.ts (4 tests) 7ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/iots/hook/__tests__/iot-devices.test.ts (8 tests) 5ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/screen-phase.test.ts (12 tests) 6ms
+ ✓ |unit| src/hooks/__tests__/use-deep-link-platform.test.ts (7 tests) 5ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/consentment/hook/__tests__/use-consentment-photo-request.test.ts (4 tests) 7ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/auth-refresh.test.ts (4 tests) 6ms
+ ✓ |unit| src/app/onepage/[id]/(internal)/lib/__tests__/onepage-timeline-detail.test.ts (3 tests) 5ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/option-selection.test.ts (7 tests) 5ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/iots/hook/__tests__/user-create-exam.test.ts (2 tests) 4ms
+ ✓ |unit| src/lib/__tests__/audio-duration.test.ts (4 tests) 5ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/transcript-stream.test.ts (6 tests) 5ms
+ ✓ |unit| src/app/jornada/(internal)/lib/__tests__/journey-terminal.test.ts (9 tests) 5ms
+ ✓ |unit| src/lib/__tests__/mime.test.ts (7 tests) 5ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/ending/__tests__/ending-view.test.ts (5 tests) 5ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/report/hooks/__tests__/use-attach-report.test.ts (3 tests) 5ms
+ ✓ |unit| src/hooks/__tests__/use-polling.test.ts (8 tests) 5ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/turn/__tests__/waiting-copy.test.ts (1 test) 4ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/clinical-exam/lib/__tests__/document-upload-status-policy.test.ts (6 tests) 5ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/screening/hooks/__tests__/use-create-screening.test.ts (2 tests) 4ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/clinical-exam/hooks/__tests__/use-skip-step.test.ts (3 tests) 6ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/audio/__tests__/mic-level.test.ts (5 tests) 4ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/resend/__tests__/pending-answer.test.ts (4 tests) 6ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/audio/__tests__/caption-extend.test.ts (2 tests) 3ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/consentment/hook/__tests__/get-consentment-request.test.ts (3 tests) 5ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/transcription.test.ts (6 tests) 5ms
+ ✓ |unit| src/app/teleappointment/[appointmentId]/components/__tests__/question-requirement-indicator.test.ts (7 tests) 4ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/audio/__tests__/audio-fade.test.ts (6 tests) 5ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/assessment/hooks/__tests__/use-create-assessment-answer.test.ts (2 tests) 4ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/turn/__tests__/first-question-hint.test.ts (1 test) 3ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/iots/hook/__tests__/use-exam-device.test.ts (2 tests) 5ms
+ ✓ |unit| src/app/triage/(internal)/lib/__tests__/cpf-precheck.test.ts (4 tests) 6ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/iots/hook/__tests__/use-ia-create.test.ts (2 tests) 4ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/iots/hook/__tests__/use-generate-qrcode-app.test.ts (2 tests) 4ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/progress/__tests__/progress-copy.test.ts (2 tests) 4ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/resend/__tests__/resend-button.test.ts (2 tests) 4ms
+ ✓ |unit| src/app/admin/organizations/(internal)/hooks/__tests__/use-get-organizations-list-request.test.ts (3 tests) 4ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/processing-data/hooks/__tests__/use-get-clara-response.test.ts (2 tests) 4ms
+ ✓ |unit| src/app/admin/users/edit/[userId]/(internal)/components/__tests__/self-deactivation.test.ts (4 tests) 4ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/reconnect-policy.test.ts (8 tests) 6ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/ending/__tests__/failure-view.test.ts (5 tests) 4ms
+ ✓ |unit| src/lib/__tests__/sara-context.test.ts (2 tests) 3ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/consentment/hook/__tests__/use-consentment-email-request.test.ts (2 tests) 4ms
+ ✓ |unit| src/types/__tests__/document-upload.test.ts (1 test) 4ms
+ ✓ |unit| src/app/admin/users/register/(internal)/components/__tests__/enabled-label.test.ts (2 tests) 3ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/closing-triage.test.ts (2 tests) 3ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/progress/__tests__/remaining-questions.test.ts (3 tests) 4ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/__tests__/reconnect-countdown.test.ts (4 tests) 4ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/assessment/hooks/__tests__/use-get-assessment-request.test.ts (1 test) 2ms
+ ✓ |unit| src/hooks/__tests__/use-polling.hook.test.ts (7 tests) 38ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/hooks/__tests__/use-waited-ms.test.ts (2 tests) 27ms
+ ✓ |unit| src/app/onepage/[id]/(internal)/lib/__tests__/onepage-inicio.test.ts (3 tests) 153ms
+ ✓ |unit| src/app/admin/units/[unitId]/assessment/(internal)/components/__tests__/clone-assessment-dialog.test.ts (5 tests) 4ms
+ ✓ |unit| src/app/document-upload/[token]/(internal)/hooks/__tests__/use-public-document-link.test.ts (4 tests) 561ms
+   ✓ usePublicWhitelabel > test_whitelabel_request_has_no_auth  335ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/lib/audio/__tests__/audio-interrupt.test.ts (15 tests) 70ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/clinical-exam/hooks/__tests__/use-document-upload-link.test.ts (8 tests) 21ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/hooks/__tests__/use-reconnect-seconds-left.test.ts (3 tests) 30ms
+ ✓ |unit| src/app/admin/units/[unitId]/edit/(internal)/components/__tests__/unit-edit-form.test.ts (8 tests) 26ms
+ ✓ |unit| src/app/document-upload/[token]/(internal)/hooks/__tests__/use-link-status-watch.test.ts (5 tests) 14ms
+ ✓ |unit| src/app/admin/units/[unitId]/assessment/create/(internal)/components/__tests__/assessment-schema.test.ts (9 tests) 15ms
+ ✓ |unit| src/app/admin/units/[unitId]/assessment/create/(internal)/components/__tests__/assessment-form-schema.test.ts (16 tests) 42ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/clinical-exam/__tests__/clinical-exam-qr-generate.test.ts (1 test) 38ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/conversational/components/__tests__/closing-screen-qr.test.ts (6 tests) 86ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/clinical-exam/__tests__/clinical-exam-qr-status.test.ts (6 tests) 123ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/clinical-exam/__tests__/clinical-exam-stepper-disabled.test.ts (2 tests) 113ms
+ ✓ |unit| src/app/triage/[triageId]/__tests__/triage-stepper.config.test.ts (8 tests) 6ms
+ ✓ |unit| src/app/triage/[triageId]/(internal)/components/clinical-exam/__tests__/clinical-exam-stepper-qr.test.ts (6 tests) 5ms
+
+ Test Files  151 passed (151)
+      Tests  1289 passed (1289)
+   Start at  11:29:15
+   Duration  14.34s (transform 10.42s, setup 0ms, collect 101.22s, tests 3.79s, environment 8.63s, prepare 20.25s)
+
