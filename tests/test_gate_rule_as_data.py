@@ -60,7 +60,7 @@ class RuleAsDataTest(unittest.TestCase):
         self.assertEqual(self.p.py(script, "--repo", str(self.p.root), "--check").returncode, 0)
 
     def test_s4_an_html_problem_does_not_fail_the_change_gate(self) -> None:
-        write(self.p.root, "docs/prd/prd.html", "<html>— stale</html>\n")
+        write(self.p.root, "docs/prd/prd.html", "<html>" + chr(0x2014) + " stale</html>\n")
         for args in ((), ("--step", "prd"), ("--docs", "x", "--fresh")):
             r, report = self.gate(*args)
             self.assertEqual(r.returncode, 0, (args, r.stdout))
@@ -105,7 +105,7 @@ class RuleAsDataTest(unittest.TestCase):
 
     def test_s6_g4_em_dash_added(self) -> None:
         path = self.p.root / ORDERS
-        path.write_text(path.read_text(encoding="utf-8").replace("An order is created from a cart.", "An order — from a cart."), encoding="utf-8")
+        path.write_text(path.read_text(encoding="utf-8").replace("An order is created from a cart.", "An order " + chr(0x2014) + " from a cart."), encoding="utf-8")
         r, _ = self.gate()
         self.assertEqual(r.returncode, 1)
         self.assertIn("ERROR G4", r.stdout)
