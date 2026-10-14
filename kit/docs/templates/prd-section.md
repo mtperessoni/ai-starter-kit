@@ -16,7 +16,7 @@
 |---|---|---|---|---|
 | <outcome> | <all or variant> | <experience> | <STATE> | <yes or no> |
 
-The Example column is optional (four columns stay valid) but required for a rule with a number, a branch or a failure path. A rule that comes only from documents is `*(proposed)*` in the interview, never in the PRD; no new change writes Source `planned`.
+The Example column is optional (four columns stay valid) but required for a rule with a number, a branch or a failure path. A rule that comes only from documents is `*(proposed)*` in the interview, never in the PRD; no new change writes a `planned` Source.
 
 | ID | Rule | Source | Change via | Example |
 |---|---|---|---|---|
