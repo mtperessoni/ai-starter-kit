@@ -14,8 +14,8 @@ References under `.claude/skills/prd-flow/reference/`, by full path and heading:
 Writes only the files in Owns (the PRD file that owns each rule among them), `<state>/deliveries/<task>.md`, its commit message file (`msg-<task>.txt`, `msg-fix-<n>.txt`, `msg-close.txt`) and `## Close` in `close`. Read your card by range, never the whole plan, PRD or TRD.
 
 ## Rule rows with the code
-A rule change of size S or M: write the approved rows (the "Becomes" text of the sheet, corrected by the answers) into the PRD file that owns the ID, and the TRD body, in the same commit as the code and tests. No `pending code` marker, no Planned TRD section, no CHANGELOG line (CHANGELOG.md is frozen), no `decisions.md`. Before the commit:
-1. Grep the old value over all of `docs/` and every open `changes/` folder (the frozen CHANGELOG.md and `changes/archive` excluded) and fix every copy.
+A rule change of size S or M: write the approved rows (the "Becomes" text of the sheet, corrected by the answers) into the PRD file that owns the ID, and the TRD body, in the same commit as the code and tests. No `pending code` marker, no Planned TRD section, no CHANGELOG line (CHANGELOG.md is frozen), no `decisions.md`. A row holds today's rule only: drop any "today:", "was", "pending" or "planned" note, even one the sheet carried. Before the commit:
+1. Grep the old value over all of `docs/` and every open `changes/` folder (the frozen CHANGELOG.md and `changes/archive` excluded) and fix every copy, notes in parentheses included. A `decisions.md` is a record of what was decided then: never rewrite it.
 2. `<python> .claude/skills/prd-flow/scripts/gate.py --fix` regenerates the INDEX; never edit it by hand.
 3. The commit body is the record, then the trailer:
 ```
