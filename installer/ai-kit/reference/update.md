@@ -49,6 +49,7 @@ List first, then ask; apply only after yes. A kit-owned file edited since instal
 |---|---|
 | `.claude/skills/prd-flow/reference/workers/` | Removed (kit-owned) |
 | Agents | The five `prd-flow-{surveyor,docs,executor,reviewer,recheck}.md` added to `.claude/agents/`; a project agent with the same name is shown as a diff and never overwritten silently |
+| Eval | `.claude/skills/docs-flow-eval/` and the agents `docs-eval-executor.md`, `docs-eval-reader.md` added or replaced per U3 (kit-owned); the project's scenarios, results and arms are never touched |
 | Scripts | `.claude/skills/prd-flow/scripts/promote.py` and `scripts/close_gate.py` added (kit-owned); `scripts/gates.sh` replaced (new targets `close [slug]` and `html`) |
 | `repo.md` key | `prd_section_budget_lines` added with its default `200` |
 | `ai-kit.json` keys | `limits.skill_md_bytes` `6144` and `allowlist.skill_md_bytes` added; the allowlist is computed from the project's current `SKILL.md` sizes (every `.claude/skills/*/SKILL.md` over 6144 bytes, at its current size) so the ratchet stays green; then `python scripts/ratchet.py` to confirm |

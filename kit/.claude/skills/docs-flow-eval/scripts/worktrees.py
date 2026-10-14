@@ -1,14 +1,16 @@
 """Create and remove the eval worktrees of one scenario, safely.
 
 Usage:
-  python worktrees.py setup <scenario.json> <run> [<run> ...] [--from <branch>] [--no-fixtures]
+  python worktrees.py setup <scenario.json> <run> [<run> ...] [--from <branch>] [--no-fixtures] [--kit <kit repo>]
   python worktrees.py teardown <scenario.json> <run> [<run> ...]
   python worktrees.py alias <scenario.json> <alias>=<run> [...]   (blind reader aliases)
 
 A run lives in <root>/<scenario>/<run> on branch eval/<scenario>/<run> (kept after teardown, so the
 commits stay inspectable). node_modules is a junction (symlink elsewhere) to the scenario repo's own,
 and teardown removes that link BEFORE `git worktree remove --force`, which would otherwise delete
-the real node_modules through it. Setup copies the frozen survey (fixtures/) into the prd-flow state.
+the real node_modules through it. With --kit, setup overlays the kit's current prd-flow skill (never
+its repo.md), prd-flow agents, scripts/ and docs/templates/ (the files /ai-kit update writes) and commits
+them as one seed commit on the scenario base, so the run measures the kit branch. Setup copies the frozen survey (fixtures/) into the prd-flow state.
 Root: env DOCS_EVAL_ROOT, default C:/Projects/ab-eval.
 """
 import json
@@ -21,8 +23,31 @@ from pathlib import Path
 ROOT = Path(os.environ.get("DOCS_EVAL_ROOT", "C:/Projects/ab-eval"))
 
 
+OVERLAY_DIRS = (".claude/skills/prd-flow", "scripts", "docs/templates")
+OVERLAY_KEEP = {".claude/skills/prd-flow/repo.md"}
+OVERLAY_AGENTS = ".claude/agents/prd-flow-*.md"
+SEED_IDENTITY = ["-c", "user.name=docs-eval", "-c", "user.email=docs-eval@example.invalid"]
+
+
 def git(repo: Path, *args: str) -> None:
     subprocess.run(["git", "-C", str(repo), *args], check=True)
+
+
+def overlay_kit(kit: Path, wt: Path) -> None:
+    payload = kit / "kit"
+    paths: list[str] = []
+    for rel in OVERLAY_DIRS:
+        for f in sorted((payload / rel).rglob("*")):
+            if f.is_file() and "__pycache__" not in f.parts:
+                paths.append(f.relative_to(payload).as_posix())
+    paths += [f.relative_to(payload).as_posix() for f in sorted(payload.glob(OVERLAY_AGENTS))]
+    paths = sorted(set(paths) - OVERLAY_KEEP)
+    for rel in paths:
+        dst = wt / rel
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(payload / rel, dst)
+    git(wt, "add", "-f", "--", *paths)
+    git(wt, *SEED_IDENTITY, "commit", "-q", "--allow-empty", "--no-verify", "-m", "chore(eval): overlay the kit prd-flow files under test")
 
 
 def link(dst: Path, src: Path) -> None:
@@ -53,6 +78,11 @@ def main() -> None:
         i = rest.index("--from")
         from_ref = rest[i + 1]
         rest = rest[:i] + rest[i + 2:]
+    kit = None
+    if "--kit" in rest:
+        i = rest.index("--kit")
+        kit = Path(rest[i + 1])
+        rest = rest[:i] + rest[i + 2:]
     if "--no-fixtures" in rest:
         rest.remove("--no-fixtures")
         fixtures = False
@@ -66,7 +96,10 @@ def main() -> None:
                 git(repo, "worktree", "add", "-q", "-b", branch, str(wt), from_ref)
             else:
                 git(repo, "worktree", "add", "-q", str(wt), from_ref)
-            link(wt / "node_modules", repo / "node_modules")
+            if kit:
+                overlay_kit(kit, wt)
+            if (repo / "node_modules").is_dir():
+                link(wt / "node_modules", repo / "node_modules")
             src = sc_file.parent / sc["fixtures"]
             if fixtures and src.is_dir() and any(src.iterdir()):
                 state = wt / ".claude/prd-flow/state" / sc["slug"]
@@ -88,8 +121,9 @@ def main() -> None:
             if wt.is_junction() if hasattr(wt, "is_junction") else False:
                 unlink(wt)
                 continue
+            had_modules = (repo / "node_modules").is_dir()
             unlink(wt / "node_modules")
-            if not (repo / "node_modules").is_dir():
+            if had_modules and not (repo / "node_modules").is_dir():
                 sys.exit(f"STOP: {repo / 'node_modules'} is missing after unlinking {run}")
             git(repo, "worktree", "remove", "--force", str(wt))
             print(f"removed {wt} (branch kept)")

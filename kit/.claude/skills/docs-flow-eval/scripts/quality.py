@@ -7,13 +7,13 @@ Q1 no stale old value left in docs/ (PRD, TRD, maps), outside the CHANGELOG and 
 Q2 the scenario constant holds the expected value.
 Q3 rule rows added or changed, and how many match the new-rule pattern.
 Q4 the changed or new test files pass (vitest, offline project).
-Q5 the current docs gate (prd-flow gate.py, default run): error lines.
-Q6 the proposed gate (gate_lite.py): errors.
+Q5 the change gate of the worktree's own (overlaid kit) prd-flow gate.py against the base: error lines.
+Q6 retired with the eval's private gate.
 Q7 commits, lines and files changed by kind.
 Q8 the decision is recorded with its rejected alternative (commit bodies or changed files under changes/).
 Q9 red evidence: a commit body or a delivery file names the failing run before the code.
 Q10 test files added (a new hook or component test).
-Q11 the INDEX IDs column is current (gen_index.py --check).
+Q11 the INDEX IDs column is current (the worktree's gen_index.py --check).
 """
 import json
 import re
@@ -21,7 +21,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-HERE = Path(__file__).parent
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
 
@@ -81,10 +80,6 @@ def main() -> None:
     r["gate_current_errors"] = len(errs)
     out.append(f"Q5 current gate.py: exit {code}, {len(errs)} errors {sorted({e.split()[1] for e in errs})}")
 
-    code, log = run([py, "-I", str(HERE / "gate_lite.py"), "--repo", str(wt), "--base", base], wt)
-    r["gate_lite_errors"] = 0 if code == 0 else len([l for l in log.splitlines() if re.match(r"L\d ", l)])
-    out.append(f"Q6 gate_lite: exit {code} {log.strip().splitlines()[-1] if log.strip() else ''}")
-
     commits = run(["git", "rev-list", "--count", f"{base}..HEAD"], wt)[1].strip()
     kinds: dict = {}
     for l in run(["git", "diff", "--numstat", base], wt)[1].splitlines():
@@ -114,7 +109,7 @@ def main() -> None:
     r["tests_added"] = len(added)
     out.append(f"Q10 test files added: {len(added)} {added[:3]}")
 
-    code, log = run([py, "-I", str(HERE / "gen_index.py"), "--repo", str(wt), "--check"], wt)
+    code, log = run([py, "-I", ".claude/skills/prd-flow/scripts/gen_index.py", "--repo", str(wt), "--check"], wt)
     r["index_current"] = code == 0
     out.append(f"Q11 INDEX current: {code == 0} {log.strip()[:120]}")
 
