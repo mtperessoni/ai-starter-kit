@@ -1,6 +1,6 @@
-# Decision sheet (surveyor writes, docs reads)
+# Decision sheet (surveyor writes, executor or docs reads)
 
-The surveyor writes `sheet.md` (`short`: `sheet-short-<k>.md`, k = 1, 2, ..., only the touched rows, never over `sheet.md`); the chief prints it verbatim and ends the turn; docs `apply` reads the reply. Examples are illustrative.
+The surveyor writes `sheet.md` (`short`: `sheet-short-<k>.md`, k = 1, 2, ..., only the touched rows, never over `sheet.md`); the chief prints it verbatim and ends the turn; the reply goes to the executors (size M) or docs `plan` (size L). The "Becomes" column is the exact row text the executor will write into the PRD. Examples are illustrative.
 
 ## Format
 Headings and labels come from `repo.md` `sheet_labels` (prose in the repo `language`; the `Kind` tokens stay English).
@@ -54,7 +54,7 @@ Limits and shape checks (counts, one topic per rule, plain words in titles and o
 | Mechanism | A rollback, switch, configuration key, environment variable, table, column or endpoint the change needs is a decision of the sheet, surveyed here; docs never adds one |
 | Order | Protected rule and rule owner items first |
 | Recommendation | Cites the stated preference it follows, or says "no stated preference" |
-| Owner | When the approver is not the owner of a touched section, an item asks whether the owner agreed; the CHANGELOG records `decided by <owner>, written by <approver>` |
+| Owner | When the approver is not the owner of a touched section, an item asks whether the owner agreed; the commit body's `Decided:` line records `decided by <owner>, written by <approver>` |
 | Blind spots | Before writing, check failure paths, requests in flight during the deploy, consumers of the data, tenant variation, safety, privacy, cost and latency, audit, rollback and systems being migrated; ask only where a real alternative exists. A rollback not obvious from the pack is an assumed line, or a decision when the alternatives differ in cost |
 
 ## Lint
@@ -68,7 +68,7 @@ Limits and shape checks (counts, one topic per rule, plain words in titles and o
 | S4 | No `plain_words` term in a decision title or option | warn |
 | S5 | A decision with a comparison word (above, below, more than, at least, after, before) names a number or a category in its options | warn |
 | S6 | Every `Interacts with:` target exists | error |
-| Q3 | A mechanism term in `decisions.md` or in the rows of the entry's `IDs:` that is not in `sheet.md`, `sheet-2.md` or a `Reply` line (run by `gates.sh docs`) | error |
+| Q3 | A mechanism term in `decisions.md` (size L) that is not in `sheet.md`, `sheet-2.md` or a `Reply` line (run by `gates.sh docs`) | error |
 
 ## Answers
 | Reply | Meaning |
@@ -78,10 +78,10 @@ Limits and shape checks (counts, one topic per rule, plain words in titles and o
 | `A2: <correction>` | assumption 2 corrected |
 | `scope: <correction>` | "What does not change" corrected |
 
-Docs checks the combination of the answers along every `Interacts with:` line before writing. An unclear answer, or one that opens a decision the sheet does not hold, gets one `sheet-2.md` (same format, only those items) and `Route: user: sheet-2.md`; an open TRD-only design choice is a `sheet-2.md` item too. One follow-up, hard stop: after its reply docs never writes another sheet, and an item still open (a TRD-only decision or a gate-red unclear rule included) becomes a `Q-` row with the recommended default, visibly open. A short sheet's reply is the short C5's approval.
+The agent that reads the reply (executor, or docs `plan`) checks the combination of the answers along every `Interacts with:` line before writing. An unclear answer, or one that opens a decision the sheet does not hold, gets one `sheet-2.md` (same format, only those items) and `Route: user: sheet-2.md`; an open TRD-only design choice is a `sheet-2.md` item too. One follow-up, hard stop: after its reply nobody writes another sheet, and an item still open (a TRD-only decision or a gate-red unclear rule included) becomes a `Q-` row with the recommended default, visibly open. A short sheet's reply is the short C5's approval.
 
 ## decisions.md
-`changes/NNN-<slug>/decisions.md` (template `docs/templates/change-decisions.md`), written by docs `apply`, the only home of `DEC-` rows; promote copies them once into the CHANGELOG entry under `Decisions:`.
+Size L only: `changes/NNN-<slug>/decisions.md` (template `docs/templates/change-decisions.md`), written by docs `plan`, the only home of `DEC-` rows. Size S and M record the decisions in the commit body (`Decided:`, `Assumed:`).
 ```markdown
 # Decisions · 012-payment-timeout
 

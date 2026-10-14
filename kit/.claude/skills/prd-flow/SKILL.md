@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # prd-flow
 
-You are the chief: coordinate, never execute; agents read, write, run and verify. A rule change goes PRD, TRD, plan, code. Prose in `repo.md` `language`.
+You are the chief: coordinate, never execute; agents read, write, run and verify. A rule change is confirmed on the sheet, then the executor writes the PRD rows, the TRD and the code in one commit (size L: docs plans first, the rows still land with the code). Prose in `repo.md` `language`.
 
 ## Chief card
 - Tools, closed: Agent; SendMessage; TaskStop; AskUserQuestion only for a `Route: user` outside a sheet; Read, Write, Edit of `state.md`; Read of `repo.md`, `reference/dispatch.md` (once), `.ai-kit/repos.json`, the sheets (`sheet.md`, `sheet-2.md`, `sheet-short-*.md`), `diff.md` (to print) and the PRD rows a sheet cites; Bash only `scripts/gates.sh` cleanup, baseline, watch, verify, compare, reap, python.
@@ -28,16 +28,16 @@ Every case starts with cleanup and the surveyor: `query` C1, `light` C2 to C4 an
 | C2 implement | approved rule not met | a card: baseline, executor `task`, watch, reviewer, fix, `close`, cleanup. `Route: docs plan` (several tasks): docs `plan` (commits), baseline, the waves of `## Plan` with review per its `Review:` line, `close`, cleanup |
 | C3 bug | code diverges, PRD confirmed | as C2 |
 | C4 stale PRD | code right, confirmed | docs `c4`, executor `close`, cleanup |
-| C5 rule change | new or changed rule, gap, documented defect, new context | C5 route |
+| C5 rule change | new or changed rule, gap, documented defect, new context | C5 route: S/M surveyor, sheet answer, executors, one review, close; L adds docs `plan` |
 | C6 refactor | structure only | as C2 |
 
 ## C5 route
 0. Name the repository (several: one slug, one sheet; unclear: the surveyor asks). A second slug in one tree: tell the user to use its own worktree; stop.
-1. Surveyor `full` with `Decided in conversation:` and `Preferences:` verbatim (DP01); it writes `pack.md` and `sheet.md`.
-2. Print `sheet.md` verbatim as your message and end the turn.
-3. Docs `apply` with `Answers:` (the reply verbatim). `Route: user: sheet-2.md`: print it, end the turn, send the reply to the same agent as `Answers 2:`. One follow-up, hard stop: what stays open is a `Q-` row.
-4. Print `diff.md` (rule diff, wave table) verbatim and end the turn: the reply is the approval, no AskUserQuestion. A correction is docs `adjust: <words>`.
-5. Baseline; per wave of `## Plan`: executors and watch, wave end, review per its `Review:` line, fixes, recheck; then executor `close`, cleanup, report.
+1. Surveyor `full` with `Decided in conversation:` and `Preferences:` verbatim (DP01); it writes `pack.md`, `sheet.md` and, size M, `card.md`.
+2. Print `sheet.md` verbatim as your message and end the turn. The reply is the approval.
+3. Size M: baseline, then one executor `task` per card (disjoint areas in one message, with watch) with `Sheet:` and `Answers: <reply verbatim>`; the executor writes the rows with its code. `Route: user: sheet-2.md`: print it, end the turn, send the reply to the same agent as `Answers 2:`. One follow-up, hard stop: what stays open is a `Q-` row.
+4. Size L: docs `plan` with `Answers:`; print `diff.md` (wave table) verbatim and end the turn: the reply is the approval, no AskUserQuestion; a correction is docs `adjust: <words>`. Then baseline and the waves of `## Plan`, the executors writing the rows with their code.
+5. Wave end, one review per delivery (a wave only when its `Review:` line names it), fixes, recheck; then executor `close`, cleanup, report.
 
 ## Returns
 Every agent ends with `Status`, `Files:`, `Commit:`, `Route:`, `Next:`.
@@ -50,19 +50,19 @@ Every agent ends with `Status`, `Files:`, `Commit:`, `Route:`, `Next:`.
 |---|---|
 | Critical or High, with the round's Medium, Low and verify failures | one fix (DP07): each task's lines to its warm executor, the rest to one executor `fix`; then recheck: the warm reviewer, else `prd-flow-recheck` |
 | High that may change a rule | its `Route: user`; a change is a short C5 |
-| gate red after 2 reruns; promote or close step | its Route (executor `fix` or docs `fold`, then `close`); blocked rows: DP09 |
+| gate red after 2 reruns; close step | its Route (executor `fix` or docs `adjust`, then `close`); blocked rows: DP09 |
 | ceiling, `stuck:` | same role, handoff (DP03) |
 
 ## Review
 A round is a Critical or High sent to a fix; at most 5 per delivery; say `review: N/5`. Medium and Low alone go to `Pending:`. Round 5 with an open Critical, or more Critical plus High than the last round: stop and ask, each open Critical in plain words, options: one more round, accept, change the rule. Brake: two ceilings of one agent, or `Wave time` twice the last: stop, report what is left.
 
 ## State
-`state/<slug>/state.md`, one writer per section: `## Chief` (you: case, size, phase, ledger, `review: N/5`, wave commits, `Wave time`, `closed: <commit>`, pending, `Next:`), `## Survey` (surveyor), `## Plan` (docs), `## Close` (executor `close`). Update `## Chief` after each return, one Edit (not in C1). Past about 120k tokens offer a fresh session; `resume <slug>` runs `Next:`.
+`state/<slug>/state.md`, one writer per section: `## Chief` (you: case, size, phase, ledger, `review: N/5`, wave commits, `Wave time`, `closed: <commit>`, pending, `Next:`), `## Survey` (surveyor), `## Plan` (docs, size L), `## Close` (executor `close`). Update `## Chief` after each return, one Edit (not in C1). Past about 120k tokens offer a fresh session; `resume <slug>` runs `Next:`.
 
 ## Rules
 | ID | Rule |
 |---|---|
-| R01 | Nothing in `docs/`, source or tests early: C5 from step 3, others once confirmed |
+| R01 | Nothing in `docs/`, source or tests before the sheet reply (C5) or the confirmation (others) |
 | R03 | No em dash (U+2014). Push and PR only on explicit request |
 | R07 | Questions in product language with an example; IDs only as context |
 | R09 | Behavior no rule covers: surveyor `short`; several rules: full C5 |

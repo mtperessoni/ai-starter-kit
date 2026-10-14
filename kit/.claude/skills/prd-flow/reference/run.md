@@ -11,7 +11,7 @@
 | Interpreter | The prompt's `Python:`, else the output of `scripts/gates.sh python`; never another |
 | Shared tree | Never `git stash`, `reset`, `checkout`, `switch`, `restore`, amend or a repo-wide `gates.sh fix`: fix the cause |
 | Commands | One command per call, never an edit, a test and a commit chained with `&&`. Foreground only, never `run_in_background`: a command that may pass 120 s gets an explicit `timeout` under 600000 and writes its output to a file; read only failures and the summary. Never `tail -f`, `until`, `while`, `sleep` or `seq` polling; never return while a process you started is alive. Never start or wait for a baseline, a suite or a watch: only the chief does |
-| Commit | Write the message with Write to `<state>/msg-<task or role>.txt`: Conventional Commits, English, the IDs cited, last line `Rules: <IDs>` or `Case: none (<reason in at most 8 words>)` when source folders are touched; the project's commit rules in its `CLAUDE.md` or `AGENTS.md` win over a harness attribution reminder. Then `git add <your paths>` and `git commit -F <that file>` as separate calls (never `-F -`); `git status --porcelain -- <your paths>` must be empty. Never add anything under `.claude/prd-flow/`. On `index.lock` wait a few seconds and retry once |
+| Commit | Write the message with Write to `<state>/msg-<task or role>.txt`: Conventional Commits, English, the IDs cited; a rule change's body is the record (`Request:`, `Decided: <n><x> ... (rejected: ...)`, `Assumed:` in words, never an ID alone, `Red: <test> failed before the code (<n> failing)`, executor card "Rule rows with the code"); last line `Rules: <IDs>` or `Case: none (<reason in at most 8 words>)` when source folders are touched; the project's commit rules in its `CLAUDE.md` or `AGENTS.md` win over a harness attribution reminder. Then `git add <your paths>` and `git commit -F <that file>` as separate calls (never `-F -`); `git status --porcelain -- <your paths>` must be empty. Never add anything under `.claude/prd-flow/`. On `index.lock` wait a few seconds and retry once |
 | Loops | At most 2 reruns of a failing step; the third returns `blocked` with the lines and a Route |
 | Subagents | Never open one: parallelism is the chief's |
 | Ceiling | V08 |
@@ -26,16 +26,16 @@ Next: <the step the chief runs next; one per option of a user route>
 ```
 
 ## Task
-1. Batch 1, one message: the card (`Grep -n "^### <ID>"` in the plan named by `Plan:` in `## Plan` of `state.md`, then `Read` that range; or `<state>/card.md`); the Contract rows from the PRD by ID; `<state>/deliveries/<ID>.md` of each `Depends on`; the `Read:` list (about 25k tokens); the card's `DEC-` rows (`Grep -n` in `changes/NNN-<slug>/decisions.md`; a DEC row binds like a rule); `git log -5 --oneline -- <Owns>`. `Why:` carries the intent: never read whole PRD sections for it.
+1. Batch 1, one message: the card (`Grep -n "^### <ID>"` in the plan named by `Plan:` in `## Plan` of `state.md`, then `Read` that range; or `<state>/card.md`); the Contract rows from the PRD by ID; `<state>/deliveries/<ID>.md` of each `Depends on`; the `Read:` list (about 25k tokens); for a rule change the sheet and `Answers:` of the prompt (and size L: the card's `DEC-` rows, `Grep -n` in `changes/NNN-<slug>/decisions.md`; a DEC row binds like a rule); `git log -5 --oneline -- <Owns>`. `Why:` carries the intent: never read whole PRD sections for it.
 2. Test first, from the rule's Example: `scripts/gates.sh red <test>` (record `Red: <exit code>`); implement the minimum; `scripts/gates.sh one <test>` passes. Then `scripts/gates.sh fix-files <your files>` and `lint-files <your files>`. Nothing else: related tests, suites and gates run once in the chief's wave verification.
-3. Structure: `docs/code-structure.md` limits; the PRD IDs in the first comment of each module and test; the area map follows; the ratchet never regresses. Owns lists `docs/trd/<area>.md`: update its body (`write.md` "TRD"). C6: move code with `scripts/gates.sh move <source> <start> <end> <destination> [--at LINE]`, never retyped; split huge test files first and prove statically (imports, types, lint).
+3. Structure: `docs/code-structure.md` limits; the PRD IDs in the first comment of each module and test; the area map follows; the ratchet never regresses. A rule change: the approved rows into the PRD file in Owns and, with `Owns` listing `docs/trd/<area>.md`, the TRD body (`write.md` "Rows", "TRD"), in this same commit; then `gate.py --fix`. C6: move code with `scripts/gates.sh move <source> <start> <end> <destination> [--at LINE]`, never retyped; split huge test files first and prove statically (imports, types, lint).
 4. Outside Owns: a test that broke as a direct, expected consequence may get only its expectation adjusted (never a loosened safety assertion) and joins the commit. Each `Leave:` item stays as it is.
 5. Write `deliveries/<ID>.md`, then commit with the card's message.
 
 `Interrupted: yes` in the prompt (a replacement for a stuck or timed-out agent): first derive the touched files from `git status --porcelain -- <card Owns>`, save `git --no-pager diff -- <those files>` to `<state>/interrupted-<task>.patch`, then continue from it. The task ID comes from the prompt (the chief's ledger).
 
 ## Deliveries
-`<state>/deliveries/<task>.md`, one per task (never a shared file), at most 16 lines. A dependent task reads it instead of the code; promote reads `Source:`; the reviewer reads `Self-check:` first.
+`<state>/deliveries/<task>.md`, one per task (never a shared file), at most 16 lines. A dependent task reads it instead of the code; the size L close reads `Source:`; the reviewer reads `Self-check:` first.
 ```markdown
 ## T07 · <result in one line>
 Red: 1 (test_call_provider_reads_timeout)
@@ -45,21 +45,21 @@ Source: CHK-02: src/features/checkout/payment_call.py::call_provider
 Self-check:
 - wired: yes, `Reached from:` (POST /checkout) reaches the new symbol
 ```
-One `Source: <ID>: <path::symbol>` line per approved rule of the Contract whose Change via is `code` (rewritten rules included), one ID per line. Rules via config, env, prompt, data or a handoff get none: they stay planned and close by their own route. Self-check keeps only the lines the card's `Lens:` or rules ask for, each `yes`, `no` or `n/a` with evidence; a `no` is fixed before the commit or routed; never a claim that gates ran.
+One `Source: <ID>: <path::symbol>` line per approved rule of the Contract whose Change via is `code` (rewritten rules included), one ID per line. Rules via config, env, prompt, data or a handoff get none: they close by their own route. Self-check keeps only the lines the card's `Lens:` or rules ask for, each `yes`, `no` or `n/a` with evidence; a `no` is fixed before the commit or routed; never a claim that gates ran.
 
 ## Fix
 The chief sends each task's finding lines (those with that `Task:`) to that task's warm executor with SendMessage; lines with `Task: none`, the wave verify failure lines, and lines whose executor is past its ceiling or 150k tokens go together to one new executor `fix` with a fix card (`write.md` "Fix card"). Fix only what is named, inside its Owns, under the Task steps (test first for a behavior finding). Commit `fix(<scope>): <sentence>` with the trailer. A missing `Source:` line: `Grep` the rule ID in the source folders, append the line to the implementing task's delivery, no commit.
 
 ## Close
 0. Rerun: `## Chief` logs `closed: <commit>`, or the state folder is gone after a pass: return `done` with that commit, run nothing.
-1. C5 only: `<python> .claude/skills/prd-flow/scripts/promote.py <slug>` (`write.md` "Promotion"). On success commit what it changed in `docs` and `changes` as `docs(prd): promote <slug>`; the tree is clean there before step 3. A WARN line is routed before step 3.
-2. Write `## Close` of `state.md` (the promote result) now: a passing close deletes the state folder.
+1. Size S and M: no step here, the rows and the TRD already landed with the code. Size L only: `<python> .claude/skills/prd-flow/scripts/promote.py <slug>` archives the change folder; commit what it changed as `docs(prd): archive <slug>`; a WARN line is routed before step 3.
+2. Write `## Close` of `state.md` (the close result) now: a passing close deletes the state folder.
 3. `scripts/gates.sh close <slug> --case <C>`, stdout read directly (or to a file under `.ai-kit/runs/`, never the state folder). Order: lint, trailers, docs, the chief's compare result (never the suite inline), `gate.py --final`, retro, cleanup; `--case C4` skips baseline and compare. "compare is still running" or "no compare result" is the chief's to act on (DP07), never a fix. Never rerun it to recover output. The return carries the close summary and at most 5 retro findings, or "every threshold held", and "`/docs-html` refreshes the reading pages" when `docs/prd/` or `docs/trd/` changed.
 
 ## Short C5 in the middle of execution
 1. An agent meeting behavior no approved rule covers (V06) stops its task and returns `Route: surveyor short`. Running tasks finish.
 2. Surveyor `short` sweeps the touched rules, writes `<state>/sheet-short-<k>.md` (k = 1, 2, ...) with only those rows and says per task of `## Plan` `stands` or `redo: <why>`.
-3. The chief prints that sheet and ends the turn; the reply is the approval (no diff approval follows) and goes to docs `short <YYYY-MM-DD>`: PRD rows, the CHANGELOG entry's `IDs:` extended, a `Reply` line and DEC rows in `decisions.md`, new and `redo` cards, the wave table refreshed. Outside a C5 it creates the change folder and `plan.md`.
+3. The chief prints that sheet and ends the turn; the reply is the approval (no diff approval follows) and goes to the executors of the `redo` and new tasks with `Sheet:` and `Answers:` (they write the rows with their code); with a size L plan also to docs `adjust` (a `Reply` line and DEC rows in `decisions.md`, new and `redo` cards, the wave table refreshed). Outside a C5 over several tasks, docs `plan` creates the plan.
 4. Execution resumes from the returned table. The review counter never resets without explicit approval.
 
 ## Review
@@ -81,6 +81,6 @@ Recheck: per previous finding `resolved` or `open` with the file and line that s
 | V05 | Cascade: more Critical plus High than the previous round stops the chief (`SKILL.md` "Review") |
 | V06 | Any behavior change during execution (a case no rule covers, a new rule, and always the safety posture: removing a guard, a net, a list, a switch) is the short C5 above, never one more task |
 | V07 | Round 5 with an open Critical, or a cascade: the chief stops and asks (`SKILL.md` "Review"); never a round 6 without an explicit yes. Each open Critical is told in plain words (what happens to the user), with the options: one more round, accept with a mitigation, change the rule |
-| V08 | Ceilings, the single home of these numbers: surveyor `full` and docs `apply` about 80 tool calls; every other surveyor, docs, executor and fix about 50 calls or 30 minutes; reviewer 40; recheck about 15. At the ceiling or past about 150k tokens: return `gap` with a handoff of at most 10 lines (files touched, red tests, next step) |
+| V08 | Ceilings, the single home of these numbers: surveyor `full` and docs `plan` about 80 tool calls; every other surveyor, docs, executor and fix about 50 calls or 30 minutes; reviewer 40; recheck about 15. At the ceiling or past about 150k tokens: return `gap` with a handoff of at most 10 lines (files touched, red tests, next step) |
 | V09 | The full suite runs once, as the chief's `compare` during the last review (restarted after the last fix); the reviewer runs nothing and never reads the wave verify; an executor runs only its own test plus fix-files and lint-files. No cost line by hand: the telemetry records every agent and `gates.sh retro` (inside close) reports it |
 | V10 | The reviewer returns at most 8 finding lines, the most severe first, in one batched list; `<state>/findings-r<N>.md` only past the line cap, named in `Files:` |
