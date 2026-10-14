@@ -46,7 +46,11 @@ Output: stdout carries the errors and one line 'warnings: N (see .claude/prd-flo
 --docs <slug>: default prd checks, --rules --applied when the slug has a state record (old route) or a CHANGELOG entry (new route), trd and plan in one run; cached by input mtimes (--fresh reruns).
 --trd: backticked paths exist (G23), symbols (G24) are in the row's files, files within trd_budget_lines (G26).
 --sibling: PRD folders listed under "Shared PRDs" of repo.md equal the sibling repository's (G28).
-The default run and --step never print a stale page (G29, G32 only under --html); html_mode hand warns G5. G25 and the G28 absent-sibling warning are not printed.
+The default run and --step check no HTML (G29, G32, G5 only under --html). G25 and the G28 absent-sibling warning are not printed.
+The change gate (default, --step, --docs) errors on G1, G3, G8 and G15, G12 (a changed rule has a test), G4 (em dash) and G2 (INDEX IDs column equals what gen_index.py generates);
+G23, G24 and G28 are warnings there (errors under --trd and --sibling); G7 is gone (CHANGELOG.md is frozen); a pending marker or '## Planned' TRD section added by the diff warns D4.
+--fix: regenerate the INDEX IDs column with gen_index.py, then run the selected checks.
+--history <ID>: commits (newest first) whose diff touched the rule's PRD row or whose Rules: trailer names it, with date, sha, subject and the Request:, Decided:, Assumed: body lines.
 --html: the strict HTML check of the docs-html skill, html_mode generated only (G29, G32 and G4 on the pages are errors, hand is an error G5).
 Modules: gate_output (capped stdout, artifact .claude/prd-flow/state/_gate/last-<mode>.txt, --step trd scoped to TRD files changed since the base).
 Exits with 1 when there is an ERROR. A WARNING does not fail.
@@ -62,13 +66,16 @@ from gate_core import (
 )
 from gate_interview import check_answers, check_sheet
 from state_record import approved_text
-from gate_budget import added_lines, names_id, check_sections, strip_markers
+from gate_budget import check_sections
+from gate_changed import check_changed_rules_tested, check_index_current, warn_added_planned
+from gate_history import history
+from gen_index import write as write_index
 from gate_output import base_ref, changed_paths, report, start
 from gate_plan import check_change, check_final, check_plan, check_trace, snapshot_drift
 from gate_scope import code_state, cache_load, cache_replay, cache_store, find_plan, inputs_key, slug_of, state_dir
 from gate_core import notes
-from gate_prd import changed_rows, check_index, check_pack, check_rules
-from gate_html_build import check_html_flow, check_html_strict
+from gate_prd import changed_rows, check_pack, check_rules
+from gate_html_build import check_html_strict
 from gate_remote import warn_remote_change, warn_remote_ids
 from gate_rules import changelog_entry, check_applied, check_conflicts, check_entry
 from gate_sibling import check_sibling
@@ -91,9 +98,9 @@ def default_checks(root: Path, cfg: dict[str, str], rules, vias: set[str], base_
     prd, trd = root / prd_rel, root / trd_rel
     base = base_ref(root, cfg, base_arg)
     old, new, touched, plain = changed_rows(root, base, prd_rel, cfg["prd_glob"])
-    check_index(prd, rules, set(new) - set(old))
-    changelog = f"{prd_rel}/CHANGELOG.md"
-    added = added_lines(root, base, changelog)
+    check_index_current(prd)
+    check_changed_rules_tested(root, rules, cfg, vias, set(new))
+    warn_added_planned(root, cfg, base, old, new, trd_rel)
     check_sections(root, cfg, prd, changed_paths(root, cfg, base_arg) if scoped else None)
 
     if cfg["forbid_em_dash"].lower() in {"yes", "true", "on"}:
@@ -111,17 +118,6 @@ def default_checks(root: Path, cfg: dict[str, str], rules, vias: set[str], base_
         marked = cfg["pending_marker"] if cfg["pending_marker"] in row[0] else cfg["proposed_marker"]
         if (cfg["pending_marker"] in row[0] or is_proposed(row[0], cfg)) and len(row) >= 2 and cfg["planned_source"] not in row[1].lower():
             warn("G9", f"{rid} marked '{marked}' with Source other than '{cfg['planned_source']}'")
-        if rid in old:
-            before, after = joined(strip_markers(old[rid][0], cfg)), joined(strip_markers(row[0], cfg))
-            if before not in after and not names_id(added, rid):
-                err("G7", f"{rid} was reworded without an added CHANGELOG line naming {rid}", f"add a line naming {rid} to {changelog}, or revert the text change")
-    for rid in sorted(set(old) - set(new) - set(rules)):
-        if not names_id(added, rid):
-            err("G7", f"{rid} left the PRD without an added CHANGELOG line naming {rid}", f"add a line naming {rid} to {changelog}")
-    if set(new) - set(old) and f"{prd_rel}/INDEX.md" not in touched:
-        warn("G2", "new IDs and INDEX.md was not touched")
-
-    check_html_flow(root, cfg)
 
     known = set(rules)
     for f in trd.rglob("*.md"):
@@ -156,9 +152,9 @@ def docs_checks(root: Path, cfg, rules, vias, args, repo_md: Path, rules_checks,
         rules_checks()
     if (state / "sheet.md").is_file():
         check_sheet(state, cfg)
-    check_sibling(root, repo_md)
+    check_sibling(root, repo_md, strict=False)
     diff = changed_paths(root, cfg, args.base)
-    check_trd(root, cfg, trd_rel, {n for n in diff if n.startswith(trd_rel + "/")}, diff)
+    check_trd(root, cfg, trd_rel, {n for n in diff if n.startswith(trd_rel + "/")}, diff, strict=False)
     if plan:
         check_plan(plan, rules, cfg, root)
         check_waves(plan, cfg)
@@ -190,6 +186,8 @@ def main() -> int:
     parser.add_argument("--snapshot", metavar="SLUG", help="record the older final-gate drift so a scoped final reports it as pre-existing")
     parser.add_argument("--docs", metavar="SLUG", help="sheet, rules, prd, trd and plan checks of one change in one run (cached)")
     parser.add_argument("--fresh", action="store_true", help="with --docs: ignore the cache")
+    parser.add_argument("--fix", action="store_true", help="regenerate the INDEX IDs column (gen_index.py), then run the selected checks")
+    parser.add_argument("--history", metavar="ID", help="print the history of one rule from git: commits that touched its PRD row or name it in Rules:")
     parser.add_argument("--status", action="store_true", help="print the state of every rule")
     parser.add_argument("--prd", metavar="FOLDER", help="with --status: only this PRD folder")
     parser.add_argument("--state", choices=STATES, help="with --status: only this state")
@@ -202,6 +200,12 @@ def main() -> int:
         args.rules = state_dir(root, slug_of(str(args.rules))) / "approved-rules.md"
     prd_rel, trd_rel = cfg["prd_dir"].rstrip("/"), cfg["trd_dir"].rstrip("/")
     prd, trd = root / prd_rel, root / trd_rel
+    if args.history:
+        print("\n".join(history(root, args.history, prd_rel)))
+        return 0
+    if args.fix and (prd / "INDEX.md").exists():
+        for line in write_index(prd):
+            print(f"INDEX updated: {line}")
     rules = read_md_rules(prd, cfg["prd_glob"], cfg["via_header"])
     flags = [n for n in ("pack", "rules", "plan", "sheet", "trace", "change", "final", "trd", "sibling", "html", "snapshot", "docs") if getattr(args, n)]
     mode = f"step-{args.step}" if args.step else ("-".join(flags) if flags else "default")
@@ -250,7 +254,7 @@ def main() -> int:
         if args.step == "prd":
             if args.rules:
                 rules_checks()
-            check_sibling(root, repo_md)
+            check_sibling(root, repo_md, strict=False)
         elif args.step == "trd":
             diff = changed_paths(root, cfg, args.base)
             check_trd(root, cfg, trd_rel, {n for n in diff if n.startswith(trd_rel + "/")}, diff)
