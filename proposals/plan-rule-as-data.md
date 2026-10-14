@@ -39,7 +39,11 @@ Evidence: `eval/audit-2026-10-14-session-slowness/` (FINDINGS F01-F12, D01-D06, 
 | Review | end | one reviewer over the combined diff of the four repositories | |
 | Suites | end | the kit suite and each repo's full suite once, against the recorded baselines | |
 
-## Decisions for the user
+## Decided 2026-10-14 (user)
+
+Scope approved; execution in a fresh session, wave by wave, from this file. D1 freeze the CHANGELOG. D2 amendment text: "Rule changes land in the PRD in the same commit as the code that implements them; the commit body records the request and the decision." D3 yes, size L keeps plan.md and decisions.md. D4 yes, existing `pending code` markers stay; no new change adds one.
+
+## Decisions for the user (asked)
 
 | # | Question | Recommendation |
 |---|---|---|
