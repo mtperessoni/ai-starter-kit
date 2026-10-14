@@ -19,6 +19,7 @@ Brings kit improvements into a project that already has the kit, without overwri
 | U6e | Migration from the prd-flow workers, when `.claude/skills/prd-flow/reference/workers/` exists. List first, then ask; apply only after yes. See the second table below |
 | U6f | Migration to docs-html, when `.claude/skills/docs-html/` does not exist yet. List first, then ask; apply only after yes. See the third table below |
 | U6g | Migration to the one-pass interview. List first, then ask; apply only after yes. See "Migration to the one-pass interview" below |
+| U6h | Migration to rule as data, when the project's `docs/prd/CHANGELOG.md` has no frozen note. List first, then ask; apply only after yes. See "Migration to rule as data" below |
 | U7 | Plan table (K03): replace, merge, propose, skip; wait for yes |
 | U8 | Apply, run the Verify list of `install.md` (it includes `tests.failure_regex` on a real failure line, IN17, and the `rg` and proxy checks, IN18), update the manifest (version, date, hashes) |
 | U9 | Commit `chore: update ai-starter-kit to <new>` with the kit log lines in the body; report |
@@ -96,3 +97,15 @@ Nine references become five, one record set replaces four copies, and the cleanu
 | Allowlist | The `allowlist` key moves from `ai-kit.json` into `ai-kit.allowlist.json` (copied from the kit when missing, the project's values kept); `ai-kit.json` then carries no `allowlist`; `python scripts/ratchet.py` confirms it stays green (L15; `kit_config` reads either layout until the move) |
 | State folders | A state folder with `approved-rules.md` is read the old way until its change closes; nothing is rewritten |
 | Verify | `scripts/gates.sh cleanup --dry-run`, `scripts/gates.sh ratchet`, `python .claude/skills/prd-flow/scripts/gate.py` |
+
+## Migration to rule as data
+Rule changes land in the PRD in the same commit as the code; the commit body is the record (DS12, S1 to S11 of the kit's CHANGELOG). List first, then ask; apply only after yes. The docs-flow eval showed that a reader who finds a CHANGELOG without this note concludes no decision was recorded.
+
+| Change | How |
+|---|---|
+| Frozen CHANGELOG | Insert under the title of `docs/prd/CHANGELOG.md`, nothing else changed, this line: > **Frozen on <date>.** Nothing is appended here any more. A rule change after this date is recorded in the body of the commit that changed the rule (`Request:`, `Decided:` with the rejected options, `Assumed:`, `Red:`, then `Rules: <IDs>`). Print the history of one rule with `python .claude/skills/prd-flow/scripts/gate.py --history <ID>`, or `git log --grep "<ID>"`. |
+| Constitution | The principle on documents gets the sentence "Rule changes land in the PRD in the same commit as the code that implements them; the commit body records the request and the decision." in place of any "before the code" wording; version and amendment date per the file's own rule. Project-owned: shown as a diff |
+| CLAUDE.md, AGENTS.md | Lines that say docs or PRD and TRD update "before the code", or that name promote, a CHANGELOG entry or a TRD Planned section for every change, are rewritten to the same sentence. Project-owned: shown as a diff |
+| Markers | Existing `pending code` markers and `planned` sources stay as they are (D4); no new change adds one |
+| Open change folders | Left as they are; their `decisions.md` is a record and is never rewritten |
+| Verify | `python .claude/skills/prd-flow/scripts/gate.py --fix`, then `python .claude/skills/prd-flow/scripts/gate.py` and the project's docs gate |

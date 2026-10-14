@@ -13,7 +13,7 @@ An A/B of the docs flow (`proposals/plan-rule-as-data.md`) showed the docs agent
 - Eval (S11): `docs-flow-eval` ships in the kit and `MAINTAINING.md` M07 points to it.
 - Tests: the ones pinning G7 and the promote-for-every-change route were inverted or rewritten (see the commit body).
 
-On update: nothing to migrate by hand; existing markers and CHANGELOG entries stay as they are.
+On update: run "Migration to rule as data" (U6h of `installer/ai-kit/reference/update.md`): the frozen note under the title of `docs/prd/CHANGELOG.md`, the constitution sentence, the CLAUDE.md and AGENTS.md lines; existing markers, CHANGELOG entries and open change folders stay as they are. The eval found that without the note a reader concludes no decision was recorded (4.5 of 5; 5 of 5 with it).
 
 ## Orchestration rules for every session, with or without prd-flow
 
