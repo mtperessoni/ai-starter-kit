@@ -97,5 +97,50 @@ class RuleAsDataWorkflowText(unittest.TestCase):
             self.assertNotIn("| planned |", t, name)
 
 
+class RuleAsDataRound1Text(unittest.TestCase):
+    def rule_row(self, name, rid):
+        text = (ROOT / "rules" / name).read_text(encoding="utf-8")
+        m = re.search(r"^\| " + rid + r" \|.*$", text, re.M)
+        self.assertIsNotNone(m, rid)
+        return m.group(0)
+
+    def test_r01_no_docs_apply_in_wf_rows(self):
+        for rid in ("WF47", "WF52", "WF67", "WF75"):
+            row = self.rule_row("07-workflow.md", rid)
+            self.assertNotIn("docs `apply`", row, rid)
+            self.assertNotIn('write.md "Apply"', row, rid)
+
+    def test_r02_no_promote_or_changelog_entry_for_s_m(self):
+        self.assertNotIn("promotion keeps", self.rule_row("01-context-economy.md", "CE28"))
+        self.assertNotIn("docs `apply`", self.rule_row("01-context-economy.md", "CE29"))
+        self.assertNotIn("the CHANGELOG entry says", self.rule_row("06-docs-system.md", "DS35"))
+        self.assertNotIn("holds superseded wording", self.rule_row("06-docs-system.md", "DS03"))
+
+    def test_r06_wf33_warns_on_existing_markers(self):
+        self.assertIn("warns", self.rule_row("07-workflow.md", "WF33"))
+
+    def test_r09_templates_no_changelog_target(self):
+        for f in (ROOT / "kit" / "docs" / "templates").glob("change-*.md"):
+            self.assertNotIn("to the CHANGELOG", f.read_text(encoding="utf-8"), f.name)
+
+    def test_r10_size_m_has_no_plan_or_decisions(self):
+        for path in (CONSTITUTION, ROOT / "kit" / "AGENTS.md"):
+            t = path.read_text(encoding="utf-8")
+            self.assertNotIn("M may keep a `plan.md`", t, path.name)
+            self.assertNotIn("M `plan.md` only", t, path.name)
+        for rid in ("WF26", "WF27"):
+            row = self.rule_row("07-workflow.md", rid)
+            self.assertNotIn("an M with waves", row, rid)
+            self.assertNotIn("`plan.md` only", row, rid)
+        self.assertNotIn("unless M has waves", self.rule_row("06-docs-system.md", "DS49"))
+
+    def test_r13_m07_row_points_to_docs_flow_eval(self):
+        t = (ROOT / "MAINTAINING.md").read_text(encoding="utf-8")
+        m = re.search(r"^\| M07 \|.*$", t, re.M)
+        self.assertIsNotNone(m)
+        self.assertIn("/docs-flow-eval", m.group(0))
+        self.assertNotIn("wave 2 of the rule-as-data plan", t)
+
+
 if __name__ == "__main__":
     unittest.main()

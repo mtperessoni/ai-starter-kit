@@ -34,7 +34,7 @@ No secret in source, prompt, config file or fixture. Configuration is typed and 
 
 ## Development Workflow
 1. **Confirm, then land with the code.** A rule change is confirmed by the person; its PRD rows land in the commit of the task that implements them. `/prd-flow` runs this gate only when a person explicitly types `/prd-flow`; an agent never starts it on its own.
-2. **Change folder by size** before code: S none; M `plan.md` only when the work has waves; L `plan.md` (waves) and `decisions.md`, also `brief.md` and `design.md`, all under `changes/NNN-<slug>/`. Rows land with the code, so there is no promote for S and M.
+2. **Change folder by size** before code: S and M none (the sheet, pack and cards live in the prd-flow state folder, never in `changes/`); L `plan.md` (waves) and `decisions.md`, also `brief.md` and `design.md`, all under `changes/NNN-<slug>/`. Rows land with the code, so there is no promote for S and M.
 3. **Implement** test first, one commit per task.
 4. **Gates.** Lint, type check, ratchet and the full offline suite pass before any merge. Coverage may not decrease.
 
