@@ -7,8 +7,8 @@ Close never runs tests: with tests.rerun_ids it prints the failing ids to rerun 
 The baseline counts only with baseline.status ok (or watchdog); a compare result counts only with the runner exit code stored beside its log,
 and an exit other than 0 with no recognized failure line is not a pass.
 Prints one block of at most 24 lines, every failure with `owner:` and `next:` lines (a missing baseline or a trailer that needs a history rewrite is `owner: user`) (the retro findings, at most 5, highest severity first; a failing check's last lines, at most 10); the full output of every step goes to .claude/prd-flow/state/_close/<slug>.log.
-Refuses uncommitted tracked changes under docs/ and changes/ (promote's output, exit 1, after the baseline check); any other modified tracked file is a note line only.
-Prints "already closed" (exit 0) only when the state is gone, changes/archive/<NNN>-<slug> exists and git log has "docs(prd): promote <slug>".
+Refuses uncommitted tracked changes under docs/ and changes/ (the rows land with the code; size L also promote's archive; exit 1, after the baseline check); any other modified tracked file is a note line only.
+Prints "already closed" (exit 0) only when the state is gone, changes/archive/<NNN>-<slug> exists and git log has "docs(prd): promote <slug>" (size L; S and M have no archive and no CHANGELOG line or decisions.md requirement).
 Order: lint, trailers, docs --final (fast), then the compare result, then retro. The log is appended per step, so a killed close leaves what ran.
 The compare step never runs the suite and never waits: it reads, once, the result of a full run of this tree (state/<slug>/final.stamp equals HEAD plus the content of every tracked change and untracked file) or of the same test content (state/_compare/<hash>, a hash of the source and test folders, lockfiles and dirty diff, so a docs-only commit reuses it). New failing ids are rerun alone (gates.sh rerun) when tests.rerun_ids is true. No result, or one still running, is a failed step that names the background compare to start. A result without its summary line fails.
 A baseline still running (baseline.status, started by the chief as a background Bash) is reported as such, not as missing; close reads the status once and never waits.
@@ -306,7 +306,7 @@ def main() -> int:
     promoted, others = split_dirty(dirty_tracked(root))
     if promoted and (baseline_ok(root, slug) or skip_suite):
         print("\n".join([f"close {slug}", f"close FAILED: {len(promoted)} uncommitted tracked change(s)", "owner: executor fix",
-                         "next: commit promote's output, then executor close", *[f"  {ln}" for ln in promoted[:5]]]))
+                         "next: commit the docs and change-folder edits, then executor close", *[f"  {ln}" for ln in promoted[:5]]]))
         return 1
     started = time.time()
     log = root / ".claude" / "prd-flow" / "state" / "_close" / f"{slug}.log"
