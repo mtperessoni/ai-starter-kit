@@ -207,6 +207,12 @@ def fast_flags(tests: dict) -> str:
     return " ".join(map(str, value)) if isinstance(value, list) else str(value or "")
 
 
+def make_tree_dir(root: Path) -> Path:
+    base = root.resolve() / ".ai-kit" / "tmp"
+    base.mkdir(parents=True, exist_ok=True)
+    return Path(tempfile.mkdtemp(prefix="baseline-", dir=base))
+
+
 def run_suite(root: Path, config: dict, commit: str, work: Path) -> tuple[int, bool]:
     commands, tests = config["commands"], config.get("tests", {})
     command = " ".join(filter(None, [str(commands["test"]), str(commands.get("offline_args", "")), fast_flags(tests)]))
@@ -216,7 +222,7 @@ def run_suite(root: Path, config: dict, commit: str, work: Path) -> tuple[int, b
     env = {k: v for k, v in os.environ.items() if k not in set(commands.get("offline_unset", []))}
     env[str(commands.get("offline_flag", "OFFLINE_ONLY"))] = "1"
     idle = float(tests.get("baseline_idle_seconds", DEFAULT_IDLE_SECONDS))
-    tree = Path(tempfile.mkdtemp(prefix="baseline-"))
+    tree = make_tree_dir(root)
     added = git(root, "worktree", "add", "--detach", str(tree), commit)
     if added.returncode != 0:
         shutil.rmtree(tree, ignore_errors=True)

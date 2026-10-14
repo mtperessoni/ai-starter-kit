@@ -64,6 +64,39 @@ class GatesBase(unittest.TestCase):
         return self.p.root / ".claude/prd-flow/state" / slug / name
 
 
+class AnsiAndTempTest(unittest.TestCase):
+    def setUp(self) -> None:
+        sys.path.insert(0, str(KIT / "scripts"))
+        self.addCleanup(sys.path.remove, str(KIT / "scripts"))
+
+    def test_an_ansi_colored_summary_parses_like_the_plain_one(self) -> None:
+        from new_failures import has_summary
+        colored = "\x1b[2m Test Files \x1b[22m \x1b[1m\x1b[31m2 failed\x1b[39m\x1b[22m\x1b[2m | \x1b[22m3 passed\n"
+        with tempfile.TemporaryDirectory() as d:
+            log = Path(d) / "run.log"
+            log.write_text("noise\n" + colored, encoding="utf-8")
+            self.assertTrue(has_summary(log, {"summary_regex": r"^\s*Test Files\s+\d"}))
+            self.assertTrue(has_summary(log, {}))
+
+    def test_an_ansi_colored_failure_line_matches_its_pattern(self) -> None:
+        import re
+        from new_failures import failures
+        with tempfile.TemporaryDirectory() as d:
+            log = Path(d) / "run.log"
+            log.write_text("\x1b[31mFAIL\x1b[39m src/a.test.ts\n", encoding="utf-8")
+            self.assertEqual(failures(log, re.compile(r"^FAIL (\S+)")), {"src/a.test.ts"})
+
+    def test_the_suite_copy_lives_under_the_repo_and_has_no_tilde(self) -> None:
+        import baseline
+        with tempfile.TemporaryDirectory() as d:
+            tree = baseline.make_tree_dir(Path(d))
+            try:
+                self.assertEqual(tree.parent.resolve(), (Path(d) / ".ai-kit" / "tmp").resolve())
+                self.assertNotIn("~", str(tree))
+            finally:
+                tree.rmdir()
+
+
 class BaselineTest(GatesBase):
     def test_baseline_runs_in_a_worktree_and_removes_it(self) -> None:
         r = self.gates("baseline", "s1")
