@@ -60,7 +60,7 @@ usage: scripts/gates.sh <target> [args]
   docs [slug|args] the prd-flow docs gate; a slug runs every check of the change in one process (gate.py --docs)
   html [args]      rebuild the PRD and TRD HTML pages (build_prd_html.py, build_trd_html.py); --check verifies both
   close [slug] [--case C2..C6]
-                   the closing ceremony in one block (failure lines included): lint, docs --final, then the compare result against
+                   the closing ceremony in one block (failure lines included): lint, the docs gate of the slug, then the compare result against
                    the baseline (read once, never run inline); full log, written per step, in
                    .claude/prd-flow/state/_close/<slug>.log; exit 1 on a failure; --case C4 skips the compare and baseline steps
   retro [args]     the run retrospective (scripts/retro.py): --context <name>, --prune

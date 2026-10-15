@@ -9,7 +9,7 @@ and an exit other than 0 with no recognized failure line is not a pass.
 Prints one block of at most 24 lines, every failure with `owner:` and `next:` lines (a missing baseline is `owner: user`) (a failing check's last lines, at most 10); the full output of every step goes to .claude/prd-flow/state/_close/<slug>.log.
 Refuses uncommitted tracked changes under docs/ and changes/ (the rows land with the code; size L also promote's archive; exit 1, after the baseline check); any other modified tracked file is a note line only.
 Prints "already closed" (exit 0) only when the state is gone, changes/archive/<NNN>-<slug> exists and git log has "docs(prd): promote <slug>" (size L; S and M have no archive and no CHANGELOG line or decisions.md requirement).
-Order: lint, docs --final (fast), then the compare result. The log is appended per step, so a killed close leaves what ran.
+Order: lint, the docs gate of the slug (fast), then the compare result. The log is appended per step, so a killed close leaves what ran.
 The compare step never runs the suite and never waits: it reads, once, the result of a full run of this tree (state/<slug>/final.stamp equals HEAD plus the content of every tracked change and untracked file) or of the same test content (state/_compare/<hash>, a hash of the source and test folders, lockfiles and dirty diff, so a docs-only commit reuses it). New failing ids are rerun alone (gates.sh rerun) when tests.rerun_ids is true. No result, or one still running, is a failed step that names the background compare to start. A result without its summary line fails.
 A baseline still running (baseline.status, started by the chief as a background Bash) is reported as such, not as missing; close reads the status once and never waits.
 Exits 1 when any step fails. On success the slug's state folder, the gate and test logs of earlier runs and the close log are deleted;
@@ -191,6 +191,11 @@ def gate_supports(root: Path, flag: str) -> bool:
     return flag in out.stdout + out.stderr
 
 
+def docs_step(root: Path, slug: str) -> list[str]:
+    """The gates.sh arguments of the docs step: every check of the change when gate.py has --docs."""
+    return ["docs", slug] if gate_supports(root, "--docs") else ["docs"]
+
+
 def baseline_status(root: Path, slug: str) -> str:
     status = root / ".claude" / "prd-flow" / "state" / slug / "baseline.status"
     return status.read_text(encoding="utf-8") if status.is_file() else ""
@@ -295,8 +300,7 @@ def main() -> int:
     log.write_text(f"close {slug} started\n", encoding="utf-8")
     block, failed = [f"close {slug}"], False
     block += [f"note: modified tracked file left alone: {ln[3:].strip()}" for ln in others[:3]]
-    final = ["docs", "--final", "--change", slug] if gate_supports(root, "--docs") else ["docs", "--final"]
-    steps = [("lint", ["lint"]), ("gate --final", final), ("compare", ["compare", slug])]
+    steps = [("lint", ["lint"]), ("docs gate", docs_step(root, slug)), ("compare", ["compare", slug])]
     for name, args in steps:
         if name == "compare" and skip_suite:
             block.append(f"compare and baseline skipped (case {case}: no code change to prove)")
