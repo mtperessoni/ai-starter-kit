@@ -86,7 +86,7 @@ The outcome table is optional; the rule table is mandatory for a step.
 | Source | `path/to/file.ext` or `path::symbol`; several files separated by `;`; `planned` without code |
 | Change via | One value from `repo.md` `change_via` |
 | Example | Optional fifth column, defined in prd-flow `reference/write.md` "Rule rows" |
-| Markers | `*(proposed)*` (rule from documents only, Source `planned`), `*(approved YYYY-MM-DD, pending code)*`, `*(superseded: <link>, valid until deploy)*`, `*(checked in code)*` in callouts. `--final` fails on a proposed rule (G30) |
+| Markers | `*(proposed)*` (rule from documents only, Source `planned`), `*(approved YYYY-MM-DD, pending code)*`, `*(superseded: <link>, valid until deploy)*`, `*(checked in code)*` in callouts |
 | Risks, problems | `\| R1-04 · high \| <scenario> \| <mitigation> \|`; level is `high`, `medium` or `low` |
 
 ## README.md (overview for people)

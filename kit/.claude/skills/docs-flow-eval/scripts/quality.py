@@ -13,7 +13,7 @@ Q7 commits, lines and files changed by kind.
 Q8 the decision is recorded with its rejected alternative (commit bodies or changed files under changes/).
 Q9 red evidence: a commit body or a delivery file names the failing run before the code.
 Q10 test files added (a new hook or component test).
-Q11 the INDEX IDs column is current (the worktree's gen_index.py --check).
+Q11 retired with the INDEX IDs column generator.
 """
 import json
 import re
@@ -108,10 +108,6 @@ def main() -> None:
     added = [p for p in run(["git", "diff", "--name-only", "--diff-filter=A", base], wt)[1].splitlines() if "__tests__/" in p]
     r["tests_added"] = len(added)
     out.append(f"Q10 test files added: {len(added)} {added[:3]}")
-
-    code, log = run([py, "-I", ".claude/skills/prd-flow/scripts/gen_index.py", "--repo", str(wt), "--check"], wt)
-    r["index_current"] = code == 0
-    out.append(f"Q11 INDEX current: {code == 0} {log.strip()[:120]}")
 
     print("\n".join(out))
     print("RESULT " + json.dumps(r))

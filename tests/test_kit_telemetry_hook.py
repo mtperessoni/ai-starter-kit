@@ -386,31 +386,30 @@ if __name__ == "__main__":
 
 
 class LauncherTest(unittest.TestCase):
-    def launcher(self):
+    def launcher(self, python=None):
         settings = json.loads((ROOT / "kit" / ".claude" / "settings.json").read_text(encoding="utf8"))
-        commands = {h["command"] for entries in settings["hooks"].values() for e in entries for h in e["hooks"]}
+        commands = {h["command"] for entries in settings["hooks"].values() for e in entries for h in e["hooks"]
+                    if "telemetry_hook.py" in h["command"]}
         self.assertEqual(len(commands), 1)
         self.assertNotIn("agent_guard_hook", next(iter(commands)))
-        return next(iter(commands))
+        command = next(iter(commands))
+        return command.replace("__AIKIT_PYTHON__", python) if python else command
 
-    def run_launcher(self, proj, extra_path=None):
+    def run_launcher(self, proj, python=None):
         import shutil
         bash = shutil.which("bash")
         if not bash:
             self.skipTest("bash not available")
         env = dict(os.environ, CLAUDE_PROJECT_DIR=proj.as_posix())
-        return subprocess.run([bash, "-s"], input=self.launcher() + "\n", capture_output=True, text=True, env=env, timeout=30)
+        return subprocess.run([bash, "-s"], input=self.launcher(python) + "\n", capture_output=True, text=True, env=env, timeout=30)
 
-    def test_commands_python_from_ai_kit_json_runs_the_hook(self):
+    def test_python_filled_at_install_runs_the_hook(self):
         with tempfile.TemporaryDirectory() as tmp:
             proj = Path(tmp)
             (proj / "scripts").mkdir()
-            (proj / "scripts" / "telemetry_hook.py").write_text("", encoding="utf8")
-            fake = proj / "fakepy"
-            fake.write_text("#!/bin/sh\necho ran > " + (proj / "marker").as_posix() + "\n", encoding="utf8")
-            fake.chmod(0o755)
-            (proj / "ai-kit.json").write_text(json.dumps({"commands": {"python": fake.as_posix()}}), encoding="utf8")
-            r = self.run_launcher(proj)
+            hook = "open(r'" + (proj / "marker").as_posix() + "', 'w').write('x')\n"
+            (proj / "scripts" / "telemetry_hook.py").write_text(hook, encoding="utf8")
+            r = self.run_launcher(proj, Path(sys.executable).as_posix())
             self.assertEqual(r.returncode, 0)
             self.assertTrue((proj / "marker").is_file())
 

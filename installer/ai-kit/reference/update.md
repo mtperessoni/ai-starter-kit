@@ -10,7 +10,7 @@ Brings kit improvements into a project that already has the kit, without overwri
 | U3 | For each kit-owned file changed in the kit: hash the project's copy. Equal to the manifest hash → replace with the new version. Different → the project edited it: build a three-way view (kit old via `git -C <kit> show <old>:kit/<path>`, kit new, project) and propose a merge |
 | U4 | For each project-owned file whose template changed in the kit: show only the new sections, keys or rules and propose adding them; never replace values |
 | U5 | New kit files: add them (kit-owned) or propose them (project-owned). Files removed from the kit: ask before deleting the project's copy |
-| U6 | New keys in `ai-kit.json` get their defaults (run speed: `commands.python` `""`, `tests.baseline_deselect` `[]`, `tests.baseline_idle_seconds` `300`, `tests.always` `[]`); after adding them, run `python scripts/ratchet.py --init` and merge only the new allowlist keys (`crowded_dirs`, `generated_without_marker`) into the `allowlist` of `ai-kit.allowlist.json` (sidecar first, L15), so the ratchet stays green right after the update; new linter rules from an updated recipe are proposed with a baseline. Layout keys (`layout`, `areas`, `map_dirs`, `generated_patterns`, `contracts`) and the seeds `.ignore` and `.claude/settings.json` are proposed from the detection of install I3 and I8, never applied silently |
+| U6 | New keys in `ai-kit.json` get their defaults (run speed: `commands.python` `""`, `tests.baseline_deselect` `[]`, `tests.baseline_idle_seconds` `300`, `tests.always` `[]`); after adding them, run `python scripts/ratchet.py --init` and merge only the new allowlist keys (`generated_without_marker`) into the `allowlist` of `ai-kit.allowlist.json` (sidecar first, L15), so the ratchet stays green right after the update; new linter rules from an updated recipe are proposed with a baseline. Layout keys (`layout`, `areas`, `map_dirs`, `generated_patterns`, `contracts`) and the seeds `.ignore` and `.claude/settings.json` are proposed from the detection of install I3 and I8, never applied silently |
 | U6a | `repo.md` Gate config: add the keys the kit introduced since `old` (`language`, `planned_heading`, `via_header`; run speed: `plain_words`, `plan_strict` `no`, `question_lint` `warn`, `shared_files` empty, with the defaults of the kit's `repo.md`) filled from the project's existing docs as in install, never from the defaults when the docs say otherwise |
 | U6b | Read `CHANGELOG.md` of the kit: for each entry between `old` and `new`, in order, execute its `On update:` line (create folders, add `ai-kit.json` keys, seed allowlists, propose new sections) and list each in the plan table of U7 |
 | U6c | Telemetry: copy `telemetry_hook.py`, `run_probe.py`, `retro.py` and `retro_detectors.py` (kit-owned, U3 rules); merge the kit's hooks (the launcher commands of `kit/.claude/settings.json`, `ownership.md`) into `.claude/settings.json` keeping the project's own, and replace a project hook that still runs `python scripts/telemetry_hook.py` by the launcher, shown as a diff; remove the old guard hook entry (`agent_guard_hook.py`) and delete `scripts/agent_guard_hook.py` when unchanged (the new `scripts/guard_hook.py` entry of the kit is merged by U6g); add the `telemetry` section and the `.ai-kit/runs/` gitignore line; run the hook once on the sample payload of `install.md`. `.ai-kit/runs/` is never touched |
@@ -20,6 +20,7 @@ Brings kit improvements into a project that already has the kit, without overwri
 | U6f | Migration to docs-html, when `.claude/skills/docs-html/` does not exist yet. List first, then ask; apply only after yes. See the third table below |
 | U6g | Migration to the one-pass interview. List first, then ask; apply only after yes. See "Migration to the one-pass interview" below |
 | U6h | Migration to rule as data, when the project's `docs/prd/CHANGELOG.md` has no frozen note. List first, then ask; apply only after yes. See "Migration to rule as data" below |
+| U6k | Migration to the core rules gates, when `ai-kit.allowlist.json` (or the `allowlist` key) still has `crowded_dirs`, `no_prd_id`, `duplicate_names`, `long_feature_maps`, `invariant_gaps` or `untested_rules`, a count where a file list belongs, or `ci.yml` runs `gates.sh trailers`. List first, then ask; apply only after yes. See "Migration to the core rules gates" below |
 | U7 | Plan table (K03): replace, merge, propose, skip; wait for yes |
 | U8 | Apply, run the Verify list of `install.md` (it includes `tests.failure_regex` on a real failure line, IN17, and the `rg` and proxy checks, IN18), update the manifest (version, date, hashes) |
 | U9 | Commit `chore: update ai-starter-kit to <new>` with the kit log lines in the body; report |
@@ -68,7 +69,7 @@ The interview becomes one decision sheet answered in the chat. List first, then 
 | Scripts | `guard_hook.py`, `reap.py`, `next_change_number.py` and `settings_check.py` added (kit-owned); `gates.sh` gains `fix-files`, `lint-files`, `move`, `reap` and `settings-check` |
 | Guard hook | Declared in the frontmatter `hooks:` of the five `prd-flow-*` agents (replaced per U3), never in `.claude/settings.json`; the telemetry launcher is replaced by the current one (`commands.python` with a JSON path unescaped, probed once, then `python3` and `python`; fails open) |
 | Changes folder | A new change is reserved with `python scripts/next_change_number.py <slug>`, which prints `changes/NNN-<slug>` |
-| Settings | Run `scripts/gates.sh settings-check`; a deny rule it reports is shown to the user, never removed silently |
+| Settings | Read `permissions.deny` in `.claude/settings*.json`; a rule on a file the flow writes is shown to the user, never removed silently |
 
 ## Migration to docs-html
 The HTML leaves the change flow: prd-flow, prd-create and trd-create stop building it, and the `docs-html` skill builds the PRD and TRD pages on request. List first, then ask; apply only after yes.
@@ -103,9 +104,46 @@ Rule changes land in the PRD in the same commit as the code; the commit body is 
 
 | Change | How |
 |---|---|
-| Frozen CHANGELOG | Insert under the title of `docs/prd/CHANGELOG.md`, nothing else changed, this line: > **Frozen on <date>.** Nothing is appended here any more. A rule change after this date is recorded in the body of the commit that changed the rule (`Request:`, `Decided:` with the rejected options, `Assumed:`, `Red:`, then `Rules: <IDs>`). Print the history of one rule with `python .claude/skills/prd-flow/scripts/gate.py --history <ID>`, or `git log --grep "<ID>"`. |
+| Frozen CHANGELOG | Insert under the title of `docs/prd/CHANGELOG.md`, nothing else changed, this line: > **Frozen on <date>.** Nothing is appended here any more. A rule change after this date is recorded in the body of the commit that changed the rule (one `Decided:` line per decision with the rejected option, then `Rules: <IDs>`). Print the history of one rule with `python .claude/skills/prd-flow/scripts/gate.py --history <ID>`, or `git log --grep "<ID>"`. |
 | Constitution | The principle on documents gets the sentence "Rule changes land in the PRD in the same commit as the code that implements them; the commit body records the request and the decision." in place of any "before the code" wording; version and amendment date per the file's own rule. Project-owned: shown as a diff |
 | CLAUDE.md, AGENTS.md | Lines that say docs or PRD and TRD update "before the code", or that name promote, a CHANGELOG entry or a TRD Planned section for every change, are rewritten to the same sentence. Project-owned: shown as a diff |
 | Markers | Existing `pending code` markers and `planned` sources stay as they are (D4); no new change adds one |
 | Open change folders | Left as they are; their `decisions.md` is a record and is never rewritten |
-| Verify | `python .claude/skills/prd-flow/scripts/gate.py --fix`, then `python .claude/skills/prd-flow/scripts/gate.py` and the project's docs gate |
+| Verify | `python .claude/skills/prd-flow/scripts/gate.py` and the project's docs gate (the `--fix` flag of that release was removed later) |
+
+## Preamble diet
+Every session and subagent loads `CLAUDE.md`, its `@` imports, and the description of every agent and skill before its first action (CE18; audit of 2026-10-15: a third of all tokens). Run `scripts/gates.sh preamble` before and after; list first, then ask; apply only after yes. Project-owned files are shown as diffs.
+
+| Change | How |
+|---|---|
+| One home per rule | `CLAUDE.md` keeps the project line, the constitution index, the product rules flow and `@AGENTS.md`. Its code structure, tests, processes and returns blocks move into `AGENTS.md` "Code structure" and "Working rules" of the kit template; a sentence already said in `AGENTS.md` is dropped, never kept twice |
+| Commands | `AGENTS.md` lists the daily `scripts/gates.sh` targets of the template and points to `scripts/gates.sh` with no target for the rest; project-specific commands stay |
+| Sections that restate the template | "Testing while working", "Disk and container hygiene", "Run telemetry" and "Handing work to a subagent" become the template's "Working rules"; a project line the template does not have is kept under it |
+| Agent and skill descriptions | A project agent or skill whose `description` passes about 300 characters, or carries examples, is cut to one or two lines naming when to use it; the examples move into the body |
+| Large always-loaded sections | A project section over about 40 lines that only some tasks need (a spec workflow, an API reference) moves to a file under `docs/` that `AGENTS.md` names by path |
+| Script and budgets | Copy `scripts/preamble.py` (kit-owned, `ownership.md`); add the kit's `preamble` section to `ai-kit.json` with its default budgets when it is missing, never overwriting a project value |
+| Verify | `scripts/gates.sh preamble` again; report each part before and after |
+
+## Migration to the core rules gates
+The per-commit gates that the core rules (`rules/core.md` of the kit repository) made unnecessary are removed from the kit. List first, then ask; apply only after yes. Project-owned files are shown as diffs.
+
+| Change | How |
+|---|---|
+| Allowlist | In `ai-kit.allowlist.json` (or the `allowlist` key of `ai-kit.json`) delete `duplicate_names`, `crowded_dirs`, `no_prd_id`, `long_feature_maps`, `invariant_gaps` and `untested_rules`; turn `long_modules`, `long_tests` and `skill_md_bytes` from `{"<file>": <count>}` into a list of the same files; `banned_names`, `no_feature_map` and `generated_without_marker` stay lists. `python scripts/ratchet.py` then passes: a listed file that no longer violates only warns |
+| `ai-kit.json` keys | Delete `limits.feature_map_lines`, `limits.id_header_lines`, `limits.files_per_dir` and `id_pattern`; delete the removed names from `ratchet.skip` (the ratchet ignores them meanwhile). `unique_name_exempt` stays: related-test matching reads it |
+| CI | Delete the step "Commit trailers (pull requests only)" (`gates.sh trailers`) from `.github/workflows/ci.yml` |
+| Scripts | `scripts/commit_trailers.py`, `scripts/watch.py` and `scripts/settings_check.py` deleted when unchanged since install (hash versus manifest), shown and kept aside when edited; `scripts/gates.sh`, `ratchet.py`, `close_gate.py`, `verify.py` and `guard_hook.py` replaced per U3. `gates.sh` loses `red`, `watch`, `prd-sweep`, `trailers`, `settings-check` and `context`; `close` runs lint, the docs gate and the compare result only |
+| Guard hook | A redirect, `cat >` or `tee` is denied only under `source_dirs` of `ai-kit.json` or `docs/`; git-destructive, stdin interpreter, heredoc and kill-by-name denials are unchanged |
+| Docs | `docs/code-structure.md`: AR02 without name uniqueness, AR06 without the ID header, AR07 without the per-commit map duty, AR23 as review, AR24 parameters 7, AR03 class limit exempts declarative classes; the project's `AGENTS.md` loses the trailer check sentence and the `Request:`, `Assumed:` and `Red:` commit lines (the body keeps `Decided:` lines, then `Rules: <IDs>`), the promote step and the Traceability line; the constitution drops "Every module and test cites the IDs" |
+| Stack linter | `max-params` (or the stack's equivalent) 7 instead of 5; one per-test timeout config line from the stack recipe |
+| Verify | `scripts/gates.sh ratchet`, `scripts/gates.sh lint`, `scripts/gates.sh close <slug> --case C4` on a clean tree |
+
+## Migration to the post-tool hook
+Lint after edit, the failing test streak and the main-thread checkpoint (TM18). List first, then ask; apply only after yes.
+
+| Change | How |
+|---|---|
+| Script | Copy `scripts/post_tool_hook.py` (kit-owned, `ownership.md`) |
+| Settings | Merge into `.claude/settings.json` (TM12: the project's own hooks stay) two entries with the kit's launcher command for `scripts/post_tool_hook.py`, without `async`: `PostToolUse` matcher `Edit\|Write\|MultiEdit\|Bash\|PowerShell` and `PostToolUseFailure` matcher `Bash\|PowerShell`, each with `"timeout": 30` |
+| ai-kit.json | Add the kit's `post_tool` section with its defaults when missing, never overwriting a project value; `commands.lint_file` must be set and contain `{files}`, else lint after edit stays off |
+| Verify | One Edit of a code file, then one shell call: a lint finding (or none) arrives with the second call; `.ai-kit/runs/_hooks/errors.log` is absent or empty |

@@ -3,21 +3,27 @@
 an agent_id (a subagent), so the main thread is never blocked.
 
 Denies the command shapes that left orphan processes or destroyed sibling work (heredocs, stdin interpreters, shell writes, kills by name,
-git commands that rewrite the shared tree). Exit 2 with the reason and the allowed way on stderr blocks the call. Fails open on any
+git commands that rewrite the shared tree). A shell redirect, `cat >` or `tee` is denied only when its target is under the repository's
+source folders (ai-kit.json source_dirs) or docs/. Exit 2 with the reason and the allowed way on stderr blocks the call. Fails open on any
 unreadable input or internal error.
 """
 import json
+import os
 import re
 import sys
+from pathlib import Path
 
 B = r"(?:^|[\s;&|(/\\'\"])"
 INTERP = r"(?:python[\d.]*|py|node|perl|ruby|bash|sh)(?:\.exe)?"
 GIT = B + r"git(?:\.exe)?(?:\s+(?:-[Cc]\s+\S+|-c\s+\S+|--\S+))*\s+"
 WRAPPER = re.compile(B + r"(?:bash|sh|zsh|pwsh|powershell|cmd)(?:\.exe)?\s+(?:-\S+\s+)*(?:-c|-Command|/c)\s", re.I)
-CODE_TARGET = re.compile(r"\.(?:py|jsx?|tsx?|mjs|cjs|json|ya?ml|sh|css|scss|html?|md|rst|sql|toml|java|go|rs|rb|php|cs|kt|vue|svelte|cpp|c|h)$", re.I)
 REDIRECT = re.compile(r"(?<![-=>\d&<])>>?[ \t]*([^\s;&|)<>]+)")
+QUOTED_REDIRECT = re.compile(r"(?<![-=>\d&<])>>?[ \t]*([\"'])([^\"'\n]+)\1")
+TEE = re.compile(r"(?:^|[|;&(]\s*)tee\b([^;&|\n]*)", re.M)
+DEFAULT_SOURCE_DIRS = ("src",)
 
 WRITE_WAY = "Create or change files with Edit and Write (to move code: scripts/gates.sh move <source> <start> <end> <destination>)."
+REDIRECT_WHY = "A shell redirect writes a source or doc file. " + WRITE_WAY
 RAW = [
     (re.compile(r"(?:^|[=(|;{,])[ \t]*@['\"][ \t\r]*$|^[ \t]*['\"]@[ \t\r]*$", re.M),
      "A PowerShell here-string breaks on quoting and leaks its delimiters. Write the text to a file with Write, then read the file."),
@@ -31,8 +37,6 @@ RULES = [
      "An interpreter reading its program from stdin hangs the call. Write the script to a file with Write and run python <file>, or use python -m <module> or python -c."),
     (re.compile(r"\|\s*(?:\S*[/\\])?" + INTERP + r"\s*(?:$|[;&|)])"),
      "Piping into a bare interpreter reads the program from stdin. Write the script to a file with Write and run python <file>, or use python -m <module>."),
-    (re.compile(B + r"cat\b[^;&|\n]*?(?<![\d&])>"), "cat with a redirect writes files by shell. " + WRITE_WAY),
-    (re.compile(r"(?:^|[|;&(]\s*)tee\b", re.M), "tee writes files by shell. " + WRITE_WAY),
     (re.compile(B + r"(?:Set-Content|Add-Content|Out-File)\b", re.I), "Set-Content, Add-Content and Out-File write files by shell. " + WRITE_WAY),
     (re.compile(B + r"sed\b[^;&|\n]*(?:\s-[A-Za-z]*i|--in-place)"), "sed -i edits files by shell. " + WRITE_WAY),
     (re.compile(B + r"taskkill(?:\.exe)?\b", re.I),
@@ -79,10 +83,40 @@ def strip_quoted(command):
     return "".join(out)
 
 
+def project_root():
+    return Path(os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd())
+
+
+def protected_dirs(root):
+    """The folders a shell write may not touch: ai-kit.json source_dirs and docs."""
+    try:
+        listed = json.loads((root / "ai-kit.json").read_text(encoding="utf-8")).get("source_dirs")
+    except (OSError, ValueError, AttributeError):
+        listed = None
+    dirs = [d for d in listed if isinstance(d, str)] if isinstance(listed, list) and listed else list(DEFAULT_SOURCE_DIRS)
+    return [d.replace("\\", "/").strip("/") for d in [*dirs, "docs"] if d.strip("/\\")]
+
+
+def under_protected(target, root):
+    path = target.strip("'\"").replace("\\", "/")
+    if re.match(r"^(?:[A-Za-z]:)?/", path):
+        base = str(root).replace("\\", "/").rstrip("/") + "/"
+        if not path.lower().startswith(base.lower()):
+            return False
+        path = path[len(base):]
+    while path.startswith("./"):
+        path = path[2:]
+    return any(path == d or path.startswith(d + "/") for d in protected_dirs(root))
+
+
 def redirect_reason(text):
+    root = project_root()
     for target in REDIRECT.findall(text):
-        if CODE_TARGET.search(target.rstrip("'\"")):
-            return "A shell redirect writes a source or doc file. " + WRITE_WAY
+        if under_protected(target, root):
+            return REDIRECT_WHY
+    for args in TEE.findall(text):
+        if any(under_protected(a, root) for a in args.split() if not a.startswith("-")):
+            return "tee writes a source or doc file by shell. " + WRITE_WAY
     return None
 
 
@@ -93,6 +127,9 @@ def blocked_reason(command):
     text = strip_quoted(command)
     if HEREDOC[0].search(text):
         return HEREDOC[1]
+    for _, target in QUOTED_REDIRECT.findall(command):
+        if under_protected(target, project_root()):
+            return REDIRECT_WHY
     scans = [(text, range(len(RULES)))]
     if WRAPPER.search(command):
         if HEREDOC[0].search(command):

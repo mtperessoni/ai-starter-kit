@@ -2,6 +2,49 @@
 
 User-visible changes to the kit, newest first. Projects receive them through `/ai-kit update`.
 
+## Global block: no stall in subagents, one retry for proxied output
+
+- `global/CLAUDE.md` opens with the scope of the rules that ask for the user's yes, a report or a question: they bind the main thread; a subagent returns the decision as a gap instead of waiting.
+- `rtk`: an output that looks cut or wrong is rerun once with `rtk proxy` or replaced by the Grep and Read tools, never retried as is (CR17).
+- `scripts/gates.sh reap` where it exists, otherwise the agent stops its own process by PID; the checkpoint is at about 150k tokens, the post-tool hook's number (CR11).
+
+## Slimmer prd-flow gate and flow (K4b)
+
+`gate.py` keeps G0, G1 and G8 as errors, G15 and G22 under `--change`, G23 and G28 as warnings, D4 and P17 as warnings, G5, G29 and G32 only under `--html`. Removed: G2, G3, G9, G11, G12, G14, G16 to G21, G24 to G27, G30, G31, Q1 to Q5, S0 to S6, P1 to P10, and the modes `--pack`, `--rules`, `--sheet`, `--trace`, `--final`, `--snapshot`, `--fix`; modules `gate_interview.py`, `gate_budget.py`, `gate_remote.py`, `gen_index.py`, `prd_sweep.py`. G4 (em dash) moves to the stack linter recipe. `gate_rules.py` and `state_record.py` stay trimmed because `promote.py` (size L archive, no longer runs `--final`) still reads them. Config keys `forbid_em_dash`, `pack_budget_lines`, `plan_budget_kb` are gone. prd-flow: the surveyor runs only for rule changes (`full`, `short`), the chief may run gates and git, one return format, a task is one line, no deliveries ledger, `Self-check:`, `Red:`, dispatch ledger or `state.md` sections of other agents; the executor has no grep-all-docs step and no hard-coded runner; `prd-flow-docs` runs on sonnet. `scripts/close_gate.py` must drop its `docs --final` step.
+
+## Read before edit, done means stop
+
+Audit of 2026-10-15 (`eval/audit-2026-10-15-paper/FINDINGS.md`): 409 edits were refused in two days, 93% of them after the agent had read the file with `cat`, `sed` or `grep`, which the harness does not count as a read; failing test streaks reached 4 to 6; 10 to 18% of executor calls came after the last product edit. Rules: CR23 (new), CR08 and CR16 (amended).
+
+- `global/CLAUDE.md` "Editing": read with the Read tool before editing, batch independent reads, one pass of changes per file, Write the whole file after a full Read when most of it changes.
+- `global/CLAUDE.md` "Executing" and "Tests": a subagent prompt carries the done condition and the agent stops verifying there; a test that fails the same way twice is reported as a gap.
+- `prd-flow-docs` runs on sonnet (CR09); the surveyor keeps opus for conflict judgment.
+## Core rules, slice K4a: the per-commit gates of the scripts and templates are gone
+
+The core rules (CR01 to CR22, [rules/core.md](rules/core.md)) made these gates unnecessary; each cost work on every commit or task and none prevented a measured defect (`proposals/audit-rules-cost-2026-10-14.md` section 5). The prd-flow skill and agents are a separate slice. Rule: MAINTAINING M09 and M14.
+
+- Ratchet: `duplicate_names`, `crowded_dirs`, `no_prd_id`, `long_feature_maps` and `invariant_gaps` are deleted, and so are the `limits.feature_map_lines`, `limits.id_header_lines`, `limits.files_per_dir` and `id_pattern` keys. The allowlist is a list of files per check, not counts: a file may change size; a listed file that no longer violates only warns. `banned_names`, `long_modules`, `long_tests`, `no_feature_map`, `generated_without_marker` and `skill_md_bytes` stay.
+- `scripts/commit_trailers.py`, `gates.sh trailers` and the CI trailers job are deleted; `gates.sh red`, `watch`, `prd-sweep`, `settings-check` and `context` are deleted; `gates.sh close` runs lint, the docs gate and the compare result (no trailers, no retro; `gates.sh retro` still runs on request).
+- Guard hook: a redirect, `cat >` or `tee` is denied only when its target is under `source_dirs` of `ai-kit.json` or `docs/`; git-destructive, stdin interpreter, heredoc and kill-by-name denials are unchanged.
+- `verify.py`: the default ref finds `changes/<slug>/plan.md` as well as `changes/NNN-<slug>/plan.md` (a slug without a number was never matched).
+- Templates: `docs/code-structure.md` AR02 without name uniqueness, AR06 without the ID header, AR07 without the per-commit map duty, AR23 as review, AR24 parameters 7, AR03 class limit exempts declarative classes; `AGENTS.md` and the constitution drop the trailer, `Request:`, `Assumed:`, `Red:`, `Rules:` and promote duties and the "Every module and test cites" line. Stack recipes: `max-params` 7 and one per-test timeout config line each. MAINTAINING M09 extended.
+
+On update: run "Migration to the core rules gates" of `/ai-kit update` (U6k): drop the removed allowlist keys, turn counts into file lists, delete the trailers job from `ci.yml` and the three deleted scripts.
+
+## Preamble diet and its meter
+
+Audit of 2026-10-15 (`eval/audit-2026-10-15-paper/FINDINGS.md` H01): every session started at about 83k tokens and every subagent at about 55k before doing anything, about a third of all tokens processed. The template `CLAUDE.md` and `AGENTS.md` said the same rules twice. Rule: CE18 (amended).
+
+- Template `CLAUDE.md` keeps the project line, the constitution index, the product rules flow and `@AGENTS.md`; template `AGENTS.md` has one "Working rules" section and the code structure, with no sentence repeated. Together 10.6 KB instead of 17.0 KB.
+- New `scripts/preamble.py` and `scripts/gates.sh preamble`: the fixed context by part (repository instructions with their imports, agent and skill descriptions, the user's global file, the memory index) against the new `ai-kit.json` `preamble` budgets; the doctor reports each part over budget.
+- `/ai-kit update` gains a "Preamble diet" step: one home per rule, daily commands only, short agent and skill descriptions, large task-specific sections moved to `docs/`.
+## Post-tool hook: lint after edit, failing streak, checkpoint
+
+Audit of 2026-10-15 (`eval/audit-2026-10-15-paper/FINDINGS.md` H02, H06, H08): lint was a manual call, failing test streaks reached 4 to 6, orchestrators ran at 216k to 667k context. The paper's harness puts post-edit diagnostics and stuck detection inside the loop. Rule: TM18 (new).
+
+- New `scripts/post_tool_hook.py`, registered in `.claude/settings.json` on `PostToolUse` and `PostToolUseFailure`. It never blocks; it adds text next to the tool result: the lint findings of an edited code file (`commands.lint_file`), a warning at 3 consecutive failing test runs of one agent and a hand-back at 5, and one checkpoint per session when the main thread passes 150k tokens.
+- New `ai-kit.json` `post_tool` section (`lint_after_edit`, `lint_timeout_s`, `streak_warn`, `streak_stop`, `checkpoint_tokens`); the doctor checks the registration and the hook's error log.
+
 ## Core rules: one slice per delivery, fewer and clearer rules
 
 Run of 2026-10-14 (LS35): a widened scope with no estimate ran 3 hours of execution with 19 subagents and no PR; about 40% of the calls were re-orienting, every lane left leftovers that became new lanes, and three High findings were design gaps found after the code. The rules that would have stopped it existed but were buried among 434 IDs. Rule: [rules/core.md](rules/core.md) (CR01 to CR22) is the set in force and wins over the domain files; MAINTAINING M14 keeps it small.

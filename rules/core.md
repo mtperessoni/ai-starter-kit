@@ -6,6 +6,8 @@ Why: in clara-ai change 013 (2026-10-14) the process was most of the work. 19 su
 
 Home: the always-loaded text is `global/CLAUDE.md`; the template `CLAUDE.md` and `AGENTS.md` repeat only what a repository needs. A new rule enters here only with a measured defect it prevents (MAINTAINING M14).
 
+Scope: a rule that asks for the user's yes, a report to the user or a question binds the main thread. The global block loads in subagents too, and a subagent cannot ask; it follows its prompt and returns the decision as a gap (audit 2026-10-15: subagents stalled or handed back asking for an approval only the main thread could get).
+
 ## Scope and slicing
 
 | ID | Rule | Why | Replaces |
@@ -22,10 +24,10 @@ Home: the always-loaded text is `global/CLAUDE.md`; the template `CLAUDE.md` and
 | ID | Rule | Why | Replaces |
 |---|---|---|---|
 | CR07 | The session that executes a slice writes the code itself; subagents only for the final review, a truly independent slice (own worktree, at most 2 executors), or heavy reading kept out of the main context | Each cold agent rereads the same documents; the only clean parts of run 013 were single-owner ones | SA13, SA36, SA53, SA63 |
-| CR08 | A subagent prompt carries the goal, the acceptance items and at most about 5 paths; it returns at most 15 lines (done, files, tests, gaps, minutes) and never opens a subagent | Bounded input and output | SA04, SA06, SA12, SA22, SA37, SA45 |
+| CR08 | A subagent prompt carries the goal, the acceptance items, the done condition (which tests pass) and at most about 5 paths; at the done condition it stops verifying; it returns at most 15 lines (done, files, tests, gaps, minutes) and never opens a subagent | Bounded input and output; 10 to 18% of executor calls came after the last product edit (audit 2026-10-15 H09; paper P4: a plan cuts cost by trimming post-edit verification) | SA04, SA06, SA12, SA22, SA37, SA45 |
 | CR09 | `model` on every dispatch: sonnet by default, opus with a one-line reason | 47% of subagent turns ran on Opus by inheritance (FINDINGS F11) | SA14, SA33 |
 | CR10 | Cadence: a running total of minutes against the estimate; report and stop at each slice end and at 1.5 times the estimate; no lane for leftovers without the user; an agent past about 150k tokens hands back | Agent returns carried 37 to 53 minutes each and nobody summed them | SA15, SA16, SA19, SA48 |
-| CR11 | One phase per session for size L; checkpoint past about 120k tokens | Long orchestrator contexts are resent on every call | SA41, SA61 |
+| CR11 | One phase per session for size L; checkpoint past about 150k tokens (the post-tool hook's `checkpoint_tokens`) | Long orchestrator contexts are resent on every call | SA41, SA61 |
 | CR12 | Long commands in the foreground with a timeout under 600 s in a subagent; background only from the main thread; no polling; never kill by image name | Orphans and polling were measured before (LS32) | SA54, SA57, TS34 |
 | CR13 | In a shared tree no `stash`, `reset`, `checkout`, `restore`, `commit --amend`; commit messages through a file | Lost sibling work (SA53) | SA53, WF78 |
 
@@ -35,8 +37,8 @@ Home: the always-loaded text is `global/CLAUDE.md`; the template `CLAUDE.md` and
 |---|---|---|---|
 | CR14 | Failing test first; unit tests offline with fakes and a per-test timeout | A hanging test held run 013 for over 500 s | TS01, TS11, TS12 |
 | CR15 | Before handing back, run the slice's tests and the tests that import the files it touched; the full suite once per delivery against a baseline | "Only your own new test" let cross-lane breakage surface hours later | TS02 to TS05, TS43, global "Tests" |
-| CR16 | Never loosen a safety assertion or regenerate a snapshot to get green; an unrelated failure is reported | Agents edited tests to get green (FINDINGS F09) | TS05, TS09, TS39 |
-| CR17 | Output to a file, failures and summary only; `rtk proxy` for runners, linters and any parsed output | `rtk` rewrote git and grep output inside command substitutions | SA25, CE notes |
+| CR16 | Never loosen a safety assertion or regenerate a snapshot to get green; an unrelated failure is reported; a test that fails the same way twice in a row is reported as a gap, not retried | Agents edited tests to get green (FINDINGS F09); failing streaks of 4 to 6 ran past SA30 (audit 2026-10-15 H06) | TS05, TS09, TS39, SA30 |
+| CR17 | Output to a file, failures and summary only; `rtk proxy` for runners, linters and any parsed output; an output that looks cut or wrong is rerun once with `rtk proxy` or replaced by the Grep and Read tools, never retried as is | `rtk` rewrote git and grep output inside command substitutions; on 2026-10-15 it truncated grep lines and turned `git diff` inside `$(...)` into `git rtk`, and each case cost a retry | SA25, CE notes |
 
 ## Docs and review
 
@@ -48,6 +50,14 @@ Home: the always-loaded text is `global/CLAUDE.md`; the template `CLAUDE.md` and
 | CR21 | Critical and High fixed and rechecked on the fix diff; Medium and Low ride along; at most 5 rounds; a worse round or an open Critical at round 5 stops | Bounded review | RV01 to RV07, WF82 |
 | CR22 | Safety nets change only with the user's explicit yes, never inside a task, a fix or a test edit | Run 013 put unit context into the alarm classifier for every session without a flag | WF12, WF13, RV06 |
 
+## Editing
+
+| ID | Rule | Why | Replaces |
+|---|---|---|---|
+| CR23 | Read a file with the Read tool before editing it (a shell read does not satisfy the harness); batch independent reads in one message; make every change a file needs in one pass, and Write the whole file after a full Read when most of it changes | 409 edits refused in two days, 93% of them after a `cat`, `sed` or `grep` of the same file; 4.1 edits per product file per session (audit 2026-10-15 H03, H04; paper P5: coarser actions cost less for strong models) | SA51, CE02 |
+
 ## Pending (next PRs)
 
 The per-commit gates that these rules make unnecessary are removed in the following PRs, not here: exact-count and uniqueness checks of the ratchet, per-edge import allowlists, module ID headers, commit trailers, the docs-gate bookkeeping codes, and the prd-flow card and sheet format checks (`proposals/audit-rules-cost-2026-10-14.md` section 5). Until then they still run.
+
+Removed by slice K4a (scripts and templates): the ratchet checks `duplicate_names`, `crowded_dirs`, `no_prd_id`, `long_feature_maps`, `invariant_gaps` and every count in the allowlist (file lists now, a stale entry warns); `commit_trailers.py`, `gates.sh trailers` and the CI trailers job; the targets `red`, `watch`, `prd-sweep`, `settings-check` and `context`, and `trailers` and `retro` inside `close`; the guard hook's redirect, `tee` and `cat >` denial outside the source and docs folders; the template duties for ID headers, per-commit maps, trailers and promote. Still pending: the prd-flow skill and agent rows.

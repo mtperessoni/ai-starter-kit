@@ -8,14 +8,14 @@ Techniques that make a repository cheap for an agent to work in. Used by `trd-cr
 | CE22 | Search noise excluded and reads denied | yes | install, doctor | `.ignore`, `.claude/settings.json` |
 | AR28 | Generated files marked, never edited | yes | ratchet | `generated_patterns` |
 | AR22 | Greppable wiring | yes | review, linter | area TRD |
-| AR02 | Unique descriptive file names | yes | ratchet | `docs/code-structure.md` |
-| AR06 | PRD IDs in first comment of module and test | yes | ratchet | code, tests |
+| AR02 | Descriptive file names, no generic ones | yes | ratchet | `docs/code-structure.md` |
+| AR06 | Rule locations found through the TRD and the ID | no | review | `docs/trd/` |
 
 ## Size and single responsibility
 | IDs | Technique | Any layout | Checked by | Where |
 |---|---|---|---|---|
 | AR03 | Size limits | yes | ratchet, linter | `ai-kit.json` limits |
-| AR23 | Folders under the file cap | yes | ratchet | `crowded_dirs` |
+| AR23 | Folders under the file cap | no | review | folders |
 | AR21 | Extract before changing a long file | yes | ratchet, review | legacy areas |
 | AR24 | Complexity limits | yes | linter | recipe |
 | AR25, AR26 | Dead and duplicated code | yes | linter | recipe |

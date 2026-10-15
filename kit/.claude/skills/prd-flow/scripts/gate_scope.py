@@ -1,12 +1,10 @@
-"""Scope of one change for the final gate (G19 to G21), its snapshot of older drift, and the --docs cache."""
+"""The --docs cache and the plan lookup of one change."""
 
 import hashlib
 import json
-import re
 from pathlib import Path
 
-from gate_core import ROW, errors, git, literal_rows, notes, warnings
-from state_record import approved_text
+from gate_core import errors, git, notes, warnings
 
 STATE = ".claude/prd-flow/state"
 
@@ -19,45 +17,8 @@ def state_dir(root: Path, slug: str) -> Path:
     return root / STATE / slug
 
 
-def approved_scope(root: Path, slug: str) -> set[str]:
-    text = approved_text(state_dir(root, slug))
-    if text is None:
-        return set()
-    ids = set()
-    for _, line in literal_rows(text):
-        m = ROW.match(line)
-        if m:
-            ids.add(m.group(1))
-    return ids
-
-
 def is_change_folder(name: str, slug: str) -> bool:
     return name == slug or name.endswith("-" + slug)
-
-
-def heading_of_change(heading: str, slug: str) -> bool:
-    return re.search(r"\(\s*" + re.escape(slug), heading) is not None
-
-
-def snapshot_path(root: Path, slug: str) -> Path:
-    return state_dir(root, slug) / "final-snapshot.json"
-
-
-def read_snapshot(root: Path, slug: str) -> set[str]:
-    path = snapshot_path(root, slug)
-    if not path.exists():
-        return set()
-    try:
-        return set(json.loads(path.read_text(encoding="utf-8")))
-    except (OSError, ValueError):
-        return set()
-
-
-def write_snapshot(root: Path, slug: str, keys: set[str]) -> Path:
-    path = snapshot_path(root, slug)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(sorted(keys), indent=2) + "\n", encoding="utf-8", newline="\n")
-    return path
 
 
 def code_state(root: Path) -> str:

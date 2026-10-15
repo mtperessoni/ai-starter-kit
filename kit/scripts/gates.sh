@@ -12,7 +12,6 @@ export PYTHONUTF8=1
 cd "$(git rev-parse --show-toplevel)"
 LOG_DIR=".claude/prd-flow/state/_tests"
 GATE_PY=".claude/skills/prd-flow/scripts/gate.py"
-SWEEP_PY=".claude/skills/prd-flow/scripts/prd_sweep.py"
 
 usage() {
     cat >&2 <<'USAGE'
@@ -20,7 +19,6 @@ usage: scripts/gates.sh <target> [args]
 
   related [files]  the ratchet, then the tests related to the change (mirror + importers)
   one <file>       one test file, offline, no coverage threshold
-  red <test>       one test, offline, expected to fail: prints "Red: <exit code>" (exit 0 only when it failed)
   offline          the whole unit tier with NO network and NO database: once, at the end
   integration      the integration tier (needs Docker): guards first; on exit, even a failed or
                    interrupted one: sweep, build cache bounded, old task outputs deleted
@@ -29,7 +27,6 @@ usage: scripts/gates.sh <target> [args]
   guard            disk, image-cap and Docker disk file guards (guard-disk, guard-images run one each)
   sweep            remove this repo's test containers, volumes and networks older than
                    DOCKER_STALE_MINUTES (60): what a killed run left behind
-  prd-sweep [args] the prd-flow sweep of conflicts and impact across every PRD (prd_sweep.py); exit 2 when the script is missing
   docker-clean     remove labelled leftovers of any age and report unlabelled images (never touches those)
   clean-outputs    delete Claude Code task outputs older than 2 days or over 200 MB (any over 500 MB, in any project)
   baseline <slug> [--bg] [--commit REF]
@@ -51,9 +48,6 @@ usage: scripts/gates.sh <target> [args]
                    reap, delete this project's idle task outputs and loose files in .ai-kit/runs/, move state folders untouched for
                    7 days to state/_stale/, purge _stale/ after 14 days and _tests/_gate caches after 3; --session-end: reap and
                    task outputs only; at most 8 lines ending with "left: 0" or the survivors; exit 1 on a survivor
-  watch <slug> [--minutes N]
-                   the one bounded waiter per wave (default 30 min), run in the background by the chief: prints "stuck: <id> <type>
-                   idle <n> min", "deadline: <ids>" or "done: no agent running"
   python           print the resolved interpreter (the one every target uses)
   lint             verify lint, format and types, as CI does; one line: lint ok, or lint FAILED (exit N), log <path>
   fix              repair lint and format; same one-line result (then run lint)
@@ -61,20 +55,18 @@ usage: scripts/gates.sh <target> [args]
   lint-files <file>...  lint only those files (commands.lint_file with {files}, in chunks); unset runs lint with a note
   move <source> <start> <end> <destination> [--at LINE]
                    move lines by script (scripts/move_lines.py, same arguments), never retyped
-  settings-check   .claude/settings*.json deny rules that block files the flow writes (docs/prd, docs/trd, changes, state); exit 1 with the lines
   imports          the import check (catches cycles); same one-line result
   ratchet          structure ratchet (docs/code-structure.md)
   docs [slug|args] the prd-flow docs gate; a slug runs every check of the change in one process (gate.py --docs)
   html [args]      rebuild the PRD and TRD HTML pages (build_prd_html.py, build_trd_html.py); --check verifies both
   close [slug] [--case C2..C6]
-                   the closing ceremony in one block (retro findings and failure lines included): lint, trailers, docs --final, then the
-                   compare result against the baseline (read once, never run inline), retro; full log, written per step, in
+                   the closing ceremony in one block (failure lines included): lint, the docs gate of the slug, then the compare result against
+                   the baseline (read once, never run inline); full log, written per step, in
                    .claude/prd-flow/state/_close/<slug>.log; exit 1 on a failure; --case C4 skips the compare and baseline steps
-  trailers [range] commits touching the source folders carry Rules: or Case: none (default origin/<base>..HEAD)
-  context <name>   name the run context (.ai-kit/runs/current) for the telemetry
   retro [args]     the run retrospective (scripts/retro.py): --context <name>, --prune
   setup            make a fresh clone or worktree ready to test (commands.setup)
   hotspots [args]  code files ranked by commits x lines: what the readiness plan splits first
+  preamble [args]  the fixed context every session and subagent loads, by part, against ai-kit.json "preamble" (--strict)
   contracts        schema and API snapshots (ai-kit.json "contracts") still match the code
 
 The interpreter is resolved once: GATES_PYTHON, then commands.python in ai-kit.json, then python3 and python on PATH;
@@ -273,15 +265,6 @@ related)
 one)
     offline_sh one "$(cmd test) $(cmd offline_args) $(cmd no_coverage_args)" "$@"
     ;;
-red)
-    [ $# -ge 1 ] || { echo "usage: gates.sh red <test>" >&2; exit 2; }
-    red_log="$LOG_DIR/red.log"
-    red_code=0
-    offline_sh red "$(cmd test) $(cmd offline_args) $(cmd no_coverage_args)" "$@" > "$red_log" 2>&1 || red_code=$?
-    echo "Red: $red_code"
-    echo "log: $red_log"
-    [ "$red_code" -ne 0 ]
-    ;;
 offline)
     offline_sh offline "$(cmd test) $(cmd offline_args)" "$@"
     ;;
@@ -305,10 +288,6 @@ guard)
     ;;
 sweep)
     sweep
-    ;;
-prd-sweep)
-    [ -f "$SWEEP_PY" ] || { echo "gates.sh: $SWEEP_PY is missing" >&2; exit 2; }
-    "$PY" "$SWEEP_PY" "$@"
     ;;
 guard-disk)
     guard_disk
@@ -345,10 +324,6 @@ reap)
     ;;
 cleanup)
     "$PY" scripts/cleanup.py "$@"
-    ;;
-watch)
-    [ $# -ge 1 ] || { echo "usage: gates.sh watch <slug> [--minutes N] [--since <epoch>]" >&2; exit 2; }
-    "$PY" scripts/watch.py "$@"
     ;;
 python)
     echo "$PY"
@@ -421,19 +396,11 @@ lint-files)
 move)
     "$PY" scripts/move_lines.py "$@"
     ;;
-settings-check)
-    "$PY" scripts/settings_check.py "$@"
-    ;;
 imports)
     checked imports "$(cmd import_check)"
     ;;
 ratchet)
     "$PY" scripts/ratchet.py "$@"
-    ;;
-context)
-    name="${1:?usage: gates.sh context <name>}"
-    mkdir -p .ai-kit/runs
-    printf '%s\n' "$name" > .ai-kit/runs/current
     ;;
 retro)
     "$PY" scripts/retro.py "$@"
@@ -461,11 +428,11 @@ setup)
     esac
     bash -c "$setup_cmd"
     ;;
-trailers)
-    "$PY" scripts/commit_trailers.py "$@"
-    ;;
 hotspots)
     "$PY" scripts/hotspots.py "$@"
+    ;;
+preamble)
+    "$PY" scripts/preamble.py "$@"
     ;;
 contracts)
     "$PY" scripts/contract_drift.py

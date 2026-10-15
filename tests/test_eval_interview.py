@@ -233,7 +233,7 @@ class ScenarioTest(unittest.TestCase):
         self.assertRegex(t, r"(?m)^A\d: ")
         self.assertRegex(t, r"(?m)^scope: ")
         self.assertRegex(t, r"(?i)not sure")
-        self.assertNotIn("—", t)
+        self.assertNotIn(chr(0x2014), t)
 
     def test_arms_file_runs_s12(self):
         cfg = json.loads((ROOT / "eval" / "arms-sheet.json").read_text(encoding="utf-8"))

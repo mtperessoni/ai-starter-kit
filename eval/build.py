@@ -38,7 +38,7 @@ SCANNED = (
     "docs/flow.md", "docs/prd/", "docs/trd/",
 )
 SYNTAX_TOKENS = {
-    "ID", "f", "feature", "file", "slug", "source", "start", "end", "destination", "path", "module",
+    "ID", "f", "feature", "file", "slug", "source", "start", "end", "destination", "dest", "IDs", "path", "module",
     "owner", "approver", "subject", "responsibility", "paths from its TRD file", "prd", "NNN-slug", "area", "area folder",
 }
 PLACEHOLDER = re.compile(r"(?<!\$)\{\{[^}\n]*\}\}|<([^<>\n]{2,})>")

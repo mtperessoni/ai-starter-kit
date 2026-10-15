@@ -1,4 +1,4 @@
-"""--step plan: waves, critical path (printed, never counted) and P7, P8, P9 from the Owns and Depends on of each task."""
+"""--step plan: waves and critical path (printed, never counted) and P17 from the Owns and Depends on of each task."""
 
 import re
 from fnmatch import fnmatchcase
@@ -7,7 +7,6 @@ from pathlib import Path
 from gate_core import TASK, err, notes, warn
 
 WAVE_SIZE = 4
-DOC_PATH = re.compile(r"\b(?:docs|changes)/[\w./-]+")
 PATH_TOKEN = re.compile(r"[\w./-]+\.\w+")
 SHARED_NAMES = ("ai-kit.json",)
 LABEL = re.compile(r"(?i)\b(creat\w*|consum\w*)\s*:?")
@@ -59,27 +58,11 @@ def parse(text: str) -> dict[str, dict]:
         tasks[tid] = {
             "owns": owned(block),
             "deps": re.findall(r"\bT\d+[a-z]?\b", field(block, "Depends on")),
-            "promote": bool(re.match(r"[^\n]*·\s*Promote", block)),
             "creates": created(block),
         }
         mentioned = {p.rstrip(".,;:)") for p in PATH_TOKEN.findall(tasks[tid]["creates"])}
         tasks[tid]["touches"] = {*tasks[tid]["owns"], *mentioned}
     return tasks
-
-
-def shares(a: str, b: str) -> bool:
-    """Whether two owned paths or globs can cover the same file: segment by segment, `**` matches any depth."""
-    sa, sb = a.split("/"), b.split("/")
-    for x, y in zip(sa, sb, strict=False):
-        if x == "**" or y == "**":
-            return True
-        if not (fnmatchcase(y, x) or fnmatchcase(x, y)):
-            return False
-    return True
-
-
-def area(paths: list[str]) -> frozenset[str]:
-    return frozenset("/".join(p.split("/")[:-1][:3]) or p for p in paths)
 
 
 def depth(tasks: dict[str, dict]) -> dict[str, int]:
@@ -124,41 +107,16 @@ def check_waves(path: Path, cfg: dict[str, str] | None = None) -> None:
     flag = err if (cfg or {}).get("plan_strict", "no").strip().lower() in {"yes", "true", "on"} else warn
     extra = [e.strip() for e in (cfg or {}).get("shared_files", "").split(",") if e.strip()]
     tasks = parse(path.read_text(encoding="utf-8"))
-    if not tasks:
-        return
-    unknown = False
-    for tid, task in tasks.items():
-        for dep in task["deps"]:
-            if dep not in tasks:
-                unknown = True
-                err("P1", f"{tid} depends on {dep}, which is not a task of the plan", "correct the Depends on: line")
-    if unknown:
+    if not tasks or any(dep not in tasks for task in tasks.values() for dep in task["deps"]):
         return
     down = depth(tasks)
     critical = critical_path(tasks, down)
     waves = make_waves(tasks, down, critical)
     if waves is None:
-        err("P1", "the Depends on: lines of the plan form a cycle", "break the cycle so tasks can be ordered")
         return
     for n, wave in enumerate(waves, 1):
         notes.append(f"WAVE {n}: {', '.join(wave)}")
-        for i, a in enumerate(wave):
-            for b in wave[i + 1:]:
-                clash = [(x, y) for x in tasks[a]["owns"] for y in tasks[b]["owns"] if shares(x, y)]
-                if clash:
-                    err("P7", f"{a} and {b} are in WAVE {n} and both own {clash[0][0]}")
         if len(wave) > 1:
             for a, b, x in shared_clashes(wave, tasks, extra):
                 flag("P17", f"{a} and {b} are in WAVE {n} and both touch the shared file {x}; give the shared file one owner per wave: one task edits it, the other depends on that task")
     notes.append(f"CRITICAL PATH: {' > '.join(critical)}")
-    for tid, task in tasks.items():
-        if task["promote"]:
-            continue
-        for rel in sorted({p.rstrip(".,;:)") for p in DOC_PATH.findall(task["creates"])}):
-            if not any(shares(rel.rstrip("/"), o) for o in task["owns"]):
-                err("P9", f"{tid} touches {rel} and does not own it")
-        if len(task["deps"]) == 1 and task["deps"][0] in tasks:
-            prev = tasks[task["deps"][0]]
-            alone = sum(1 for t in tasks.values() if task["deps"][0] in t["deps"]) == 1
-            if alone and not prev["promote"] and task["owns"] and area(task["owns"]) == area(prev["owns"]):
-                warn("P8", f"{tid} follows {task['deps'][0]} serially in the same area; merge them into one task")

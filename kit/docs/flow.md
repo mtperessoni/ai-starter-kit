@@ -20,6 +20,6 @@ flowchart LR
     C --> V[Verify: gate and tests]
 ```
 
-The rows land in the PRD in the commit of the task that implements them. The commit body is the record (`Request:`, `Decided:`, `Assumed:`, `Red:`, then `Rules:`). There is no docs agent apply, no promote and no TRD Planned section; `docs/prd/CHANGELOG.md` is frozen and `gate.py --history <ID>` shows the history of a rule. Size L adds `plan.md` (waves) and `decisions.md`.
+The rows land in the PRD in the commit of the task that implements them. The commit body is the record (one `Decided:` line per decision with the rejected option, then `Rules: <IDs>`). There is no docs agent apply, no promote and no TRD Planned section; `docs/prd/CHANGELOG.md` is frozen and `gate.py --history <ID>` shows the history of a rule. Size L adds `plan.md` (waves) and `decisions.md`.
 
 Legend: rounded nodes are external actors or systems; rectangles are features (`docs/trd/<feature>.md`); labeled edges are failure exits.

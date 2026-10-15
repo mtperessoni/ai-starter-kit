@@ -232,9 +232,10 @@ class PromoteTest(unittest.TestCase):
         r = self.promote()
         self.assertEqual(r.returncode, 0, r.stdout)
 
-    def test_it_runs_the_final_gate_and_prints_its_last_line(self) -> None:
+    def test_it_no_longer_runs_a_final_gate(self) -> None:
         r = self.promote()
-        self.assertIn("gate --final:", r.stdout)
+        self.assertNotIn("gate --final", r.stdout)
+        self.assertEqual(r.returncode, 0, r.stdout)
 
     def test_a_row_without_a_source_keeps_its_marker_and_fails_listing_the_id(self) -> None:
         (self.p.root / "docs/trd/orders.md").unlink()

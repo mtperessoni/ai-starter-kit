@@ -60,22 +60,25 @@ class RuleAsDataTest(unittest.TestCase):
 
     def test_executor_commit_body_is_the_record(self):
         ex = text(AGENTS / "prd-flow-executor.md") + text(SKILL / "reference" / "run.md")
-        for token in ("Request:", "Decided:", "Assumed:", "Red:", "gate.py --fix", "--history", "Rules:"):
+        for token in ("Decided:", "(rejected:", "(assumed)", "--history", "Rules:"):
             self.assertIn(token, ex, token)
+        for token in ("Red:", "Request:", "Assumed:", "gate.py --fix", "Self-check", "deliveries/"):
+            self.assertNotIn(token, ex, token)
         self.assertIn("never an ID alone", ex)
 
     def test_executor_writes_rows_with_the_code(self):
         ex = text(AGENTS / "prd-flow-executor.md")
         self.assertIn("Becomes", ex)
         self.assertIn("same commit", ex)
-        self.assertRegex(ex, r"Grep[^\n]*old value|old value[^\n]*Grep")
+        self.assertNotRegex(ex, r"Grep[^\n]*old value|old value[^\n]*Grep")
 
     def test_executor_carries_cost_rules(self):
         ex = text(AGENTS / "prd-flow-executor.md")
         self.assertRegex(ex, r"at most 10 lines")
         self.assertRegex(ex, r"never `cat`")
         self.assertRegex(ex, r"8 Edits")
-        self.assertIn("tail -25", ex)
+        self.assertNotIn("vitest", ex)
+        self.assertIn("scripts/gates.sh one", ex)
         self.assertRegex(ex, r"never reread")
 
     def test_dispatch_names_executor_for_implementation(self):
@@ -86,7 +89,8 @@ class RuleAsDataTest(unittest.TestCase):
         s = text(AGENTS / "prd-flow-surveyor.md")
         self.assertNotRegex(s, r"base lint")
         self.assertNotIn("gates.sh setup", s)
-        self.assertRegex(s, r"never rereads? its own `sweep.md`")
+        self.assertNotIn("prd-sweep", s)
+        self.assertNotIn("sweep.md", s)
         sheet = text(SKILL / "reference" / "sheet.md")
         self.assertRegex(sheet, r"exact row text")
 

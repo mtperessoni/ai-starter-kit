@@ -105,9 +105,10 @@ class SelectionTest(unittest.TestCase):
         fake, _, _ = reap_with(table(stranger))
         self.assertEqual(fake.killed, [])
 
-    def test_gates_close_is_protected(self):
-        root = wrapper(500, "scripts/gates.sh close s1", age=90.0)
-        fake, _, _ = reap_with(table(root, proc(501, 500, "python -m pytest", age=90.0)))
+    def test_gates_close_is_protected_under_the_age_cap(self):
+        age = reap.PROTECTED_AGE_CAP_MINUTES - 1
+        root = wrapper(500, "scripts/gates.sh close s1", age=age)
+        fake, _, _ = reap_with(table(root, proc(501, 500, "python -m pytest", age=age)))
         self.assertEqual(fake.killed, [])
 
     def test_a_reused_parent_pid_does_not_shield_an_older_child(self):
@@ -183,8 +184,8 @@ class SelectionTest(unittest.TestCase):
                 fake, _, _ = reap_with(table(old))
                 self.assertEqual(fake.killed, [500])
 
-    def test_a_stdin_waiting_shell_is_killed_at_any_age_even_inside_a_protected_name(self):
-        waiting = wrapper(500, "python3 - <<'E'", age=1.0)
+    def test_a_stdin_waiting_shell_at_the_minimum_age_is_killed(self):
+        waiting = wrapper(500, "python3 - <<'E'", age=reap.STDIN_MIN_AGE)
         fake, _, _ = reap_with(table(waiting))
         self.assertEqual(fake.killed, [500])
 

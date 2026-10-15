@@ -86,5 +86,4 @@ Proposed when `repo.md` lists a sibling consumer and none is configured. Delete 
 ## Patterns that avoid rework
 
 - Mocks and patches target the module of the caller, not the definer nor a re-export (AR11).
-- Tests cite the PRD ID they prove (AR06).
 - A test that needs a real service goes behind the `eval` marker.

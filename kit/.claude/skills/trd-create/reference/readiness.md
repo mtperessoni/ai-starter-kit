@@ -12,8 +12,8 @@ AI readiness of an existing repository, in its current layout (PC11). Nothing mo
 | R05 | Maps per map folder (AR07): feature map or folder map, each linking the area TRDs (AR13) |
 | R06 | Noise exclusion (CE22, AR28): `.ignore`, read denies, generated markers, from `ai-kit.json` `ignore` and `generated_patterns` |
 | R07 | Big tests split before the code they prove; builders beside the tests (TS41) |
-| R08 | Names and IDs (AR02, AR06): generic names replaced by the responsibility, PRD IDs in the first comment of each module and test |
-| R09 | Crowded folders (AR23) split by area or responsibility; the ratchet starts from the current state and no wave raises an entry (X05 of `restructure.md`) |
+| R08 | Names (AR02): generic names replaced by the responsibility |
+| R09 | Crowded folders (AR23) split by area or responsibility; the linter and the ratchet start from the current file list and no wave adds a file to it (X05 of `restructure.md`) |
 | R10 | Contracts snapshot (DS30): schema and API snapshots in `contracts`, checked by `scripts/gates.sh contracts` |
 
 ## Waves
@@ -23,7 +23,7 @@ AI readiness of an existing repository, in its current layout (PC11). Nothing mo
 | 2 | Maps: folder maps for `map_dirs`, feature maps for own folders, area TRDs, patterns to copy (DS31) | gate, map length check |
 | 3 | Characterization tests for the top hotspots without tests (R03) | the new tests pass on unchanged code |
 | 4 | Hotspot splits by responsibility, by script (R04); big tests split (R07) | import check, types, lint, ratchet lowered |
-| 5 | Names, IDs and crowded folders (R08, R09), area by area | related tests per area, ratchet lowered |
+| 5 | Names and crowded folders (R08, R09), area by area | related tests per area, ratchet file list shorter |
 | 6 | Full suite once, against the baseline | `scripts/gates.sh compare <slug>` |
 
 ## Plan format

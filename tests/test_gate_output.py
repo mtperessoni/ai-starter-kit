@@ -34,28 +34,28 @@ class OutputTest(unittest.TestCase):
         self.assertNotIn("ERROR G23", r.stdout)
         self.assertIn("WARNING G23 earlier drift, outside this change: 1 finding(s) in 1 file(s), see " + ARTIFACT, full(self.p, r))
 
-    def test_a_changed_trd_file_keeps_its_errors(self) -> None:
+    def test_a_changed_trd_file_keeps_its_warnings(self) -> None:
         write(self.p.root, "docs/trd/new.md", BAD)
         r = self.p.py(GATE, "--step", "trd")
-        self.assertEqual(r.returncode, 1, r.stdout)
-        self.assertIn("ERROR G23 docs/trd/new.md", r.stdout)
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("WARNING G23 docs/trd/new.md", full(self.p, r))
         self.assertNotIn("docs/trd/old.md", r.stdout)
 
-    def test_plain_trd_reports_everything(self) -> None:
+    def test_plain_trd_reports_everything_as_warnings(self) -> None:
         r = self.p.py(GATE, "--trd")
-        self.assertEqual(r.returncode, 1, r.stdout)
-        self.assertIn("ERROR G23 docs/trd/old.md", r.stdout)
-        self.assertNotIn("earlier drift", r.stdout)
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("WARNING G23 docs/trd/old.md", full(self.p, r))
+        self.assertNotIn("earlier drift", full(self.p, r))
 
     def test_the_cap_and_the_artifact_keep_the_full_list(self) -> None:
-        write(self.p.root, "docs/trd/many.md", bad_rows(20))
+        write(self.p.root, "docs/trd/many.md", "# TRD\n\n" + "".join(f"The order rule ORD-{100 + i} lives here.\n" for i in range(20)))
         r = self.p.py(GATE, "--step", "trd")
         lines = r.stdout.splitlines()
-        self.assertEqual(sum(1 for x in lines if x.startswith("ERROR G23")), 15, r.stdout)
+        self.assertEqual(sum(1 for x in lines if x.startswith("ERROR G8")), 15, r.stdout)
         self.assertIn("... 5 more errors, see " + ARTIFACT, lines)
         self.assertRegex(lines[-1], r"^warnings: \d+ \(see " + re.escape(ARTIFACT) + r"\)$")
         full = (self.p.root / ARTIFACT).read_text(encoding="utf-8")
-        self.assertEqual(sum(1 for x in full.splitlines() if x.startswith("ERROR G23")), 20)
+        self.assertEqual(sum(1 for x in full.splitlines() if x.startswith("ERROR G8")), 20)
         self.assertIn("gate:20 error(s)", full)
 
     def test_an_unwritable_artifact_folder_does_not_fail_the_run(self) -> None:

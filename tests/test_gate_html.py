@@ -97,13 +97,6 @@ class GateHtmlPolicyTest(unittest.TestCase):
         r = self.p.py(GATE)
         self.assertNotIn("G4", r.stdout)
 
-    def test_default_run_em_dash_in_the_markdown_is_still_an_error(self) -> None:
-        section = self.p.root / "docs/prd/shop/05-orders.md"
-        section.write_text(section.read_text(encoding="utf-8") + f"\nA note {EM_DASH} here.\n", encoding="utf-8")
-        r = self.p.py(GATE)
-        self.assertEqual(r.returncode, 1)
-        self.assertIn("ERROR G4", r.stdout)
-
     def test_html_flag_generated_stale_page_is_an_error(self) -> None:
         self.builder()
         self.page("<p>stale</p>\n")
@@ -124,13 +117,6 @@ class GateHtmlPolicyTest(unittest.TestCase):
         self.page("<p>fresh</p>\n")
         r = self.p.py(GATE, "--html")
         self.assertEqual(r.returncode, 0, r.stdout)
-
-    def test_html_flag_scans_the_page_for_em_dash(self) -> None:
-        self.builder("def is_current(root, cfg):\n    return True\n")
-        self.page(f"<p>x {EM_DASH}</p>\n")
-        r = self.p.py(GATE, "--html")
-        self.assertEqual(r.returncode, 1, r.stdout)
-        self.assertIn("ERROR G4", r.stdout)
 
     def test_html_flag_hand_mode_is_an_error(self) -> None:
         self.mode("generated", "hand")
@@ -154,14 +140,6 @@ class GateHtmlPolicyTest(unittest.TestCase):
         r = self.p.py(GATE, "--html")
         self.assertEqual(r.returncode, 1, r.stdout)
         self.assertIn(f"ERROR G32 {TRD_PAGE} is out of date", r.stdout)
-
-    def test_html_flag_scans_the_trd_page_for_em_dash(self) -> None:
-        self.builder()
-        self.page("<p>fresh</p>\n")
-        (self.p.root / TRD_PAGE).write_text(f"<p>x {EM_DASH}</p>\n", encoding="utf-8")
-        r = self.p.py(GATE, "--html")
-        self.assertEqual(r.returncode, 1, r.stdout)
-        self.assertIn(f"ERROR G4 em dash in {TRD_PAGE}", r.stdout)
 
     def test_no_trd_readme_skips_g32(self) -> None:
         self.builder()

@@ -274,7 +274,7 @@ def prune(root: Path, keep_days: float, now: float | None = None) -> list[str]:
     archived = {d.name.split("-", 1)[-1] for d in (root / "changes" / "archive").iterdir()} | \
                {d.name for d in (root / "changes" / "archive").iterdir()} if (root / "changes" / "archive").is_dir() else set()
     for d in runs.iterdir():
-        if not d.is_dir():
+        if not d.is_dir() or d.name.startswith("_"):
             continue
         newest = max((p.stat().st_mtime for p in d.rglob("*") if p.is_file()), default=d.stat().st_mtime)
         if now - newest > keep_days * 86400 or d.name in archived:

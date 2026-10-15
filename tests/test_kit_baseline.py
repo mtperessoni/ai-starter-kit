@@ -265,18 +265,7 @@ class PythonResolverTest(GatesBase):
         self.assertNotIn("<<'PY'", text)
 
 
-class RedAndRelatedTest(GatesBase):
-    def test_red_prints_the_exit_code_of_a_failing_test(self) -> None:
-        r = self.gates("red", "tests/x.py::t", env={**self.env, "RUN_FAIL": "x::t"})
-        self.assertIn("Red: ", r.stdout)
-        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertEqual(self.runs()[0]["argv"][-1], "tests/x.py::t")
-
-    def test_red_on_a_passing_test_says_red_zero_and_fails(self) -> None:
-        r = self.gates("red", "tests/x.py::t")
-        self.assertIn("Red: 0", r.stdout)
-        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
-
+class RelatedTest(GatesBase):
     def test_related_arguments_are_never_interpreted_by_a_shell(self) -> None:
         marker = self.p.root / "PWNED"
         self.gates("related", f"src/x.py;touch {marker.name}", "src/a (1).py", "src/b[2].py")
