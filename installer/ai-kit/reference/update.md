@@ -111,7 +111,6 @@ Rule changes land in the PRD in the same commit as the code; the commit body is 
 | Open change folders | Left as they are; their `decisions.md` is a record and is never rewritten |
 | Verify | `python .claude/skills/prd-flow/scripts/gate.py --fix`, then `python .claude/skills/prd-flow/scripts/gate.py` and the project's docs gate |
 
-<<<<<<< HEAD
 ## Preamble diet
 Every session and subagent loads `CLAUDE.md`, its `@` imports, and the description of every agent and skill before its first action (CE18; audit of 2026-10-15: a third of all tokens). Run `scripts/gates.sh preamble` before and after; list first, then ask; apply only after yes. Project-owned files are shown as diffs.
 
@@ -122,6 +121,7 @@ Every session and subagent loads `CLAUDE.md`, its `@` imports, and the descripti
 | Sections that restate the template | "Testing while working", "Disk and container hygiene", "Run telemetry" and "Handing work to a subagent" become the template's "Working rules"; a project line the template does not have is kept under it |
 | Agent and skill descriptions | A project agent or skill whose `description` passes about 300 characters, or carries examples, is cut to one or two lines naming when to use it; the examples move into the body |
 | Large always-loaded sections | A project section over about 40 lines that only some tasks need (a spec workflow, an API reference) moves to a file under `docs/` that `AGENTS.md` names by path |
+| Script and budgets | Copy `scripts/preamble.py` (kit-owned, `ownership.md`); add the kit's `preamble` section to `ai-kit.json` with its default budgets when it is missing, never overwriting a project value |
 | Verify | `scripts/gates.sh preamble` again; report each part before and after |
 
 ## Migration to the core rules gates
