@@ -26,8 +26,8 @@
 | `.github/CODEOWNERS` | One line per owned PRD glob from "Rule owners" with the owner's handle; left commented when nobody owns a section |
 | Contract snapshots | When "Consumers in sibling repositories" lists a consumer, offer to configure `ai-kit.json` `contracts` (snapshot plus the command that prints its source); never configured silently |
 | PRD and TRD HTML | Never written by hand nor by prd-flow, prd-create or trd-create: after `/prd-create` and `/trd-create`, run `/docs-html` (builds both pages, then `gate.py --html`) |
-| `CLAUDE.md` | Project line, the constitution index (one line per principle), the gate rule, the code structure summary with this repo's folders, `@AGENTS.md` |
-| `AGENTS.md` | Overview and stack, Commands (the `scripts/gates.sh` targets), Critical constraints (the kit's generic ones plus the domain ones from I5), Directory map from I3 (with `changes/` and `changes/archive/`), Workflow (change folders by size), Finding things, Handing work to a subagent |
+| `CLAUDE.md` | Project line, the constitution index (one line per principle), the product rules flow, `@AGENTS.md`. Nothing else: every other rule has its one home in `AGENTS.md` (CE18) |
+| `AGENTS.md` | Overview and stack, Commands (the daily `scripts/gates.sh` targets; the rest are listed by `scripts/gates.sh` with no target), Working rules, Critical constraints (the kit's generic ones plus the domain ones from I5), Code structure with this repo's folders, Directory map from I3 (with `changes/` and `changes/archive/`), Workflow, Finding things. Then run `scripts/gates.sh preamble` and report any part over budget |
 | `.specify/memory/constitution.md` | Domain principles from I5 (each with what it forbids and how it is enforced), Technology Constraints from I2, ratification date |
 | `.github/workflows/ci.yml` | The recipe's CI setup step in place of the placeholder; branches that deploy (from existing deploy workflows) in `push.branches` |
 | `.github/workflows/claude-review.yml` | Project line; one section per constitution principle with its checks |

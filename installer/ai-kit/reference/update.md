@@ -109,3 +109,15 @@ Rule changes land in the PRD in the same commit as the code; the commit body is 
 | Markers | Existing `pending code` markers and `planned` sources stay as they are (D4); no new change adds one |
 | Open change folders | Left as they are; their `decisions.md` is a record and is never rewritten |
 | Verify | `python .claude/skills/prd-flow/scripts/gate.py --fix`, then `python .claude/skills/prd-flow/scripts/gate.py` and the project's docs gate |
+
+## Preamble diet
+Every session and subagent loads `CLAUDE.md`, its `@` imports, and the description of every agent and skill before its first action (CE18; audit of 2026-10-15: a third of all tokens). Run `scripts/gates.sh preamble` before and after; list first, then ask; apply only after yes. Project-owned files are shown as diffs.
+
+| Change | How |
+|---|---|
+| One home per rule | `CLAUDE.md` keeps the project line, the constitution index, the product rules flow and `@AGENTS.md`. Its code structure, tests, processes and returns blocks move into `AGENTS.md` "Code structure" and "Working rules" of the kit template; a sentence already said in `AGENTS.md` is dropped, never kept twice |
+| Commands | `AGENTS.md` lists the daily `scripts/gates.sh` targets of the template and points to `scripts/gates.sh` with no target for the rest; project-specific commands stay |
+| Sections that restate the template | "Testing while working", "Disk and container hygiene", "Run telemetry" and "Handing work to a subagent" become the template's "Working rules"; a project line the template does not have is kept under it |
+| Agent and skill descriptions | A project agent or skill whose `description` passes about 300 characters, or carries examples, is cut to one or two lines naming when to use it; the examples move into the body |
+| Large always-loaded sections | A project section over about 40 lines that only some tasks need (a spec workflow, an API reference) moves to a file under `docs/` that `AGENTS.md` names by path |
+| Verify | `scripts/gates.sh preamble` again; report each part before and after |

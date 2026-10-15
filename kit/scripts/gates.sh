@@ -75,6 +75,7 @@ usage: scripts/gates.sh <target> [args]
   retro [args]     the run retrospective (scripts/retro.py): --context <name>, --prune
   setup            make a fresh clone or worktree ready to test (commands.setup)
   hotspots [args]  code files ranked by commits x lines: what the readiness plan splits first
+  preamble [args]  the fixed context every session and subagent loads, by part, against ai-kit.json "preamble" (--strict)
   contracts        schema and API snapshots (ai-kit.json "contracts") still match the code
 
 The interpreter is resolved once: GATES_PYTHON, then commands.python in ai-kit.json, then python3 and python on PATH;
@@ -466,6 +467,9 @@ trailers)
     ;;
 hotspots)
     "$PY" scripts/hotspots.py "$@"
+    ;;
+preamble)
+    "$PY" scripts/preamble.py "$@"
     ;;
 contracts)
     "$PY" scripts/contract_drift.py

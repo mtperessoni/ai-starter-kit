@@ -2,6 +2,14 @@
 
 User-visible changes to the kit, newest first. Projects receive them through `/ai-kit update`.
 
+## Preamble diet and its meter
+
+Audit of 2026-10-15 (`eval/audit-2026-10-15-paper/FINDINGS.md` H01): every session started at about 83k tokens and every subagent at about 55k before doing anything, about a third of all tokens processed. The template `CLAUDE.md` and `AGENTS.md` said the same rules twice. Rule: CE18 (amended).
+
+- Template `CLAUDE.md` keeps the project line, the constitution index, the product rules flow and `@AGENTS.md`; template `AGENTS.md` has one "Working rules" section and the code structure, with no sentence repeated. Together 10.6 KB instead of 17.0 KB.
+- New `scripts/preamble.py` and `scripts/gates.sh preamble`: the fixed context by part (repository instructions with their imports, agent and skill descriptions, the user's global file, the memory index) against the new `ai-kit.json` `preamble` budgets; the doctor reports each part over budget.
+- `/ai-kit update` gains a "Preamble diet" step: one home per rule, daily commands only, short agent and skill descriptions, large task-specific sections moved to `docs/`.
+
 ## Core rules: one slice per delivery, fewer and clearer rules
 
 Run of 2026-10-14 (LS35): a widened scope with no estimate ran 3 hours of execution with 19 subagents and no PR; about 40% of the calls were re-orienting, every lane left leftovers that became new lanes, and three High findings were design gaps found after the code. The rules that would have stopped it existed but were buried among 434 IDs. Rule: [rules/core.md](rules/core.md) (CR01 to CR22) is the set in force and wins over the domain files; MAINTAINING M14 keeps it small.

@@ -31,6 +31,7 @@ Read-only. Reports, in at most 30 lines, what drifted from the kit and from its 
 | Leftover workers | `.claude/skills/prd-flow/reference/workers/` exists: drift, fixed by `/ai-kit update` |
 | SKILL.md sizes | Every `.claude/skills/*/SKILL.md` is within `ai-kit.json` `limits.skill_md_bytes` or listed in `allowlist.skill_md_bytes` (`scripts/gates.sh ratchet`) |
 | Global block | `~/.claude/CLAUDE.md` contains the kit block (between the `ai-kit` markers) |
+| Preamble (CE18) | `scripts/gates.sh preamble`: each part over its `ai-kit.json` `preamble` budget is drift. Fixes: an agent or skill description of one or two lines with no examples (the body holds them); repository instructions with one home per rule (no sentence repeated between `CLAUDE.md` and `AGENTS.md`); the memory index pruned of finished items |
 | Stale state and leftover outputs | Run `scripts/gates.sh cleanup --dry-run` (read-only): it lists state folders untouched for 7 days or more, `_stale/` entries past 14 days, `_tests` and `_gate` caches past 3 days, loose files in `.ai-kit/runs/`, task output files and processes of ended sessions (SA58); anything listed is drift, fixed by `scripts/gates.sh cleanup` |
 | Leftover prd-flow lite files | One of the eight reference files prd-flow lite retired still exists in `.claude/skills/prd-flow/reference/`, an agent file still has a `hooks:` frontmatter block, or `ai-kit.json` still has an `allowlist` key next to a missing `ai-kit.allowlist.json`: drift, fixed by `/ai-kit update` (U6g) |
 

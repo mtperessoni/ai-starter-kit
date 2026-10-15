@@ -158,5 +158,13 @@
     "kpi_inline_reads": 0,
     "kpi_gate_runs_main": 2,
     "kpi_parallel_factor_min": 1.5
+  },
+  "preamble": {
+    "repo_instructions": 3500,
+    "agent_descriptions": 1500,
+    "skill_descriptions": 1500,
+    "user_instructions": 2500,
+    "user_descriptions": 1500,
+    "memory_index": 2000
   }
 }
