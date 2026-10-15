@@ -111,6 +111,7 @@ Rule changes land in the PRD in the same commit as the code; the commit body is 
 | Open change folders | Left as they are; their `decisions.md` is a record and is never rewritten |
 | Verify | `python .claude/skills/prd-flow/scripts/gate.py --fix`, then `python .claude/skills/prd-flow/scripts/gate.py` and the project's docs gate |
 
+<<<<<<< HEAD
 ## Preamble diet
 Every session and subagent loads `CLAUDE.md`, its `@` imports, and the description of every agent and skill before its first action (CE18; audit of 2026-10-15: a third of all tokens). Run `scripts/gates.sh preamble` before and after; list first, then ask; apply only after yes. Project-owned files are shown as diffs.
 
@@ -136,3 +137,13 @@ The per-commit gates that the core rules ([rules/core.md](../../../rules/core.md
 | Docs | `docs/code-structure.md`: AR02 without name uniqueness, AR06 without the ID header, AR07 without the per-commit map duty, AR23 as review, AR24 parameters 7, AR03 class limit exempts declarative classes; the project's `AGENTS.md` loses the trailer sentence, the `Request:`, `Assumed:`, `Red:` and `Rules:` commit lines, the promote step and the Traceability line; the constitution drops "Every module and test cites the IDs" |
 | Stack linter | `max-params` (or the stack's equivalent) 7 instead of 5; one per-test timeout config line from the stack recipe |
 | Verify | `scripts/gates.sh ratchet`, `scripts/gates.sh lint`, `scripts/gates.sh close <slug> --case C4` on a clean tree |
+
+## Migration to the post-tool hook
+Lint after edit, the failing test streak and the main-thread checkpoint (TM18). List first, then ask; apply only after yes.
+
+| Change | How |
+|---|---|
+| Script | Copy `scripts/post_tool_hook.py` (kit-owned, `ownership.md`) |
+| Settings | Merge into `.claude/settings.json` (TM12: the project's own hooks stay) two entries with the kit's launcher command for `scripts/post_tool_hook.py`, without `async`: `PostToolUse` matcher `Edit\|Write\|MultiEdit\|Bash\|PowerShell` and `PostToolUseFailure` matcher `Bash\|PowerShell`, each with `"timeout": 30` |
+| ai-kit.json | Add the kit's `post_tool` section with its defaults when missing, never overwriting a project value; `commands.lint_file` must be set and contain `{files}`, else lint after edit stays off |
+| Verify | One Edit of a code file, then one shell call: a lint finding (or none) arrives with the second call; `.ai-kit/runs/_hooks/errors.log` is absent or empty |

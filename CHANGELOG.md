@@ -32,6 +32,12 @@ Audit of 2026-10-15 (`eval/audit-2026-10-15-paper/FINDINGS.md` H01): every sessi
 - Template `CLAUDE.md` keeps the project line, the constitution index, the product rules flow and `@AGENTS.md`; template `AGENTS.md` has one "Working rules" section and the code structure, with no sentence repeated. Together 10.6 KB instead of 17.0 KB.
 - New `scripts/preamble.py` and `scripts/gates.sh preamble`: the fixed context by part (repository instructions with their imports, agent and skill descriptions, the user's global file, the memory index) against the new `ai-kit.json` `preamble` budgets; the doctor reports each part over budget.
 - `/ai-kit update` gains a "Preamble diet" step: one home per rule, daily commands only, short agent and skill descriptions, large task-specific sections moved to `docs/`.
+## Post-tool hook: lint after edit, failing streak, checkpoint
+
+Audit of 2026-10-15 (`eval/audit-2026-10-15-paper/FINDINGS.md` H02, H06, H08): lint was a manual call, failing test streaks reached 4 to 6, orchestrators ran at 216k to 667k context. The paper's harness puts post-edit diagnostics and stuck detection inside the loop. Rule: TM18 (new).
+
+- New `scripts/post_tool_hook.py`, registered in `.claude/settings.json` on `PostToolUse` and `PostToolUseFailure`. It never blocks; it adds text next to the tool result: the lint findings of an edited code file (`commands.lint_file`), a warning at 3 consecutive failing test runs of one agent and a hand-back at 5, and one checkpoint per session when the main thread passes 150k tokens.
+- New `ai-kit.json` `post_tool` section (`lint_after_edit`, `lint_timeout_s`, `streak_warn`, `streak_stop`, `checkpoint_tokens`); the doctor checks the registration and the hook's error log.
 
 ## Core rules: one slice per delivery, fewer and clearer rules
 

@@ -369,6 +369,17 @@ class PruneTests(unittest.TestCase):
         self.assertTrue((runs / "fresh").exists())
         self.assertTrue((runs / "current").exists())
 
+    def test_prune_keeps_the_hook_state_folder(self):
+        root = project(clean_log().ev)
+        hooks = root / ".ai-kit/runs/_hooks"
+        hooks.mkdir(parents=True)
+        (hooks / "streak-s1-main").write_text("2")
+        old = time.time() - 20 * 86400
+        for p in [hooks, *hooks.rglob("*")]:
+            os.utime(p, (old, old))
+        self.assertNotIn("_hooks", retro.prune(root, 14))
+        self.assertTrue((hooks / "streak-s1-main").exists())
+
     def test_prune_cli(self):
         root = project(clean_log().ev)
         r = subprocess.run([sys.executable, str(KIT / "scripts/retro.py"), "--root", str(root), "--prune"],

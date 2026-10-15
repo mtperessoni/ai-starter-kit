@@ -162,5 +162,13 @@
     "user_instructions": 2500,
     "user_descriptions": 1500,
     "memory_index": 2000
+  },
+  "post_tool": {
+    "lint_after_edit": true,
+    "lint_timeout_s": 120,
+    "lint_debounce_s": 3,
+    "streak_warn": 3,
+    "streak_stop": 5,
+    "checkpoint_tokens": 150000
   }
 }
