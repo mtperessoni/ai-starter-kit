@@ -51,3 +51,5 @@ Home: the always-loaded text is `global/CLAUDE.md`; the template `CLAUDE.md` and
 ## Pending (next PRs)
 
 The per-commit gates that these rules make unnecessary are removed in the following PRs, not here: exact-count and uniqueness checks of the ratchet, per-edge import allowlists, module ID headers, commit trailers, the docs-gate bookkeeping codes, and the prd-flow card and sheet format checks (`proposals/audit-rules-cost-2026-10-14.md` section 5). Until then they still run.
+
+Removed by slice K4a (scripts and templates): the ratchet checks `duplicate_names`, `crowded_dirs`, `no_prd_id`, `long_feature_maps`, `invariant_gaps` and every count in the allowlist (file lists now, a stale entry warns); `commit_trailers.py`, `gates.sh trailers` and the CI trailers job; the targets `red`, `watch`, `prd-sweep`, `settings-check` and `context`, and `trailers` and `retro` inside `close`; the guard hook's redirect, `tee` and `cat >` denial outside the source and docs folders; the template duties for ID headers, per-commit maps, trailers and promote. Still pending: the prd-flow skill and agent rows.

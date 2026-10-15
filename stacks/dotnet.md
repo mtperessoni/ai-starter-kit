@@ -28,7 +28,7 @@
 
 | Rule | Tool | Baseline |
 |---|---|---|
-| AR24 complexity | CA1502 (excessive complexity, threshold in `CodeMetricsConfig.txt`: `CA1502: 10`), CA1505, SonarAnalyzer `S3776` (cognitive), `S107` (parameters, max 5) | `GlobalSuppressions.cs` or `.editorconfig` severities, shrink-only |
+| AR24 complexity | CA1502 (excessive complexity, threshold in `CodeMetricsConfig.txt`: `CA1502: 10`), CA1505, SonarAnalyzer `S3776` (cognitive), `S107` (parameters, max 7) | `GlobalSuppressions.cs` or `.editorconfig` severities, shrink-only |
 | AR25 dead code | IDE0051 (unused private member), IDE0052, CS8019 (unused using), CA1812 (uninstantiated internal class), with `EnforceCodeStyleInBuild` | as above |
 | AR26 duplicates | `jscpd` (supports C#) or PMD CPD (`--language cs`) | report of today |
 | AR27 typing | not applicable (statically typed); nullable reference types: `<Nullable>enable</Nullable>` per project, `<WarningsAsErrors>nullable</WarningsAsErrors>`, enabled project by project and never removed | list of projects still without it |
@@ -36,6 +36,8 @@
 
 ## Offline guard
 Unit tests use fakes; integration tests carry the Integration category. Under the offline flag, an `HttpMessageHandler` that throws can be registered in the test host.
+
+Per-test timeout, one flag in `commands.test`: `--blame-hang-timeout 60s` (look up the runner's own timeout option when the project prefers one).
 
 ## CI setup
 ```yaml
@@ -69,7 +71,6 @@ Unit tests use fakes; integration tests carry the Integration category. Under th
 - `unique_name_exempt`: `Program.cs`, `Startup.cs`, `GlobalUsings.cs`, `AssemblyInfo.cs`, `_Imports.razor`, `Index.cshtml`, `appsettings.json`.
 - AR04: `ControllerBase`, `DbContext`, `Hub`, `BackgroundService`, `Migration`, `Exception` and abstract test bases are allowed.
 - AR05: DI singletons with mutable fields are review; `ConcurrentDictionary`, `IOptions`, `IMemoryCache`, Blazor component state, Redux-style stores count as explicit.
-- `id_header_lines`: files open with `using` lines and a namespace: raise it (for example 25) or put the ID in the XML doc comment of the type.
 
 ## Snapshots
 Agents never accept Verify output (`*.received.*` renamed to `*.verified.*`, `VerifierSettings.AutoVerify`, the `verify accept` tool, `DiffEngine` auto-accept) or Snapper updates. Globs: `**/*.verified.*`, `**/*.received.*`, `**/__snapshots__/**`.

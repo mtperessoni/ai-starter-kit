@@ -30,7 +30,7 @@
 
 | Rule | Tool | Baseline |
 |---|---|---|
-| AR24 complexity | RuboCop `Metrics/CyclomaticComplexity` (Max 10), `Metrics/PerceivedComplexity`, `Metrics/BlockNesting` (Max 4), `Metrics/ParameterLists` (Max 5) | `.rubocop_todo.yml` |
+| AR24 complexity | RuboCop `Metrics/CyclomaticComplexity` (Max 10), `Metrics/PerceivedComplexity`, `Metrics/BlockNesting` (Max 4), `Metrics/ParameterLists` (Max 7) | `.rubocop_todo.yml` |
 | AR25 dead code | `debride` (`debride lib app`, with a whitelist for Rails-reached methods), `Lint/UselessAssignment`, `Lint/UnusedMethodArgument`; `traceroute` for unused Rails routes and actions | whitelist file, shrink-only |
 | AR26 duplicates | `flay` (`flay app lib`) or `jscpd` | report of today |
 | AR27 typing | Sorbet `# typed: strict` per file (`srb tc`) or RBS with Steep, when the project uses one; otherwise not applicable. Strictness per file only goes up | files below `strict` listed |
@@ -38,6 +38,8 @@
 
 ## Offline guard
 WebMock with `WebMock.disable_net_connect!(allow_localhost: true)`; under the offline flag, `allow_localhost: false`.
+
+Per-test timeout, one config block in `spec_helper.rb`: `config.around { |example| Timeout.timeout(30) { example.run } }` (look up `rspec-timeout` when the project prefers a gem).
 
 ## CI setup
 ```yaml
@@ -69,7 +71,6 @@ WebMock with `WebMock.disable_net_connect!(allow_localhost: true)`; under the of
 - `unique_name_exempt`: `application_record.rb`, `application_controller.rb`, `application_helper.rb`, `application_job.rb`, `application_mailer.rb`, `routes.rb`, `schema.rb`, `spec_helper.rb`, `rails_helper.rb`, `Gemfile`, `Rakefile`, `version.rb`.
 - AR04: `ApplicationRecord`, `ApplicationController`, `ActiveJob::Base`, `Struct` and the concerns Rails requires (`include`d modules) are allowed; deep custom hierarchies are not.
 - AR05: `Current` attributes (`ActiveSupport::CurrentAttributes`), `Rails.cache`, `ActiveRecord` models and constants frozen with `.freeze` count as explicit; class variables (`@@`) and global `$` variables are review.
-- `id_header_lines`: default; the ID goes in a comment above the class.
 
 ## Snapshots
 Agents never run the snapshot update mode of the project's gem (look up its flag or env var), and never re-record or delete VCR cassettes to make a test pass. Globs: `spec/fixtures/vcr_cassettes/**`, `**/__snapshots__/**`, `spec/snapshots/**`, `**/*.approved.*`.

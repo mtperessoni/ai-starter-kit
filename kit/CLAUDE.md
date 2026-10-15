@@ -8,8 +8,8 @@ Binding, and it wins over everything else in this repository. Full text: `.speci
 
 - **I. <Principle name> (NON-NEGOTIABLE).** <One line.>
 - **II. Test-First With Deterministic Doubles (NON-NEGOTIABLE).** Failing test first, fakes for external services and models, the unit suite runs offline.
-- **III. Documents Are the Source of Truth.** Behavior lives in `docs/prd/`, code maps in `docs/trd/`; rule changes land in the PRD in the same commit as the code that implements them; the TRD is updated once per delivery.
-- **IV. AI-Readable Code.** `docs/code-structure.md`, enforced by the ratchet and the linter rules.
+- **III. Documents Are the Source of Truth.** Behavior lives in `docs/prd/`, code maps in `docs/trd/`.
+- **IV. AI-Readable Code.** `docs/code-structure.md`, enforced by the linter rules; the ratchet only for generic names and generated markers.
 - **V. Bounded Delivery.** One vertical slice per delivery, with an estimate agreed first and a report at its end; review has a ceiling of rounds; behavior changes and safety nets go back to a person.
 - **VI. <Principle name>.** <One line.>
 - **VII. Secrets and Trust Boundaries.** No secret in source, prompt, config file or fixture; configuration is typed and validated at boot.

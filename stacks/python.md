@@ -35,7 +35,7 @@ Proxies worth adding to ruff: `C901` (complexity) and `PLR0915` (statements).
 
 | Rule | Tool | Baseline |
 |---|---|---|
-| AR24 complexity | ruff `C901` (`max-complexity = 10`), `PLR0913` (`max-args = 5`), `PLR1702` (`max-nested-blocks = 4`, preview) | `per-file-ignores` listing offenders, shrink-only |
+| AR24 complexity | ruff `C901` (`max-complexity = 10`), `PLR0913` (`max-args = 7`), `PLR1702` (`max-nested-blocks = 4`, preview) | `per-file-ignores` listing offenders, shrink-only |
 | AR25 dead code | `vulture src --min-confidence 80` with a whitelist file for framework-reached symbols | the whitelist, shrink-only |
 | AR26 duplicates | `jscpd --min-lines 10 src` (or PMD CPD) | `jscpd` report of today, new duplicates fail |
 | AR27 typing | `mypy` `strict` is global-only; per module, list individual flags (`disallow_untyped_defs`, `disallow_incomplete_defs`, `warn_return_any` and similar) under `[[tool.mypy.overrides]] module = "pkg.x"`, add modules as they pass; or pyright `strict = [...]` | modules not yet covered are listed, only shrink (ratcheted by module list) |
@@ -43,6 +43,8 @@ Proxies worth adding to ruff: `C901` (complexity) and `PLR0915` (statements).
 
 ## Offline guard
 An autouse fixture in the **root** `conftest.py` blocks `socket.socket.connect` outside loopback; under the offline flag it also blocks loopback and database driver connects, and fails instead of skipping. The integration tier's session fixtures never load in the offline target because it ignores that path.
+
+Per-test timeout, one config line: `timeout = 60` under `[tool.pytest.ini_options]` (needs `pytest-timeout` in the dev dependencies; look up the current option name).
 
 ## Containers
 When the repository uses Docker (a `Dockerfile`, a compose file, `testcontainers` in dependencies), the installer adds the `docker` section to `ai-kit.json` and wires TS27 to TS36:
@@ -81,7 +83,6 @@ When the repository uses Docker (a `Dockerfile`, a compose file, `testcontainers
 - `unique_name_exempt`: `__init__.py`, `conftest.py`, `models.py`, `views.py`, `urls.py`, `admin.py`, `apps.py`, `tasks.py`, `settings.py`, `__main__.py`.
 - AR04: Django `models.Model`, `forms.Form`, `admin.ModelAdmin`, DRF `serializers.Serializer`, pydantic `BaseModel`, SQLAlchemy `DeclarativeBase`, `Enum`, `TypedDict`, `Protocol`, and mixins the framework documents are allowed.
 - AR05: module-level state behind `contextvars`, Django settings, FastAPI `Depends` providers count as explicit.
-- `id_header_lines`: default (a module docstring or first comment).
 
 ## Snapshots
 Agents never run `pytest --snapshot-update` (syrupy), `--force-regen` (pytest-regressions) or `--inline-snapshot=fix,create` (inline-snapshot). Globs: `**/__snapshots__/**`, `**/*.ambr`, `tests/**/expected/**`.

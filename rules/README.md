@@ -41,9 +41,9 @@ Read only the file of the domain you need. IDs are stable: a new rule takes the 
 | `.claude/skills/adr/` | DS23, DS27, DS28 |
 | `.claude/agents/<risk>-reviewer.md` | RV12 to RV16 |
 | `scripts/` and `ai-kit.json` | AR rules marked "ratchet", TS02 to TS08, TS22, TS28 to TS31, TS35, TS43 to TS54 (`docker_hygiene.py`, `clean_task_outputs.py`, `baseline.py`, `config_get.py`, the `docker` section, `tests.baseline_deselect`, `tests.always`) |
-| `scripts/cleanup.py`, `scripts/watch.py` (via `gates.sh cleanup`, `gates.sh watch`) | SA58 (every run starts and ends with cleanup; `close` runs it last; a `SessionEnd` hook runs `cleanup --session-end`), SA59 (per-wave watch), TS34 |
-| `scripts/guard_hook.py`, `reap.py`, `next_change_number.py`, `settings_check.py` | SA56 (the guard hook, registered in `settings.json` for every subagent, L12), SA57 (`gates.sh reap`); IN19 (doctor checks, change number reservation) |
-| `ai-kit.allowlist.json` | The shrink-only ratchet allowlist, moved out of `ai-kit.json` (L15; WF31, IN20); `kit_config.py` reads it first |
+| `scripts/cleanup.py` (via `gates.sh cleanup`) | SA58 (every run starts and ends with cleanup; `close` runs it last; a `SessionEnd` hook runs `cleanup --session-end`), TS34; SA59 (per-wave watch) retired with `watch.py` |
+| `scripts/guard_hook.py`, `reap.py`, `next_change_number.py` | SA56 (the guard hook, denies a redirect, `cat >` or `tee` only under the source folders and docs; registered in `settings.json` for every subagent, L12), SA57 (`gates.sh reap`); IN19 (doctor checks, change number reservation) |
+| `ai-kit.allowlist.json` | The ratchet allowlist (a file list per check; a stale entry warns), moved out of `ai-kit.json` (L15; WF31, IN20); `kit_config.py` reads it first |
 | `.claude/settings.json`, `.ai-kit/runs/` | TM03, TM12, IN21: the telemetry hooks and the guard hook for every subagent (project-owned, merged; interpreter placeholder filled at install, L16) and the git-ignored run artifacts (SA51 and SA53 are enforced for subagents by `guard_hook.py`, L12) |
 | `scripts/telemetry_hook.py`, `run_probe.py`, `retro.py` and the `telemetry` section of `ai-kit.json` | TM01 to TM11, TM13 to TM17 |
 | `.claude/skills/prd-flow/scripts/gate.py` and its `gate_*.py` modules | WF31 to WF33 (`--trace`, `--change`, `--final`); WF43, WF44 (`--rules`: Q2, Q3, Q5 read from the commit body; `--history <ID>` reads the commit history); WF68 to WF74 (sheet lint, `--plan` alignment, `--snapshot`, `--final --change`); DS34, DS37, DS39 (`--status`, `--trd`, `--sibling`); DS46 (`--docs`); CE29 (the record set) |
@@ -52,6 +52,5 @@ Read only the file of the domain you need. IDs are stable: a new rule takes the 
 | `.claude/skills/prd-flow/scripts/build_prd_html.py`, `build_trd_html.py` | DS42: the generated `prd.html` and `trd.html`, checked by G29 and G32 |
 | `.claude/skills/docs-html/` | DS45: the only place that builds the pages |
 | `.github/CODEOWNERS` | WF48, DS43 |
-| `scripts/commit_trailers.py` | WF49 (`gates.sh trailers`) |
 | `.github/workflows/` | TS20, TS23 to TS26, RV17, CX10 |
 | `.ai-kit/manifest.json` and the `/ai-kit` skill | IN rules |
