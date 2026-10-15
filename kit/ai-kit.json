@@ -54,9 +54,6 @@
   "limits": {
     "module_lines": 500,
     "test_lines": 1200,
-    "feature_map_lines": 20,
-    "id_header_lines": 15,
-    "files_per_dir": 20,
     "skill_md_bytes": 6144
   },
   "banned_names": [
@@ -79,7 +76,6 @@
     "layout",
     "route"
   ],
-  "id_pattern": "\\b[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\\d+\\b",
   "ratchet": {
     "skip": []
   },
@@ -158,5 +154,13 @@
     "kpi_inline_reads": 0,
     "kpi_gate_runs_main": 2,
     "kpi_parallel_factor_min": 1.5
+  },
+  "preamble": {
+    "repo_instructions": 3500,
+    "agent_descriptions": 1500,
+    "skill_descriptions": 1500,
+    "user_instructions": 2500,
+    "user_descriptions": 1500,
+    "memory_index": 2000
   }
 }

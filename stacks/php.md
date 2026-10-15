@@ -30,7 +30,7 @@
 
 | Rule | Tool | Baseline |
 |---|---|---|
-| AR24 complexity | PHPMD `CyclomaticComplexity` (reportLevel 10), `NPathComplexity`, `ExcessiveParameterList` (minimum 5), PHPStan `phpstan-strict-rules`; nesting depth is review (PHPMD has no depth rule, look up) | PHPMD baseline (`--generate-baseline`), shrink-only |
+| AR24 complexity | PHPMD `CyclomaticComplexity` (reportLevel 10), `NPathComplexity`, `ExcessiveParameterList` (minimum 7), PHPStan `phpstan-strict-rules`; nesting depth is review (PHPMD has no depth rule, look up) | PHPMD baseline (`--generate-baseline`), shrink-only |
 | AR25 dead code | PHPStan (unused private members rules; look up a dead-code tool if unsure), Psalm `--find-unused-code` and `--find-unused-psalm-suppress`; `composer-unused` for dependencies | `psalm-baseline.xml` or PHPStan baseline |
 | AR26 duplicates | PHPCPD (`phpcpd --min-lines 10 src`, archived: look up the maintained fork) or `jscpd` or PMD CPD | report of today |
 | AR27 typing | `declare(strict_types=1)` in every file (rule `declare_strict_types` in php-cs-fixer); PHPStan level raised per module via a `phpstan.neon` per path or Psalm `errorLevel` (lower is stricter); the level only goes up | level per module recorded |
@@ -38,6 +38,8 @@
 
 ## Offline guard
 HTTP client fakes (`Http::fake()` in Laravel, mock handlers in Guzzle); integration tests in the `integration` group.
+
+Per-test timeout, one config line: `defaultTimeLimit="10"` with `enforceTimeLimit="true"` on the `<phpunit>` element (look up the option for the installed PHPUnit version).
 
 ## CI setup
 ```yaml
@@ -71,7 +73,6 @@ HTTP client fakes (`Http::fake()` in Laravel, mock handlers in Guzzle); integrat
 - `unique_name_exempt`: `index.php`, `routes/web.php`, `routes/api.php`, `Kernel.php`, `Controller.php`, `Handler.php`, `ServiceProvider.php`, `AppServiceProvider.php`, `TestCase.php`.
 - AR04: Eloquent `Model`, `Controller`, `FormRequest`, `Command`, `Mailable`, Doctrine entities, `Exception` and abstract `TestCase` are allowed; traits the framework documents (`HasFactory`, `Notifiable`) are allowed.
 - AR05: `config()`, the service container bindings, `Cache`, `Session`, Eloquent models and Symfony services count as explicit; `static` properties and `global` are review.
-- `id_header_lines`: files open with `<?php`, `declare` and `namespace` plus `use` lines: raise it (for example 25) or put the ID in the class docblock.
 
 ## Snapshots
 Agents never run the snapshot update mode: `--update-snapshots` (Pest, spatie phpunit-snapshot-assertions; look up the project's exact flag) or auto-approve in ApprovalTests. Globs: `**/__snapshots__/**`, `tests/**/*.snap`, `tests/**/*.approved.*`.

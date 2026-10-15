@@ -19,7 +19,7 @@ Lessons of the audit of 2026-10-09 (LS32): ceremony and bare prohibitions cost m
 | ID | Rule | Check |
 |---|---|---|
 | M08 | Never forbid without naming the allowed way that works on Windows, macOS and Linux | Review of every "never" line |
-| M09 | A gate checks product content; an error that only checks the form of a record, or a warning that needs no action, is removed | Count of gate codes per run in the eval |
+| M09 | A gate checks product content; an error that only checks the form of a record, or a warning that needs no action, is removed. A rule that adds per-commit or per-task work needs a measured defect it prevented; otherwise it is a review item, checked once per delivery | Count of gate codes per run in the eval; review of every new per-commit or per-task duty |
 | M10 | One home per rule; other runtime files link by heading, never restate | A test that flags the same sentence, or the same number with different values, in two runtime files |
 | M11 | Runtime files cite only what the agent can open | A test that every cited ID or heading resolves inside the installed files |
 | M12 | Every instruction is checked against the harness (system reminders, settings deny, permission prompts) | `/ai-kit doctor` |

@@ -130,15 +130,8 @@ class GatesProbeTest(unittest.TestCase):
                 else:
                     os.environ[k] = v
 
-    def test_context_writes_the_current_file(self) -> None:
-        r = self.gates("context", "003-orders")
-        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        text = (self.p.root / ".ai-kit" / "runs" / "current").read_text(encoding="utf-8")
-        self.assertEqual(text, "003-orders\n")
-
     def test_related_goes_through_the_probe(self) -> None:
-        self.gates("context", "ctx1")
-        r = self.gates("related", "src/features/orders/order_service.py")
+        r = self.gates("related", "src/features/orders/order_service.py", env={"AI_KIT_CONTEXT": "ctx1"})
         self.assertIn("FAILED fake::test_a", r.stdout, r.stdout + r.stderr)
         (rec,) = lines(self.p.root, "ctx1")
         self.assertEqual(rec["label"], "related")

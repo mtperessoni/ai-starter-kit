@@ -29,7 +29,7 @@
 
 | Rule | Tool | Baseline |
 |---|---|---|
-| AR24 complexity | clippy `cognitive_complexity` (nursery, `cognitive-complexity-threshold = 10` in `clippy.toml`), `too_many_arguments` (`too-many-arguments-threshold = 5`), `excessive_nesting` (`excessive-nesting-threshold = 4`) | `#[allow(...)]` list, shrink-only |
+| AR24 complexity | clippy `cognitive_complexity` (nursery, `cognitive-complexity-threshold = 10` in `clippy.toml`), `too_many_arguments` (`too-many-arguments-threshold = 7`), `excessive_nesting` (`excessive-nesting-threshold = 4`) | `#[allow(...)]` list, shrink-only |
 | AR25 dead code | the compiler's `dead_code` and `unused` lints with `-D warnings`; `cargo machete` or `cargo udeps` for unused dependencies | `#[allow(dead_code)]` list with reasons |
 | AR26 duplicates | `jscpd` or PMD CPD (`--language rust`); look up a Rust-native tool | report of today |
 | AR27 typing | not applicable (statically typed) | |
@@ -37,6 +37,8 @@
 
 ## Offline guard
 Traits and fakes in unit tests; network and database tests live in `tests/` or behind a feature flag.
+
+Per-test timeout, one config line: with `cargo nextest`, `slow-timeout = { period = "30s", terminate-after = 2 }` in `.config/nextest.toml`; plain `cargo test` has none, so `commands.test` runs under `timeout 600`.
 
 ## CI setup
 ```yaml
@@ -69,7 +71,6 @@ Traits and fakes in unit tests; network and database tests live in `tests/` or b
 - `unique_name_exempt`: `mod.rs`, `lib.rs`, `main.rs`, `build.rs`, `prelude.rs`, `error.rs`, `tests.rs`.
 - AR04 not applicable. Trait implementations the framework requires (`Serialize`, `Deserialize`, `Drop`, `FromRequest`) are not state or inheritance.
 - AR05: `static` with `OnceLock`, `LazyLock`, `Atomic*`, `Mutex` behind a named accessor counts as explicit; `static mut` is review. Tokio actors and channels are explicit.
-- `id_header_lines`: files open with `use` lines and module docs: put the ID in the `//!` module doc comment at the top.
 
 ## Snapshots
 Agents never run `cargo insta accept`, `cargo insta test --accept`, `INSTA_UPDATE=always`, `UPDATE_EXPECT=1` (expect-test) or `TRYBUILD=overwrite`. Globs: `**/snapshots/*.snap`, `**/*.snap.new`, `tests/ui/*.stderr`.

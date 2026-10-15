@@ -2,69 +2,36 @@
 
 <One paragraph: what it is, stack, package manager.>
 
-`.specify/memory/constitution.md` is binding and it wins over this file when they disagree. `CLAUDE.md` carries the index of its principles; read the full principle your change touches before writing code.
-
-Order of authority: the constitution, then the PRD (`docs/prd/`) on behavior, then the TRD (`docs/trd/`) on structure, then the code. An active plan in `changes/` governs only the order of work; nothing under `changes/archive/` or a legacy `specs/` is read to learn current behavior. See "Finding things" below.
+`.specify/memory/constitution.md` is binding and it wins over this file when they disagree. Order of authority: the constitution, then the PRD (`docs/prd/`) on behavior, then the TRD (`docs/trd/`) on structure, then the code. An active plan in `changes/` governs only the order of work; nothing under `changes/archive/` or a legacy `specs/` is read to learn current behavior.
 
 ## Commands
 
 ```bash
-<install>                          # Install dependencies (locked)
-<dev>                              # Dev server
-scripts/gates.sh related [files]   # The ratchet, then the tests related to the change (a diagnostic for a person)
-scripts/gates.sh one <file>        # One test file, offline, no coverage threshold
-scripts/gates.sh baseline <slug>   # Before the first code task: record today's failures
-scripts/gates.sh compare <slug>    # ONCE, at the end of a delivery: the full suite, new failures only
-scripts/gates.sh verify <slug>     # One verification per wave: related tests of the wave files, structure tests, docs gate
-scripts/gates.sh lint              # Lint, format check, types, structure linter rules: verifies, as CI does
-scripts/gates.sh fix               # Repairs; then run lint
+<install>                              # Install dependencies (locked)
+<dev>                                  # Dev server
+scripts/gates.sh related [files]       # The tests related to the change (mirror and importers)
+scripts/gates.sh one <file>            # One test file, offline
 scripts/gates.sh fix-files <file>...   # Repair only those files
 scripts/gates.sh lint-files <file>...  # Lint only those files
-scripts/gates.sh move <source> <start> <end> <destination> [--at LINE]   # Move lines by script, never retyped
-scripts/gates.sh python            # Print the resolved interpreter
-scripts/gates.sh close <slug>      # End of a delivery: lint, trailers, docs, compare result, retro (--case C4 skips compare and baseline)
-scripts/gates.sh settings-check    # Deny rules in .claude/settings*.json that block files the flow writes
-scripts/gates.sh imports           # Import check (cycles)
-scripts/gates.sh setup             # Make a fresh clone or worktree ready to test
-scripts/gates.sh hotspots          # Files ranked by recent commits times lines
-scripts/gates.sh contracts         # Schema and contract snapshots against their source
-scripts/gates.sh ratchet           # Structure ratchet (docs/code-structure.md)
-scripts/gates.sh docs [slug]       # PRD and TRD consistency (a stale HTML page is only a warning); a slug runs every check of the change
-scripts/gates.sh html [--check]    # Build (or check) the PRD and TRD reading pages; run by /docs-html, never by prd-flow
-scripts/gates.sh trailers [range]  # Every commit that touches source folders carries Rules: or Case: none
-scripts/gates.sh integration       # Integration tier: disk and image guards first, cleanup on every exit
-scripts/gates.sh build [args]      # The only way to build images: same guards, same cleanup
-scripts/gates.sh sweep             # Remove test containers, volumes, networks left by killed runs
-scripts/gates.sh docker-clean      # Every labelled leftover; reports other projects' images, never removes them
-scripts/gates.sh clean-outputs     # Delete old or oversized background task outputs
-scripts/gates.sh context NAME      # Name the run for telemetry (prd-flow does it with the slug)
-scripts/gates.sh retro             # End of a delivery: what was slow, expensive, looping or wasteful
-scripts/gates.sh reap              # Kill stuck processes of this session by PID tree, never by image name
-scripts/gates.sh cleanup [slug]    # Start and end of every prd-flow case: reap, task outputs, stale state; prints left: 0
+scripts/gates.sh lint                  # Lint, format check, types, structure rules, as CI does
+scripts/gates.sh baseline <slug>       # Before the first code task: record today's failures (background)
+scripts/gates.sh compare <slug>        # Once, at the end of a delivery: the full suite, new failures only
+scripts/gates.sh move <src> <start> <end> <dest> [--at LINE]   # Move lines by script, never retyped
+scripts/gates.sh setup                 # Make a fresh clone or worktree ready to test
+scripts/gates.sh reap                  # Kill stuck processes of this session by PID tree
 ```
 
-The stack commands behind each target are in `ai-kit.json`.
+`scripts/gates.sh` with no target lists every other target (docs, html, verify, close, integration, build, sweep, docker-clean, cleanup). The stack commands behind each target are in `ai-kit.json`.
 
-### Testing while working
-- Before handing back a slice: `scripts/gates.sh related <files>` (the mirror test of each changed module and every test that imports it; failures and the summary only), then `scripts/gates.sh fix-files <file>...` and `lint-files <file>...` on the touched files. Every test runs with a per-test timeout, so a hang fails instead of holding the run.
-- Subagents never run a command in the background: a long one runs in the foreground with an explicit timeout under 600 s, output to a file. Only the main thread starts background work (baseline, compare), with a timeout longer than the run.
-- Never kill processes by image name (`taskkill /IM`, `pkill`, `killall`); use `scripts/gates.sh reap`.
-- The full suite runs once, at the end of a delivery, compared with the recorded baseline of failures. A failure unrelated to what you touched waits for the end.
-- Redirect test output to a file and read only the failures and the summary.
-- The full gate sets its own environment (no network, no database for the unit tier); never rely on your shell's variables to make it offline. See `docs/trd/testing.md`.
+## Working rules
 
-### Disk and container hygiene
-- Never start a background command with unbounded output: no `tail -f`, no printing poll loops. Output goes to a file; read its tail or the failure summary.
-- Prefer a throwaway database container or in-process fakes over building images; only a test that proves services start together builds images, once per session.
-- Every image, container, volume and network carries the `repo` and `purpose` labels (`purpose=test|dev|spike`) under the `label_namespace` of `ai-kit.json` "docker", one tag per image. Stacks started by tests are `purpose=test`.
-- Build or pull only through `scripts/gates.sh build|integration|full`; they refuse when the disk or an image cap is short and clean up on every exit. Run long integration runs in the background with output to a file and a timeout longer than the run, so they are not killed mid-stack.
-- A one-off container is `--rm` and labelled `purpose=test`; an image pulled only for it is removed in the same step. A spike removes its images, and the third-party images it pulled, when it ends.
-- Clean up with `scripts/gates.sh docker-clean` and `clean-outputs`. On Docker Desktop, freed space returns to the host only after Docker Desktop is quit, or after compacting its disk file as admin.
-
-### Run telemetry
-- Hooks record every tool call, subagent, compaction and wait as one line in `events.jsonl` under `.ai-kit/runs/`, one folder per change or branch (git-ignored); `gates.sh` test and build targets add `resources.jsonl` (time, memory, disk, tests collected). Tool outputs are never stored; commands are truncated and secrets redacted.
-- Nothing to run while working: the hook is silent and never blocks.
-- At the end of a delivery, after the full suite, run `scripts/gates.sh retro`. It writes `retro.md` with findings only for metrics past the thresholds of `ai-kit.json` `telemetry`; a run within every threshold has none. Report the findings, or say the run stayed within every threshold.
+- Read a file with the Read tool before editing it (a shell read does not count); batch independent reads; one pass of changes per file.
+- Tests: failing test first. Before handing back a slice, `related` on the touched files, then `fix-files` and `lint-files`. Every test has a per-test timeout. The full suite runs once per delivery against the baseline; an unrelated failure is reported, not investigated. Test output goes to a file; read only failures and the summary.
+- Processes: a subagent runs a long command in the foreground with a timeout under 600 s; only the main thread starts background work, with a timeout longer than the run. No polling loops, no unbounded output. Never kill by image name (`taskkill /IM`, `pkill`, `killall`): `scripts/gates.sh reap`.
+- Subagents: by default the session that executes a slice writes the code. A subagent prompt carries the goal, the acceptance items, the done condition and at most about 5 paths; it returns at most 15 lines (done, files, tests, gaps, minutes used), never opens another subagent, and hands back past about 150k tokens. prd-flow agents use `.claude/skills/prd-flow/reference/run.md` "Every agent". Leftovers go back to the person.
+- Docker: build or pull only through `scripts/gates.sh build|integration|full`; every image, container, volume and network carries the `repo` and `purpose` labels of `ai-kit.json` "docker"; a one-off container is `--rm`. Clean up with `docker-clean` and `clean-outputs`.
+- Telemetry: hooks record each tool call in `.ai-kit/runs/` (git-ignored), silently. `scripts/gates.sh retro` shows where a run went when a person asks; `close` does not run it.
+- The full gate sets its own environment (no network, no database for the unit tier); see `docs/trd/testing.md`.
 
 ## Critical constraints
 
@@ -78,44 +45,43 @@ Violating any of these breaks the architecture or the safety model. Follow stric
 6. **NEVER use the em dash character.** Use a comma, colon, period or rewrite. Applies to code, docs, prompts and commit messages.
 7. **NEVER add comments unless the WHY is non-obvious and critical.** Default is zero comments. No comment references a ticket or a task.
 8. **Every side effect logs**, structured, with the correlation ids of the request.
-9. **Everything is in English**: code, docs, PRD, TRD, skill artifacts, commit messages.
+9. **Language**: code, commits and agent files in English; PRD and TRD in `<PRD and TRD language, declared once here>`; UI copy in the product locale.
 10. <Domain constraint.>
+
+## Code structure
+
+All code follows `docs/code-structure.md` (rules AR01 to AR28), enforced by `scripts/gates.sh ratchet` and the linter rules behind `lint`.
+
+- **Where:** `<layout of this repository, filled at install>`; feature folders (`<src>/features/<f>/` per PRD area) are recommended, any declared layout works. Start a task with the area's map (`CLAUDE.md`) and its TRD in `docs/trd/`.
+- **Size:** module up to 500 lines, function up to 80, class up to 300, test file up to 1,200. One responsibility per file, named after it; never `helpers`, `utils`, `shared`, `common`, `misc`, `state`.
+- **Shape:** composition over mixins; explicit state, no shared mutable closures; re-export only in an area's public entry.
+- **Tests** sit where the stack expects them, beside the code or its mirrored tree (AR10); mocks target the module of the caller.
+- **Moving code:** by script (line ranges or AST), never retyped.
 
 ## Directory map
 
-- `<folder>/`: `<its role, the areas with files there and its map>`; one line per real folder, filled at install (layout in `docs/code-structure.md`; feature folders are recommended, not required)
+- `<folder>/`: `<its role, the areas with files there and its map>`; one line per real folder, filled at install (layout in `docs/code-structure.md`)
 - `tests/integration/`, `tests/eval/`, and unit tests where `docs/trd/testing.md` says
-- `changes/NNN-<slug>/`: one folder per change in flight (only size L, with `plan.md` (waves) and `decisions.md`; `brief.md` and `design.md` too). Holds intent, plan and decisions, never truth
-- `changes/archive/`: finished size L changes, moved there with `git mv`. History only, never read for current behavior
+- `changes/NNN-<slug>/`: one folder per size L change in flight (`plan.md` and `decisions.md`, also `brief.md` and `design.md`). Intent, plan and decisions, never truth
+- `changes/archive/`: finished size L changes, moved there with `git mv`. History only
 - `docs/prd/`, `docs/trd/`, `docs/adr/`, `docs/code-structure.md`, `docs/flow.md`
 
 ## Workflow
 
-Living truth plus change folders, in this order. Do not skip steps.
-
-1. A rule change is confirmed by the person; its PRD rows and TRD names land in the commit of the task that implements them, and the commit body is the record (`Request:`, `Decided:`, `Assumed:`, `Red:`, then `Rules:`). `/prd-flow` runs this step with its agents only when the person explicitly types `/prd-flow`; never start it on your own. When it runs, its main thread coordinates the agents (`.claude/agents/prd-flow-*`) and executes no task; the executor `close` mode commits and runs the closing gate
-2. The change folder by size, decided at classification: **S** and **M** no folder (the sheet, pack and cards live in the prd-flow state folder, never in `changes/`); **L** `plan.md` (waves) and `decisions.md`, also `brief.md` and `design.md`. The plan header carries a `## Constitution check`
-3. Implementation test first, one vertical slice per delivery (about 30 files or 2 hours, its own PR), written by the session that executes it; defects found by an audit ship first as small fixes, a restructuring comes after, in slices. A commit that touches source folders ends with a trailer naming the rule IDs it serves (`Rules: CHK-02, CHK-05`) or, when it serves none, the reason in at most 8 words (`Case: none (dependency bump)`); `scripts/gates.sh trailers` checks it
-4. Gates before merge: lint, type check, full suite green, coverage not decreasing, ratchet green
-5. Close (size L only): the folder is archived with `git mv changes/NNN-<slug> changes/archive/NNN-<slug>`; an ADR, schema or contract that came out of the design is already in its home. Size S and M have no promote
+1. A rule change is shown to the person (today's rule and what would change) and confirmed before the code. The commit that implements it updates the PRD row; its body says what was decided (`Decided:`). Git is the history of a rule.
+2. Before the first edit: the goal, what is out of scope and an estimate in minutes, agreed by the person. Size **S** and **M** write no plan files; **L** writes `changes/NNN-<slug>/plan.md` (about 100 lines: decisions, slices, acceptance items) after a design review.
+3. One vertical slice per delivery (about 30 files or 2 hours, its own PR), test first, written by the session that executes it; defects ship as small fixes before any restructuring.
+4. Gates before merge: lint, type check, full suite green, coverage not decreasing, ratchet green.
 
 ## Finding things
 
 Load only what the task needs. Every step below is one Glob, Grep or ranged Read.
 
-1. **Product rules.** `docs/prd/INDEX.md` lists every PRD file (one per section) with the rule IDs it defines. `Grep "<ID>" docs/prd` finds a rule; the same ID in a test docstring finds its tests. A human-reading HTML, if any, is never read for work.
-2. **Where it lives in the code.** `docs/trd/README.md` lists the areas. The area map (its `CLAUDE.md`, or its row in a folder map) and `docs/trd/<area>.md` give the files, the entry points by symbol name, the tests and what must not break.
+1. **Product rules.** `docs/prd/INDEX.md` lists every PRD file with the rule IDs it defines. `Grep "<ID>" docs/prd` finds a rule; the same ID in a test docstring finds its tests. A human-reading HTML is never read for work.
+2. **Where it lives in the code.** `docs/trd/README.md` lists the areas; the area map (its `CLAUDE.md`, or its row in a folder map) and `docs/trd/<area>.md` give the files, the entry points by symbol name, the tests and what must not break.
 3. **Repo rules by kind of change** are in `docs/trd/invariants.md`; **how to test** is in `docs/trd/testing.md`.
-4. **Big files** (listed in `.claude/skills/prd-flow/repo.md`): Grep for the symbol, then Read that range. Never read them whole.
-5. **Generated files** (`generated_patterns` in `ai-kit.json`) are never edited and not searched: change the source and regenerate. **Schema and contracts:** read the snapshot listed in `contracts` and linked from the TRD, never the migration history (DS30).
+4. **Big files** (listed in `.claude/skills/prd-flow/repo.md`): Grep for the symbol, then Read that range.
+5. **Generated files** (`generated_patterns` in `ai-kit.json`) are never edited and not searched. **Schema and contracts:** read the snapshot listed in `contracts`, never the migration history (DS30).
 6. **History of an area:** `git log --oneline -- <paths from its TRD file>`.
 
-Keeping it true:
-
-- A delivery that moves a file, an entry point or a test of an area updates `docs/trd/<area>.md` and the area's map once, in its last slice. Names only, never line numbers or default values.
-- A change to product behavior amends the PRD file that owns the rule ID in place, in the same commit as the code: the PRD body holds only what is valid today. `docs/prd/CHANGELOG.md` is frozen; the history of a rule is `gate.py --history <ID>` and the commit bodies.
-- The `prd-flow` skill runs this flow and checks it with `.claude/skills/prd-flow/scripts/gate.py`.
-
-## Handing work to a subagent
-
-By default the session that executes a slice writes the code itself; a subagent is for the final review, a truly independent slice in its own worktree (at most 2 at once), or heavy reading kept out of the main context. Its prompt carries the goal, the acceptance items (or the rule rows it must implement) and at most about 5 paths to read first; never paste whole documents. A prd-flow agent follows the cap in `.claude/skills/prd-flow/reference/run.md` "Every agent"; any other subagent returns at most 15 lines (done, files, tests, gaps, minutes used), writes longer output to files, never opens another subagent, and hands back past about 150k tokens instead of continuing. Leftovers go back to the person, never to a new lane opened on its own.
+Keeping it true: a delivery that moves a file, an entry point or a test updates `docs/trd/<area>.md` and the area's map once, in its last slice (names only, never line numbers or defaults). The PRD file that owns a rule is amended in place; `docs/prd/CHANGELOG.md` is frozen and the history of a rule is `gate.py --history <ID>` and the commit bodies. The docs gate (`scripts/gates.sh docs`) errors only on a duplicate rule ID or a cited ID that does not exist; everything else is a review item.

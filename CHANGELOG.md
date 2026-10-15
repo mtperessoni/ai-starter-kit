@@ -13,6 +13,25 @@ Audit of 2026-10-15 (`eval/audit-2026-10-15-paper/FINDINGS.md`): 409 edits were 
 - `global/CLAUDE.md` "Editing": read with the Read tool before editing, batch independent reads, one pass of changes per file, Write the whole file after a full Read when most of it changes.
 - `global/CLAUDE.md` "Executing" and "Tests": a subagent prompt carries the done condition and the agent stops verifying there; a test that fails the same way twice is reported as a gap.
 - `prd-flow-docs` runs on sonnet (CR09); the surveyor keeps opus for conflict judgment.
+## Core rules, slice K4a: the per-commit gates of the scripts and templates are gone
+
+The core rules (CR01 to CR22, [rules/core.md](rules/core.md)) made these gates unnecessary; each cost work on every commit or task and none prevented a measured defect (`proposals/audit-rules-cost-2026-10-14.md` section 5). The prd-flow skill and agents are a separate slice. Rule: MAINTAINING M09 and M14.
+
+- Ratchet: `duplicate_names`, `crowded_dirs`, `no_prd_id`, `long_feature_maps` and `invariant_gaps` are deleted, and so are the `limits.feature_map_lines`, `limits.id_header_lines`, `limits.files_per_dir` and `id_pattern` keys. The allowlist is a list of files per check, not counts: a file may change size; a listed file that no longer violates only warns. `banned_names`, `long_modules`, `long_tests`, `no_feature_map`, `generated_without_marker` and `skill_md_bytes` stay.
+- `scripts/commit_trailers.py`, `gates.sh trailers` and the CI trailers job are deleted; `gates.sh red`, `watch`, `prd-sweep`, `settings-check` and `context` are deleted; `gates.sh close` runs lint, the docs gate and the compare result (no trailers, no retro; `gates.sh retro` still runs on request).
+- Guard hook: a redirect, `cat >` or `tee` is denied only when its target is under `source_dirs` of `ai-kit.json` or `docs/`; git-destructive, stdin interpreter, heredoc and kill-by-name denials are unchanged.
+- `verify.py`: the default ref finds `changes/<slug>/plan.md` as well as `changes/NNN-<slug>/plan.md` (a slug without a number was never matched).
+- Templates: `docs/code-structure.md` AR02 without name uniqueness, AR06 without the ID header, AR07 without the per-commit map duty, AR23 as review, AR24 parameters 7, AR03 class limit exempts declarative classes; `AGENTS.md` and the constitution drop the trailer, `Request:`, `Assumed:`, `Red:`, `Rules:` and promote duties and the "Every module and test cites" line. Stack recipes: `max-params` 7 and one per-test timeout config line each. MAINTAINING M09 extended.
+
+On update: run "Migration to the core rules gates" of `/ai-kit update` (U6k): drop the removed allowlist keys, turn counts into file lists, delete the trailers job from `ci.yml` and the three deleted scripts.
+
+## Preamble diet and its meter
+
+Audit of 2026-10-15 (`eval/audit-2026-10-15-paper/FINDINGS.md` H01): every session started at about 83k tokens and every subagent at about 55k before doing anything, about a third of all tokens processed. The template `CLAUDE.md` and `AGENTS.md` said the same rules twice. Rule: CE18 (amended).
+
+- Template `CLAUDE.md` keeps the project line, the constitution index, the product rules flow and `@AGENTS.md`; template `AGENTS.md` has one "Working rules" section and the code structure, with no sentence repeated. Together 10.6 KB instead of 17.0 KB.
+- New `scripts/preamble.py` and `scripts/gates.sh preamble`: the fixed context by part (repository instructions with their imports, agent and skill descriptions, the user's global file, the memory index) against the new `ai-kit.json` `preamble` budgets; the doctor reports each part over budget.
+- `/ai-kit update` gains a "Preamble diet" step: one home per rule, daily commands only, short agent and skill descriptions, large task-specific sections moved to `docs/`.
 
 ## Core rules: one slice per delivery, fewer and clearer rules
 

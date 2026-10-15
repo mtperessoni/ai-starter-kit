@@ -37,7 +37,7 @@ ESLint core rules, at the kit's limits:
 - AR04 and AR05 are reviewed (no core rule).
 | Rule | Tool | Baseline |
 |---|---|---|
-| AR24 complexity | ESLint `complexity` (10), `max-depth` (4), `max-nested-callbacks`, `max-params` (5) | the `overrides` block below |
+| AR24 complexity | ESLint `complexity` (10), `max-depth` (4), `max-nested-callbacks`, `max-params` (7) | the `overrides` block below |
 | AR25 dead code | `knip` (unused files, exports, dependencies; `knip.json` `ignore` for framework-reached files), or `ts-prune` | `knip --baseline`-style file: look up the installed version, else an `ignore` list, shrink-only |
 | AR26 duplicates | `jscpd --min-lines 10 --min-tokens 70 src` | report of today, new duplicates fail |
 | AR27 typing | TypeScript `strict: true` per package; in a JS or loose TS repo, `tsconfig.strict.json` extending the base with `strict` and an `include` list of strict modules that only grows (or `// @ts-check` per file) | the `include` list |
@@ -47,6 +47,8 @@ Baseline day one: run ESLint once, put the current violations in an `overrides` 
 
 ## Offline guard
 A setup file (`setupFiles` in Vitest, `setupFilesAfterEach` in Jest) that rejects network calls outside loopback (for example `nock.disableNetConnect()` with `enableNetConnect(/127\.0\.0\.1|localhost/)`, or MSW with `onUnhandledRequest: "error"`), and under the offline flag also rejects localhost and database clients.
+
+Per-test timeout, one config line: `test: { testTimeout: 10000 }` in the Vitest config, or `testTimeout: 10000` in the Jest config.
 
 ## CI setup
 ```yaml
@@ -83,7 +85,6 @@ A setup file (`setupFiles` in Vitest, `setupFilesAfterEach` in Jest) that reject
 - `unique_name_exempt`: `index.ts`, `index.tsx`, `page.tsx`, `layout.tsx`, `route.ts`, `loading.tsx`, `error.tsx`, `not-found.tsx` (Next.js), `main.ts`, `app.module.ts`, `app.component.ts`, `*.module.ts` (NestJS and Angular), `vite.config.ts`, `setupTests.ts`.
 - AR04: classes the framework requires (Angular components and services, NestJS providers, React error boundaries as classes) are allowed.
 - AR05: React hooks (`useState`, `useReducer`, context), Redux or Zustand or Pinia stores, signals, NgRx stores and XState actors count as explicit state.
-- `id_header_lines`: default; raise to the number of import lines only when files open with a long import block (a comment above the imports is preferred).
 
 ## Snapshots
 Agents never run `vitest -u` or `vitest --update`, `jest -u` or `jest --updateSnapshot`, or `playwright test --update-snapshots`. Globs: `**/__snapshots__/**`, `**/*.snap`, `**/*-snapshots/**`.

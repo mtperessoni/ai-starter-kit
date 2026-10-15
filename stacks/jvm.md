@@ -31,7 +31,7 @@
 
 | Rule | Java | Kotlin |
 |---|---|---|
-| AR24 complexity | Checkstyle `CyclomaticComplexity` (max 10), `NestedIfDepth` and `NestedForDepth` (max 3 means depth 4), `ParameterNumber` (max 5) | detekt `CyclomaticComplexMethod` (10), `NestedBlockDepth` (4), `LongParameterList` (functionThreshold 5) |
+| AR24 complexity | Checkstyle `CyclomaticComplexity` (max 10), `NestedIfDepth` and `NestedForDepth` (max 3 means depth 4), `ParameterNumber` (max 7) | detekt `CyclomaticComplexMethod` (10), `NestedBlockDepth` (4), `LongParameterList` (functionThreshold 7) |
 | AR25 dead code | PMD `UnusedPrivateMethod`, `UnusedPrivateField`, `UnusedLocalVariable`; IntelliJ inspections or ErrorProne `UnusedMethod`, `UnusedVariable` for the rest | detekt `UnusedPrivateMember`, `UnusedPrivateClass`; Kotlin compiler warnings with `allWarningsAsErrors` per module; classes reached by Spring, JPA or reflection go to an exclusion list |
 | AR26 duplicates | PMD CPD (`cpd --minimum-tokens 100`, Gradle `cpdCheck` plugin: look up) | same, or detekt `DuplicateCaseInWhenExpression` only for the narrow case |
 | AR27 typing | not applicable (statically typed); Kotlin and Java nullability: `-Xjsr305=strict`, NullAway or JSpecify annotations are optional | |
@@ -39,6 +39,8 @@
 
 ## Offline guard
 Unit tests use fakes; Testcontainers tests carry the integration tag. Under the offline flag, a JUnit extension can fail tests that open sockets.
+
+Per-test timeout, one config line: `junit.jupiter.execution.timeout.default = 30 s` in `src/test/resources/junit-platform.properties` (JUnit 5; look up the equivalent for the project's runner).
 
 ## CI setup
 ```yaml
@@ -76,7 +78,6 @@ Source roots are deep (`src/main/java/...`): list them in `source_dirs`.
 - `unique_name_exempt`: `Application.java`, `package-info.java`, `module-info.java`, `MainActivity.kt` (Android), `build.gradle.kts`; plus any `<Name>Config` or `<Name>Application` the framework fixes (look at the repository).
 - AR04: JPA `@MappedSuperclass`, Spring `@Configuration` base classes, abstract test bases, exceptions extending `RuntimeException`, and `Enum` are allowed. DI frameworks inject services: no inheritance is needed.
 - AR05: Spring beans with `@Scope("singleton")` holding mutable fields are review; `AtomicReference`, `StateFlow`, `ViewModel` state count as explicit.
-- `id_header_lines`: files open with a license, `package` and imports: raise it (for example 30) or put the ID in the class Javadoc and check the first comment block.
 
 ## Snapshots
 Agents never run the snapshot record or approve mode: Paparazzi `recordPaparazzi`, Roborazzi `recordRoborazzi`, ApprovalTests accepting `.received.*` as `.approved.*`, or the project's own update property (look up). Globs: `**/*.approved.*`, `**/__snapshots__/**`, `src/test/resources/**/expected/**`.

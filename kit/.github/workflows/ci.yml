@@ -49,10 +49,6 @@ jobs:
       - name: TRD paths exist (G23, a warning)
         run: python .claude/skills/prd-flow/scripts/gate.py --trd
 
-      - name: Commit trailers (pull requests only)
-        if: github.event_name == 'pull_request'
-        run: ./scripts/gates.sh trailers origin/${{ github.base_ref }}..HEAD
-
       - name: Offline gate (no network, no database)
         run: ./scripts/gates.sh offline
 
