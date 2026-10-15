@@ -13,15 +13,12 @@ Parsed by the scripts. Keep the two-column table format and the key names.
 | prd_glob | */*.md |
 | trd_dir | docs/trd |
 | html | docs/prd/prd.html |
-| forbid_em_dash | yes |
 | change_via | code, config, env, prompt, data, backend, frontend |
 | pending_marker | pending code |
 | planned_source | planned |
 | language | English |
 | planned_heading | Planned |
 | via_header | Change via |
-| pack_budget_lines | 120 |
-| plan_budget_kb | 60 |
 | proposed_marker | proposed |
 | plain_words | flag, key, handler, payload, endpoint, enum |
 | plan_strict | no |
@@ -37,12 +34,12 @@ Parsed by the scripts. Keep the two-column table format and the key names.
 |---|---|
 | `language` | Prose of PRD, TRD, sheet and gate output; IDs, code, commits and file names stay English |
 | `sheet_labels` | Headings and labels of `sheet.md`, in order; translate them for another `language` |
-| `plain_words` | Words the user never says; S4 flags them in a decision title or option |
+| `plain_words` | Words the user never says; the sheet keeps them out of a decision title or option |
 | `plan_strict` | `yes` makes the shared-file wave check P17 an error |
 | `shared_files` | Files several tasks tend to touch; P17 when two tasks of one wave touch one |
-| `planned_heading`, `via_header` | The heading of an existing `Planned` TRD section (G8, G20; no new change adds one), and the last column that marks a rule table (G3) |
-| `proposed_marker`, `pending_marker`, `planned_source` | Marker words of rule rows. `pending_marker` and `planned_source` only read markers that already exist (a new change never adds one); G30 fails `--final` while a proposed row is left |
-| `prd_section_budget_lines`, `trd_budget_lines`, `pack_budget_lines`, `plan_budget_kb` | Size warnings (G31, G26, pack, plan); over budget, split |
+| `planned_heading`, `via_header` | The heading of an existing `Planned` TRD section (G8; no new change adds one), and the last column that marks a rule table |
+| `proposed_marker`, `pending_marker`, `planned_source` | Marker words of rule rows. `pending_marker` and `planned_source` only read markers that already exist (a new change never adds one; D4 warns when one is added) |
+| `prd_section_budget_lines`, `trd_budget_lines` | Size guides for a PRD section file and a TRD area file, read by the creators and the reviewer; over budget, split |
 | `html`, `trd_html`, `html_template`, `html_mode` | Reading pages built only by `/docs-html`; `generated`: a stale page is reported only by `gate.py --html` (G29, G32), as is `hand` (G5, migrate with `/ai-kit update`); the default gate checks no HTML; `none` opts out |
 
 ## Commands
@@ -52,9 +49,8 @@ Always through `scripts/gates.sh`; the stack commands behind each target are in 
 | Who | `scripts/gates.sh` targets |
 |---|---|
 | A person | `related [files]` (agents rely on `verify`) |
-| Executor | `one <file>`, `red <test>`, `fix-files <file>...` then `lint-files <file>...`, `move <source> <start> <end> <destination> [--at LINE]` (C6 only); `close <slug> --case <C>` |
-| Surveyor | `prd-sweep --ids <IDs> --terms "<words>" --out <state>/sweep.md`; `settings-check` (deny rules that block files the flow writes) |
-| Chief | background: `baseline`, `verify`, `compare`, `watch <slug> [--minutes N]`; foreground: `cleanup [<slug>]`, `reap` |
+| Executor | `one <file>` (the stack's runner), `fix-files <file>...` then `lint-files <file>...`, `move <source> <start> <end> <destination> [--at LINE]` (C6 only); `close <slug> --case <C>` |
+| Chief | background: `baseline`, `verify`, `compare`; foreground: `cleanup [<slug>]`, `reap` |
 | Anyone | `python` (the interpreter), `lint`, `fix` then `lint`, `imports`, `ratchet` |
 
 ## Layout
@@ -81,7 +77,7 @@ Always through `scripts/gates.sh`; the stack commands behind each target are in 
 
 ## Reviewers
 
-Findings-only agents in `.claude/agents/`, assigned per card as `Lens:`; `none` is valid.
+Findings-only agents in `.claude/agents/`, assigned per task as `Lens:`; `none` is valid.
 
 | The task touches | Reviewer agent |
 |---|---|
@@ -115,7 +111,7 @@ Who decides on a section (K13, `sheet.md` "Owner"). Delete the rows when nobody 
 
 ## Shared PRDs
 
-PRD folders kept identical in a sibling repository (G28). Delete the rows when none is shared.
+PRD folders kept identical in a sibling repository (G28, a warning of `--sibling` and the docs gate). Delete the rows when none is shared.
 
 | PRD folder | Sibling repository path | Source of truth |
 |---|---|---|

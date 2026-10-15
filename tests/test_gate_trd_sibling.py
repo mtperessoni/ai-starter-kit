@@ -1,4 +1,4 @@
-"""gate.py --trd (G23 to G26), --sibling (G28) and G29 through throwaway git projects."""
+"""gate.py --trd (G23), --sibling (G28) and G29 through throwaway git projects."""
 
 import tempfile
 import unittest
@@ -50,34 +50,25 @@ class TrdTest(unittest.TestCase):
     def tearDown(self) -> None:
         self.p.close()
 
-    def test_a_missing_path_is_an_error(self) -> None:
-        self.assertEqual(self.out.returncode, 1, self.out.stdout)
-        self.assertIn("ERROR G23", self.out.stdout)
-        self.assertIn("ghost_file.py", self.out.stdout)
+    def test_a_missing_path_is_a_warning(self) -> None:
+        self.assertEqual(self.out.returncode, 0, self.out.stdout)
+        self.assertIn("WARNING G23", full(self.p, self.out))
+        self.assertIn("ghost_file.py", full(self.p, self.out))
 
     def test_existing_paths_and_suffix_forms_pass(self) -> None:
-        self.assertEqual(self.out.stdout.count("ERROR G23"), 1, self.out.stdout)
+        self.assertEqual(full(self.p, self.out).count("WARNING G23"), 1, full(self.p, self.out))
 
     def test_planned_section_and_creates_rows_are_skipped(self) -> None:
         self.assertNotIn("new_thing", full(self.p, self.out))
         self.assertNotIn("nowhere", full(self.p, self.out))
 
-    def test_a_symbol_absent_from_the_row_files_is_a_warning(self) -> None:
-        report = full(self.p, self.out)
-        self.assertIn("WARNING G24", report)
-        self.assertIn("missing_symbol", report)
-        self.assertNotIn("`create_order`", report)
-
-    def test_an_id_the_files_never_mention_is_not_printed(self) -> None:
-        self.assertNotIn("G25", full(self.p, self.out))
-        self.assertNotIn("ORD-09", full(self.p, self.out))
-
-    def test_a_file_over_budget_is_a_warning_including_part_files(self) -> None:
+    def test_symbols_ids_and_size_are_not_checked(self) -> None:
         write(self.p.root, "docs/trd/orders/part-one.md", "# part\n" + "line\n" * 300)
         commit(self.p)
         r = self.p.py(GATE, "--trd")
-        self.assertIn("WARNING G26", full(self.p, r))
-        self.assertIn("docs/trd/orders/part-one.md", full(self.p, r))
+        report = full(self.p, r)
+        for code in ("G24", "G25", "G26"):
+            self.assertNotIn(code, report)
 
     def test_the_planned_heading_is_a_config_key(self) -> None:
         repo = self.p.root / REPO_MD
@@ -164,23 +155,23 @@ class SiblingTest(unittest.TestCase):
         write(self.sib_root, "docs/prd/shop/a.md", "one\nthree\n")
         self.share(self.sibling)
         r = self.p.py(GATE, "--sibling")
-        self.assertEqual(r.returncode, 1, r.stdout)
-        self.assertIn("ERROR G28", r.stdout)
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("WARNING G28", full(self.p, r))
 
     def test_a_file_only_on_one_side_is_g28(self) -> None:
         write(self.sib_root, "docs/prd/shop/a.md", "one\ntwo\n")
         write(self.sib_root, "docs/prd/shop/extra.md", "x\n")
         self.share(self.sibling)
         r = self.p.py(GATE, "--sibling")
-        self.assertIn("ERROR G28", r.stdout)
-        self.assertIn("extra.md", r.stdout)
+        self.assertIn("WARNING G28", full(self.p, r))
+        self.assertIn("extra.md", full(self.p, r))
 
     def test_a_relative_sibling_path_resolves_against_the_repository_root(self) -> None:
         write(self.p.root, "other/shop/a.md", "one\nthree\n")
         self.share(Path("other/shop"))
         r = run(self.p.root / "src", PY, str(self.p.root / GATE), "--sibling")
-        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
-        self.assertIn("ERROR G28", r.stdout)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("WARNING G28", full(self.p, r))
 
     def test_a_heading_with_a_suffix_is_still_the_shared_section(self) -> None:
         repo = self.p.root / REPO_MD
@@ -189,7 +180,8 @@ class SiblingTest(unittest.TestCase):
         repo.write_text(text.replace("## Shared PRDs", "## Shared PRDs (note)", 1), encoding="utf-8")
         write(self.sib_root, "docs/prd/shop/a.md", "one\nthree\n")
         self.share(self.sibling)
-        self.assertIn("ERROR G28", self.p.py(GATE, "--sibling").stdout)
+        r = self.p.py(GATE, "--sibling")
+        self.assertIn("WARNING G28", full(self.p, r))
 
     def test_an_absent_sibling_is_not_printed(self) -> None:
         self.share(self.sibling / "nope")

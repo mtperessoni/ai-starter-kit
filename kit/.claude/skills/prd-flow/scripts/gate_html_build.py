@@ -1,4 +1,4 @@
-"""G29 and G32: with html_mode generated, the PRD and TRD pages equal a fresh render of their builders.
+"""G29 and G32 (only under --html): with html_mode generated, the PRD and TRD pages equal a fresh render of their builders.
 
 The change flow checks no HTML; only gate.py --html (the docs-html skill) does.
 """
@@ -6,7 +6,7 @@ The change flow checks no HTML; only gate.py --html (the docs-html skill) does.
 import importlib
 from pathlib import Path
 
-from gate_core import EM_DASH, err, warn
+from gate_core import err, warn
 
 HINT = "fix: run /docs-html"
 
@@ -41,15 +41,6 @@ def check_page(root: Path, cfg: dict[str, str], code: str, module_name: str, pat
         report(code, f"{rel} is out of date; {HINT}")
 
 
-def check_page_em_dash(root: Path, cfg: dict[str, str], path_key: str) -> None:
-    page = root / cfg[path_key]
-    if page.exists():
-        for n, line in enumerate(page.read_text(encoding="utf-8").splitlines(), 1):
-            if EM_DASH in line:
-                err("G4", f"em dash in {page.relative_to(root).as_posix()}:{n}")
-
-
-
 def check_html_strict(root: Path, cfg: dict[str, str]) -> None:
     if not html_on(cfg):
         return
@@ -58,4 +49,3 @@ def check_html_strict(root: Path, cfg: dict[str, str]) -> None:
         return
     for code, module, key in pages(root, cfg):
         check_page(root, cfg, code, module, key, True)
-        check_page_em_dash(root, cfg, key)

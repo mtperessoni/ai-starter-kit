@@ -1,12 +1,8 @@
-"""PRD structure checks: INDEX, pack and approved-rules rows."""
+"""The PRD rows a diff adds or removes."""
 
-import re
 from pathlib import Path
 
-from gate_core import (
-    ID, PACK_SECTIONS, ROW, SEPARATOR, Rules, baseline, cells, drift, ends_with_path, err, expand, git, is_table_line, joined,
-    hint, literal_rows, section, tokens, warn,
-)
+from gate_core import ROW, SEPARATOR, cells, git, is_table_line, tokens
 
 
 def changed_rows(root: Path, base: str, prd_rel: str, pattern: str):
@@ -40,87 +36,3 @@ def changed_rows(root: Path, base: str, prd_rel: str, pattern: str):
             if m:
                 new[m.group(1)] = cells(m.group(2))
     return old, new, touched, plain
-
-
-def check_pack(root: Path, path: Path, rules: Rules, cfg: dict[str, str]) -> None:
-    text = path.read_text(encoding="utf-8")
-    for title in PACK_SECTIONS:
-        if not re.search(r"^## " + re.escape(title) + r"\s*$", text, re.M):
-            err("Q1", f"pack without the section '## {title}'")
-    if not re.search(r"^Base: \S+", text, re.M):
-        err("Q1", "pack without the line 'Base: <commit>'")
-    literal = 0
-    for title in ["Rules", "Rows without ID"]:
-        for rel, line in literal_rows(section(text, title)):
-            f = root / rel
-            if not f.exists():
-                err("Q1", f"pack cites a missing file: {rel}")
-                continue
-            m = ROW.match(line)
-            if m:
-                rid = m.group(1)
-                if rid not in rules:
-                    err("Q1", f"{rid} does not exist in the PRD")
-                elif rules[rid][0].resolve() != f.resolve():
-                    err("Q1", f"{rid} is in {rules[rid][0].name}, not in {rel}")
-                elif tokens(cells(m.group(2))[0]) != tokens(rules[rid][1][0]):
-                    err("Q1", f"{rid}: the pack row is not literal (paraphrase)")
-                else:
-                    literal += 1
-            elif joined(line) not in joined(f.read_text(encoding="utf-8")):
-                err("Q1", f"row without ID is not literal in {rel}: {line[:60]}")
-            else:
-                literal += 1
-    if not literal:
-        err("Q1", "pack without any literal rule row under '### <file>'")
-    trd_rel = cfg["trd_dir"].rstrip("/")
-    for rel in re.findall(r"(" + re.escape(trd_rel) + r"/[\w.-]+\.md)", section(text, "TRD")):
-        if not (root / rel).exists():
-            err("Q1", f"cited TRD does not exist: {rel}")
-    inv_path = root / trd_rel / "invariants.md"
-    if inv_path.exists():
-        known_inv = set(re.findall(r"\|\s*(I-\d+)\s*\|", inv_path.read_text(encoding="utf-8")))
-        for inv in re.findall(r"\b(I-\d+)\b", section(text, "Invariants")):
-            if inv not in known_inv:
-                err("Q1", f"invariant {inv} does not exist in invariants.md")
-    size = len(text.splitlines())
-    budget = int(cfg["pack_budget_lines"])
-    if size > budget:
-        warn("Q1", f"pack with {size} lines (budget: {budget})")
-
-
-def rules_skeleton(cfg: dict[str, str]) -> None:
-    hint("rules", [
-        "approved-rules.md expected format (one rewrite fixes it):",
-        "## <prd file>.md",
-        "| ID | Rule | Source | Change via | Example |",
-        "|---|---|---|---|---|",
-        f"| PFX-NN | *(approved YYYY-MM-DD, {cfg['pending_marker']})* <rule text> | {cfg['planned_source']} | code | <given> -> <expected> |",
-        "A superseded row goes under '## Supersedes' as plain text, not as a table row.",
-    ])
-
-
-def check_rules(path: Path, rules: Rules, cfg: dict[str, str], vias: set[str], text: str | None = None) -> None:
-    seen: set[str] = set()
-    rows = literal_rows(text if text is not None else path.read_text(encoding="utf-8"))
-    if not rows:
-        err("Q2", "no rule row under a '## <file>' or '### <file>'")
-        rules_skeleton(cfg)
-    prd_prefix = cfg["prd_dir"].rstrip("/") + "/"
-    for rel, line in rows:
-        m = ROW.match(line)
-        if not m:
-            continue
-        rid, row = m.group(1), cells(m.group(2))
-        if rid in seen:
-            err("Q2", f"{rid} repeated")
-        seen.add(rid)
-        if len(row) < 3 or not row[1] or not row[2]:
-            err("Q2", f"{rid} without Source or Change via")
-            rules_skeleton(cfg)
-        elif row[2].strip("` ").lower() not in vias:
-            err("Q2", f"{rid}: Change via '{row[2]}' outside {sorted(vias)}")
-            rules_skeleton(cfg)
-        owner = rules.get(rid)
-        if owner and not ends_with_path(owner[0], rel.removeprefix(prd_prefix)):
-            err("Q2", f"{rid} already exists in {owner[0].name}; do not reuse the ID in {rel}")

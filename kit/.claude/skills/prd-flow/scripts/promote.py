@@ -1,12 +1,12 @@
 """The mechanical part of Promote, only for size L and for frozen markers that already exist.
-No CHANGELOG entry and no state record: it only archives changes/NNN-<slug>. With an entry or a record: markers, Source, CHANGELOG, archive, state, final gate.
+No CHANGELOG entry and no state record: it only archives changes/NNN-<slug>. With an entry or a record: markers, Source, CHANGELOG, archive, state.
 
 Usage: python .claude/skills/prd-flow/scripts/promote.py <slug> [--dry-run] [--root <repo>] [--hold ID[,ID] --reason TEXT]
 New route (no approved-rules.md or rules.md in .claude/prd-flow/state/<slug>/): the approved set is the slug's CHANGELOG entry (heading names changes/NNN-<slug>;
 `IDs:`, `Conflicts:`, `Supersedes:` lines), the rows come from the PRD files, the DEC rows from changes/NNN-<slug>/decisions.md (Reply lines skipped), the Sources from deliveries/*.md.
 Rewritten-row excerpts are already in the entry; promote adds the excerpts of the superseded rows, the Decisions block and the Sources.
 Old route (the state folder still has rules.md or approved-rules.md): read as before, with deliveries/*.md (or an older single deliveries.md).
-Markers come from repo.md (pending_marker, planned_source). A delivered rule without a Source fails unless it is held (--hold keeps it planned, skips the archive and the final gate). After promote the state rows equal the PRD rows.
+Markers come from repo.md (pending_marker, planned_source). A delivered rule without a Source fails unless it is held (--hold keeps it planned, skips the archive). After promote the state rows equal the PRD rows.
 Prints at most 14 lines: on success the files changed and a ready commit message (a WARN names its `next:` dispatch); on each error `owner:` and `next:` lines. What it cannot decide (the TRD Planned merge, amendment folds) is a listed warning.
 """
 
@@ -431,7 +431,7 @@ def promote(root: Path, slug: str, dry: bool, hold: frozenset[str] = frozenset()
         if not new_route:
             realign_state(state, writes, files, root, cfg, hold)
     if hold:
-        lines += ["archive: skipped, held rows remain", "state: kept for close", "gate --final: skipped (held rows)"]
+        lines += ["archive: skipped, held rows remain", "state: kept for close"]
         return lines + [f"commit: docs(prd): promote {slug} (partial)"], 0
     if change:
         lines.append(f"archive: {change.relative_to(root).as_posix()} -> {folder}")
@@ -440,25 +440,13 @@ def promote(root: Path, slug: str, dry: bool, hold: frozenset[str] = frozenset()
             r = run_git(root, "mv", change.relative_to(root).as_posix(), folder)
             if r.returncode != 0:
                 lines.append(f"archive: ERROR {r.stderr.strip()}")
-                return finish(lines, done, ["archive", "gate --final"])
+                return finish(lines, done, ["archive"])
     elif (root / "changes" / "archive").is_dir() and any(d.name == slug or d.name.split("-", 1)[-1] == slug for d in (root / "changes" / "archive").iterdir()):
         lines.append("archive: already archived")
     else:
         lines.append("archive: WARN no changes/NNN-<slug> folder found")
     lines.append("state: kept for close")
-    if dry:
-        lines.append("gate --final: skipped (dry-run)")
-        code = 0
-    else:
-        gate = Path(__file__).with_name("gate.py")
-        r = subprocess.run([sys.executable, str(gate), "--final", "--change", slug], capture_output=True, text=True, check=False,  # noqa: S603
-                           cwd=root, encoding="utf-8")
-        out = r.stdout.strip().splitlines()
-        tail = next((ln for ln in out if ln.startswith("ERROR")), (out or [""])[-1])
-        lines.append(f"gate --final: {tail} (exit {r.returncode})")
-        code = int(r.returncode != 0)
-        if code:
-            lines += list(OWNER_FIX)
+    code = 0
     if not code:
         changed = sorted(p.relative_to(root).as_posix() for p in writes)
         if change:

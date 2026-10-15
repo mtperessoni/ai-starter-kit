@@ -2,6 +2,10 @@
 
 User-visible changes to the kit, newest first. Projects receive them through `/ai-kit update`.
 
+## Slimmer prd-flow gate and flow (K4b)
+
+`gate.py` keeps G0, G1 and G8 as errors, G15 and G22 under `--change`, G23 and G28 as warnings, D4 and P17 as warnings, G5, G29 and G32 only under `--html`. Removed: G2, G3, G9, G11, G12, G14, G16 to G21, G24 to G27, G30, G31, Q1 to Q5, S0 to S6, P1 to P10, and the modes `--pack`, `--rules`, `--sheet`, `--trace`, `--final`, `--snapshot`, `--fix`; modules `gate_interview.py`, `gate_budget.py`, `gate_remote.py`, `gen_index.py`, `prd_sweep.py`. G4 (em dash) moves to the stack linter recipe. `gate_rules.py` and `state_record.py` stay trimmed because `promote.py` (size L archive, no longer runs `--final`) still reads them. Config keys `forbid_em_dash`, `pack_budget_lines`, `plan_budget_kb` are gone. prd-flow: the surveyor runs only for rule changes (`full`, `short`), the chief may run gates and git, one return format, a task is one line, no deliveries ledger, `Self-check:`, `Red:`, dispatch ledger or `state.md` sections of other agents; the executor has no grep-all-docs step and no hard-coded runner; `prd-flow-docs` runs on sonnet. `scripts/close_gate.py` must drop its `docs --final` step.
+
 ## Read before edit, done means stop
 
 Audit of 2026-10-15 (`eval/audit-2026-10-15-paper/FINDINGS.md`): 409 edits were refused in two days, 93% of them after the agent had read the file with `cat`, `sed` or `grep`, which the harness does not count as a read; failing test streaks reached 4 to 6; 10 to 18% of executor calls came after the last product edit. Rules: CR23 (new), CR08 and CR16 (amended).

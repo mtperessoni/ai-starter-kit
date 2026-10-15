@@ -1,4 +1,4 @@
-"""gate.py Q5 (conflict resolution), the Q4 cell message and --step plan waves (P7, P8, P9)."""
+"""gate.py --step plan: the wave table and the critical path, and P17 as the only plan check left."""
 
 import unittest
 
@@ -6,81 +6,6 @@ from tests.gate_report import full
 from tests.test_kit_scripts import Project, write
 
 GATE = ".claude/skills/prd-flow/scripts/gate.py"
-RULES = "state/orders/approved-rules.md"
-PACK = "state/orders/pack.md"
-ROW1 = "| ORD-01 | *(approved 2026-10-07, pending code)* An order needs two items. | src/features/orders/order_service.py::create_order | code |"
-
-
-def approved(rows: str = ROW1, conflicts: str = "", extra: str = "") -> str:
-    head = "# Approved\n\n## shop/05-orders.md\n| ID | Rule | Source | Change via |\n|---|---|---|---|\n" + rows + "\n"
-    table = "\n## Conflicts\n| ID | Resolution | Note |\n|---|---|---|\n" + conflicts + "\n" if conflicts is not None else ""
-    return head + table + extra
-
-
-class ConflictTest(unittest.TestCase):
-    def setUp(self) -> None:
-        self.p = Project()
-
-    def tearDown(self) -> None:
-        self.p.close()
-
-    def gate(self, rules: str, pack: str | None = None):
-        write(self.p.root, RULES, rules)
-        if pack is not None:
-            write(self.p.root, PACK, pack)
-        return self.p.py(GATE, "--rules", RULES)
-
-    def test_a_missing_pack_is_not_an_error(self) -> None:
-        r = self.gate(approved(conflicts=""))
-        self.assertNotIn("Q5", r.stdout)
-
-    def test_a_pack_conflict_without_a_row_is_q5(self) -> None:
-        r = self.gate(approved(conflicts=""), "# Pack\nConflicts: ORD-02\n")
-        self.assertIn("ERROR Q5 ORD-02", r.stdout)
-        self.assertIn("; fix: ", r.stdout.split("ERROR Q5")[1].splitlines()[0])
-
-    def test_conflicts_none_needs_nothing(self) -> None:
-        r = self.gate(approved(conflicts=""), "# Pack\nConflicts: none\n")
-        self.assertNotIn("Q5", r.stdout)
-
-    def test_rewritten_needs_its_table_row(self) -> None:
-        r = self.gate(approved(conflicts="| ORD-02 | rewritten | now two items |"), "# Pack\nConflicts: ORD-02\n")
-        self.assertIn("ERROR Q5 ORD-02", r.stdout)
-        ok = self.gate(approved(conflicts="| ORD-01 | rewritten | now two items |"), "# Pack\nConflicts: ORD-01\n")
-        self.assertNotIn("Q5", ok.stdout)
-
-    def test_superseded_must_be_listed_and_exist_in_the_prd(self) -> None:
-        listed = "\n## Supersedes\nORD-02: An unpaid order is cancelled.\n"
-        r = self.gate(approved(conflicts="| ORD-02 | superseded | gone |", extra=listed), "# Pack\nConflicts: ORD-02\n")
-        self.assertNotIn("Q5", r.stdout)
-        missing = self.gate(approved(conflicts="| ORD-02 | superseded | gone |"), "# Pack\nConflicts: ORD-02\n")
-        self.assertIn("ERROR Q5 ORD-02", missing.stdout)
-        ghost = self.gate(approved(conflicts="| ORD-99 | superseded | gone |", extra="\n## Supersedes\nORD-99: x\n"), "# Pack\nConflicts: ORD-99\n")
-        self.assertIn("ERROR Q5 ORD-99", ghost.stdout)
-
-    def test_compatible_needs_a_note(self) -> None:
-        r = self.gate(approved(conflicts="| ORD-02 | compatible | |"), "# Pack\nConflicts: ORD-02\n")
-        self.assertIn("ERROR Q5 ORD-02", r.stdout)
-        ok = self.gate(approved(conflicts="| ORD-02 | compatible | different state |"), "# Pack\nConflicts: ORD-02\n")
-        self.assertNotIn("Q5", ok.stdout)
-
-    def test_an_unknown_resolution_is_q5_and_the_step_runs_it_too(self) -> None:
-        write(self.p.root, RULES, approved(conflicts="| ORD-02 | maybe | x |"))
-        write(self.p.root, PACK, "# Pack\nConflicts: ORD-02\n")
-        r = self.p.py(GATE, "--step", "prd", "--rules", RULES)
-        self.assertIn("ERROR Q5 ORD-02", r.stdout)
-
-    def test_a_conflicts_table_is_not_read_as_rule_rows(self) -> None:
-        r = self.gate(approved(conflicts="| ORD-01 | rewritten | x |"), "# Pack\nConflicts: ORD-01\n")
-        self.assertNotIn("Q2", r.stdout)
-
-    def test_q4_prints_the_differing_cells(self) -> None:
-        write(self.p.root, RULES, approved(conflicts=""))
-        r = self.p.py(GATE, "--rules", RULES, "--applied")
-        line = next(x for x in r.stdout.splitlines() if x.startswith("ERROR Q4"))
-        self.assertIn("An order needs two items", line)
-        self.assertIn("An order is created only from a cart", line)
-        self.assertIn("; fix: ", line)
 
 
 def plan(*tasks: str) -> str:
@@ -123,44 +48,20 @@ class WaveTest(unittest.TestCase):
         r = self.gate(plan(task("T01", "src/a.py"), task("T02", "src/b.py"), task("T03", "src/c.py", "T02")))
         self.assertIn("WAVE 1: T02, T01", r.stdout.splitlines(), r.stdout)
 
-    def test_p7_two_tasks_of_one_wave_sharing_an_owned_file(self) -> None:
-        r = self.gate(plan(task("T01", "src/a.py, src/shared.py"), task("T02", "src/shared.py")))
-        self.assertIn("ERROR P7", r.stdout)
-        self.assertEqual(r.returncode, 1)
-        self.assertIn("; fix: ", next(x for x in r.stdout.splitlines() if "ERROR P7" in x))
-
-    def test_p7_an_owned_glob_overlaps_a_file_under_its_directory(self) -> None:
-        r = self.gate(plan(task("T01", "src/**"), task("T02", "src/a.py")))
-        self.assertIn("ERROR P7", r.stdout)
-
-    def test_p7_a_wildcard_segment_is_compared_with_the_deeper_path(self) -> None:
-        r = self.gate(plan(task("T01", "src/*.py"), task("T02", "src/b/c.py")))
-        self.assertNotIn("P7", r.stdout)
-        r = self.gate(plan(task("T01", "src/**"), task("T02", "src/b/c.py")))
-        self.assertIn("ERROR P7", r.stdout)
-
-    def test_p9_trailing_punctuation_does_not_hide_ownership(self) -> None:
-        r = self.gate(plan(task("T01", "src/a.py, docs/trd/orders.md", extra="Creates / consumes: updates docs/trd/orders.md.\n")))
-        self.assertNotIn("P9", r.stdout)
-
     def test_serial_tasks_may_share_a_file(self) -> None:
         r = self.gate(plan(task("T01", "src/a.py"), task("T02", "src/a.py", "T01")))
-        self.assertNotIn("P7", r.stdout)
-
-    def test_p8_two_serial_tasks_in_one_area_warn(self) -> None:
-        r = self.gate(plan(task("T01", "src/features/orders/a.py"), task("T02", "src/features/orders/b.py", "T01")))
-        self.assertIn("WARNING P8", full(self.p, r))
         self.assertEqual(r.returncode, 0, r.stdout)
 
-    def test_p9_a_task_touching_docs_without_owning_it(self) -> None:
-        r = self.gate(plan(task("T01", "src/a.py", extra="Creates / consumes: docs/trd/orders.md\n")))
-        self.assertIn("ERROR P9", r.stdout)
-        ok = self.gate(plan(task("T01", "src/a.py, docs/trd/orders.md", extra="Creates / consumes: docs/trd/orders.md\n")))
-        self.assertNotIn("P9", ok.stdout)
+    def test_two_tasks_of_one_wave_on_the_shared_file_warn_p17(self) -> None:
+        r = self.gate(plan(task("T01", "src/a.py", extra="Creates / consumes: creates ai-kit.json\n"), task("T02", "src/b.py", extra="Creates / consumes: creates ai-kit.json\n")))
+        self.assertIn("WARNING P17", full(self.p, r))
+        self.assertEqual(r.returncode, 0, r.stdout)
 
-    def test_a_dependency_on_an_unknown_task_is_an_error(self) -> None:
-        r = self.gate(plan(task("T01", "src/a.py", "T09")))
-        self.assertIn("ERROR P1", r.stdout)
+    def test_the_owns_and_depends_on_checks_are_gone(self) -> None:
+        r = self.gate(plan(task("T01", "src/a.py, src/shared.py", "T09"), task("T02", "src/shared.py", extra="Creates / consumes: docs/trd/orders.md\n")))
+        self.assertEqual(r.returncode, 0, r.stdout)
+        for code in ("P1", "P7", "P8", "P9"):
+            self.assertNotIn(code, full(self.p, r))
 
 
 if __name__ == "__main__":

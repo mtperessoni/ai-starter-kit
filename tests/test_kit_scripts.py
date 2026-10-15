@@ -129,51 +129,6 @@ class GateTest(unittest.TestCase):
         r = self.p.py(self.gate)
         self.assertNotIn("G7", r.stdout)
 
-    def test_open_questions_table_gets_no_change_via_warning(self) -> None:
-        section = self.p.root / "docs/prd/shop/05-orders.md"
-        section.write_text(
-            section.read_text(encoding="utf-8")
-            + "\n| ID | Question | Default adopted | Blocks |\n|---|---|---|---|\n"
-            + "| Q1-01 | Refund window? | 30 days | ORD-02 |\n"
-            + "\n| ID | Rule | Source | Change via |\n|---|---|---|---|\n"
-            + "| ORD-03 | Bad via row. | src/x.py | magic |\n",
-            encoding="utf-8",
-        )
-        r = self.p.py(self.gate, "--base", "HEAD")
-        report = full(self.p, r)
-        self.assertNotIn("Q1-01: Change via", report)
-        self.assertIn("ORD-03: Change via", report)
-
-    def test_em_dash_is_rejected(self) -> None:
-        section = self.p.root / "docs/prd/shop/05-orders.md"
-        section.write_text(section.read_text(encoding="utf-8") + "\nA note " + chr(0x2014) + " here.\n", encoding="utf-8")
-        r = self.p.py(self.gate)
-        self.assertEqual(r.returncode, 1)
-        self.assertIn("G4", r.stdout)
-
-    def test_a_pack_must_copy_rules_literally(self) -> None:
-        pack = write(self.p.root, "pack.md", """\
-            # Pack · t
-            Base: abc
-            ## Rules
-            ### docs/prd/shop/05-orders.md
-            | ORD-01 | An order needs items. |
-            ## TRD
-            ## Invariants
-            - I-01 x
-            ## Principles
-            ## Divergences
-            ## Pre-interview
-            """)
-        r = self.p.py(self.gate, "--pack", str(pack))
-        self.assertIn("paraphrase", r.stdout)
-
-    def test_a_plan_task_needs_owns(self) -> None:
-        plan = write(self.p.root, "plan.md", "## Plan execution rules\n\n### T01 · do\nModel: sonnet\nReviewer: none\n")
-        r = self.p.py(self.gate, "--plan", str(plan))
-        self.assertEqual(r.returncode, 1)
-        self.assertIn("P2", r.stdout)
-
 
 class RatchetTest(unittest.TestCase):
     def setUp(self) -> None:

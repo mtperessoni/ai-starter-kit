@@ -15,4 +15,4 @@ A scenario is one frozen rule change on one repository, kept in the project at `
 | `answer_key` | One line per reader question; the chief grades each answer 1, 0.5 or 0 |
 | `fixture_version`, `decided_in_conversation` | Provenance of the fixtures and the verbatim decision given to the surveyor |
 
-Q4 to Q11 need nothing from the scenario beyond `base` and `slug`. Fixtures are frozen: a new survey is a new scenario.
+Q4 to Q10 need nothing from the scenario beyond `base` and `slug`. Fixtures are frozen: a new survey is a new scenario.

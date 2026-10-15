@@ -7,7 +7,7 @@ Every file the kit installs is either **kit-owned** (the project never edits it;
 | `.claude/skills/prd-flow/` (except `repo.md`) | kit | Replace after showing the diff | Replace when unchanged since install; otherwise show a three-way diff and ask |
 | `.claude/skills/prd-flow/repo.md` | project | Merge: keep existing values, add missing sections | Propose new sections only |
 | `.claude/skills/prd-gate/` (legacy name) | kit, removed | Not installed | Removed by the prd-gate migration of `update.md`, after the user confirms |
-| `.claude/skills/prd-flow/scripts/build_prd_html.py`, `build_trd_html.py`, `promote.py`, `prd_sweep.py`, `docs/templates/prd.html` | kit | Replace | Replace when unchanged |
+| `.claude/skills/prd-flow/scripts/build_prd_html.py`, `build_trd_html.py`, `promote.py`, `docs/templates/prd.html` | kit | Replace | Replace when unchanged |
 | `.claude/skills/prd-flow/reference/` (`dispatch.md`, `survey.md`, `sheet.md`, `write.md`, `run.md`) | kit | Replace after showing the diff | Replace when unchanged; otherwise three-way diff and ask. The eight retired files (`classification`, `impact`, `interview`, `prd-writing`, `trd-planned`, `agent-plan`, `execution`, `review`) are removed by the prd-flow lite migration of `update.md`, after the user confirms |
 | `ai-kit.allowlist.json` | project | Create from the kit's file, then fill with `ratchet.py --init` (IN20, L15) | An existing `allowlist` key of `ai-kit.json` is moved into it, the project's values kept; afterwards the allowlist only shrinks |
 | `.claude/skills/prd-flow/repo.md` keys `prd_section_budget_lines`, `trd_html` | project | Written with their defaults (200, `docs/trd/trd.html`) | Added with their defaults; never changes a value |

@@ -60,7 +60,7 @@ class KitShipsEvalTest(unittest.TestCase):
     def test_quality_uses_the_kit_gate(self):
         text = (SKILL / "scripts" / "quality.py").read_text(encoding="utf-8")
         self.assertIn(".claude/skills/prd-flow/scripts/gate.py", text)
-        self.assertIn(".claude/skills/prd-flow/scripts/gen_index.py", text)
+        self.assertNotIn("gen_index", text)
         self.assertNotIn("gate_lite", text)
         self.assertNotIn("HERE /", text)
 

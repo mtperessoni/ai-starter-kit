@@ -1,4 +1,4 @@
-"""Rule-as-data gate: INDEX generated (S3), no HTML in the change gate (S4), six errors (S6), --history (S2), pending markers (D4)."""
+"""Rule-as-data gate: no HTML in the change gate (S4), the errors that remain (G1, G8), --history (S2), pending markers (D4)."""
 
 import unittest
 
@@ -38,26 +38,12 @@ class RuleAsDataTest(unittest.TestCase):
         r, _ = self.gate()
         self.assertEqual(r.returncode, 0, r.stdout)
 
-    def test_s3_a_stale_index_errors_and_fix_repairs_it(self) -> None:
+    def test_the_index_is_not_checked_and_has_no_generator(self) -> None:
         self.append(row("ORD-03"))
-        self.cite("ORD-03")
-        r, _ = self.gate()
-        self.assertEqual(r.returncode, 1, r.stdout)
-        self.assertIn("ERROR G2", r.stdout)
-        self.assertIn("ORD-01..03", r.stdout)
-        fixed, _ = self.gate("--fix")
-        self.assertEqual(fixed.returncode, 0, fixed.stdout)
-        self.assertIn("ORD-01..03", (self.p.root / "docs/prd/INDEX.md").read_text(encoding="utf-8"))
-        again, _ = self.gate()
-        self.assertEqual(again.returncode, 0, again.stdout)
-
-    def test_s3_gen_index_check_reports_and_writes(self) -> None:
-        self.append(row("ORD-03"))
-        script = ".claude/skills/prd-flow/scripts/gen_index.py"
-        stale = self.p.py(script, "--repo", str(self.p.root), "--check")
-        self.assertEqual(stale.returncode, 1, stale.stdout)
-        self.assertEqual(self.p.py(script, "--repo", str(self.p.root)).returncode, 0)
-        self.assertEqual(self.p.py(script, "--repo", str(self.p.root), "--check").returncode, 0)
+        r, report = self.gate()
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertNotIn("G2", report)
+        self.assertFalse((self.p.root / ".claude/skills/prd-flow/scripts/gen_index.py").exists())
 
     def test_s4_an_html_problem_does_not_fail_the_change_gate(self) -> None:
         write(self.p.root, "docs/prd/prd.html", "<html>" + chr(0x2014) + " stale</html>\n")
@@ -77,38 +63,29 @@ class RuleAsDataTest(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         self.assertIn("ERROR G1", r.stdout)
 
-    def test_s6_g3_incomplete_row(self) -> None:
+    def test_g3_an_incomplete_row_is_no_longer_checked(self) -> None:
         self.append(row("ORD-03", source=""))
-        self.cite("ORD-03")
-        r, _ = self.gate("--fix")
-        self.assertIn("ERROR G3", r.stdout)
+        r, report = self.gate()
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertNotIn("G3", report)
 
     def test_s6_g8_planned_cites_a_missing_id(self) -> None:
         write(self.p.root, "docs/trd/orders.md", "# TRD\n\n## Planned\n\nORD-99 comes later.\n")
         r, _ = self.gate()
         self.assertIn("ERROR G8", r.stdout)
 
-    def test_s6_g12_changed_rule_needs_a_test(self) -> None:
+    def test_g12_a_changed_rule_without_a_test_is_no_longer_an_error(self) -> None:
         self.append(row("ORD-03"))
-        self.p.py(GATE, "--fix")
-        r, _ = self.gate()
-        self.assertEqual(r.returncode, 1, r.stdout)
-        self.assertIn("ERROR G12", r.stdout)
-        self.assertIn("ORD-03", r.stdout)
-        self.cite("ORD-03")
-        ok, _ = self.gate()
-        self.assertEqual(ok.returncode, 0, ok.stdout)
+        r, report = self.gate()
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertNotIn("G12", report)
 
-    def test_s6_g12_an_unchanged_untested_rule_is_not_an_error(self) -> None:
-        r, _ = self.gate()
-        self.assertNotIn("ORD-02", r.stdout)
-
-    def test_s6_g4_em_dash_added(self) -> None:
+    def test_g4_an_added_em_dash_is_left_to_the_linter(self) -> None:
         path = self.p.root / ORDERS
         path.write_text(path.read_text(encoding="utf-8").replace("An order is created from a cart.", "An order " + chr(0x2014) + " from a cart."), encoding="utf-8")
-        r, _ = self.gate()
-        self.assertEqual(r.returncode, 1)
-        self.assertIn("ERROR G4", r.stdout)
+        r, report = self.gate()
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertNotIn("G4", report)
 
     def test_s6_g7_a_reworded_rule_needs_no_changelog_line(self) -> None:
         path = self.p.root / ORDERS
@@ -121,12 +98,11 @@ class RuleAsDataTest(unittest.TestCase):
         path = self.p.root / ORDERS
         lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
         path.write_text("".join(x for x in lines if not x.startswith("| ORD-02")), encoding="utf-8")
-        self.p.py(GATE, "--fix")
         r, report = self.gate()
         self.assertNotIn("G7", report)
         self.assertEqual(r.returncode, 0, r.stdout)
 
-    def test_s6_g23_and_g24_are_warnings_in_the_change_gate(self) -> None:
+    def test_g23_is_a_warning_in_the_change_gate_and_under_trd(self) -> None:
         write(self.p.root, "docs/trd/orders.md", "# TRD\n\nSee `src/features/orders/ghost_file.py`.\n")
         commit(self.p)
         write(self.p.root, "docs/trd/orders.md", "# TRD\n\nSee `src/features/orders/ghost_file.py` and `src/nowhere/x.py`.\n")
@@ -134,10 +110,11 @@ class RuleAsDataTest(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stdout)
         self.assertNotIn("ERROR G23", r.stdout)
         self.assertIn("WARNING G23", report)
-        strict, _ = self.gate("--trd")
-        self.assertIn("ERROR G23", strict.stdout)
+        plain, plain_report = self.gate("--trd")
+        self.assertEqual(plain.returncode, 0, plain.stdout)
+        self.assertIn("WARNING G23", plain_report)
 
-    def test_s6_g28_is_a_warning_in_the_change_gate(self) -> None:
+    def test_g28_is_a_warning_in_the_change_gate_and_under_sibling(self) -> None:
         sibling = self.p.root / "other/shop"
         write(self.p.root, "other/shop/a.md", "one\n")
         write(self.p.root, "docs/prd/shop/a.md", "two\n")
@@ -151,8 +128,9 @@ class RuleAsDataTest(unittest.TestCase):
         self.assertNotIn("ERROR G28", r.stdout)
         self.assertEqual(r.returncode, 0, r.stdout)
         self.assertIn("WARNING G28", report)
-        strict, _ = self.gate("--sibling")
-        self.assertIn("ERROR G28", strict.stdout)
+        plain, plain_report = self.gate("--sibling")
+        self.assertEqual(plain.returncode, 0, plain.stdout)
+        self.assertIn("WARNING G28", plain_report)
 
     def test_s2_history_lists_commits_that_touched_the_row_or_name_it(self) -> None:
         path = self.p.root / ORDERS
@@ -178,7 +156,6 @@ class RuleAsDataTest(unittest.TestCase):
 
     def test_d4_an_existing_pending_marker_is_valid(self) -> None:
         self.append(row("ORD-03", "A later rule. *(approved 2026-10-01, pending code)*", source="planned"))
-        self.p.py(GATE, "--fix")
         commit(self.p)
         r, report = self.gate()
         self.assertEqual(r.returncode, 0, r.stdout)
@@ -186,7 +163,6 @@ class RuleAsDataTest(unittest.TestCase):
 
     def test_d4_a_marker_added_by_the_diff_is_a_warning(self) -> None:
         self.append(row("ORD-03", "A later rule. *(approved 2026-10-01, pending code)*", source="planned"))
-        self.p.py(GATE, "--fix")
         r, report = self.gate()
         self.assertEqual(r.returncode, 0, r.stdout)
         self.assertIn("WARNING D4", report)

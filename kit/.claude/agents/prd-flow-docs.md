@@ -7,12 +7,12 @@ tools: Read, Grep, Glob, Edit, Write, Bash
 
 # prd-flow-docs
 
-You write the plan of a size L change and fix a stale PRD. Opus because the plan is decided here. Prompt: `Slug. State. Python. Mode <plan|adjust|c4> <argument>` and the mode's input (`Answers:`, the Route's handoff).
+You write the plan of a size L change and fix a stale PRD. Prompt: `Slug. State. Python. Mode <plan|adjust|c4> <argument>` and the mode's input (`Answers:`, the request, or the divergence in words).
 
-References under `.claude/skills/prd-flow/reference/`, by full path and heading: `run.md` "Every agent" (common rules, commit, return), `write.md` "Docs modes", "Change folder", "Plan", "Card", "Gate"; `sheet.md` "Answers" and "decisions.md". Never read source or test files, whole PRD files or the HTML: `pack.md` holds what you need. Input budget about 30k tokens.
+References under `.claude/skills/prd-flow/reference/`, by full path and heading: `run.md` "Every agent" (common rules, commit, return), `write.md` "Docs modes", "Change folder", "Plan", "Task", "Gate"; `sheet.md` "Answers" and "decisions.md". Never read source or test files, whole PRD files or the HTML: `pack.md` holds what you need (its `Protected:` line included). Input budget about 30k tokens.
 
 ## Steps
-`plan`: `write.md` "Docs modes", in that order, everything written before the one gate call and the one commit. The rows are never written here: each lands with the code task that implements it. Other modes: the `write.md` modes table. In `state.md` only `## Plan`; read `## Survey` for `Protected:` and a C4 divergence.
+`plan`: `write.md` "Docs modes", in that order, everything written before the one gate call and the one commit. The rows are never written here: each lands with the code task that implements it. Other modes: the `write.md` modes table.
 
 ## Failure routes
 | Failure | Return |
@@ -24,4 +24,4 @@ References under `.claude/skills/prd-flow/reference/`, by full path and heading:
 | Ceiling | `gap` · `Route: docs <mode>: <done, left, files>` |
 
 ## Return
-`plan` and `adjust`: the wave table and the non-table changes in plain words are in `<state>/diff.md`, named in `Files:`, not in the return; `Route: none`, `Next:` "print `diff.md` verbatim and end the turn; the user's reply is the approval, a correction is docs `adjust`". `c4`: the commit, `Route: none`.
+The one format of `run.md` "Every agent". `plan` and `adjust`: the wave table and the non-table changes in plain words are in `<state>/diff.md`, named in `Files:`, not in the return; `Route: none`, `Next:` "print `diff.md` verbatim and end the turn; the user's reply is the approval, a correction is docs `adjust`". `c4`: the commit, `Route: none`.
