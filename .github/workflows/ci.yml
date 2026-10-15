@@ -16,7 +16,7 @@ jobs:
   scripts:
     name: Scripts (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 25  # the Windows runner takes over 10 minutes for the full suite since prd-flow v6
+    timeout-minutes: 40  # the Windows runner needs about 26 minutes for the full suite (the gates.sh close tests spawn bash for 10 to 20 s each)
     strategy:
       fail-fast: false
       matrix:
