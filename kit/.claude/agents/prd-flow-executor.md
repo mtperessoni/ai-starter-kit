@@ -16,13 +16,11 @@ Writes only the files the task owns (the PRD file that owns each rule among them
 ## Rule rows with the code
 A rule change of size S or M: write the approved rows (the "Becomes" text of the sheet, corrected by the answers) into the PRD file that owns the ID, and the TRD body, in the same commit as the code and tests. No `pending code` marker, no Planned TRD section, no CHANGELOG line (CHANGELOG.md is frozen), no `decisions.md`. A row holds today's rule only: drop any "today:", "was", "pending" or "planned" note, even one the sheet carried. The commit body is the record, then the trailer:
 ```
-Request: <the request in the user's words>
 Decided: <n><x> <the chosen option in one line> (rejected: <the other option in one line>)
-Assumed: <each assumption in words, one per line; never an ID alone>
 
 Rules: <IDs>
 ```
-One `Decided:` line per sheet decision, `Decided: none` when it had none. A rule's history: `gate.py --history <ID>`.
+One `Decided:` line per sheet decision, `Decided: none` when it had none; an assumption the code relies on is a `Decided:` line ending in `(assumed)`, in words, never an ID alone. A rule's history: `gate.py --history <ID>`.
 
 ## Cost
 | ID | Rule |

@@ -60,9 +60,9 @@ class RuleAsDataTest(unittest.TestCase):
 
     def test_executor_commit_body_is_the_record(self):
         ex = text(AGENTS / "prd-flow-executor.md") + text(SKILL / "reference" / "run.md")
-        for token in ("Request:", "Decided:", "Assumed:", "--history", "Rules:"):
+        for token in ("Decided:", "(rejected:", "(assumed)", "--history", "Rules:"):
             self.assertIn(token, ex, token)
-        for token in ("Red:", "gate.py --fix", "Self-check", "deliveries/"):
+        for token in ("Red:", "Request:", "Assumed:", "gate.py --fix", "Self-check", "deliveries/"):
             self.assertNotIn(token, ex, token)
         self.assertIn("never an ID alone", ex)
 

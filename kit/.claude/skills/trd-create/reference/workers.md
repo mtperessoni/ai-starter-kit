@@ -32,7 +32,7 @@ Rows must pass `python .claude/skills/prd-flow/scripts/gate.py --trd`: a path is
 5. **Must not break:** the 3 to 8 properties whose breakage hurts most (each with the PRD ID or invariant).
 6. **Known pitfalls:** traps a newcomer falls into (a patch that must target the caller module, a path computed from the module location, a lock, an ordering).
 7. Write `docs/trd/<area>.md` from `docs/templates/trd-feature.md`, with no History section. When the file would pass `trd_budget_lines`, split instead: `docs/trd/<area>/<part>.md` per group of PRD sections (parts mirror the section groups of `docs/prd/INDEX.md`), plus `docs/trd/<area>/README.md` listing the parts with their PRD IDs; the index-writer points `docs/trd/README.md` to the folder. Write `<feature folder>/CLAUDE.md` from `docs/templates/feature-CLAUDE.md` (at most 20 lines, pointing to the TRD) only when the area has its own folder; otherwise the index-writer covers it in a folder map.
-8. Run `gate.py --trd`; fix every G23 to G26 in your files.
+8. Run `gate.py --trd`; fix every G23 warning in your files.
 9. Ceiling: about 50 tool calls.
 
 Return: files written, entry points not wired, hotspots over the limits of `docs/code-structure.md` (files and tests), the last line of `gate.py --trd`, gaps.

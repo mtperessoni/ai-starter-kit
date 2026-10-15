@@ -26,7 +26,7 @@ DEFAULTS = {"lint_after_edit": True, "lint_timeout_s": 120, "lint_debounce_s": 3
 EDIT_TOOLS = ("Edit", "Write", "MultiEdit")
 SHELL_TOOLS = ("Bash", "PowerShell")
 TEST_COMMAND = re.compile(
-    r"gates\.sh\s+(one|related|verify|compare|offline|red)\b|\bpytest\b|\bvitest\b|\bjest\b|\bunittest\b"
+    r"gates\.sh\s+(one|related|verify|compare|offline)\b|\bpytest\b|\bvitest\b|\bjest\b|\bunittest\b"
     r"|\b(npm|yarn|pnpm)\s+(run\s+)?test\b|\bgo\s+test\b|\bcargo\s+test\b"
 )
 GENERIC_FAILURE = re.compile(r"\b\d+ failed\b|^FAIL\b|^FAILED\b|Tests?:\s+\d+ failed", re.MULTILINE)

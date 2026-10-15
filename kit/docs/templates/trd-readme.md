@@ -15,4 +15,4 @@ Cross-cutting:
 - [testing.md](testing.md): gates, how to run one file offline, fakes.
 - [../flow.md](../flow.md): the one end-to-end diagram.
 
-Whoever moves a file, an entry point or a test of an area updates its TRD in the same commit. Symbol names, never line numbers or default values: they live in the code and change without anyone touching the map. `python .claude/skills/prd-flow/scripts/gate.py --trd` checks the paths, symbols and IDs named here (G23 to G26); CI runs it.
+Whoever moves a file, an entry point or a test of an area updates its TRD in the same commit. Symbol names, never line numbers or default values: they live in the code and change without anyone touching the map. `python .claude/skills/prd-flow/scripts/gate.py --trd` checks the paths named here (G23, a warning); CI runs it.

@@ -25,7 +25,7 @@ Only a rule change starts with the surveyor (`full`; `short` mid-execution). Eve
 |---|---|---|
 | C0 no PRD | no INDEX | `/prd-create`, `/trd-create`, then the request |
 | C1 query | how, why, diagnose | answer it without a run: no agent, no state |
-| C2 implement | approved rule not met | one task line, baseline, executor `task`, watch, reviewer, fix, `close`, cleanup. Several tasks: docs `plan`, baseline, the waves of `plan.md`, `close`, cleanup |
+| C2 implement | approved rule not met | one task line, baseline, executor `task`, reviewer, fix, `close`, cleanup. Several tasks: docs `plan`, baseline, the waves of `plan.md`, `close`, cleanup |
 | C3 bug | code diverges, PRD confirmed | as C2 |
 | C4 stale PRD | code right, confirmed | docs `c4: <the divergence in words>`, executor `close`, cleanup |
 | C5 rule change | new or changed rule, gap, documented defect, new context | C5 route; size L adds docs `plan` |

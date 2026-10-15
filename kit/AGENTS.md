@@ -42,7 +42,7 @@ Violating any of these breaks the architecture or the safety model. Follow stric
 3. **NEVER branch on a customer or tenant name.** Per-tenant behavior is a configuration row resolved at runtime.
 4. **NEVER let framework or vendor types cross into the domain layer.** Framework at the edges.
 5. **Tests run offline and deterministic.** Fakes by default; tests that need the network or a real model sit behind a marker and never gate a merge.
-6. **NEVER use the em dash character.** Use a comma, colon, period or rewrite. Applies to code, docs, prompts and commit messages.
+6. **NEVER use the em dash character.** Use a comma, colon, period or rewrite. Applies to code, docs, prompts and commit messages. No gate checks it: the reviewer does.
 7. **NEVER add comments unless the WHY is non-obvious and critical.** Default is zero comments. No comment references a ticket or a task.
 8. **Every side effect logs**, structured, with the correlation ids of the request.
 9. **Language**: code, commits and agent files in English; PRD and TRD in `<PRD and TRD language, declared once here>`; UI copy in the product locale.
@@ -68,7 +68,7 @@ All code follows `docs/code-structure.md` (rules AR01 to AR28), enforced by `scr
 
 ## Workflow
 
-1. A rule change is shown to the person (today's rule and what would change) and confirmed before the code. The commit that implements it updates the PRD row; its body says what was decided (`Decided:`). Git is the history of a rule.
+1. A rule change is shown to the person (today's rule and what would change) and confirmed before the code. The commit that implements it updates the PRD row; its body says what was decided (one `Decided:` line per decision with the rejected option, then `Rules: <IDs>`). Git is the history of a rule.
 2. Before the first edit: the goal, what is out of scope and an estimate in minutes, agreed by the person. Size **S** and **M** write no plan files; **L** writes `changes/NNN-<slug>/plan.md` (about 100 lines: decisions, slices, acceptance items) after a design review.
 3. One vertical slice per delivery (about 30 files or 2 hours, its own PR), test first, written by the session that executes it; defects ship as small fixes before any restructuring.
 4. Gates before merge: lint, type check, full suite green, coverage not decreasing, ratchet green.

@@ -71,7 +71,7 @@ Checked by the person who reads the sheet and by the reviewer, not by a gate. Ti
 The agent that reads the reply (executor, or docs `plan`) checks the combination of the answers along every `Interacts with:` line before writing. An unclear answer, or one that opens a decision the sheet does not hold, gets one `sheet-2.md` (same format, only those items) and `Route: user: sheet-2.md`; an open TRD-only design choice is a `sheet-2.md` item too. One follow-up, hard stop: after its reply nobody writes another sheet, and an item still open (a TRD-only decision or a gate-red unclear rule included) becomes a `Q-` row with the recommended default, visibly open. A short sheet's reply is the short C5's approval.
 
 ## decisions.md
-Size L only: `changes/NNN-<slug>/decisions.md` (template `docs/templates/change-decisions.md`), written by docs `plan`, the only home of `DEC-` rows. Size S and M record the decisions in the commit body (`Decided:`, `Assumed:`).
+Size L only: `changes/NNN-<slug>/decisions.md` (template `docs/templates/change-decisions.md`), written by docs `plan`, the only home of `DEC-` rows. Size S and M record the decisions in the commit body (`Decided:` lines).
 ```markdown
 # Decisions · 012-payment-timeout
 

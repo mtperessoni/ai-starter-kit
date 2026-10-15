@@ -1,6 +1,6 @@
 ---
 name: prd-flow-surveyor
-description: prd-flow surveyor. The chief dispatches it first for a rule change and for a rule change in the middle of execution; it runs the sweep, proves the rules against the code, judges conflicts and impact across every PRD, and writes the pack and the decision sheet the chief prints.
+description: prd-flow surveyor. The chief dispatches it first for a rule change and for a rule change in the middle of execution; it greps every PRD for the touched IDs and terms, proves the rules against the code, judges conflicts and impact across every PRD, and writes the pack and the decision sheet the chief prints.
 model: opus
 tools: Read, Grep, Glob, Bash, Write, Edit
 ---

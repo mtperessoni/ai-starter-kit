@@ -109,7 +109,7 @@ Rule changes land in the PRD in the same commit as the code; the commit body is 
 | CLAUDE.md, AGENTS.md | Lines that say docs or PRD and TRD update "before the code", or that name promote, a CHANGELOG entry or a TRD Planned section for every change, are rewritten to the same sentence. Project-owned: shown as a diff |
 | Markers | Existing `pending code` markers and `planned` sources stay as they are (D4); no new change adds one |
 | Open change folders | Left as they are; their `decisions.md` is a record and is never rewritten |
-| Verify | `python .claude/skills/prd-flow/scripts/gate.py --fix`, then `python .claude/skills/prd-flow/scripts/gate.py` and the project's docs gate |
+| Verify | `python .claude/skills/prd-flow/scripts/gate.py` and the project's docs gate (the `--fix` flag of that release was removed later) |
 
 ## Preamble diet
 Every session and subagent loads `CLAUDE.md`, its `@` imports, and the description of every agent and skill before its first action (CE18; audit of 2026-10-15: a third of all tokens). Run `scripts/gates.sh preamble` before and after; list first, then ask; apply only after yes. Project-owned files are shown as diffs.
@@ -125,7 +125,7 @@ Every session and subagent loads `CLAUDE.md`, its `@` imports, and the descripti
 | Verify | `scripts/gates.sh preamble` again; report each part before and after |
 
 ## Migration to the core rules gates
-The per-commit gates that the core rules ([rules/core.md](../../../rules/core.md)) made unnecessary are removed from the kit. List first, then ask; apply only after yes. Project-owned files are shown as diffs.
+The per-commit gates that the core rules (`rules/core.md` of the kit repository) made unnecessary are removed from the kit. List first, then ask; apply only after yes. Project-owned files are shown as diffs.
 
 | Change | How |
 |---|---|
@@ -134,7 +134,7 @@ The per-commit gates that the core rules ([rules/core.md](../../../rules/core.md
 | CI | Delete the step "Commit trailers (pull requests only)" (`gates.sh trailers`) from `.github/workflows/ci.yml` |
 | Scripts | `scripts/commit_trailers.py`, `scripts/watch.py` and `scripts/settings_check.py` deleted when unchanged since install (hash versus manifest), shown and kept aside when edited; `scripts/gates.sh`, `ratchet.py`, `close_gate.py`, `verify.py` and `guard_hook.py` replaced per U3. `gates.sh` loses `red`, `watch`, `prd-sweep`, `trailers`, `settings-check` and `context`; `close` runs lint, the docs gate and the compare result only |
 | Guard hook | A redirect, `cat >` or `tee` is denied only under `source_dirs` of `ai-kit.json` or `docs/`; git-destructive, stdin interpreter, heredoc and kill-by-name denials are unchanged |
-| Docs | `docs/code-structure.md`: AR02 without name uniqueness, AR06 without the ID header, AR07 without the per-commit map duty, AR23 as review, AR24 parameters 7, AR03 class limit exempts declarative classes; the project's `AGENTS.md` loses the trailer sentence, the `Request:`, `Assumed:`, `Red:` and `Rules:` commit lines, the promote step and the Traceability line; the constitution drops "Every module and test cites the IDs" |
+| Docs | `docs/code-structure.md`: AR02 without name uniqueness, AR06 without the ID header, AR07 without the per-commit map duty, AR23 as review, AR24 parameters 7, AR03 class limit exempts declarative classes; the project's `AGENTS.md` loses the trailer check sentence and the `Request:`, `Assumed:` and `Red:` commit lines (the body keeps `Decided:` lines, then `Rules: <IDs>`), the promote step and the Traceability line; the constitution drops "Every module and test cites the IDs" |
 | Stack linter | `max-params` (or the stack's equivalent) 7 instead of 5; one per-test timeout config line from the stack recipe |
 | Verify | `scripts/gates.sh ratchet`, `scripts/gates.sh lint`, `scripts/gates.sh close <slug> --case C4` on a clean tree |
 
