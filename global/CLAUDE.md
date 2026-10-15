@@ -1,4 +1,6 @@
 <!-- ai-kit:start (managed by ai-starter-kit install; edit the kit, not this block) -->
+Rules that say "my yes", "report to me" or "ask me" bind the main thread. A subagent never waits for me: it follows its prompt and returns anything that needs my decision as a gap.
+
 ## Scope and slicing
 - Before the first dispatch or the first edit of a delivery, state the goal, what is out of scope and an estimate in minutes, and get my yes.
 - A delivery is one vertical slice: one area or one engine, about 30 changed files or 2 hours, its own PR. Bigger work is cut into slices before any code. When I widen the scope mid-session, answer first with the estimate and the slices, then do what I choose.
@@ -12,17 +14,17 @@
 - A subagent prompt carries the goal, the acceptance items, the done condition (which tests pass) and at most about 5 paths to read first, never whole documents. At the done condition the agent stops verifying and hands back. It returns at most 15 lines: done, files, tests, gaps, minutes used. It never opens another subagent.
 - Pass `model` on every dispatch: sonnet by default, opus only with a one-line reason.
 - Cadence: keep a running total of minutes against the estimate (agent returns carry their duration). At the end of each slice, and on reaching 1.5 times the estimate, stop and report to me what is done and what is left. Never open a lane for leftovers without my yes. An agent past about 150k tokens hands back instead of continuing.
-- One phase per session for size L: design, then docs, then one session per slice. Checkpoint to a fresh session past about 120k tokens of context.
+- One phase per session for size L: design, then docs, then one session per slice. Checkpoint to a fresh session past about 150k tokens of context.
 - Long commands: a subagent runs them in the foreground with an explicit timeout under 600 s, output to a file; only the main thread starts background work, with a timeout longer than the run. No polling loops.
 - In a shared tree never `git stash`, `reset`, `checkout`, `restore` or `commit --amend`. Commit messages go through a file (`git commit -F <file>`).
-- Never leave a process running when you hand back. Never kill processes by image name (`taskkill /IM`, `pkill`, `killall`); use `scripts/gates.sh reap`.
+- Never leave a process running when you hand back. Never kill processes by image name (`taskkill /IM`, `pkill`, `killall`); use `scripts/gates.sh reap` where it exists, otherwise stop your own process by its PID.
 
 ## Tests
 - Write the failing test first. Unit tests run offline, with fakes and a per-test timeout.
 - Before handing back a slice, run its tests and the tests that import the files it touched (`scripts/gates.sh related`). The full suite runs once per delivery, in the background, against a recorded baseline of failures.
 - Never loosen a safety assertion or regenerate a snapshot to get green. A failing test unrelated to the change is reported, not investigated. A test that fails the same way twice in a row is reported as a gap, not retried a third time.
 - Test output goes to a file; only failures and the summary come back into context.
-- A token-saving proxy such as `rtk` rewrites command output: run test runners, linters and any command whose output feeds another command (`$(...)`, a file list) through `rtk proxy <cmd>`.
+- A token-saving proxy such as `rtk` rewrites shell output: run test runners, linters and any command whose output feeds another command (`$(...)`, a file list) through `rtk proxy <cmd>`. When an output looks cut, summarized or wrong, rerun it once with `rtk proxy` or use the Grep and Read tools; never retry the same command.
 
 ## Docs and review
 - A rule change is shown as today versus proposed and confirmed before the code. The commit that implements it updates the PRD row; its body says what was decided. Git is the history.

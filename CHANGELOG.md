@@ -2,6 +2,12 @@
 
 User-visible changes to the kit, newest first. Projects receive them through `/ai-kit update`.
 
+## Global block: no stall in subagents, one retry for proxied output
+
+- `global/CLAUDE.md` opens with the scope of the rules that ask for the user's yes, a report or a question: they bind the main thread; a subagent returns the decision as a gap instead of waiting.
+- `rtk`: an output that looks cut or wrong is rerun once with `rtk proxy` or replaced by the Grep and Read tools, never retried as is (CR17).
+- `scripts/gates.sh reap` where it exists, otherwise the agent stops its own process by PID; the checkpoint is at about 150k tokens, the post-tool hook's number (CR11).
+
 ## Slimmer prd-flow gate and flow (K4b)
 
 `gate.py` keeps G0, G1 and G8 as errors, G15 and G22 under `--change`, G23 and G28 as warnings, D4 and P17 as warnings, G5, G29 and G32 only under `--html`. Removed: G2, G3, G9, G11, G12, G14, G16 to G21, G24 to G27, G30, G31, Q1 to Q5, S0 to S6, P1 to P10, and the modes `--pack`, `--rules`, `--sheet`, `--trace`, `--final`, `--snapshot`, `--fix`; modules `gate_interview.py`, `gate_budget.py`, `gate_remote.py`, `gen_index.py`, `prd_sweep.py`. G4 (em dash) moves to the stack linter recipe. `gate_rules.py` and `state_record.py` stay trimmed because `promote.py` (size L archive, no longer runs `--final`) still reads them. Config keys `forbid_em_dash`, `pack_budget_lines`, `plan_budget_kb` are gone. prd-flow: the surveyor runs only for rule changes (`full`, `short`), the chief may run gates and git, one return format, a task is one line, no deliveries ledger, `Self-check:`, `Red:`, dispatch ledger or `state.md` sections of other agents; the executor has no grep-all-docs step and no hard-coded runner; `prd-flow-docs` runs on sonnet. `scripts/close_gate.py` must drop its `docs --final` step.
