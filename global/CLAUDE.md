@@ -9,7 +9,7 @@
 
 ## Executing
 - The session that executes a slice writes the code itself. A subagent only for: the final review, a slice that is truly independent (its own worktree, at most 2 executors at once), or heavy reading kept out of the main context.
-- A subagent prompt carries the goal, the acceptance items and at most about 5 paths to read first, never whole documents. It returns at most 15 lines: done, files, tests, gaps, minutes used. It never opens another subagent.
+- A subagent prompt carries the goal, the acceptance items, the done condition (which tests pass) and at most about 5 paths to read first, never whole documents. At the done condition the agent stops verifying and hands back. It returns at most 15 lines: done, files, tests, gaps, minutes used. It never opens another subagent.
 - Pass `model` on every dispatch: sonnet by default, opus only with a one-line reason.
 - Cadence: keep a running total of minutes against the estimate (agent returns carry their duration). At the end of each slice, and on reaching 1.5 times the estimate, stop and report to me what is done and what is left. Never open a lane for leftovers without my yes. An agent past about 150k tokens hands back instead of continuing.
 - One phase per session for size L: design, then docs, then one session per slice. Checkpoint to a fresh session past about 120k tokens of context.
@@ -20,7 +20,7 @@
 ## Tests
 - Write the failing test first. Unit tests run offline, with fakes and a per-test timeout.
 - Before handing back a slice, run its tests and the tests that import the files it touched (`scripts/gates.sh related`). The full suite runs once per delivery, in the background, against a recorded baseline of failures.
-- Never loosen a safety assertion or regenerate a snapshot to get green. A failing test unrelated to the change is reported, not investigated.
+- Never loosen a safety assertion or regenerate a snapshot to get green. A failing test unrelated to the change is reported, not investigated. A test that fails the same way twice in a row is reported as a gap, not retried a third time.
 - Test output goes to a file; only failures and the summary come back into context.
 - A token-saving proxy such as `rtk` rewrites command output: run test runners, linters and any command whose output feeds another command (`$(...)`, a file list) through `rtk proxy <cmd>`.
 
@@ -38,6 +38,8 @@
 - Before ending a session that used Docker, leave nothing of yours running or dangling. Other projects' images and volumes are listed for me, never removed.
 
 ## Editing
+- Read a file with the Read tool (a line range is enough) before editing it. A shell read (`cat`, `sed -n`, `grep`) does not count and the edit is refused; use the shell only for files you will not edit.
+- Independent reads and searches go in one message. Make every change a file needs in one pass, and Write the whole file after a full Read when most of it changes.
 - Move code by script (line ranges or AST), never retype a function body.
 - Edit markdown and HTML with Write and Edit directly, never through ad hoc scripts.
 - No push and no pull request without my explicit request.

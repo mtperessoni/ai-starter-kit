@@ -2,6 +2,14 @@
 
 User-visible changes to the kit, newest first. Projects receive them through `/ai-kit update`.
 
+## Read before edit, done means stop
+
+Audit of 2026-10-15 (`eval/audit-2026-10-15-paper/FINDINGS.md`): 409 edits were refused in two days, 93% of them after the agent had read the file with `cat`, `sed` or `grep`, which the harness does not count as a read; failing test streaks reached 4 to 6; 10 to 18% of executor calls came after the last product edit. Rules: CR23 (new), CR08 and CR16 (amended).
+
+- `global/CLAUDE.md` "Editing": read with the Read tool before editing, batch independent reads, one pass of changes per file, Write the whole file after a full Read when most of it changes.
+- `global/CLAUDE.md` "Executing" and "Tests": a subagent prompt carries the done condition and the agent stops verifying there; a test that fails the same way twice is reported as a gap.
+- `prd-flow-docs` runs on sonnet (CR09); the surveyor keeps opus for conflict judgment.
+
 ## Core rules: one slice per delivery, fewer and clearer rules
 
 Run of 2026-10-14 (LS35): a widened scope with no estimate ran 3 hours of execution with 19 subagents and no PR; about 40% of the calls were re-orienting, every lane left leftovers that became new lanes, and three High findings were design gaps found after the code. The rules that would have stopped it existed but were buried among 434 IDs. Rule: [rules/core.md](rules/core.md) (CR01 to CR22) is the set in force and wins over the domain files; MAINTAINING M14 keeps it small.

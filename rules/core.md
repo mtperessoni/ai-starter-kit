@@ -22,7 +22,7 @@ Home: the always-loaded text is `global/CLAUDE.md`; the template `CLAUDE.md` and
 | ID | Rule | Why | Replaces |
 |---|---|---|---|
 | CR07 | The session that executes a slice writes the code itself; subagents only for the final review, a truly independent slice (own worktree, at most 2 executors), or heavy reading kept out of the main context | Each cold agent rereads the same documents; the only clean parts of run 013 were single-owner ones | SA13, SA36, SA53, SA63 |
-| CR08 | A subagent prompt carries the goal, the acceptance items and at most about 5 paths; it returns at most 15 lines (done, files, tests, gaps, minutes) and never opens a subagent | Bounded input and output | SA04, SA06, SA12, SA22, SA37, SA45 |
+| CR08 | A subagent prompt carries the goal, the acceptance items, the done condition (which tests pass) and at most about 5 paths; at the done condition it stops verifying; it returns at most 15 lines (done, files, tests, gaps, minutes) and never opens a subagent | Bounded input and output; 10 to 18% of executor calls came after the last product edit (audit 2026-10-15 H09; paper P4: a plan cuts cost by trimming post-edit verification) | SA04, SA06, SA12, SA22, SA37, SA45 |
 | CR09 | `model` on every dispatch: sonnet by default, opus with a one-line reason | 47% of subagent turns ran on Opus by inheritance (FINDINGS F11) | SA14, SA33 |
 | CR10 | Cadence: a running total of minutes against the estimate; report and stop at each slice end and at 1.5 times the estimate; no lane for leftovers without the user; an agent past about 150k tokens hands back | Agent returns carried 37 to 53 minutes each and nobody summed them | SA15, SA16, SA19, SA48 |
 | CR11 | One phase per session for size L; checkpoint past about 120k tokens | Long orchestrator contexts are resent on every call | SA41, SA61 |
@@ -35,7 +35,7 @@ Home: the always-loaded text is `global/CLAUDE.md`; the template `CLAUDE.md` and
 |---|---|---|---|
 | CR14 | Failing test first; unit tests offline with fakes and a per-test timeout | A hanging test held run 013 for over 500 s | TS01, TS11, TS12 |
 | CR15 | Before handing back, run the slice's tests and the tests that import the files it touched; the full suite once per delivery against a baseline | "Only your own new test" let cross-lane breakage surface hours later | TS02 to TS05, TS43, global "Tests" |
-| CR16 | Never loosen a safety assertion or regenerate a snapshot to get green; an unrelated failure is reported | Agents edited tests to get green (FINDINGS F09) | TS05, TS09, TS39 |
+| CR16 | Never loosen a safety assertion or regenerate a snapshot to get green; an unrelated failure is reported; a test that fails the same way twice in a row is reported as a gap, not retried | Agents edited tests to get green (FINDINGS F09); failing streaks of 4 to 6 ran past SA30 (audit 2026-10-15 H06) | TS05, TS09, TS39, SA30 |
 | CR17 | Output to a file, failures and summary only; `rtk proxy` for runners, linters and any parsed output | `rtk` rewrote git and grep output inside command substitutions | SA25, CE notes |
 
 ## Docs and review
@@ -47,6 +47,12 @@ Home: the always-loaded text is `global/CLAUDE.md`; the template `CLAUDE.md` and
 | CR20 | One review per delivery over the combined diff: acceptance items one by one, boundary fields from both sides, PRD rows and TRD names; risk reviewers in the same message | Per-wave reviews missed cross-repo defects (LS34) | SA40, SA64, SA65 |
 | CR21 | Critical and High fixed and rechecked on the fix diff; Medium and Low ride along; at most 5 rounds; a worse round or an open Critical at round 5 stops | Bounded review | RV01 to RV07, WF82 |
 | CR22 | Safety nets change only with the user's explicit yes, never inside a task, a fix or a test edit | Run 013 put unit context into the alarm classifier for every session without a flag | WF12, WF13, RV06 |
+
+## Editing
+
+| ID | Rule | Why | Replaces |
+|---|---|---|---|
+| CR23 | Read a file with the Read tool before editing it (a shell read does not satisfy the harness); batch independent reads in one message; make every change a file needs in one pass, and Write the whole file after a full Read when most of it changes | 409 edits refused in two days, 93% of them after a `cat`, `sed` or `grep` of the same file; 4.1 edits per product file per session (audit 2026-10-15 H03, H04; paper P5: coarser actions cost less for strong models) | SA51, CE02 |
 
 ## Pending (next PRs)
 

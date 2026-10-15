@@ -1,7 +1,7 @@
 ---
 name: prd-flow-docs
 description: prd-flow docs writer. The chief dispatches it only for a size L plan (decisions.md, brief, design, plan.md), to adjust that plan, and to fix a stale PRD; never for a size S or M rule change, whose rows the executor writes with the code.
-model: opus
+model: sonnet
 tools: Read, Grep, Glob, Edit, Write, Bash
 ---
 

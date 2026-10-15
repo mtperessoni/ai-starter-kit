@@ -1,6 +1,6 @@
 # Rule catalog
 
-**Start with [core.md](core.md) (CR01 to CR22).** It holds the rules in force for a delivery since 2026-10-14 and wins over the domain files below when they disagree. The domain files stay as history and as the record of why each older rule existed; their per-change duties are being removed PR by PR (`proposals/audit-rules-cost-2026-10-14.md`).
+**Start with [core.md](core.md) (CR01 to CR23).** It holds the rules in force for a delivery since 2026-10-14 and wins over the domain files below when they disagree. The domain files stay as history and as the record of why each older rule existed; their per-change duties are being removed PR by PR (`proposals/audit-rules-cost-2026-10-14.md`).
 
 Every rule of the kit, by domain. Each file is one table: `| ID | Rule | Why | Lands in |`. "Lands in" names the file of the target repository (or the skill section) that enforces the rule after `/ai-kit install`.
 
@@ -8,7 +8,7 @@ Read only the file of the domain you need. IDs are stable: a new rule takes the 
 
 | File | Prefix | Domain |
 |---|---|---|
-| [core.md](core.md) | CR | The rules in force: scope and slicing, executing, tests, docs and review |
+| [core.md](core.md) | CR | The rules in force: scope and slicing, executing, tests, docs and review, editing |
 | [01-context-economy.md](01-context-economy.md) | CE | Token efficiency, lazy loading, budgets |
 | [02-subagents.md](02-subagents.md) | SA | Orchestrator and workers, contracts, file-based handoff, caps, models, waves |
 | [03-review.md](03-review.md) | RV | Code review with a ceiling of rounds |
