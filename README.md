@@ -107,7 +107,7 @@ docs/flow.md, docs/adr/         the one end-to-end diagram; decision records
 changes/, changes/archive/      change folders in flight (brief, design, plan) and the finished ones
 docs/templates/                 PRD section, TRD feature, feature CLAUDE.md, HTML shell, reviewer agent
 scripts/                        gates.sh (including `close`, `verify`, `baseline`: suite, lint, trailers, final gate, retro), ratchet.py, related_tests.py,
-                                new_failures.py, move_lines.py, hotspots.py, contract_drift.py, close_gate.py, baseline.py, verify.py,
+                                new_failures.py, move_lines.py, hotspots.py, preamble.py, contract_drift.py, close_gate.py, baseline.py, verify.py,
                                 config_get.py, kit_config.py, commit_trailers.py, clean_task_outputs.py, docker_hygiene.py,
                                 guard_hook.py, reap.py, next_change_number.py, settings_check.py,
                                 telemetry_hook.py, run_probe.py, retro.py, retro_detectors.py (gate_scope.py and state_record.py ship in the prd-flow skill)
