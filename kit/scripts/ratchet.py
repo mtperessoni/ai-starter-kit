@@ -1,4 +1,4 @@
-"""Structure ratchet (docs/code-structure.md AR02, AR03, AR06, AR07, AR23, AR28): what text can see in any stack and layout.
+"""Structure ratchet (docs/code-structure.md AR02, AR03, AR07, AR28): what text can see in any stack and layout.
 
 Product areas are the feature folders under feature_root plus the "areas" of ai-kit.json (globs, for a layer or
 legacy layout); folders with a CLAUDE.md map are the feature folders plus "map_dirs".
@@ -6,18 +6,17 @@ Function and class size, inheritance, closures and import direction belong to th
 
 Usage: python scripts/ratchet.py          check; exit 1 on a violation outside the allowlist
        python scripts/ratchet.py --init   print the allowlist object of the current state, for ai-kit.allowlist.json
-The allowlist (ai-kit.allowlist.json, or the old "allowlist" key of ai-kit.json) only shrinks: an entry that is no longer needed, or that dropped, fails too.
+The allowlist (ai-kit.allowlist.json, or the old "allowlist" key of ai-kit.json) is a list of files per check: a file in violation
+and not listed fails; a listed file that is no longer in violation only warns. Counts are not kept: a listed file may change size.
 """
 
 import argparse
 import json
 import re
 import sys
-from collections import defaultdict
 
 from kit_config import (
     code_files,
-    in_area,
     is_generated,
     is_test,
     line_count,
@@ -37,16 +36,14 @@ SKILL_MD_BYTES = 6144
 
 
 CHECK_ALIASES = {"generic_names": "banned_names"}
+REMOVED_CHECKS = {"duplicate_names", "crowded_dirs", "no_prd_id", "long_feature_maps", "invariant_gaps", "untested_rules"}
 
 
 def measure(root, cfg) -> dict:
     limits = cfg["limits"]
-    id_re = re.compile(cfg["id_pattern"])
     markers = [GENERATED_MARKER] + ([cfg["generated_marker"]] if cfg.get("generated_marker") else [])
     marker_re = re.compile("|".join(f"(?:{m})" for m in markers), re.IGNORECASE)
-    long_modules, long_tests, banned, no_id, no_marker = {}, {}, set(), set(), set()
-    by_name: dict[str, list[str]] = defaultdict(list)
-    per_dir: dict[str, int] = defaultdict(int)
+    long_modules, long_tests, banned, no_marker = set(), set(), set(), set()
     for p in code_files(root, cfg):
         r = rel(p, root)
         if is_generated(r, cfg):
@@ -55,54 +52,32 @@ def measure(root, cfg) -> dict:
                 no_marker.add(r)
             continue
         lines = line_count(p)
-        name = stem(p)
         if is_test(r, cfg):
             if lines > limits["test_lines"]:
-                long_tests[r] = lines
+                long_tests.add(r)
             continue
-        per_dir[r.rsplit("/", 1)[0] if "/" in r else "."] += 1
         if lines > limits["module_lines"]:
-            long_modules[r] = lines
-        if name in cfg["banned_names"]:
+            long_modules.add(r)
+        if stem(p) in cfg["banned_names"]:
             banned.add(r)
-        if name not in cfg["unique_name_exempt"]:
-            by_name[p.name].append(r)
-        if in_area(r, root, cfg):
-            head = "\n".join(p.read_text(encoding="utf-8", errors="replace").splitlines()[: limits["id_header_lines"]])
-            if lines > 0 and not id_re.search(head) and name not in cfg["unique_name_exempt"]:
-                no_id.add(r)
-    duplicates = {f"{name}: {', '.join(paths)}" for name, paths in by_name.items() if len(paths) > 1}
-    crowded = {d: n for d, n in per_dir.items() if n > limits.get("files_per_dir", 20)}
-    no_map, long_maps = set(), {}
-    for d in map_dirs(root, cfg):
-        m = root / d / "CLAUDE.md"
-        if not (root / d).is_dir():
-            continue
-        if not m.exists():
-            no_map.add(d)
-        elif line_count(m) > limits["feature_map_lines"]:
-            long_maps[rel(m, root)] = line_count(m)
+    no_map = {d for d in map_dirs(root, cfg) if (root / d).is_dir() and not (root / d / "CLAUDE.md").exists()}
     return {
         "skill_md_bytes": long_skills(root, limits.get("skill_md_bytes", SKILL_MD_BYTES)),
         "long_modules": long_modules,
         "long_tests": long_tests,
         "banned_names": banned,
-        "duplicate_names": duplicates,
-        "no_prd_id": no_id,
         "no_feature_map": no_map,
-        "long_feature_maps": long_maps,
-        "crowded_dirs": crowded,
         "generated_without_marker": no_marker,
     }
 
 
-def long_skills(root, limit: int) -> dict:
+def long_skills(root, limit: int) -> set:
     """Every .claude/skills/*/SKILL.md over its byte limit: the main thread loads it whole at the start."""
-    found = {}
+    found = set()
     for p in sorted((root / ".claude" / "skills").glob("*/SKILL.md")):
         size = len(p.read_bytes().replace(b"\r\n", b"\n"))  # same size on a Windows checkout and in CI
         if size > limit:
-            found[rel(p, root)] = size
+            found.add(rel(p, root))
     return found
 
 
@@ -122,57 +97,11 @@ def layout_problems(root, cfg) -> list[str]:
     return problems
 
 
-def invariant_gaps(root, cfg) -> int | None:
-    """Rows of the invariants table whose proof column says gap; None when the project has no such file."""
-    path = root / cfg.get("invariants_file", "docs/trd/invariants.md")
-    if not path.is_file():
-        return None
-    proof, gaps = None, 0
-    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
-        if not line.lstrip().startswith("|"):
-            continue
-        cells = [c.strip() for c in re.split(r"(?<!\\)\|", line.strip().strip("|"))]
-        if all(re.fullmatch(r":?-{2,}:?", c) for c in cells if c):
-            continue
-        if proof is None and any(c.lower() == "proof" for c in cells):
-            proof = [c.lower() for c in cells].index("proof")
-            continue
-        cell = cells[proof] if proof is not None and proof < len(cells) else cells[-1]
-        if re.search(r"\bgap\b", cell, re.I) and not re.search(r"\bno gap\b", cell, re.I):
-            gaps += 1
-    return gaps
-
-
-def gap_problems(gaps: int | None, allowed) -> list[str]:
-    if gaps is None or allowed is None:
-        return []
-    if gaps > allowed:
-        return [f"invariant_gaps: {gaps} gap rows, above its allowlist entry {allowed}"]
-    if gaps < allowed:
-        return [f"invariant_gaps: dropped to {gaps}, lower the entry from {allowed}"]
-    return []
-
-
-def ratchet_counts(what: str, current: dict, allowed: dict) -> list[str]:
-    problems = []
-    for key, value in sorted(current.items()):
-        if key not in allowed:
-            problems.append(f"{what}: {key} has {value}, above the limit and not in the allowlist")
-        elif value > allowed[key]:
-            problems.append(f"{what}: {key} has {value}, above its allowlist entry {allowed[key]}")
-    for key, value in sorted(allowed.items()):
-        now = current.get(key)
-        if now is None:
-            problems.append(f"{what}: {key} is gone or within the limit, remove the entry")
-        elif now < value:
-            problems.append(f"{what}: {key} dropped to {now}, lower the entry from {value}")
-    return problems
-
-
-def ratchet_set(what: str, current: set, allowed: set) -> list[str]:
+def ratchet_set(what: str, current: set, allowed: set) -> tuple[list[str], list[str]]:
+    """(problems, warnings): a violation outside the list fails; a listed entry that is no longer a violation only warns."""
     problems = [f"{what}: {k} is not in the allowlist" for k in sorted(current - allowed)]
-    problems += [f"{what}: {k} is no longer a violation, remove the entry" for k in sorted(allowed - current)]
-    return problems
+    warnings = [f"warning: {what}: {k} is no longer a violation, remove the entry" for k in sorted(allowed - current)]
+    return problems, warnings
 
 
 def main() -> int:
@@ -183,24 +112,19 @@ def main() -> int:
     cfg = load(root)
     current = measure(root, cfg)
     skipped = {CHECK_ALIASES.get(n, n) for n in cfg.get("ratchet", {}).get("skip", [])}
-    unknown = sorted(skipped - set(current))
+    unknown = sorted(skipped - set(current) - REMOVED_CHECKS)
     current = {k: v for k, v in current.items() if k not in skipped}
-    gaps = invariant_gaps(root, cfg)
     if args.init:
-        shown = {k: (sorted(v) if isinstance(v, set) else v) for k, v in current.items()}
-        if gaps is not None:
-            shown["invariant_gaps"] = gaps
-        print(json.dumps(shown, indent=2))
+        print(json.dumps({k: sorted(v) for k, v in current.items()}, indent=2))
         return 0
     allowed = cfg["allowlist"]
     problems = layout_problems(root, cfg) + [f"ratchet.skip: unknown check {n}" for n in unknown]
+    warnings = []
     for key, value in current.items():
-        if isinstance(value, dict):
-            problems += ratchet_counts(key, value, allowed.get(key, {}))
-        else:
-            problems += ratchet_set(key, value, set(allowed.get(key, [])))
-    problems += gap_problems(gaps, allowed.get("invariant_gaps"))
-    for line in problems:
+        found, stale = ratchet_set(key, value, set(allowed.get(key, [])))
+        problems += found
+        warnings += stale
+    for line in problems + warnings:
         print(line)
     print(f"ratchet: {len(problems)} problem(s)")
     return 1 if problems else 0

@@ -1,4 +1,4 @@
-"""Kit tools: gates.sh fix-files, lint-files, move, settings-check, next_change_number.py, the hook launcher and the installer notes."""
+"""Kit tools: gates.sh fix-files, lint-files, move, next_change_number.py, the hook launcher and the installer notes."""
 
 import json
 import re
@@ -77,59 +77,6 @@ class FilesTargetsTest(unittest.TestCase):
         self.assertEqual((self.p.root / "a.txt").read_text(encoding="utf-8"), "1\n4\n")
         self.assertEqual((self.p.root / "b.txt").read_text(encoding="utf-8"), "x\n2\n3\ny\n")
 
-    def test_settings_check_target_runs(self) -> None:
-        write(self.p.root, ".claude/settings.local.json", json.dumps({"permissions": {"deny": ["Edit(docs/prd/**)"]}}))
-        r = self.gates("settings-check")
-        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
-        self.assertIn("docs/prd", r.stdout)
-
-
-class SettingsCheckTest(unittest.TestCase):
-    def setUp(self) -> None:
-        self.p = Project()
-
-    def tearDown(self) -> None:
-        self.p.close()
-
-    def deny(self, *rules: str, name: str = "settings.json") -> subprocess.CompletedProcess:
-        write(self.p.root, f".claude/{name}", json.dumps({"permissions": {"deny": list(rules)}}))
-        return self.p.py("scripts/settings_check.py")
-
-    def test_the_kit_settings_pass(self) -> None:
-        r = self.p.py("scripts/settings_check.py")
-        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-
-    def test_a_deny_of_a_written_folder_fails(self) -> None:
-        for rule in ("Edit(docs/trd/**)", "Write(changes/**)", "Read(docs/prd/CHANGELOG.md)",
-                     "Edit(.claude/prd-flow/state/**)", "Write(**/*.md)", "Edit"):
-            with self.subTest(rule=rule):
-                r = self.deny(rule)
-                self.assertEqual(r.returncode, 1, r.stdout)
-                self.assertIn(rule, r.stdout)
-
-    def test_the_local_file_is_read_too(self) -> None:
-        r = self.deny("Read(docs/prd/**)", name="settings.local.json")
-        self.assertEqual(r.returncode, 1, r.stdout)
-        self.assertIn("settings.local.json", r.stdout)
-
-    def test_unrelated_denies_pass(self) -> None:
-        r = self.deny("Read(.env)", "Edit(src/generated/**)", "Bash(rm:*)", "Bash(git stash:*)", "Write(*.env)")
-        self.assertEqual(r.returncode, 0, r.stdout)
-
-    def test_a_pattern_without_a_slash_matches_at_any_depth(self) -> None:
-        for rule in ("Write(*.md)", "Read(CHANGELOG.md)", "Edit(plan.md)"):
-            with self.subTest(rule=rule):
-                r = self.deny(rule)
-                self.assertEqual(r.returncode, 1, r.stdout)
-                self.assertIn(rule, r.stdout)
-
-    def test_a_bash_deny_that_blocks_the_gates_targets_is_reported(self) -> None:
-        for rule in ("Bash(scripts/gates.sh:*)", "Bash(bash:*)", "Bash(scripts/gates.sh verify:*)", "Bash"):
-            with self.subTest(rule=rule):
-                r = self.deny(rule)
-                self.assertEqual(r.returncode, 1, r.stdout)
-                self.assertIn(rule, r.stdout)
-                self.assertIn("gates.sh", r.stdout)
 
 
 class NextChangeNumberTest(unittest.TestCase):
@@ -249,12 +196,12 @@ class InstallerNotesTest(unittest.TestCase):
 
     def test_ownership_lists_the_new_scripts(self) -> None:
         text = self.read("reference/ownership.md")
-        for name in ("guard_hook.py", "reap.py", "next_change_number.py", "settings_check.py"):
+        for name in ("guard_hook.py", "reap.py", "next_change_number.py"):
             self.assertIn(name, text)
 
     def test_doctor_has_the_new_checks(self) -> None:
         text = self.read("reference/doctor.md")
-        for needle in ("settings-check", "gates.sh setup", "guard hook", "reap.py", "permission prompt"):
+        for needle in ("gates.sh setup", "guard hook", "reap.py", "permission prompt"):
             self.assertIn(needle, text)
 
     def test_update_notes_the_migration(self) -> None:

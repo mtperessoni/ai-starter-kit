@@ -1,7 +1,9 @@
 import json
+import os
 import re
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -10,12 +12,17 @@ HOOK = ROOT / "kit" / "scripts" / "guard_hook.py"
 AGENTS = sorted((ROOT / "kit" / ".claude" / "agents").glob("prd-flow-*.md"))
 
 
-def run(command, tool="Bash", raw=None, agent="a1b2c3"):
+PROJECT = tempfile.TemporaryDirectory()
+(Path(PROJECT.name) / "ai-kit.json").write_text(json.dumps({"source_dirs": ["src", "app/server"]}), encoding="utf-8")
+
+
+def run(command, tool="Bash", raw=None, agent="a1b2c3", project=None):
     payload = {"hook_event_name": "PreToolUse", "tool_name": tool, "tool_input": {"command": command}}
     if agent:
         payload["agent_id"] = agent
     return subprocess.run([sys.executable, str(HOOK)], input=raw if raw is not None else json.dumps(payload),
-                          capture_output=True, text=True, timeout=30)
+                          capture_output=True, text=True, timeout=30,
+                          env={**os.environ, "CLAUDE_PROJECT_DIR": project or PROJECT.name})
 
 
 DENIED = {
@@ -23,18 +30,19 @@ DENIED = {
                 "cat >> tests/a.py <<'EOF'\nx\nEOF", "cat <<< hello"],
     "here-string": ["$x = @'\nabc\n'@", '$x = @"\nabc\n"@'],
     "stdin interpreter": ["python -", "python3 - arg", "py - ", "/c/Python314/python -", "echo 1 | python", "echo 1 | python3 | cat"],
-    "redirect write": ["cat > a.py", "cat >> a.py", "echo x | tee a.py", "tee -a log.txt"],
+    "redirect write": ["cat > src/a.py", "cat >> docs/a.md", "echo x | tee src/a.py", "tee -a docs/log.txt"],
     "kill by name": ["taskkill /IM python.exe /F", "taskkill.exe /PID 4 /T", "Stop-Process -Name python -Force", "pkill -f python", "killall node"],
     "git destructive": ["git checkout main", "git checkout -- a.ts", "git switch other", "git stash", "git -C wt stash pop", "git reset --hard HEAD~1",
                         "git restore a.ts", "git commit --amend --no-edit", "git add a && git stash"],
     "in-place edit": ["sed -i 's/a/b/' f.py", "sed -ni 's/a/b/p' f.py"],
 }
-DENIED_MORE = ["bash -c 'git stash'", 'sh -c "cat > a.py"', "echo it's; git stash", "git commit -F -", "git commit --file=-", "python3 -u -",
+DENIED_MORE = ["bash -c 'git stash'", 'sh -c "cat > src/a.py"', "echo it's; git stash", "git commit -F -", "git commit --file=-", "python3 -u -",
                'python -c "exec(sys.stdin.read())"', "Get-Process python | Stop-Process -Id 4", "Get-Process python | Stop-Process",
-               "Set-Content a.py 'x'", "Add-Content a.py x", "Out-File a.py", "echo x > file.py", "echo x >> notes.md", "x = @'\nabc\n'@",
+               "Set-Content a.py 'x'", "Add-Content a.py x", "Out-File a.py", "echo x > src/file.py", "echo x >> docs/notes.md", "x = @'\nabc\n'@",
                "pwsh -Command 'taskkill /IM python.exe'", "cat <<EOF\nx\nEOF", "cat <<-EOF\nx\nEOF"]
 ALLOWED_MORE = ['echo "user@"', 'grep -rn "<<" src', 'python -c "print(1<<3)"', 'git commit -m "fix <<x"', "python tee.py", "ls tee-dir",
-                "echo x > /dev/null", "cmd 2>&1", "echo x > out.log", "echo x > scratch/a.txt", "echo x > r.out", "a=1; echo $a",
+                "echo x > /dev/null", "cmd 2>&1", "cat > a.py", "echo x > file.py", "echo x >> notes.md", "tee -a log.txt", "echo x | tee tests/a.py",
+                "echo x > tests/test_a.py", "echo x > srcs/a.py", "echo x > documents/a.md", "echo x > out.log", "echo x > scratch/a.txt", "echo x > r.out", "a=1; echo $a",
                 "python -m pytest -q", "git commit -F msg.txt", "echo it's fine", "git log --format=%H -3"]
 ALLOWED = ["git log --oneline -5", "git diff --stat", "git status", "git commit -F .claude/msg.txt", "git add a.py", "git show HEAD",
            "python -m unittest tests.test_a", "python3 -m pytest -q", "python -c \"print(1)\"", "python scripts/verify.py s1",
@@ -64,14 +72,47 @@ class DenyTest(unittest.TestCase):
         for kind, needle in allowed_way.items():
             with self.subTest(kind=kind):
                 self.assertIn(needle, run(DENIED[kind][0]).stderr)
-        self.assertIn("gates.sh move", run("cat > a.py").stderr)
+        self.assertIn("gates.sh move", run("cat > src/a.py").stderr)
         self.assertIn("-F", run("git commit --amend").stderr)
+
+
+class RedirectScopeTest(unittest.TestCase):
+    """A redirect, cat > and tee are denied only under the repository's source folders (ai-kit.json source_dirs) or docs/."""
+
+    def test_the_configured_source_dirs_and_docs_are_protected_in_every_spelling(self):
+        root = PROJECT.name.replace("\\", "/")
+        for cmd in ["echo x > src/a.py", "echo x > ./src/a.py", "echo x > src\\a.py", 'echo x > "src/a.py"', "echo x > app/server/a.txt",
+                    "echo x > docs/trd/a.md", f"echo x > {root}/src/a.py", "echo x | tee -a app/server/log.txt"]:
+            with self.subTest(cmd=cmd):
+                self.assertEqual(run(cmd).returncode, 2, cmd)
+
+    def test_other_folders_and_other_roots_are_free(self):
+        for cmd in ["echo x > tests/a.py", "echo x > scratch/a.md", "echo x > app/client/a.ts", "echo x > /tmp/src/a.py",
+                    "echo x > ../src/a.py", "echo x | tee /tmp/docs/a.md", "cat > notes.md"]:
+            with self.subTest(cmd=cmd):
+                self.assertEqual(run(cmd).returncode, 0, cmd)
+
+    def test_without_a_config_the_default_source_folder_and_docs_are_protected(self):
+        with tempfile.TemporaryDirectory() as bare:
+            self.assertEqual(run("echo x > src/a.py", project=bare).returncode, 2)
+            self.assertEqual(run("echo x > docs/a.md", project=bare).returncode, 2)
+            self.assertEqual(run("echo x > lib/a.py", project=bare).returncode, 0)
+
+    def test_a_malformed_config_falls_back_to_the_defaults(self):
+        with tempfile.TemporaryDirectory() as bad:
+            (Path(bad) / "ai-kit.json").write_text("{not json", encoding="utf-8")
+            self.assertEqual(run("echo x > src/a.py", project=bad).returncode, 2)
+
+    def test_the_denials_that_stay_do_not_depend_on_the_target(self):
+        for cmd in ["git stash", "python -", "cat <<EOF\nx\nEOF", "pkill -f node", "Set-Content a.py x", "sed -i s/a/b/ f.py"]:
+            with self.subTest(cmd=cmd):
+                self.assertEqual(run(cmd, tool="PowerShell" if cmd.startswith("Set-") else "Bash").returncode, 2, cmd)
 
 
 class WrapperBodyTest(unittest.TestCase):
     def test_heredoc_and_stdin_interpreter_inside_a_wrapper_are_denied(self):
-        for cmd in ["bash -c 'cat <<EOF\nx\nEOF'", "bash -c 'python - <<E\nprint(1)\nE'", "sh -c \"python -\"", 'cmd /c "echo > a.py"',
-                    "cmd /c \"echo x > b.md\""]:
+        for cmd in ["bash -c 'cat <<EOF\nx\nEOF'", "bash -c 'python - <<E\nprint(1)\nE'", "sh -c \"python -\"", 'cmd /c "echo > src/a.py"',
+                    "cmd /c \"echo x > docs/b.md\""]:
             with self.subTest(cmd=cmd):
                 self.assertEqual(run(cmd).returncode, 2, cmd)
 

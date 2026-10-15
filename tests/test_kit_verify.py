@@ -133,6 +133,19 @@ class VerifyTest(GatesBase):
         self.assertEqual(verify.failure_details(lines, pattern),
                          ["FAILED tests/test_a.py::test_one: E   assert 1 == 2", "FAILED tests/test_b.py::test_two: AssertionError: boom"])
 
+    def test_the_default_ref_is_the_commit_that_added_the_plan_for_a_bare_or_numbered_folder(self) -> None:
+        verify = script_module("verify")
+        for slug, folder in (("bare", "changes/bare"), ("numbered", "changes/003-numbered")):
+            with self.subTest(folder=folder):
+                write(self.p.root, f"{folder}/plan.md", "plan\n")
+                subprocess.run(["git", "-C", str(self.p.root), "add", "-A"], check=True, capture_output=True)
+                subprocess.run(["git", "-C", str(self.p.root), "commit", "-q", "-m", f"plan {slug}"], check=True, capture_output=True)
+                added = subprocess.run(["git", "-C", str(self.p.root), "rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip()
+                write(self.p.root, f"src/after_{slug}.py", "x = 1\n")
+                subprocess.run(["git", "-C", str(self.p.root), "add", "-A"], check=True, capture_output=True)
+                subprocess.run(["git", "-C", str(self.p.root), "commit", "-q", "-m", f"after {slug}"], check=True, capture_output=True)
+                self.assertEqual(verify.default_ref(self.p.root, slug, {}), added)
+
     def test_a_bad_slug_is_a_usage_error(self) -> None:
         r = self.gates("verify", "../x")
         self.assertEqual(r.returncode, 2)

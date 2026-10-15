@@ -44,20 +44,6 @@ class ResolveBaseTest(unittest.TestCase):
         self.assertIn("nope", str(ctx.exception))
         self.assertEqual(self.kc.resolve_base(self.p.root, "HEAD"), "HEAD")
 
-    def test_trailers_default_to_the_resolved_base(self) -> None:
-        run(self.p.root, "git", "checkout", "-q", "-b", "feat", check=True)
-        write(self.p.root, "src/features/orders/more.py", "x = 1\n")
-        run(self.p.root, "git", "add", "-A", check=True)
-        run(self.p.root, "git", "commit", "-q", "-m", "feat: more", check=True)
-        r = self.p.py("scripts/commit_trailers.py")
-        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
-        self.assertIn("feat: more", r.stdout)
-
-    def test_trailers_with_a_missing_base_exit_2(self) -> None:
-        r = self.p.py("scripts/commit_trailers.py", "--base", "nope")
-        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
-        self.assertIn("nope", r.stderr)
-
     def test_related_with_a_missing_base_is_an_error(self) -> None:
         r = self.p.py("scripts/related_tests.py", "--base", "nope")
         self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
@@ -184,19 +170,10 @@ class GatesV5Test(unittest.TestCase):
         self.assertNotIn("owner: executor fix", r.stdout)
         self.assertIn("next: user chooses", r.stdout)
 
-    def stub_gates(self, lint_out: str = "", lint_rc: int = 0, trailers_out: str = "", trailers_rc: int = 0) -> None:
+    def stub_gates(self, lint_out: str = "", lint_rc: int = 0, docs_out: str = "", docs_rc: int = 0) -> None:
         write(self.p.root, "scripts/gates.sh", f"""case "$1" in
 lint) printf '%b' '{lint_out}'; exit {lint_rc} ;;
-trailers) printf '%b' '{trailers_out}' | sed "s/@HEAD@/$(git rev-parse HEAD | cut -c1-8)/"; exit {trailers_rc} ;;
-retro) echo "retro demo: 7 finding(s), wall 10 s, wait 0 s"
-  echo "  F1 [medium] value 3, threshold 2, seq [1]"
-  echo "  F2 [high] value 9, threshold 2, seq [2]"
-  echo "  F3 [low] value 3, threshold 2, seq [3]"
-  echo "  F4 [medium] value 3, threshold 2, seq [4]"
-  echo "  F5 [high] value 8, threshold 2, seq [5]"
-  echo "  F6 [medium] value 3, threshold 2, seq [6]"
-  echo "  F7 [critical] value 30, threshold 2, seq [7]"
-  echo "  report: .ai-kit/runs/demo/retro.md" ;;
+docs) printf '%b' '{docs_out}'; exit {docs_rc} ;;
 *) echo "$1 ok" ;;
 esac
 """)
@@ -208,12 +185,14 @@ esac
         write(self.p.root, f".claude/prd-flow/state/_compare/{key}/final.log", "1 passed\n")
         write(self.p.root, f".claude/prd-flow/state/_compare/{key}/exit", "0\n")
 
-    def test_close_runs_lint_trailers_and_docs_before_it_reads_the_compare_result(self) -> None:
-        self.stub_gates(trailers_rc=1)
+    def test_close_runs_lint_and_docs_before_it_reads_the_compare_result_and_runs_no_trailers_or_retro(self) -> None:
+        self.stub_gates(docs_rc=1)
         self.close_direct()
         log = (self.p.root / ".claude/prd-flow/state/_close/demo.log").read_text(encoding="utf-8")
-        order = [log.index(f"$ gates.sh {name}") for name in ("lint", "trailers", "docs", "compare", "retro")]
+        order = [log.index(f"$ gates.sh {name}") for name in ("lint", "docs", "compare")]
         self.assertEqual(order, sorted(order), log)
+        self.assertNotIn("$ gates.sh trailers", log)
+        self.assertNotIn("$ gates.sh retro", log)
 
     def test_the_close_log_is_appended_per_step_not_written_once_at_the_end(self) -> None:
         text = (KIT / "scripts/close_gate.py").read_text(encoding="utf-8")
@@ -308,18 +287,6 @@ esac
         return subprocess.run([PY, "scripts/close_gate.py", "demo"], cwd=self.p.root, capture_output=True, text=True,
                               encoding="utf-8", env=env, check=False)
 
-    def test_close_prints_at_most_five_retro_findings_highest_severity_first(self) -> None:
-        self.stub_gates()
-        r = self.close_direct()
-        lines = r.stdout.splitlines()
-        found = [ln for ln in lines if re.match(r"\s+F\d \[", ln)]
-        self.assertEqual(len(found), 5, r.stdout)
-        self.assertIn("F7 [critical]", found[0])
-        self.assertIn("[high]", found[1])
-        self.assertNotIn("F3", r.stdout)
-        self.assertIn("retro demo: 7 finding(s)", r.stdout)
-        self.assertEqual(r.returncode, 0, r.stdout)
-
     def test_a_failing_close_prints_the_last_ten_error_lines_of_the_failed_check(self) -> None:
         out = "\n".join(f"error line {i}" for i in range(1, 21)) + "\n"
         self.stub_gates(lint_out=out, lint_rc=1)
@@ -336,22 +303,9 @@ esac
         self.assertIn("owner: executor fix", r.stdout)
         self.assertIn("next: executor fix with the printed lines, then executor close", r.stdout)
 
-    def test_a_trailer_on_an_older_commit_needs_a_history_rewrite_and_goes_to_the_user(self) -> None:
-        self.stub_gates(trailers_out="deadbeef fix: x: touches the source folders without a trailer\n", trailers_rc=1)
-        r = self.close_direct()
-        self.assertIn("trailers FAILED", r.stdout)
-        self.assertIn("owner: user", r.stdout)
-        self.assertIn("next: user chooses", r.stdout)
-        self.assertNotIn("owner: executor fix", r.stdout)
-
-    def test_a_trailer_missing_only_on_head_is_an_executor_fix(self) -> None:
-        self.stub_gates(trailers_out="@HEAD@ fix: x: touches the source folders without a trailer\n", trailers_rc=1)
-        r = self.close_direct()
-        self.assertIn("owner: executor fix", r.stdout)
-
     def test_truncation_keeps_the_owner_and_next_lines_when_several_steps_fail(self) -> None:
         out = "\n".join(f"err {i}" for i in range(1, 12)) + "\n"
-        self.stub_gates(lint_out=out, lint_rc=1, trailers_out="deadbeef a\n" + out, trailers_rc=1)
+        self.stub_gates(lint_out=out, lint_rc=1, docs_out=out, docs_rc=1)
         r = self.close_direct()
         self.assertLessEqual(len(r.stdout.strip().splitlines()), 24, r.stdout)
         self.assertEqual(r.stdout.count("owner:"), 2, r.stdout)
@@ -369,7 +323,7 @@ class SkillMdRatchetTest(unittest.TestCase):
     def tearDown(self) -> None:
         self.p.close()
 
-    def allow(self, entries: dict) -> None:
+    def allow(self, entries: list) -> None:
         path = self.p.root / "ai-kit.json"
         config = json.loads(path.read_text(encoding="utf-8"))
         config["allowlist"]["skill_md_bytes"] = entries
@@ -379,25 +333,26 @@ class SkillMdRatchetTest(unittest.TestCase):
         r = self.p.py("scripts/ratchet.py")
         self.assertEqual(r.returncode, 1)
         self.assertIn(".claude/skills/big/SKILL.md", r.stdout)
-        self.allow({".claude/skills/big/SKILL.md": 7000})
+        self.allow([".claude/skills/big/SKILL.md"])
         self.assertEqual(self.p.py("scripts/ratchet.py").returncode, 0)
 
-    def test_growing_fails_and_shrinking_asks_to_lower_the_entry(self) -> None:
-        self.allow({".claude/skills/big/SKILL.md": 7000})
+    def test_growing_or_shrinking_a_listed_skill_is_free(self) -> None:
+        self.allow([".claude/skills/big/SKILL.md"])
         self.skill.write_text("x" * 7100, encoding="utf-8")
-        self.assertIn("above its allowlist entry", self.p.py("scripts/ratchet.py").stdout)
+        self.assertEqual(self.p.py("scripts/ratchet.py").returncode, 0)
         self.skill.write_text("x" * 6500, encoding="utf-8")
-        self.assertIn("lower the entry", self.p.py("scripts/ratchet.py").stdout)
+        self.assertEqual(self.p.py("scripts/ratchet.py").returncode, 0)
 
-    def test_a_skill_under_the_limit_with_an_entry_must_drop_it(self) -> None:
+    def test_a_skill_under_the_limit_with_an_entry_only_warns(self) -> None:
         self.skill.write_text("x" * 6000, encoding="utf-8")
-        self.allow({".claude/skills/big/SKILL.md": 7000})
+        self.allow([".claude/skills/big/SKILL.md"])
         r = self.p.py("scripts/ratchet.py")
-        self.assertEqual(r.returncode, 1)
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("warning: skill_md_bytes", r.stdout)
         self.assertIn("remove the entry", r.stdout)
 
     def test_crlf_line_endings_count_as_lf(self) -> None:
-        self.allow({".claude/skills/big/SKILL.md": 7000})
+        self.allow([".claude/skills/big/SKILL.md"])
         self.skill.write_bytes(b"x\r\n" * 3500)
         self.assertNotIn("big/SKILL.md", self.p.py("scripts/ratchet.py").stdout)
 

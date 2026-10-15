@@ -34,7 +34,9 @@ def git(root: Path, *args: str) -> str:
 def default_ref(root: Path, slug: str, stamp: dict) -> str:
     if stamp.get("head"):
         return stamp["head"]
-    for plan in sorted((root / "changes").glob(f"*-{slug}/plan.md")) if (root / "changes").is_dir() else []:
+    changes = root / "changes"
+    plans = sorted({*changes.glob(f"{slug}/plan.md"), *changes.glob(f"*-{slug}/plan.md")}) if changes.is_dir() else []
+    for plan in plans:
         commit = git(root, "log", "--diff-filter=A", "--format=%H", "--", plan.relative_to(root).as_posix()).splitlines()
         if commit:
             return commit[-1]
