@@ -2,6 +2,13 @@
 
 User-visible changes to the kit, newest first. Projects receive them through `/ai-kit update`.
 
+## Post-tool hook: lint after edit, failing streak, checkpoint
+
+Audit of 2026-10-15 (`eval/audit-2026-10-15-paper/FINDINGS.md` H02, H06, H08): lint was a manual call, failing test streaks reached 4 to 6, orchestrators ran at 216k to 667k context. The paper's harness puts post-edit diagnostics and stuck detection inside the loop. Rule: TM18 (new).
+
+- New `scripts/post_tool_hook.py`, registered in `.claude/settings.json` on `PostToolUse` and `PostToolUseFailure`. It never blocks; it adds text next to the tool result: the lint findings of an edited code file (`commands.lint_file`), a warning at 3 consecutive failing test runs of one agent and a hand-back at 5, and one checkpoint per session when the main thread passes 150k tokens.
+- New `ai-kit.json` `post_tool` section (`lint_after_edit`, `lint_timeout_s`, `streak_warn`, `streak_stop`, `checkpoint_tokens`); the doctor checks the registration and the hook's error log.
+
 ## Core rules: one slice per delivery, fewer and clearer rules
 
 Run of 2026-10-14 (LS35): a widened scope with no estimate ran 3 hours of execution with 19 subagents and no PR; about 40% of the calls were re-orienting, every lane left leftovers that became new lanes, and three High findings were design gaps found after the code. The rules that would have stopped it existed but were buried among 434 IDs. Rule: [rules/core.md](rules/core.md) (CR01 to CR22) is the set in force and wins over the domain files; MAINTAINING M14 keeps it small.

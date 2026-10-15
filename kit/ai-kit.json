@@ -158,5 +158,13 @@
     "kpi_inline_reads": 0,
     "kpi_gate_runs_main": 2,
     "kpi_parallel_factor_min": 1.5
+  },
+  "post_tool": {
+    "lint_after_edit": true,
+    "lint_timeout_s": 120,
+    "lint_debounce_s": 3,
+    "streak_warn": 3,
+    "streak_stop": 5,
+    "checkpoint_tokens": 150000
   }
 }
