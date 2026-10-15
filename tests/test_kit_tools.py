@@ -118,48 +118,51 @@ class HookLauncherTest(unittest.TestCase):
         settings = json.loads((KIT / ".claude" / "settings.json").read_text(encoding="utf-8"))
         return [h["command"] for entries in settings["hooks"].values() for e in entries for h in e["hooks"]]
 
+    def launchers(self) -> list[str]:
+        return [c for c in self.commands() if "scripts/gates.sh" not in c]
+
     def test_every_entry_has_the_same_launcher(self) -> None:
-        self.assertEqual(len(set(self.commands())), 1)
+        stems = {c.split('"$py"')[0] .replace("telemetry_hook", "X").replace("guard_hook", "X").replace("post_tool_hook", "X")
+                 for c in self.launchers()}
+        self.assertEqual(len(stems), 1)
+        self.assertEqual(len({c for c in self.launchers() if "telemetry_hook.py" in c}), 1)
 
-    def test_the_configured_python_is_unescaped_and_probed_with_a_fallback(self) -> None:
-        command = self.commands()[0]
-        self.assertEqual(command.count("-c pass"), 1, "one probe in one loop")
-        self.assertIn(r"s/\\\\/\\/g", command)
-        self.assertIn('for p in "$c" python3 python', command)
+    def test_the_configured_python_is_a_placeholder_probed_with_a_fallback(self) -> None:
+        for command in self.launchers():
+            self.assertIn('py="__AIKIT_PYTHON__"', command)
+            self.assertIn('for p in python python3', command)
+            self.assertNotIn("ai-kit.json", command)
 
-    def test_launcher_falls_back_when_the_configured_python_is_bad(self) -> None:
+    def run_launcher(self, p, command: str, path: str | None = None):
+        env = {**__import__("os").environ, "CLAUDE_PROJECT_DIR": p.root.as_posix()}
+        if path is not None:
+            env["PATH"] = path
+        return subprocess.run([BASH, "-c", command], cwd=p.root, env=env, capture_output=True, text=True, check=False)  # noqa: S603
+
+    def test_an_unfilled_placeholder_falls_back_to_a_python_on_path(self) -> None:
         if not BASH:
             self.skipTest("bash not available")
         p = Project()
         try:
             marker = p.root / "ran.txt"
             write(p.root, "scripts/telemetry_hook.py", f"open(r'{marker}', 'w').write('x')\n")
-            config = json.loads((p.root / "ai-kit.json").read_text(encoding="utf-8"))
-            config["commands"]["python"] = "no-such-python-xyz"
-            write(p.root, "ai-kit.json", json.dumps(config))
-            path = __import__("os").environ["PATH"]
-            r = subprocess.run([BASH, "-c", self.commands()[0]], cwd=p.root, env={**__import__("os").environ, "CLAUDE_PROJECT_DIR": p.root.as_posix(), "PATH": path},  # noqa: S603
-                               capture_output=True, text=True, check=False)
+            r = self.run_launcher(p, self.launchers()[0])
             self.assertEqual(r.returncode, 0, r.stderr)
             if shutil.which("python3") or shutil.which("python"):
                 self.assertTrue(marker.exists())
         finally:
             p.close()
 
-    def test_launcher_runs_the_hook_with_the_configured_python(self) -> None:
+    def test_launcher_runs_the_hook_with_the_python_filled_at_install(self) -> None:
+        if not BASH:
+            self.skipTest("bash not available")
         p = Project()
         try:
             marker = p.root / "ran.txt"
             write(p.root, "scripts/telemetry_hook.py", f"open(r'{marker}', 'w').write('x')\n")
-            config = json.loads((p.root / "ai-kit.json").read_text(encoding="utf-8"))
-            config["commands"]["python"] = Path(PY).as_posix()
-            write(p.root, "ai-kit.json", json.dumps(config))
-            if BASH:
-                env_cmd = self.commands()[0]
-                r = subprocess.run([BASH, "-c", env_cmd], cwd=p.root, env={**__import__("os").environ, "CLAUDE_PROJECT_DIR": p.root.as_posix()},  # noqa: S603
-                                   capture_output=True, text=True, check=False)
-                self.assertEqual(r.returncode, 0, r.stderr)
-                self.assertTrue(marker.exists())
+            r = self.run_launcher(p, self.launchers()[0].replace("__AIKIT_PYTHON__", Path(PY).as_posix()))
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertTrue(marker.exists())
         finally:
             p.close()
 
@@ -168,11 +171,7 @@ class HookLauncherTest(unittest.TestCase):
             self.skipTest("bash not available")
         p = Project()
         try:
-            config = json.loads((p.root / "ai-kit.json").read_text(encoding="utf-8"))
-            config["commands"]["python"] = "no-such-python-xyz"
-            write(p.root, "ai-kit.json", json.dumps(config))
-            r = subprocess.run([BASH, "-c", self.commands()[0]], cwd=p.root, env={**__import__("os").environ, "CLAUDE_PROJECT_DIR": p.root.as_posix(), "PATH": "/nonexistent"},  # noqa: S603
-                               capture_output=True, text=True, check=False)
+            r = self.run_launcher(p, self.launchers()[0], path="/nonexistent")
             self.assertEqual(r.returncode, 0, r.stderr)
         finally:
             p.close()

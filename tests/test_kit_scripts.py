@@ -98,6 +98,8 @@ class Project:
         # a detached auto gc or maintenance writes into .git while cleanup removes it (Directory not empty in CI)
         run(self.root, "git", "config", "gc.auto", "0", check=True)
         run(self.root, "git", "config", "maintenance.auto", "false", check=True)
+        run(self.root, "git", "config", "user.name", "t", check=True)
+        run(self.root, "git", "config", "user.email", "t@t", check=True)
         run(self.root, "git", "add", "-A", check=True)
         run(self.root, "git", "commit", "-q", "-m", "init", check=True)
 
