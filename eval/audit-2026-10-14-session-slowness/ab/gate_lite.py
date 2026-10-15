@@ -76,7 +76,7 @@ def main() -> int:
 
     for path in git(repo, "diff", "--name-only", a.base).splitlines() + git(repo, "ls-files", "--others", "--exclude-standard").splitlines():
         p = repo / path
-        if p.is_file() and "—" in p.read_text(encoding="utf-8", errors="replace"):
+        if p.is_file() and chr(0x2014) in p.read_text(encoding="utf-8", errors="replace"):
             errors.append(f"L5 em dash in {path}")
 
     for e in sorted(set(errors)):

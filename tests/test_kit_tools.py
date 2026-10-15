@@ -211,7 +211,7 @@ class InstallerNotesTest(unittest.TestCase):
 
     def test_no_em_dash(self) -> None:
         for rel in ("SKILL.md", "reference/doctor.md", "reference/update.md", "reference/ownership.md", "reference/install.md"):
-            self.assertNotIn("—", self.read(rel), rel)
+            self.assertNotIn(chr(0x2014), self.read(rel), rel)
 
 
 if __name__ == "__main__":
