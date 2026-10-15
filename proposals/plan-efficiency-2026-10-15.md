@@ -18,6 +18,8 @@ Out of scope: product code, model choice, a prd-flow redesign beyond gate remova
 | D5 | Every slice is measured with the probe (`eval/audit-2026-10-15-paper/probe.py`, fixed task, fixed ref) before and after | M07 |
 | D6 | Lint after edit runs in a detached worker and its findings arrive on the agent's next Edit, Write or shell call | A synchronous lint of one file took about 30 s in agora-consulta-fe (type-aware ESLint); the deferred hook returns in about 160 ms |
 | D7 | `prd-flow-surveyor` keeps opus; only `prd-flow-docs` moves to sonnet | The surveyor judges conflicts across every PRD, the one place CR09's reason holds; prd-flow runs only when typed |
+| D8 | `state_record.py`, `gate_rules.py`, `gate_prd.py`, `gate_plan.py` and `gate_waves.py` stay, trimmed, although the audit of 2026-10-14 section 5 lists them for deletion | `promote.py` (size L archive) imports `state_record.py` and `gate_rules.py`; the others hold kept codes (G15, G22, P17) or the `changed_rows` and `rule_rows` helpers. Deleting them means rewriting size L promote, a separate delivery |
+| D9 | The commit body of a rule change is one `Decided:` line per decision with the rejected option (an assumption ends in `(assumed)`), then `Rules: <IDs>` | The templates, the global block and the executor said three different things (review 1/5); the shortest record that keeps the decision |
 
 ## Slices
 
