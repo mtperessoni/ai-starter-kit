@@ -110,7 +110,7 @@ scripts/                        gates.sh (including `close`, `verify`, `baseline
                                 new_failures.py, move_lines.py, hotspots.py, contract_drift.py, close_gate.py, baseline.py, verify.py,
                                 config_get.py, kit_config.py, commit_trailers.py, clean_task_outputs.py, docker_hygiene.py,
                                 guard_hook.py, reap.py, next_change_number.py, settings_check.py,
-                                telemetry_hook.py, run_probe.py, retro.py, retro_detectors.py (gate_scope.py and state_record.py ship in the prd-flow skill)
+                                telemetry_hook.py, post_tool_hook.py, run_probe.py, retro.py, retro_detectors.py (gate_scope.py and state_record.py ship in the prd-flow skill)
 .claude/settings.json           the telemetry hooks and the gate permissions, merged into the project's own;
                                 reads of generated and vendored paths denied
 .ignore                         generated and vendored paths kept out of search
