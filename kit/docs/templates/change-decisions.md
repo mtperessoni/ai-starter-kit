@@ -1,6 +1,6 @@
 # Decisions · <NNN-slug>
 
-Size L only. Sizes S and M record the same facts in the commit body (`Request:`, `Decided:`, `Assumed:`, `Red:`, then `Rules:`) and keep no file.
+Size L only. Sizes S and M record the decisions in the commit body (one `Decided:` line per decision with the rejected option, then `Rules: <IDs>`) and keep no file.
 
 Reply 1: "<the user's reply to the sheet, verbatim>"
 Reply 2: "<the reply to the follow-up sheet, verbatim; delete this line when there was none>"

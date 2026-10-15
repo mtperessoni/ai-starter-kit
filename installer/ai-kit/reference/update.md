@@ -104,7 +104,7 @@ Rule changes land in the PRD in the same commit as the code; the commit body is 
 
 | Change | How |
 |---|---|
-| Frozen CHANGELOG | Insert under the title of `docs/prd/CHANGELOG.md`, nothing else changed, this line: > **Frozen on <date>.** Nothing is appended here any more. A rule change after this date is recorded in the body of the commit that changed the rule (`Request:`, `Decided:` with the rejected options, `Assumed:`, `Red:`, then `Rules: <IDs>`). Print the history of one rule with `python .claude/skills/prd-flow/scripts/gate.py --history <ID>`, or `git log --grep "<ID>"`. |
+| Frozen CHANGELOG | Insert under the title of `docs/prd/CHANGELOG.md`, nothing else changed, this line: > **Frozen on <date>.** Nothing is appended here any more. A rule change after this date is recorded in the body of the commit that changed the rule (one `Decided:` line per decision with the rejected option, then `Rules: <IDs>`). Print the history of one rule with `python .claude/skills/prd-flow/scripts/gate.py --history <ID>`, or `git log --grep "<ID>"`. |
 | Constitution | The principle on documents gets the sentence "Rule changes land in the PRD in the same commit as the code that implements them; the commit body records the request and the decision." in place of any "before the code" wording; version and amendment date per the file's own rule. Project-owned: shown as a diff |
 | CLAUDE.md, AGENTS.md | Lines that say docs or PRD and TRD update "before the code", or that name promote, a CHANGELOG entry or a TRD Planned section for every change, are rewritten to the same sentence. Project-owned: shown as a diff |
 | Markers | Existing `pending code` markers and `planned` sources stay as they are (D4); no new change adds one |
