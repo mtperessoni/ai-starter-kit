@@ -11,13 +11,13 @@ Rules that say "my yes", "report to me" or "ask me" bind the main thread. A suba
 
 ## Executing
 - The session that executes a slice writes the code itself. A subagent only for: the final review, a slice that is truly independent (its own worktree, at most 2 executors at once), or heavy reading kept out of the main context.
-- A subagent prompt carries the goal, the acceptance items, the done condition (which tests pass) and at most about 5 paths to read first, never whole documents. At the done condition the agent stops verifying and hands back. It returns at most 15 lines: done, files, tests, gaps, minutes used. It never opens another subagent.
-- Pass `model` on every dispatch: sonnet by default, opus only with a one-line reason.
-- Cadence: keep a running total of minutes against the estimate (agent returns carry their duration). At the end of each slice, and on reaching 1.5 times the estimate, stop and report to me what is done and what is left. Never open a lane for leftovers without my yes. An agent past about 150k tokens hands back instead of continuing.
+- A subagent prompt carries the goal, the acceptance items, the done condition (which tests pass) and at most about 5 paths to read first, never whole documents. At the done condition the agent stops verifying and hands back. It returns at most 15 lines: done, files, tests, gaps.
+- Subagents run on sonnet by default (`CLAUDE_CODE_SUBAGENT_MODEL` in the kit settings); dispatch with `model: opus` only with a one-line reason.
+- Cadence: keep a running total of minutes against the estimate, from the duration the harness reports when each agent finishes. At the end of each slice, and on reaching 1.5 times the estimate, stop and report to me what is done and what is left. Never open a lane for leftovers without my yes. A long or stopped agent is continued with SendMessage, never replaced by a new one: the harness compacts its context.
 - One phase per session for size L: design, then docs, then one session per slice. Checkpoint to a fresh session past about 150k tokens of context.
-- Long commands: a subagent runs them in the foreground with an explicit timeout under 600 s, output to a file; only the main thread starts background work, with a timeout longer than the run. No polling loops.
+- Long commands write their output to a file. No polling loops: the harness notifies when background work ends.
 - In a shared tree never `git stash`, `reset`, `checkout`, `restore` or `commit --amend`. Commit messages go through a file (`git commit -F <file>`).
-- Never leave a process running when you hand back. Never kill processes by image name (`taskkill /IM`, `pkill`, `killall`); use `scripts/gates.sh reap` where it exists, otherwise stop your own process by its PID.
+- Never hand back with a process you started still running (stop it with TaskStop). Never kill processes by image name (`taskkill /IM`, `pkill`, `killall`); use `scripts/gates.sh reap` where it exists, otherwise stop your own process by its PID.
 
 ## Tests
 - Write the failing test first. Unit tests run offline, with fakes and a per-test timeout.

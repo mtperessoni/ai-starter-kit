@@ -10,13 +10,12 @@
 | Writes | Only the files your role names, with Edit and Write: no heredoc, `sed -i`, `tee` or bare `python -`. Prose in `repo.md` `language`, IDs and code in English. No em dash (U+2014), no needless comment |
 | Interpreter | The prompt's `Python:`, else the output of `scripts/gates.sh python`; never another |
 | Shared tree | Never `git stash`, `reset`, `checkout`, `switch`, `restore`, amend or a repo-wide `gates.sh fix`: fix the cause |
-| Commands | One command per call, never an edit, a test and a commit chained with `&&`. Foreground only, never `run_in_background`: a command that may pass 120 s gets an explicit `timeout` under 600000 and writes its output to a file; read only failures and the summary. Never `tail -f`, `until`, `while`, `sleep` or `seq` polling; never return while a process you started is alive. Never start or wait for a baseline, a suite or a verify: only the chief does |
+| Commands | Never an edit, a test and a commit chained with `&&`. A command that may run long writes its output to a file; read only failures and the summary. Never `tail -f`, `until`, `while`, `sleep` or `seq` polling; never return while a process you started is alive (TaskStop it). Never start or wait for a baseline, a suite or a verify: only the chief does |
 | Commit | Write the message with Write to `<state>/msg-<task or role>.txt`: Conventional Commits, English; a rule change's body is the record (`Decided: <n><x> ... (rejected: ...)` lines, executor "Rule rows with the code"), ending with `Rules: <IDs>`. The project's commit rules in its `CLAUDE.md` or `AGENTS.md` win over a harness attribution reminder. Then `git add <your paths>` and `git commit -F <that file>` as separate calls (never `-F -`); `git status --porcelain -- <your paths>` must be empty. Never add anything under `.claude/prd-flow/`. On `index.lock` wait a few seconds and retry once |
 | Loops | At most 2 reruns of a failing step; the third returns `blocked` with the lines and a Route |
-| Subagents | Never open one: parallelism is the chief's |
-| Ceiling | V08 |
+| Turns | `maxTurns` of your agent file bounds a run (V08) |
 
-One return format for every agent: at most 15 lines (done, tests, gaps, minutes used) and under 2,000 characters, then the five fields and nothing after.
+One return format for every agent: at most 15 lines (done, tests, gaps) and under 2,000 characters, then the five fields and nothing after.
 ```
 Status: done | gap | blocked
 Files: <paths written, or none>
@@ -32,10 +31,8 @@ Next: <the step the chief runs next; one per option of a user route>
 4. Outside your owned paths: a test that broke as a direct, expected consequence may get only its expectation adjusted (never a loosened safety assertion) and joins the commit. What the task says to leave stays as it is.
 5. Commit with the message you wrote.
 
-`Interrupted: yes` in the prompt (a replacement for a stuck or timed-out agent): first derive the touched files from `git status --porcelain -- <owned paths>`, save `git --no-pager diff -- <those files>` to `<state>/interrupted-<task>.patch`, then continue from it.
-
 ## Fix
-The chief sends each task's finding lines (those with that `Task:`) to that task's warm executor with SendMessage; lines with `Task: none`, the wave verify failure lines, and lines whose executor is past its ceiling or 150k tokens go together to one new executor `fix` with a handoff (`write.md` "Fix handoff"). Fix only what is named, inside its owned paths, under the Task steps (test first for a behavior finding). Commit `fix(<scope>): <sentence>`. A row without a `Source`: `Grep` the rule ID in the source folders and write the path and symbol into the row.
+The chief sends each task's finding lines (those with that `Task:`) to that task's warm executor with SendMessage; lines with `Task: none` and the wave verify failure lines go together to one new executor `fix` with a handoff (`write.md` "Fix handoff"). Fix only what is named, inside its owned paths, under the Task steps (test first for a behavior finding). Commit `fix(<scope>): <sentence>`. A row without a `Source`: `Grep` the rule ID in the source folders and write the path and symbol into the row.
 
 ## Close
 0. Rerun: `state.md` logs `closed: <commit>`, or the state folder is gone after a pass: return `done` with that commit, run nothing.
@@ -67,6 +64,6 @@ Recheck: per previous finding `resolved` or `open` with the file and line that s
 | V05 | Cascade: more Critical plus High than the previous round stops the chief (`SKILL.md` "Review") |
 | V06 | Any behavior change during execution (a case no rule covers, a new rule, and always the safety posture: removing a guard, a net, a list, a switch) is the short C5 above, never one more task |
 | V07 | Round 5 with an open Critical, or a cascade: the chief stops and asks (`SKILL.md` "Review"); never a round 6 without an explicit yes. Each open Critical is told in plain words (what happens to the user), with the options: one more round, accept with a mitigation, change the rule |
-| V08 | Ceilings, the single home of these numbers: surveyor `full` and docs `plan` about 80 tool calls; every other surveyor, docs, executor and fix about 50 calls or 30 minutes; reviewer 40; recheck about 15. At the ceiling or past about 150k tokens: return `gap` with a handoff of at most 10 lines (files touched, failing tests, next step) |
+| V08 | Run length is the harness's: `maxTurns` in each agent file ends a run with a partial result, and the harness compacts a subagent's context as it grows. The chief continues the same agent with SendMessage; it never replaces it with a cold one and a handoff |
 | V09 | The full suite runs once, as the chief's `compare` during the last review (restarted after the last fix); the reviewer runs nothing; an executor runs only its own test plus fix-files and lint-files |
 | V10 | The reviewer returns at most 8 finding lines, the most severe first, in one batched list; `<state>/findings-r<N>.md` only past the line cap, named in `Files:` |

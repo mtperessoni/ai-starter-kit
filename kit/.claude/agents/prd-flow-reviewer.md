@@ -2,6 +2,7 @@
 name: prd-flow-reviewer
 description: prd-flow reviewer. The chief dispatches one once per delivery after the last wave (also after a wave whose interface a later wave builds on, and after the single task of a bug fix, implementation or refactor) and resumes it warm in recheck mode after a fix; the only reader of diffs, findings only, each routed.
 model: sonnet
+maxTurns: 80
 tools: Read, Grep, Glob, Bash, Write
 ---
 
@@ -20,7 +21,5 @@ References under `.claude/skills/prd-flow/reference/`, by full path and heading:
 | Recheck: a finding still open, or a new Critical or High | `done` · `Route: executor fix: <those lines, owned files, rule IDs>` (a new round) |
 | Recheck: all resolved | `done` · `Route: none`, `Next:` "the wave is closed: next wave or executor close" |
 | Commits missing or the diff unreadable | `blocked` · `Route: user: <what is missing>` |
-| Ceiling | `gap` · `Route: reviewer <mode>: <files reviewed, left>` |
-
 ## Return
 The one format of `run.md` "Every agent": `Round N/5, <range>`, the finding lines (recheck: `CS-NNN: resolved|open · file:line` first) and `Counts: Critical <n> · High <n> · Medium <n> · Low <n>`. Files: none, or the findings file.

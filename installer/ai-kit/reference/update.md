@@ -147,3 +147,13 @@ Lint after edit, the failing test streak and the main-thread checkpoint (TM18). 
 | Settings | Merge into `.claude/settings.json` (TM12: the project's own hooks stay) two entries with the kit's launcher command for `scripts/post_tool_hook.py`, without `async`: `PostToolUse` matcher `Edit\|Write\|MultiEdit\|Bash\|PowerShell` and `PostToolUseFailure` matcher `Bash\|PowerShell`, each with `"timeout": 30` |
 | ai-kit.json | Add the kit's `post_tool` section with its defaults when missing, never overwriting a project value; `commands.lint_file` must be set and contain `{files}`, else lint after edit stays off |
 | Verify | One Edit of a code file, then one shell call: a lint finding (or none) arrives with the second call; `.ai-kit/runs/_hooks/errors.log` is absent or empty |
+
+## Migration to harness-native subagents
+The kit stops restating what Claude Code already does for subagents: it compacts a subagent's context, returns only its final message, reports its duration and tokens, and lets a stopped agent be continued with SendMessage. List first, then ask; apply only after yes.
+
+| Change | How |
+|---|---|
+| Settings | Merge the kit's `env.CLAUDE_CODE_SUBAGENT_MODEL` (`sonnet`) into `.claude/settings.json`; a project value stays |
+| Agents | The prd-flow agents and `docs-eval-reader` are kit-owned and replaced (U3): `maxTurns` in the frontmatter, no "Ceiling" row |
+| CLAUDE.md, AGENTS.md | Project-owned, shown as a diff: a subagent returns done, files, tests and gaps (no minutes); a long or stopped agent is continued with SendMessage, never replaced; a long command writes to a file and no process outlives its agent; drop "never opens another subagent", "hands back past about 150k tokens" and "foreground with a timeout under 600 s" |
+| Verify | `scripts/gates.sh preamble`; dispatch one agent without `model` and confirm it runs on sonnet |
