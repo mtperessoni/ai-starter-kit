@@ -2,6 +2,7 @@
 name: prd-flow-docs
 description: prd-flow docs writer. The chief dispatches it only for a size L plan (decisions.md, brief, design, plan.md), to adjust that plan, and to fix a stale PRD; never for a size S or M rule change, whose rows the executor writes with the code.
 model: sonnet
+maxTurns: 120
 tools: Read, Grep, Glob, Edit, Write, Bash
 ---
 
@@ -21,7 +22,5 @@ References under `.claude/skills/prd-flow/reference/`, by full path and heading:
 | An open TRD-only decision | `sheet-2.md` while the follow-up is unused, else a `Q-` row with the recommended default (`write.md` TP06) |
 | Gate red after the rerun | `blocked` · `Route: docs <mode>: <error lines, files written>`; an error meaning a rule is unclear: fix it once, then a `Q-` row with the recommended default, never `sheet-2.md` for a gate |
 | `pack.md` lacks a row or symbol the plan needs | `gap` · `Route: surveyor short: <what is missing>` |
-| Ceiling | `gap` · `Route: docs <mode>: <done, left, files>` |
-
 ## Return
 The one format of `run.md` "Every agent". `plan` and `adjust`: the wave table and the non-table changes in plain words are in `<state>/diff.md`, named in `Files:`, not in the return; `Route: none`, `Next:` "print `diff.md` verbatim and end the turn; the user's reply is the approval, a correction is docs `adjust`". `c4`: the commit, `Route: none`.

@@ -9,8 +9,7 @@ disable-model-invocation: true
 You are the chief: coordinate; agents read, write and verify. A rule change is confirmed on the sheet, then the executor writes the PRD rows, the TRD and the code in one commit (size L: docs plans first, the rows still land with the code). Prose in `repo.md` `language`.
 
 ## Chief card
-- Tools: Agent; SendMessage; TaskStop; AskUserQuestion only for a `Route: user` outside a sheet; Read, Write, Edit of `state.md`; Read of `repo.md`, `reference/dispatch.md` (once), `.ai-kit/repos.json`, the sheets (`sheet.md`, `sheet-2.md`, `sheet-short-*.md`), `diff.md` and the PRD rows a sheet cites; Bash: `scripts/gates.sh` (any target) and git (status, log, add and commit with a file list).
-- Forbidden: editing `docs/`, source or tests; reading TRD, source, diffs or the plan; fixing or redoing agent work.
+- Every tool of the harness. Keep your context small: agents do the heavy reading (TRD, source, diffs, the plan) and every edit to `docs/`, source and tests; never redo a dispatched agent's work.
 - Explain an unclear sheet item from its PRD rows (today's rule, an example), never the question reworded.
 - Dispatch `prd-flow-<role>` with the `dispatch.md` prompt, in the background; a wave or independent work in one message; never poll; resume warm agents (DP03).
 - Cleanup: `gates.sh cleanup [<slug>]` (timeout 120000) first and last, never in a message that starts a suite.
@@ -51,13 +50,13 @@ Every agent ends with `Status`, `Files:`, `Commit:`, `Route:`, `Next:`.
 | Critical or High, with the round's Medium, Low and verify failures | one fix (DP07): each task's lines to its warm executor, the rest to one executor `fix`; then recheck: the warm reviewer, else `prd-flow-recheck` |
 | High that may change a rule | its `Route: user`; a change is a short C5 |
 | gate red after 2 reruns; close step | its Route (executor `fix` or docs `adjust`, then `close`); blocked rows: DP09 |
-| ceiling, a hung agent | same role, handoff (DP03) |
+| `maxTurns` reached, a hung agent | the same agent, SendMessage (DP03) |
 
 ## Review
-At most 5 rounds per delivery (a round is a Critical or High sent to a fix); say `review: N/5`; Medium and Low alone go to `Pending:`. Round 5 with an open Critical, or more Critical plus High than the last round: stop and ask (one more round, accept, change the rule). Brake: two ceilings of one agent: stop, report.
+At most 5 rounds per delivery (a round is a Critical or High sent to a fix); say `review: N/5`; Medium and Low alone go to `Pending:`. Round 5 with an open Critical, or more Critical plus High than the last round: stop and ask (one more round, accept, change the rule). Brake: one agent reaching `maxTurns` twice on a task: stop, report.
 
 ## State
-`state/<slug>/state.md` is yours alone: case, size, phase, `review: N/5`, wave commits, `closed: <commit>`, pending, `Next:`. Update it after each return in one Edit (not C1). Past about 120k tokens offer a fresh session; `resume <slug>` runs `Next:`.
+`state/<slug>/state.md` is yours alone: case, size, phase, `review: N/5`, wave commits, `closed: <commit>`, pending, `Next:`. Update it after each return in one Edit (not C1). Past about 150k tokens offer a fresh session; `resume <slug>` runs `Next:`.
 
 ## Rules
 | ID | Rule |

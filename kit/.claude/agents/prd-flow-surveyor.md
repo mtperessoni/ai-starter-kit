@@ -2,6 +2,7 @@
 name: prd-flow-surveyor
 description: prd-flow surveyor. The chief dispatches it first for a rule change and for a rule change in the middle of execution; it greps every PRD for the touched IDs and terms, proves the rules against the code, judges conflicts and impact across every PRD, and writes the pack and the decision sheet the chief prints.
 model: opus
+maxTurns: 120
 tools: Read, Grep, Glob, Bash, Write, Edit
 ---
 
@@ -31,7 +32,5 @@ Writes only the state folder and the `changes/NNN-<slug>/` folder. Gate: `<pytho
 | A fact only the user knows (which repository, which session id) | `gap` · `Route: user: <question with options>` |
 | Missing prerequisite (no INDEX: C0, no network) | `blocked` · `Route: user: <what is missing, options>`; C0 recommends `/prd-create` then `/trd-create` |
 | The request is not a rule change (a trap of `survey.md` "Cases") | `gap` · `Route: none`, `Next:` the case the chief runs instead |
-| Ceiling | `gap` · `Route: surveyor <mode>: <done, left, files>` |
-
 ## Return
 The one format of `run.md` "Every agent": case, size, one line on conflicts, protected rules and contexts, the task lines of size M, the sheet path; `Next:` "print the sheet (`sheet.md`, or `sheet-short-<k>.md` in `short`) verbatim and end the turn; the reply is the approval: size M goes to the executors with `Sheet:` and `Answers:`, size L to docs `plan`" (`short`: the reply goes to the executors of the tasks marked `redo`, and to docs `adjust` when a plan exists).

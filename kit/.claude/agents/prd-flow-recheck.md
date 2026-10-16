@@ -2,6 +2,7 @@
 name: prd-flow-recheck
 description: prd-flow scoped re-check, the cold fallback when the round's reviewer cannot be resumed. The chief dispatches it after a Critical or High finding was fixed; it confirms each previous finding against the fix commit only, findings only.
 model: haiku
+maxTurns: 30
 tools: Read, Grep, Bash
 ---
 
@@ -17,7 +18,5 @@ References under `.claude/skills/prd-flow/reference/`, by full path and heading:
 | All resolved | `done` · `Route: none`, `Next:` "the wave is closed: next wave or executor close" |
 | A finding still open, or a new Critical or High | `done` · `Route: executor fix: <those lines, owned files, rule IDs>` (at most 10 lines; the rest by ID) |
 | Commits missing | `blocked` · `Route: user: <what is missing>` |
-| Ceiling | `gap` · `Route: recheck recheck: Round <N/5>. Commits: <hashes>. Findings: <ids left>` |
-
 ## Return
 The one format of `run.md` "Every agent": `CS-NNN: resolved|open · file:line` per finding, then new findings, then `Counts: Critical <n> · High <n> · Medium <n> · Low <n>` of what stays open.

@@ -2,12 +2,13 @@
 name: prd-flow-executor
 description: prd-flow executor. The chief dispatches one per task, resumes it warm with review findings, dispatches it cold per fix, and once to close a delivery; it implements test first, writes the approved PRD rows and the TRD with the code in one commit whose body is the record, and routes what it cannot fix.
 model: sonnet
+maxTurns: 150
 tools: Read, Grep, Glob, Edit, Write, Bash
 ---
 
 # prd-flow-executor
 
-Prompt: `Slug. State. Python. Mode <task|fix|close>` and its input: `task` carries `Task: <one line>` (size L: `Plan: <path>` and the task ID); a rule change adds `Sheet: <state>/sheet.md` and `Answers: "<reply verbatim>"`; `fix` carries the finding or error lines with the owned files, the files to read and the rule IDs, or a findings file path; `close` names `Case <C2|C3|C4|C5|C6>`. A SendMessage with finding lines after your task is a warm fix: same steps as `fix`. `Interrupted: yes`: see `run.md` "Task".
+Prompt: `Slug. State. Python. Mode <task|fix|close>` and its input: `task` carries `Task: <one line>` (size L: `Plan: <path>` and the task ID); a rule change adds `Sheet: <state>/sheet.md` and `Answers: "<reply verbatim>"`; `fix` carries the finding or error lines with the owned files, the files to read and the rule IDs, or a findings file path; `close` names `Case <C2|C3|C4|C5|C6>`. A SendMessage with finding lines after your task is a warm fix: same steps as `fix`; a SendMessage after a stop continues where you were.
 
 References under `.claude/skills/prd-flow/reference/`, by full path and heading: `run.md` "Every agent" (common rules, commit, return), "Task", "Fix", "Close"; `write.md` "Rows" and "TRD" when you own a PRD or TRD file.
 
@@ -42,7 +43,6 @@ One `Decided:` line per sheet decision, `Decided: none` when it had none; an ass
 | close: "compare is still running" or "no compare result" | `blocked` · `Route: none`, `Next:` "the chief waits for compare or starts it, then executor close"; never a fix |
 | close: baseline missing (C2, C3, C5, C6), drift older than the change | `blocked` · `Route: user: <what failed, options with trade-offs>`; overrides any `owner:` the script printed (a baseline taken at close would hide the change's own failures) |
 | Red after 2 reruns | `blocked` · `Route: executor <mode>: <failing lines, files touched>` |
-| Ceiling | `gap` · `Route: executor <mode>: <files touched, failing tests, next step>` |
 
 ## Return
 The one format of `run.md` "Every agent": the task or fix ID and result, new test names, count of files by kind, lint; in `close` the close summary. After a fix of review findings: `Next:` "recheck on <hash> with the finding IDs".
