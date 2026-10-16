@@ -10,7 +10,9 @@ The kit restated things Claude Code already does for subagents, and two of those
 - Removed: "pass `model` on every dispatch"; `.claude/settings.json` sets `env.CLAUDE_CODE_SUBAGENT_MODEL` to `sonnet`, an agent file's `model` wins.
 - Removed: "never open another subagent" (nesting is the harness's default); the minutes in a return (the harness reports duration and tokens); "one command per call" (strong models are cheaper with composite commands); "foreground only, timeout under 600 s" (the harness moves a timed-out command to the background; the no-orphan rule stays).
 - prd-flow chief: every harness tool; agents still do the heavy reading and every edit, and the chief never redoes their work.
-- Kept, because the harness does not do them: the guard hook, the no-orphan rule and `reap`, disjoint file ownership, the post-tool hook, the preamble meter and the telemetry.
+- Kept, because the harness does not do them: the guard hook, the no-orphan rule and `reap`, disjoint file ownership, the post-tool hook, the preamble meter and the telemetry. The tool-call budgets of the one-shot `prd-create` and `trd-create` workers also stay: they bound an exploration that returns once, the harness has no per-dispatch turn limit for a general agent, and they never replace an agent with a cold one.
+- The prd-flow chief offers a fresh session past about 150k tokens (was 120k), the same number as CR11 and the post-tool hook.
+- History rows SA15, SA16, SA19, SA48, SA54, RV08 and WF52 now say which core rule replaced or amended them.
 
 ## Global block: no stall in subagents, one retry for proxied output
 
