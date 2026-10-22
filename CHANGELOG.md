@@ -12,7 +12,8 @@ The test wrapper added delay to every agent test run: measured in a consumer on 
 - New: the offline guarantee belongs in the test runner's own configuration (root conftest sets the offline flag, drops the database URL and skips the integration folder unless the run names that tier), coverage only on the whole suite, measure the runner's startup (TS55, `stacks/python.md`, `stacks/README.md`). The default path iterates with the runner on the changed test files; `gates.sh one` stays available. Repository files are read with Read and searched with Grep, not shell `cat`, `sed -n`, `head`, `tail` or `grep`.
 - New: `compare` runs in parallel, and a test that fails only in parallel is an isolation defect fixed first (TS56).
 - New: lanes, one or two long-lived worktrees per person warmed once and reused slice after slice; parallel executors still get their own worktree, at most 2 (SA67, WF84).
-- New gate warning G33: a PRD or TRD markdown file over 40 KB (a warning, never a failure).
+- New gate warning G33: a PRD or TRD markdown file over 40 KB (a warning, never a failure); the frozen `CHANGELOG.md` is left alone.
+- New key `tests.no_tests_exit_codes` (`[5]` for pytest): a `related` chunk that collects nothing no longer turns a green run red.
 
 ## Harness-native subagents
 

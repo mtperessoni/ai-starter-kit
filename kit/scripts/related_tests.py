@@ -284,6 +284,7 @@ def run(root: Path, cfg: dict, files: list[str], changed: list[str]) -> int:
             print(line)
         return 0
     limit = cfg["tests"].get("related_cmd_chars", CMD_CHARS)
+    no_tests = set(cfg["tests"].get("no_tests_exit_codes", []))
     elapsed = 0.0
     code = 0
     with log.open("w", encoding="utf-8") as out:
@@ -294,6 +295,8 @@ def run(root: Path, cfg: dict, files: list[str], changed: list[str]) -> int:
                 returned = subprocess.run(argv, shell=False, cwd=root, stdout=out, stderr=subprocess.STDOUT, check=False).returncode  # noqa: S603
                 if timed:
                     elapsed += time.monotonic() - started
+                if returned in no_tests:
+                    returned = 0
                 code = code or returned
     failure = re.compile(cfg["tests"]["failure_regex"])
     lines = log.read_text(encoding="utf-8", errors="replace").splitlines()

@@ -104,6 +104,7 @@
     "failure_regex": "^(?:FAILED|ERROR)\\s+(\\S+)",
     "summary_regex": "",
     "fast_flags": [],
+    "no_tests_exit_codes": [],
     "test_dirs": [],
     "log_dir": ".claude/prd-flow/state/_tests",
     "mirror_patterns": [

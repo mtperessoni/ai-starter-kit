@@ -24,6 +24,7 @@
 | `tests.junit_xml` | `reports/junit.xml` (default on) |
 | `tests.native_related` | empty (use `scripts/related_tests.py`) |
 | `tests.failure_regex` | `^(?:FAILED\|ERROR)\s+(\S+)` (pytest's short summary) |
+| `tests.no_tests_exit_codes` | `[5]` (pytest exits 5 when a chunk of `related` collects nothing; without it that chunk turns a green run red) |
 
 ## Structure enforcement
 No mainstream Python linter counts function lines, so the installer writes `tests/test_architecture.py`, an AST test with shrink-only allowlists, as the source repository did:

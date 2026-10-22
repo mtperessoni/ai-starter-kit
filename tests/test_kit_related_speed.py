@@ -279,5 +279,28 @@ class CacheTest(RelatedSpeedBase):
         self.assertIn("1 failed", r2.stdout, r1.stdout)
 
 
+class EmptyChunkTest(RelatedSpeedBase):
+    """A chunk that collects nothing (pytest exits 5) is not a red run when the stack names that code."""
+
+    def _runner(self, **tests) -> None:
+        write(self.p.root, "src/features/orders/tests/test_empty_chunk.py", "from features.orders.order_service import create_order\n")
+        (self.p.root / "empty.py").write_text(
+            "import sys\nif any('test_empty_chunk' in a for a in sys.argv):\n    print('no tests ran')\n    sys.exit(5)\nprint('1 passed')\n",
+            encoding="utf-8",
+        )
+        self.configure(runner=f'"{PY}" empty.py {{files}}', related_cmd_chars=10, **tests)
+
+    def test_without_the_key_an_empty_chunk_is_red(self) -> None:
+        self._runner()
+        r = self.related("src/features/orders/order_service.py", "--run")
+        self.assertIn("exit 5", r.stdout, r.stdout + r.stderr)
+
+    def test_a_named_no_tests_code_does_not_turn_the_run_red(self) -> None:
+        self._runner(no_tests_exit_codes=[5])
+        r = self.related("src/features/orders/order_service.py", "--run")
+        self.assertIn("exit 0", r.stdout, r.stdout + r.stderr)
+        self.assertIn("1 passed", r.stdout, r.stdout + r.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()
