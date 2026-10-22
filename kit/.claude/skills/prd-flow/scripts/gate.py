@@ -19,7 +19,7 @@ Usage: python .claude/skills/prd-flow/scripts/gate.py [--base REF]
        python .claude/skills/prd-flow/scripts/gate.py --step plan --plan <plan.md> [--change <changes/NNN-slug>]
 Errors: G0 (base ref missing), G1 (duplicate rule ID), G8 (a rule ID added to a TRD file or a test that no PRD row defines, or a '## Planned' block citing one),
 G15 and G22 (--change: brief.md cites an ID that does not exist, the folder is missing), G5 and G29 and G32 (--html only).
-Warnings: G23 (TRD path matches no tracked file), G28 (shared PRD folder differs from the sibling repository), D4 (pending marker or '## Planned' TRD section added), P17 (shared file in one wave).
+Warnings: G23 (TRD path matches no tracked file), G28 (shared PRD folder differs from the sibling repository), D4 (pending marker or '## Planned' TRD section added), P17 (shared file in one wave), G33 (a PRD or TRD markdown file over 40 KB).
 --step: one run per agent step, one report. prd: default run and --sibling. trd: default run and --trd. plan: --plan and --change, plus the computed WAVE table and CRITICAL PATH.
 --plan: prints the WAVE table and the CRITICAL PATH of the plan cards (never counted); P17 when two tasks of one wave touch a shared file.
 --status: ID, state, file, Source and Change via of each rule; states proposed, approved, superseded, implemented.
@@ -39,7 +39,7 @@ import sys
 from pathlib import Path
 
 from gate_changed import check_cited_ids, kit_tests, warn_added_planned
-from gate_core import ID, err, git, load_config, read_md_rules
+from gate_core import ID, err, git, load_config, read_md_rules, warn
 from gate_history import history
 from gate_html_build import check_html_strict
 from gate_output import base_ref, changed_paths, report, start
@@ -50,6 +50,8 @@ from gate_sibling import check_sibling
 from gate_status import STATES, status_lines
 from gate_trd import check_trd
 from gate_waves import check_waves
+
+BIG_DOC_BYTES = 40 * 1024
 
 
 def default_checks(root: Path, cfg: dict[str, str], rules, base_arg: str | None) -> str:
@@ -67,6 +69,11 @@ def default_checks(root: Path, cfg: dict[str, str], rules, base_arg: str | None)
             for rid in sorted(set(re.findall(r"\b(" + ID + r")\b", block))):
                 if not rid.startswith("I-") and rid not in known:
                     err("G8", f"{f.name}: '{cfg['planned_heading']}' cites {rid}, which does not exist in the PRD")
+
+    for f in [*(root / prd_rel).rglob("*.md"), *trd.rglob("*.md")]:
+        size = f.stat().st_size
+        if size > BIG_DOC_BYTES:
+            warn("G33", f"{f.relative_to(root).as_posix()} is {size // 1024} KB, over {BIG_DOC_BYTES // 1024} KB: split it, an agent reads it whole")
 
     return f", base {base[:10]}, {len(rules)} rules"
 

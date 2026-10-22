@@ -130,11 +130,13 @@ class GatesProbeTest(unittest.TestCase):
                 else:
                     os.environ[k] = v
 
-    def test_related_goes_through_the_probe(self) -> None:
+    def test_related_runs_bare_and_the_whole_offline_target_goes_through_the_probe(self) -> None:
         r = self.gates("related", "src/features/orders/order_service.py", env={"AI_KIT_CONTEXT": "ctx1"})
         self.assertIn("FAILED fake::test_a", r.stdout, r.stdout + r.stderr)
-        (rec,) = lines(self.p.root, "ctx1")
-        self.assertEqual(rec["label"], "related")
+        self.assertFalse((self.p.root / ".ai-kit" / "runs" / "ctx1" / "resources.jsonl").exists())
+        self.gates("offline", env={"AI_KIT_CONTEXT": "ctx2"})
+        (rec,) = lines(self.p.root, "ctx2")
+        self.assertEqual(rec["label"], "offline")
         self.assertIn("exit", rec)
 
     def test_retro_calls_scripts_retro(self) -> None:

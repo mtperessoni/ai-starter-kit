@@ -300,7 +300,7 @@ def main() -> int:
     log.write_text(f"close {slug} started\n", encoding="utf-8")
     block, failed = [f"close {slug}"], False
     block += [f"note: modified tracked file left alone: {ln[3:].strip()}" for ln in others[:3]]
-    steps = [("lint", ["lint"]), ("docs gate", docs_step(root, slug)), ("compare", ["compare", slug])]
+    steps = [("lint", ["lint"]), ("ratchet", ["ratchet"]), ("docs gate", docs_step(root, slug)), ("compare", ["compare", slug])]
     for name, args in steps:
         if name == "compare" and skip_suite:
             block.append(f"compare and baseline skipped (case {case}: no code change to prove)")

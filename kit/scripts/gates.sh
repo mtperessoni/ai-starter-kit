@@ -17,8 +17,8 @@ usage() {
     cat >&2 <<'USAGE'
 usage: scripts/gates.sh <target> [args]
 
-  related [files]  the ratchet, then the tests related to the change (mirror + importers)
-  one <file>       one test file, offline, no coverage threshold
+  related [files]  the tests related to the change (mirror + importers); no ratchet, no probe
+  one <file>       one test file, offline, no coverage threshold, no probe (the test runner called directly is faster still)
   offline          the whole unit tier with NO network and NO database: once, at the end
   integration      the integration tier (needs Docker): guards first; on exit, even a failed or
                    interrupted one: sweep, build cache bounded, old task outputs deleted
@@ -52,7 +52,8 @@ usage: scripts/gates.sh <target> [args]
   lint             verify lint, format and types, as CI does; one line: lint ok, or lint FAILED (exit N), log <path>
   fix              repair lint and format; same one-line result (then run lint)
   fix-files <file>...   fix only those files (commands.fix_file with {files}, in chunks); unset runs fix with a note
-  lint-files <file>...  lint only those files (commands.lint_file with {files}, in chunks); unset runs lint with a note
+  lint-files <file>...  lint only those files (commands.lint_file with {files}, in chunks); unset runs lint with a note;
+                   ends with the structure ratchet (the default path is related, fix-files, lint-files)
   move <source> <start> <end> <destination> [--at LINE]
                    move lines by script (scripts/move_lines.py, same arguments), never retyped
   imports          the import check (catches cycles); same one-line result
@@ -119,28 +120,36 @@ resolve_python() {
     return 1
 }
 
-cmd() {
-    "$PY" scripts/config_get.py "commands.$1"
-}
-
-# The run keys, read in one Python process: CFG_TEST, CFG_OFFLINE_ARGS, CFG_FAST (tests.fast_flags, for example "--no-cov -n auto":
-# added to baseline and compare only when the project declares them), CFG_UNSET, CFG_FLAG.
-CFG_LOADED=0
-CFG_TEST="" CFG_OFFLINE_ARGS="" CFG_FAST="" CFG_UNSET="" CFG_FLAG=""
-load_run_config() {
-    local line
-    if [ "$CFG_LOADED" -eq 1 ]; then return 0; fi
+# Every config value the targets need, read in ONE Python process (CFG_<key with dots as underscores>); "" when unset.
+# CFG_TEST, CFG_OFFLINE_ARGS, CFG_FAST (tests.fast_flags, for example "--no-cov -n auto": added to baseline and compare only
+# when the project declares them), CFG_UNSET and CFG_FLAG are the names the run targets use. @deselect is asked only by compare and rerun.
+CONFIG_KEYS="commands.test commands.offline_args commands.no_coverage_args commands.integration_args commands.lint commands.fix commands.import_check commands.fix_file commands.lint_file commands.setup commands.project_targets tests.fast_flags commands.offline_unset commands.offline_flag"
+load_config() {
+    local line key keys="$CONFIG_KEYS"
+    for key in $keys; do printf -v "CFG_${key//./_}" '%s' ""; done
+    case "$target" in compare | rerun) keys="$keys @deselect" ;; esac
+    CFG_deselect=""
     while IFS= read -r line; do
         line="${line%$'\r'}"
-        case "$line" in
-        commands.test=*) CFG_TEST="${line#*=}" ;;
-        commands.offline_args=*) CFG_OFFLINE_ARGS="${line#*=}" ;;
-        tests.fast_flags=*) CFG_FAST="${line#*=}" ;;
-        commands.offline_unset=*) CFG_UNSET="${line#*=}" ;;
-        commands.offline_flag=*) CFG_FLAG="${line#*=}" ;;
+        key="${line%%=*}"
+        case "$key" in
+        @deselect) CFG_deselect="${line#*=}" ;;
+        *) printf -v "CFG_${key//./_}" '%s' "${line#*=}" ;;
         esac
-    done < <("$PY" scripts/config_get.py --many commands.test commands.offline_args tests.fast_flags commands.offline_unset commands.offline_flag)
-    CFG_LOADED=1
+    done < <("$PY" scripts/config_get.py --many $keys)
+    CFG_TEST="$CFG_commands_test" CFG_OFFLINE_ARGS="$CFG_commands_offline_args" CFG_FAST="$CFG_tests_fast_flags"
+    CFG_UNSET="$CFG_commands_offline_unset" CFG_FLAG="$CFG_commands_offline_flag"
+}
+
+# cmd <key>: commands.<key> from the one load; a required command that is not set is an error, as before.
+cmd() {
+    local name="CFG_commands_$1"
+    case "$1" in
+    test | lint | fix | import_check)
+        if [ -z "${!name}" ]; then echo "ai-kit.json has no commands.$1" >&2; return 1; fi
+        ;;
+    esac
+    printf '%s\n' "${!name}"
 }
 
 gate_has() {
@@ -164,7 +173,8 @@ files_target() {
     local name="$1" key="$2" whole="$3" tpl line rest chunk n code=0 log="$LOG_DIR/$1.log"
     shift 3
     [ $# -ge 1 ] || { echo "usage: gates.sh $name <file>..." >&2; exit 2; }
-    tpl="$("$PY" scripts/config_get.py "commands.$key" "")"
+    local tplvar="CFG_commands_$key"
+    tpl="${!tplvar}"
     case "$tpl" in
     "" | "<"*)
         echo "gates.sh: commands.$key is not set in ai-kit.json, running commands.$whole on the whole repository" >&2
@@ -202,12 +212,15 @@ probe() {
 }
 
 # offline <label> <argv...>: the argv runs as given, with the offline environment; no shell sees it.
+# Only the long targets (the whole offline suite, compare, rerun: label offline) go through the probe; one and related run bare.
 offline() {
     local label="$1" args=() v
     shift
-    load_run_config
     for v in $CFG_UNSET; do args+=(-u "$v"); done
-    env "${args[@]}" "${CFG_FLAG:-OFFLINE_ONLY}=1" "$PY" scripts/run_probe.py --label "$label" -- "$@"
+    case "$label" in
+    offline) env "${args[@]}" "${CFG_FLAG:-OFFLINE_ONLY}=1" "$PY" scripts/run_probe.py --label "$label" -- "$@" ;;
+    *) env "${args[@]}" "${CFG_FLAG:-OFFLINE_ONLY}=1" "$@" ;;
+    esac
 }
 
 # offline_sh <label> <configured command string> <args...>: the string is configuration; the args reach it quoted, as "$@".
@@ -246,13 +259,13 @@ mkdir -p "$LOG_DIR"
 PROJECT_GATES="scripts/gates.project.sh"
 delegate() { exec bash "$PROJECT_GATES" "$target" "$@"; }
 # commands.project_targets: targets the project keeps even when this file defines them.
-if [ -f "$PROJECT_GATES" ] && "$PY" scripts/config_get.py --has commands.project_targets "$target"; then
-    delegate "$@"
-fi
+load_config
+case " $CFG_commands_project_targets " in
+*" $target "*) [ -f "$PROJECT_GATES" ] && delegate "$@" ;;
+esac
 
 case "$target" in
 related)
-    "$PY" scripts/ratchet.py
     args_file="$LOG_DIR/related.args"
     : > "$args_file"
     for file in "$@"; do printf '%s\n' "$file" >> "$args_file"; done
@@ -337,7 +350,6 @@ compare)
     content="$("$PY" scripts/close_gate.py --hash)"
     cache=".claude/prd-flow/state/_compare/$content"
     compare_code=0
-    load_run_config
     if [ -f "$cache/final.log" ] && [ -f "$cache/exit" ]; then
         cp "$cache/final.log" "$dir/final.log"
         compare_code="$(cat "$cache/exit")"
@@ -345,7 +357,7 @@ compare)
     else
         printf 'running\n' > "$dir/compare.status"
         trap 'printf "done\n" > "$dir/compare.status"' EXIT
-        offline_sh offline "$CFG_TEST $CFG_OFFLINE_ARGS $CFG_FAST $("$PY" scripts/config_get.py --deselect)" > "$dir/final.log" 2>&1 || compare_code=$?
+        offline_sh offline "$CFG_TEST $CFG_OFFLINE_ARGS $CFG_FAST $CFG_deselect" > "$dir/final.log" 2>&1 || compare_code=$?
         if "$PY" scripts/new_failures.py --require-summary "$dir/final.log" > /dev/null; then
             mkdir -p "$cache"
             printf '%s\n' "$compare_code" > "$cache/exit"
@@ -368,9 +380,8 @@ rerun)
     dir=".claude/prd-flow/state/$slug"
     mkdir -p "$dir"
     rerun_code=0
-    load_run_config
     rm -f "$dir/rerun.exit"
-    offline_sh offline "$CFG_TEST $CFG_OFFLINE_ARGS $("$PY" scripts/config_get.py --deselect)" "$@" > "$dir/rerun.log" 2>&1 || rerun_code=$?
+    offline_sh offline "$CFG_TEST $CFG_OFFLINE_ARGS $CFG_deselect" "$@" > "$dir/rerun.log" 2>&1 || rerun_code=$?
     printf '%s\n' "$rerun_code" > "$dir/rerun.exit"
     tail -n 1 "$dir/rerun.log"
     new_code=0
@@ -391,7 +402,12 @@ fix-files)
     files_target fix-files fix_file fix "$@"
     ;;
 lint-files)
-    files_target lint-files lint_file lint "$@"
+    lint_code=0
+    files_target lint-files lint_file lint "$@" || lint_code=$?
+    ratchet_code=0
+    "$PY" scripts/ratchet.py || ratchet_code=$?
+    [ "$lint_code" -eq 0 ] || exit "$lint_code"
+    exit "$ratchet_code"
     ;;
 move)
     "$PY" scripts/move_lines.py "$@"
@@ -422,7 +438,7 @@ close)
     GATES_BASH="$(cygpath -w "$BASH" 2>/dev/null || printf %s "$BASH")" "$PY" scripts/close_gate.py "$@"
     ;;
 setup)
-    setup_cmd="$("$PY" scripts/config_get.py commands.setup "")"
+    setup_cmd="$CFG_commands_setup"
     case "$setup_cmd" in
     "" | "<"*) echo "commands.setup is not set in ai-kit.json" >&2; exit 2 ;;
     esac

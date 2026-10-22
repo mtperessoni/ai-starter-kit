@@ -411,10 +411,12 @@ class GatesShTest(unittest.TestCase):
     def tearDown(self) -> None:
         self.p.close()
 
-    def test_related_runs_the_ratchet_then_only_the_related_tests(self) -> None:
+    def test_related_runs_only_the_related_tests_and_the_ratchet_is_its_own_target(self) -> None:
         r = run(self.p.root, BASH, "scripts/gates.sh", "related", "src/features/orders/order_service.py")
-        self.assertIn("ratchet: 0 problem(s)", r.stdout, r.stdout + r.stderr)
+        self.assertNotIn("ratchet:", r.stdout, r.stdout + r.stderr)
         self.assertIn("FAILED fake::test_a", r.stdout)
+        r = run(self.p.root, BASH, "scripts/gates.sh", "ratchet")
+        self.assertIn("ratchet: 0 problem(s)", r.stdout, r.stdout + r.stderr)
 
     def test_setup_runs_the_setup_command(self) -> None:
         config_path = self.p.root / "ai-kit.json"
