@@ -71,6 +71,8 @@ def default_checks(root: Path, cfg: dict[str, str], rules, base_arg: str | None)
                     err("G8", f"{f.name}: '{cfg['planned_heading']}' cites {rid}, which does not exist in the PRD")
 
     for f in [*(root / prd_rel).rglob("*.md"), *trd.rglob("*.md")]:
+        if f.name == "CHANGELOG.md":
+            continue
         size = f.stat().st_size
         if size > BIG_DOC_BYTES:
             warn("G33", f"{f.relative_to(root).as_posix()} is {size // 1024} KB, over {BIG_DOC_BYTES // 1024} KB: split it, an agent reads it whole")

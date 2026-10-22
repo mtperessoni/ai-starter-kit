@@ -30,6 +30,10 @@ class BigDocsTest(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stdout)
         self.assertIn("WARNING G33 docs/prd/shop/05-orders.md", full(self.p, r))
 
+    def test_the_frozen_changelog_does_not_warn(self) -> None:
+        write(self.p.root, "docs/prd/CHANGELOG.md", "# Changelog\n\n" + "An old entry.\n" * 4000)
+        self.assertNotIn("G33 docs/prd/CHANGELOG.md", full(self.p, self.p.py(GATE)))
+
     def test_files_under_the_limit_do_not_warn(self) -> None:
         write(self.p.root, "docs/trd/orders.md", "# TRD\n\n" + "A line of prose about orders.\n" * 100)
         self.assertNotIn("G33", full(self.p, self.p.py(GATE)))
