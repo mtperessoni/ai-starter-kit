@@ -24,6 +24,11 @@
 | `tests.junit_xml` | `reports/junit.xml` (default on) |
 | `tests.native_related` | empty (use `scripts/related_tests.py`) |
 | `tests.failure_regex` | `^(?:FAILED\|ERROR)\s+(\S+)` (pytest's short summary) |
+| `tests.no_tests_exit_codes` | `[5]` (pytest exits 5 when a chunk of `related` collects nothing; without it that chunk turns a green run red) |
+| `tests.parallel_runner` | `uv run pytest {files} --no-cov -q -n auto --junitxml=reports/junit.xml` (pytest-xdist; used from `tests.parallel_from` selected files on and over the cap, so a big change never falls back to a whole folder in one process) |
+| `tests.parallel_from` | `40` by default; measure it: below the break-even one process is faster, because every worker imports the app and collects the whole selection (a consumer on Windows measured 35 files at 8 s in one process and parallel paying off only near 100 files) |
+| `tests.runner_args_file` | `true` with pytest 8.2 or later: the selection goes to one call as `@file`, one startup instead of one per command-line chunk |
+| `tests.related_exclude` | only the folders that hold no offline test, for example `["tests/integration/**"]`; a folder that mixes offline tests with real-model ones stays in (the marker deselects the real-model ones), or `related` loses coverage |
 
 ## Structure enforcement
 No mainstream Python linter counts function lines, so the installer writes `tests/test_architecture.py`, an AST test with shrink-only allowlists, as the source repository did:
@@ -43,6 +48,13 @@ Proxies worth adding to ruff: `C901` (complexity) and `PLR0915` (statements).
 
 ## Offline guard
 An autouse fixture in the **root** `conftest.py` blocks `socket.socket.connect` outside loopback; under the offline flag it also blocks loopback and database driver connects, and fails instead of skipping. The integration tier's session fixtures never load in the offline target because it ignores that path.
+
+The guarantee belongs in the runner, not in the wrapper (TS55). Root `conftest.py`:
+- unless `<PROJECT>_TEST_TIER` is `integration`: `os.environ["<PROJECT>_OFFLINE_ONLY"] = "1"` and `os.environ.pop("<PROJECT>_TEST_DATABASE_URL", None)` before any test module imports;
+- `pytest_ignore_collect(collection_path, config)` returns `True` for the `tests/integration` folder unless that tier is named, so the integration fixtures never load;
+- `commands.offline_args` can then be empty and a bare `uv run pytest <files>` is offline by construction; `gates.sh offline` keeps passing the same environment, and a canary test still executes it on one file (TS21).
+
+Speed: coverage (`pytest-cov`) runs only on the whole offline suite and in CI: keep `--cov` out of `addopts` (or give single-file runs `--no-cov`), because a single file never meets the threshold and coverage tracing alone cost about 10 s on a 5-test file. Measure the runner's startup with `pytest --collect-only -q <file>` and `-p no:<plugin>` in `addopts` for each plugin nothing uses (look up the entry-point names with `pytest --trace-config`). A fresh worktree pays a cold venv sync and a cold bytecode cache: see `rules/07-workflow.md` (long-lived lanes).
 
 Per-test timeout, one config line: `timeout = 60` under `[tool.pytest.ini_options]` (needs `pytest-timeout` in the dev dependencies; look up the current option name).
 

@@ -10,7 +10,7 @@
 <install>                              # Install dependencies (locked)
 <dev>                                  # Dev server
 scripts/gates.sh related [files]       # The tests related to the change (mirror and importers)
-scripts/gates.sh one <file>            # One test file, offline
+scripts/gates.sh one <file>            # One test file, offline (available; the test runner on the file is the faster default)
 scripts/gates.sh fix-files <file>...   # Repair only those files
 scripts/gates.sh lint-files <file>...  # Lint only those files
 scripts/gates.sh lint                  # Lint, format check, types, structure rules, as CI does
@@ -25,8 +25,8 @@ scripts/gates.sh reap                  # Kill stuck processes of this session by
 
 ## Working rules
 
-- Read a file with the Read tool before editing it (a shell read does not count); batch independent reads; one pass of changes per file.
-- Tests: failing test first. Before handing back a slice, `related` on the touched files, then `fix-files` and `lint-files`. Every test has a per-test timeout. The full suite runs once per delivery against the baseline; an unrelated failure is reported, not investigated. Test output goes to a file; read only failures and the summary.
+- Read a file with the Read tool before editing it (a shell read does not count); batch independent reads; one pass of changes per file. Repository files are read with Read and searched with Grep, never with shell `cat`, `sed -n`, `head`, `tail` or `grep` (a shell call costs about 2 s, Read about 0.2 s, and a token proxy may rewrite the output).
+- Tests: failing test first. While iterating, run the test runner directly on the changed test files (no coverage, never a whole folder): the offline guarantee lives in the runner's own configuration, so it is as safe as the wrapper and faster; `gates.sh one` stays available. Before handing back a slice, `related && fix-files && lint-files` on the touched files (`lint-files` ends with the structure ratchet). Every test has a per-test timeout. The full suite runs once per delivery against the baseline; an unrelated failure is reported, not investigated. Test output goes to a file; read only failures and the summary.
 - Processes: a long command writes its output to a file; no polling loops (the harness notifies when background work ends), no unbounded output; never hand back with a process you started still running (TaskStop). Never kill by image name (`taskkill /IM`, `pkill`, `killall`): `scripts/gates.sh reap`.
 - Subagents: by default the session that executes a slice writes the code. A subagent prompt carries the goal, the acceptance items, the done condition and at most about 5 paths; it returns at most 15 lines (done, files, tests, gaps). A long or stopped agent is continued with SendMessage, never replaced; the harness compacts its context. prd-flow agents use `.claude/skills/prd-flow/reference/run.md` "Every agent". Leftovers go back to the person.
 - Docker: build or pull only through `scripts/gates.sh build|integration|full`; every image, container, volume and network carries the `repo` and `purpose` labels of `ai-kit.json` "docker"; a one-off container is `--rm`. Clean up with `docker-clean` and `clean-outputs`.

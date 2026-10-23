@@ -35,4 +35,6 @@ Every recipe has the same sections, so the installer reads them the same way:
 12. **Contracts**: the schema or API snapshot the framework already produces, or the dump command (DS30), as `contracts` entries.
 13. **Setup**: `commands.setup`, the one command that makes a fresh clone or worktree ready to test (IN12).
 
+Principle for every stack (TS55): the offline guarantee belongs in the test runner's own configuration (its root config sets the offline flag, drops the database URL and skips the integration folder unless the run names that tier), not in the wrapper, so the runner called directly is as safe as `gates.sh`; coverage runs only on the whole suite; measure the runner's startup and disable what is unused.
+
 Where a tool, rule name or flag is not certain, the recipe says "look up" and the installer searches before writing it.

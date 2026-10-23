@@ -2,7 +2,7 @@
 
 Usage: python scripts/verify.py <slug> [--since REF]     (through scripts/gates.sh verify <slug> [--since REF])
 The ref defaults to the commit of the last verification (state/<slug>/verify.stamp), else the commit that added the change's plan.md, else the
-merge base with the base branch. Steps: tests (gates.sh related <changed files>: the ratchet, the mirror and importer tests and tests.always)
+merge base with the base branch. Steps: tests (gates.sh related <changed files>: the mirror and importer tests and tests.always), ratchet (gates.sh ratchet)
 and docs (gates.sh docs <slug>). The output goes to state/<slug>/verify.log; the screen gets at most 12 lines. A reminder, never a block on
 other work: exit 1 only when a step failed.
 When nothing changed since the last verification (the stamp holds HEAD plus a hash of the tree), only the steps that failed then rerun.
@@ -183,7 +183,7 @@ def main(argv: list[str]) -> int:
         return 0
     ref = since or default_ref(root, slug, stamp)
     files = changed_files(root, ref)
-    steps = [("tests", ["related", *files]) if files else ("tests", None), ("docs", ["docs", slug])]
+    steps = [("tests", ["related", *files]) if files else ("tests", None), ("ratchet", ["ratchet"]), ("docs", ["docs", slug])]
     out, failed, chunks = [f"verify {slug}: {len(files)} changed file(s) since {ref[:8]}", *notes], [], [reap_text]
     for name, args in steps:
         if previous is not None and name not in previous:

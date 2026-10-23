@@ -2,6 +2,19 @@
 
 User-visible changes to the kit, newest first. Projects receive them through `/ai-kit update`.
 
+## Faster runs
+
+The test wrapper added delay to every agent test run: measured in a consumer on a 5-test file (0.05 s per test), the runner alone took 1.8 s and `gates.sh one` 3.4 s; a new worktree cost 30 to 110 s before its first useful test. Rules: TS55, TS56, SA67, WF84.
+
+- `scripts/gates.sh` reads the whole config in one Python call per target (was one call per key, five for `one`); `compare` and `rerun` fold the deselect list into the same call.
+- `run_probe.py` wraps only the long targets (`offline`, `compare`, `rerun`, `baseline`, `integration`, `full`, `build`), not `one` or `related`.
+- `related` no longer runs the ratchet first; the ratchet runs at the end of `lint-files` (the default path is `related`, `fix-files`, `lint-files`) and stays in `gates.sh ratchet`, `verify` and `close`. `offline` still accepts file arguments.
+- New: the offline guarantee belongs in the test runner's own configuration (root conftest sets the offline flag, drops the database URL and skips the integration folder unless the run names that tier), coverage only on the whole suite, measure the runner's startup (TS55, `stacks/python.md`, `stacks/README.md`). The default path iterates with the runner on the changed test files; `gates.sh one` stays available. Repository files are read with Read and searched with Grep, not shell `cat`, `sed -n`, `head`, `tail` or `grep`.
+- New: `compare` runs in parallel, and a test that fails only in parallel is an isolation defect fixed first (TS56).
+- New: lanes, one or two long-lived worktrees per person warmed once and reused slice after slice; parallel executors still get their own worktree, at most 2 (SA67, WF84).
+- New key `tests.no_tests_exit_codes` (`[5]` for pytest): a `related` chunk that collects nothing no longer turns a green run red.
+- `related` stops being slower than the whole suite. Measured in a consumer on 16 cores: the whole suite in parallel took about 60 s, while `related` took 16 s for a one-file change (two runner calls and an eval tier collected only to be deselected) and 99 s for an eight-file change (over the cap it fell back to the owning folder, which was `src/`, in one process). New keys: `tests.parallel_runner` runs a selection of `tests.parallel_from` files or more, and any selection over `tests.related_max_files`, in parallel, keeping every importer instead of the folder fallback; `tests.runner_args_file` hands the selection to one runner call as `@file`. The Python stack says which folders belong in `tests.related_exclude`: only those with no offline test. Without the new keys a project behaves as before.
+
 ## Harness-native subagents
 
 The kit restated things Claude Code already does for subagents, and two of those rules made runs worse: a token ceiling that replaced a working agent with a cold one (rereads, leftovers turned into new lanes, the risk of two agents on one task) and a closed tool list that sent even a short read of the chief through a dispatch. Checked against the Claude Code sub-agents, tools and worktrees documentation. Rules: CR08, CR09, CR10, CR12 (amended).
