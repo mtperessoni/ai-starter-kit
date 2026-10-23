@@ -215,6 +215,24 @@ def slowest_tests(root: Path, pattern: str) -> list[str]:
     return [f"{seconds:.2f} s {name}" for seconds, name in sorted(cases, reverse=True)[:SLOWEST]]
 
 
+def always_seconds(root: Path, cfg: dict, always: set[str]) -> float:
+    """The time the always tests took inside a shared call, from tests.junit_xml: they stay out of the budget."""
+    pattern = cfg["tests"].get("junit_xml", "")
+    if not pattern or not always:
+        return 0.0
+    prefixes = tuple(f.rsplit(".", 1)[0].replace("/", ".") for f in sorted(always))
+    total = 0.0
+    for report in sorted(p for p in root.glob(pattern) if p.is_file()):
+        try:
+            tree = ET.parse(report)  # noqa: S314
+        except (ET.ParseError, OSError):
+            continue
+        for case in tree.getroot().iter("testcase"):
+            if case.get("classname", "").startswith(prefixes):
+                total += float(case.get("time") or 0)
+    return total
+
+
 def split_command(command: str) -> list[str]:
     if os.name != "nt":
         return shlex.split(command)
@@ -288,9 +306,12 @@ def run(root: Path, cfg: dict, files: list[str], changed: list[str]) -> int:
             plan.append((cfg["tests"]["runner"], "{files}", sorted(always), False))
     elif files:
         main = [f for f in files if f not in always]
-        plan.append((main_runner(cfg, len(main)), "{files}", main, True))
-        if always:
-            plan.append((cfg["tests"]["runner"], "{files}", sorted(always), False))
+        if cfg["tests"].get("runner_args_file") and main:
+            plan.append((main_runner(cfg, len(main)), "{files}", main + sorted(always), True))
+        else:
+            plan.append((main_runner(cfg, len(main)), "{files}", main, True))
+            if always:
+                plan.append((cfg["tests"]["runner"], "{files}", sorted(always), False))
         plan = [entry for entry in plan if entry[2]]
     else:
         print("related: no related tests")
@@ -335,6 +356,8 @@ def run(root: Path, cfg: dict, files: list[str], changed: list[str]) -> int:
         cache.write_text(json.dumps({"key": key, "lines": summary}), encoding="utf-8")
     elif cache.exists():
         cache.unlink()
+    if cfg["tests"].get("runner_args_file") and always and not native:
+        elapsed = max(0.0, elapsed - always_seconds(root, cfg, always))
     budget = cfg["tests"].get("related_budget_seconds")
     over = f", over the budget of {budget} s: split the slow test or its fixture (TS37)" if budget is not None and elapsed > budget else ""
     print(f"related: {elapsed:.1f} s{over}")

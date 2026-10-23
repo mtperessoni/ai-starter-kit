@@ -27,8 +27,12 @@
 | `tests.no_tests_exit_codes` | `[5]` (pytest exits 5 when a chunk of `related` collects nothing; without it that chunk turns a green run red) |
 | `tests.parallel_runner` | `uv run pytest {files} --no-cov -q -n auto --junitxml=reports/junit.xml` (pytest-xdist; used from `tests.parallel_from` selected files on and over the cap, so a big change never falls back to a whole folder in one process) |
 | `tests.parallel_from` | `40` by default; measure it: below the break-even one process is faster, because every worker imports the app and collects the whole selection (a consumer on Windows measured 35 files at 8 s in one process and parallel paying off only near 100 files) |
-| `tests.runner_args_file` | `true` with pytest 8.2 or later: the selection goes to one call as `@file`, one startup instead of one per command-line chunk |
+| `tests.runner_args_file` | `true` with pytest 8.2 or later: the selection and the `tests.always` files go to one call as `@file`, one startup instead of one per command-line chunk and one more for the always files; with `tests.junit_xml` set the always files still stay out of the budget |
 | `tests.related_exclude` | only the folders that hold no offline test, for example `["tests/integration/**"]`; a folder that mixes offline tests with real-model ones stays in (the marker deselects the real-model ones), or `related` loses coverage |
+
+On Windows, measure the antivirus before tuning anything else: when the same `python -X importtime -c "import <entry module>"` swings by several seconds between runs, the time is file scanning, not CPU. Ask the machine owner to exclude the repository folders and the `uv` cache and environments from real-time scanning, then measure `gates.sh one` and `compare` before and after.
+
+Look for network waits in the app's own startup before blaming the runner: a lifespan that warms a remote client (a realtime voice, a model) fails offline only after the connection gives up, and every test that starts the app pays it. Replace that client in the root `conftest.py` while the app module is loaded, and let the one test of that startup patch it back.
 
 ## Structure enforcement
 No mainstream Python linter counts function lines, so the installer writes `tests/test_architecture.py`, an AST test with shrink-only allowlists, as the source repository did:

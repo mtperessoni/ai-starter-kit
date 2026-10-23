@@ -336,6 +336,45 @@ class RunnerArgsFileTest(RelatedSpeedBase):
         self.assertEqual(len(listed), 41)
         self.assertIn("src/features/orders/tests/test_long_name_number_39.py", listed)
 
+    def test_the_always_tests_ride_in_the_same_call(self) -> None:
+        (self.p.root / "args.py").write_text(
+            "import sys\nopen('calls.txt','a').write(' '.join(sys.argv[1:])+'\\n')\nprint('1 passed')\n", encoding="utf-8"
+        )
+        write(self.p.root, "tests/test_architecture.py", "x = 1\n")
+        self.configure(runner=f'"{PY}" args.py {{files}}', runner_args_file=True, always=["tests/test_architecture.py"])
+        r = self.related("src/features/orders/order_service.py", "--run")
+        self.assertIn("exit 0", r.stdout, r.stdout + r.stderr)
+        calls = (self.p.root / "calls.txt").read_text(encoding="utf-8").splitlines()
+        self.assertEqual(len(calls), 1, calls)
+        listed = (self.p.root / calls[0][1:]).read_text(encoding="utf-8").split()
+        self.assertIn("tests/test_architecture.py", listed)
+        self.assertIn("src/features/orders/tests/test_order_service.py", listed)
+
+    def test_the_always_tests_still_stay_out_of_the_budget_through_the_junit_report(self) -> None:
+        write(self.p.root, "tests/test_architecture.py", "x = 1\n")
+        (self.p.root / "slow.py").write_text(
+            "import sys,time\n"
+            "listed = open(sys.argv[1][1:]).read()\n"
+            "if 'test_architecture' in listed:\n"
+            "    time.sleep(2)\n"
+            "open('report.xml','w').write('<testsuites><testsuite>"
+            "<testcase classname=\"tests.test_architecture\" name=\"t\" time=\"2.0\"/>"
+            "<testcase classname=\"src.features.orders.tests.test_order_service\" name=\"u\" time=\"0.01\"/>"
+            "</testsuite></testsuites>')\n"
+            "print('1 passed')\n",
+            encoding="utf-8",
+        )
+        self.configure(
+            runner=f'"{PY}" slow.py {{files}}',
+            runner_args_file=True,
+            always=["tests/test_architecture.py"],
+            related_budget_seconds=1,
+            junit_xml="report.xml",
+        )
+        r = self.related("src/features/orders/order_service.py", "--run")
+        self.assertIn("exit 0", r.stdout, r.stdout + r.stderr)
+        self.assertNotIn("over the budget", r.stdout)
+
 
 class EmptyChunkTest(RelatedSpeedBase):
     """A chunk that collects nothing (pytest exits 5) is not a red run when the stack names that code."""
