@@ -314,7 +314,7 @@ class ParallelRunnerTest(RelatedSpeedBase):
         self.assertIn("src/features/orders/tests/test_user4.py", out)
         self.assertNotIn("src/features/billing/tests/test_invoice.py", out)
         self.assertNotIn("owning test folder", r.stderr + r.stdout)
-        self.assertIn("in parallel", r.stderr + r.stdout)
+        self.assertIn("keeping every importer", r.stderr + r.stdout)
 
 
 class RunnerArgsFileTest(RelatedSpeedBase):

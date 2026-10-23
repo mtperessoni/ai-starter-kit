@@ -160,7 +160,7 @@ def related(root: Path, cfg: dict, changed: list[str]) -> list[str]:
     if len(picked) > cap and cfg["tests"].get("parallel_runner"):
         print(
             f"related: {len(picked)} tests selected, over the cap of {cap} (tests.related_max_files): "
-            "running all of them in parallel with tests.parallel_runner",
+            "keeping every importer (tests.parallel_runner is set; tests.parallel_from picks the runner)",
             file=sys.stderr,
         )
     elif len(picked) > cap and folders:
