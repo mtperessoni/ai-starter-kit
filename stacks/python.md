@@ -25,6 +25,10 @@
 | `tests.native_related` | empty (use `scripts/related_tests.py`) |
 | `tests.failure_regex` | `^(?:FAILED\|ERROR)\s+(\S+)` (pytest's short summary) |
 | `tests.no_tests_exit_codes` | `[5]` (pytest exits 5 when a chunk of `related` collects nothing; without it that chunk turns a green run red) |
+| `tests.parallel_runner` | `uv run pytest {files} --no-cov -q -n auto --junitxml=reports/junit.xml` (pytest-xdist; used from `tests.parallel_from` selected files on and over the cap, so a big change never falls back to a whole folder in one process) |
+| `tests.parallel_from` | `40` (below it one process is faster: starting the workers, each importing the app, costs more than the tests) |
+| `tests.runner_args_file` | `true` with pytest 8.2 or later: the selection goes to one call as `@file`, one startup instead of one per command-line chunk |
+| `tests.related_exclude` | the tiers the offline suite never runs, for example `["tests/eval/**", "tests/integration/**"]`: selecting them only pays their collection |
 
 ## Structure enforcement
 No mainstream Python linter counts function lines, so the installer writes `tests/test_architecture.py`, an AST test with shrink-only allowlists, as the source repository did:

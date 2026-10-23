@@ -13,6 +13,7 @@ The test wrapper added delay to every agent test run: measured in a consumer on 
 - New: `compare` runs in parallel, and a test that fails only in parallel is an isolation defect fixed first (TS56).
 - New: lanes, one or two long-lived worktrees per person warmed once and reused slice after slice; parallel executors still get their own worktree, at most 2 (SA67, WF84).
 - New key `tests.no_tests_exit_codes` (`[5]` for pytest): a `related` chunk that collects nothing no longer turns a green run red.
+- `related` stops being slower than the whole suite. Measured in a consumer on 16 cores: the whole suite in parallel took about 60 s, while `related` took 16 s for a one-file change (two runner calls and an eval tier collected only to be deselected) and 99 s for an eight-file change (over the cap it fell back to the owning folder, which was `src/`, in one process). New keys: `tests.parallel_runner` runs a selection of `tests.parallel_from` files or more, and any selection over `tests.related_max_files`, in parallel, keeping every importer instead of the folder fallback; `tests.runner_args_file` hands the selection to one runner call as `@file`. The Python stack also lists the tiers to put in `tests.related_exclude`. Without the new keys a project behaves as before.
 
 ## Harness-native subagents
 

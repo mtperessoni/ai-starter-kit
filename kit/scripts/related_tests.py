@@ -5,6 +5,9 @@ Without files, the change is: committed since the merge-base with REF (default o
 uncommitted and untracked files. --run executes them with tests.runner from ai-kit.json (or
 tests.native_related when set), writes the log to tests.log_dir and prints only failures, the summary,
 the wall time against tests.related_budget_seconds (TS37) and, with tests.junit_xml, the slowest tests.
+A selection of tests.parallel_from files or more runs with tests.parallel_runner when set, and so does a selection
+over tests.related_max_files instead of the owning-folder fallback; tests.runner_args_file hands the selection to
+one call as @file (pytest 8.2 and later) instead of chunked command lines.
 A mirror test is named by tests.mirror_patterns; a test uses a module when an import line names it or, with
 tests.match_symbol, when it names the module as a word (languages whose imports name namespaces or autoload).
 """
@@ -29,6 +32,7 @@ COMMENT_LINE = re.compile(r"^\s*(#|//|/\*|\*|--|;|%|')")
 DEFAULT_MIRRORS =["test_{name}", "{name}_test", "{name}_spec", "{name}.test", "{name}.spec"]
 SLOWEST = 5
 MAX_FILES = 60
+PARALLEL_FROM = 40
 CMD_CHARS = 7000
 NO_BARE_STEM = {"__init__", "index"}
 
@@ -153,7 +157,13 @@ def related(root: Path, cfg: dict, changed: list[str]) -> list[str]:
             elif match_symbol and names_symbol(text, module, cfg):
                 picked.add(rel(t, root))
     folders = {owning_test_folder(m, root, test_rels) for m in modules} - {""}
-    if len(picked) > cap and folders:
+    if len(picked) > cap and cfg["tests"].get("parallel_runner"):
+        print(
+            f"related: {len(picked)} tests selected, over the cap of {cap} (tests.related_max_files): "
+            "running all of them in parallel with tests.parallel_runner",
+            file=sys.stderr,
+        )
+    elif len(picked) > cap and folders:
         print(
             f"related: {len(picked)} tests selected, over the cap of {cap} (tests.related_max_files): "
             f"running the owning test folder {sorted(folders)} instead",
@@ -237,8 +247,25 @@ def chunked_commands(template: str, placeholder: str, items: list[str], limit: i
     return commands
 
 
+def main_runner(cfg: dict, count: int) -> str:
+    """tests.parallel_runner from tests.parallel_from selected files on: a small selection is faster in one process."""
+    parallel = cfg["tests"].get("parallel_runner", "")
+    if parallel and count >= cfg["tests"].get("parallel_from", PARALLEL_FROM):
+        return parallel
+    return cfg["tests"]["runner"]
+
+
+def runner_commands(root: Path, cfg: dict, template: str, placeholder: str, items: list[str], list_file: Path) -> list[list[str]]:
+    """With tests.runner_args_file the selection goes to one call as @file (pytest 8.2 and later), else chunked argv."""
+    if placeholder == "{files}" and cfg["tests"].get("runner_args_file") and placeholder in template:
+        list_file.write_text("\n".join(items) + "\n", encoding="utf-8")
+        return chunked_commands(template, placeholder, ["@" + rel(list_file, root)], 10**9)
+    return chunked_commands(template, placeholder, items, cfg["tests"].get("related_cmd_chars", CMD_CHARS))
+
+
 def selection_key(root: Path, cfg: dict, files: list[str], changed: list[str]) -> str:
-    digest = hashlib.sha256(json.dumps([cfg["tests"].get("runner"), cfg["tests"].get("native_related")]).encode())
+    keys = ("runner", "native_related", "parallel_runner", "parallel_from", "runner_args_file")
+    digest = hashlib.sha256(json.dumps([cfg["tests"].get(k) for k in keys]).encode())
     for f in sorted(set(files) | set(changed)):
         path = root / f
         digest.update(f.encode())
@@ -260,7 +287,8 @@ def run(root: Path, cfg: dict, files: list[str], changed: list[str]) -> int:
         if always:
             plan.append((cfg["tests"]["runner"], "{files}", sorted(always), False))
     elif files:
-        plan.append((cfg["tests"]["runner"], "{files}", [f for f in files if f not in always], True))
+        main = [f for f in files if f not in always]
+        plan.append((main_runner(cfg, len(main)), "{files}", main, True))
         if always:
             plan.append((cfg["tests"]["runner"], "{files}", sorted(always), False))
         plan = [entry for entry in plan if entry[2]]
@@ -283,13 +311,13 @@ def run(root: Path, cfg: dict, files: list[str], changed: list[str]) -> int:
         for line in saved["lines"]:
             print(line)
         return 0
-    limit = cfg["tests"].get("related_cmd_chars", CMD_CHARS)
     no_tests = set(cfg["tests"].get("no_tests_exit_codes", []))
     elapsed = 0.0
     code = 0
     with log.open("w", encoding="utf-8") as out:
-        for template, placeholder, items, timed in plan:
-            for argv in chunked_commands(template, placeholder, items, limit):
+        for step, (template, placeholder, items, timed) in enumerate(plan):
+            list_file = log_dir / f"related.files{suffix}-{step}.txt"
+            for argv in runner_commands(root, cfg, template, placeholder, items, list_file):
                 argv[0] = shutil.which(argv[0]) or argv[0]
                 started = time.monotonic()
                 returned = subprocess.run(argv, shell=False, cwd=root, stdout=out, stderr=subprocess.STDOUT, check=False).returncode  # noqa: S603

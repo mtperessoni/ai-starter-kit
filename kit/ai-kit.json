@@ -100,6 +100,9 @@
   },
   "tests": {
     "runner": "<runs the given test files offline without coverage, for example: uv run pytest {files} --no-cov -q>",
+    "parallel_runner": "",
+    "parallel_from": 40,
+    "runner_args_file": false,
     "native_related": "",
     "failure_regex": "^(?:FAILED|ERROR)\\s+(\\S+)",
     "summary_regex": "",

@@ -279,6 +279,64 @@ class CacheTest(RelatedSpeedBase):
         self.assertIn("1 failed", r2.stdout, r1.stdout)
 
 
+class ParallelRunnerTest(RelatedSpeedBase):
+    """tests.parallel_runner runs a selection of tests.parallel_from files or more; a small one stays serial."""
+
+    def runners(self, **tests) -> None:
+        (self.p.root / "serial.py").write_text("open('used.txt','a').write('serial ')\nprint('1 passed')\n", encoding="utf-8")
+        (self.p.root / "par.py").write_text("open('used.txt','a').write('parallel ')\nprint('1 passed')\n", encoding="utf-8")
+        self.configure(runner=f'"{PY}" serial.py {{files}}', parallel_runner=f'"{PY}" par.py {{files}}', **tests)
+
+    def importers(self, n: int, folder: str = "src/features/orders/tests") -> None:
+        for i in range(n):
+            write(self.p.root, f"{folder}/test_user{i}.py", "from features.orders.order_service import create_order\n")
+
+    def test_a_large_selection_runs_with_the_parallel_runner(self) -> None:
+        self.runners(parallel_from=3)
+        self.importers(4)
+        r = self.related("src/features/orders/order_service.py", "--run")
+        self.assertIn("exit 0", r.stdout, r.stdout + r.stderr)
+        self.assertEqual((self.p.root / "used.txt").read_text(encoding="utf-8").split(), ["parallel"])
+
+    def test_a_small_selection_stays_serial(self) -> None:
+        self.runners(parallel_from=50)
+        r = self.related("src/features/orders/order_service.py", "--run")
+        self.assertIn("exit 0", r.stdout, r.stdout + r.stderr)
+        self.assertEqual((self.p.root / "used.txt").read_text(encoding="utf-8").split(), ["serial"])
+
+    def test_over_the_cap_with_a_parallel_runner_keeps_every_importer(self) -> None:
+        self.runners(parallel_from=3, related_max_files=3)
+        self.importers(5)
+        write(self.p.root, "tests/test_outside.py", "from features.orders.order_service import create_order\n")
+        r = self.related("src/features/orders/order_service.py")
+        out = r.stdout.split()
+        self.assertIn("tests/test_outside.py", out)
+        self.assertIn("src/features/orders/tests/test_user4.py", out)
+        self.assertNotIn("src/features/billing/tests/test_invoice.py", out)
+        self.assertNotIn("owning test folder", r.stderr + r.stdout)
+        self.assertIn("in parallel", r.stderr + r.stdout)
+
+
+class RunnerArgsFileTest(RelatedSpeedBase):
+    """tests.runner_args_file hands the whole selection to one runner call as @file (pytest 8.2 and later)."""
+
+    def test_the_selection_goes_in_one_call_through_an_at_file(self) -> None:
+        (self.p.root / "args.py").write_text(
+            "import sys\nopen('calls.txt','a').write(' '.join(sys.argv[1:])+'\\n')\nprint('1 passed')\n", encoding="utf-8"
+        )
+        self.configure(runner=f'"{PY}" args.py {{files}}', runner_args_file=True, related_cmd_chars=50, related_max_files=10000)
+        for i in range(40):
+            write(self.p.root, f"src/features/orders/tests/test_long_name_number_{i}.py", "from features.orders.order_service import create_order\n")
+        r = self.related("src/features/orders/order_service.py", "--run")
+        self.assertIn("exit 0", r.stdout, r.stdout + r.stderr)
+        calls = (self.p.root / "calls.txt").read_text(encoding="utf-8").splitlines()
+        self.assertEqual(len(calls), 1, calls)
+        self.assertTrue(calls[0].startswith("@"), calls)
+        listed = (self.p.root / calls[0][1:]).read_text(encoding="utf-8").split()
+        self.assertEqual(len(listed), 41)
+        self.assertIn("src/features/orders/tests/test_long_name_number_39.py", listed)
+
+
 class EmptyChunkTest(RelatedSpeedBase):
     """A chunk that collects nothing (pytest exits 5) is not a red run when the stack names that code."""
 
