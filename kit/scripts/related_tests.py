@@ -23,7 +23,9 @@ import subprocess
 import sys
 import time
 import xml.etree.ElementTree as ET
+from collections.abc import Iterator
 from pathlib import Path
+from typing import NamedTuple
 
 from kit_config import BaseError, is_test, listed_files, load, matches, rel, repo_root, resolve_base, stem, test_files
 
@@ -35,6 +37,8 @@ MAX_FILES = 60
 PARALLEL_FROM = 40
 CMD_CHARS = 7000
 NO_BARE_STEM = {"__init__", "index"}
+FROM_IMPORT = re.compile(r"\s*from\s+\.*([\w.]*)\s+import\s+(.+)")
+TOKEN = re.compile(r"[\w.]+")
 
 
 def git_lines(root: Path, *args: str) -> list[str]:
@@ -112,6 +116,55 @@ def imports_module(text: str, module: Path, root: Path, packages: frozenset[str]
     return False
 
 
+class ImportIndex(NamedTuple):
+    keys: frozenset
+    lines: str
+    text: str
+
+
+def dotted_runs(token: str) -> Iterator[list[str]]:
+    run: list[str] = []
+    for segment in token.split("."):
+        if segment:
+            run.append(segment)
+        elif run:
+            yield run
+            run = []
+    if run:
+        yield run
+
+
+def import_index_of(text: str, keep_text: bool) -> ImportIndex:
+    """The import lines of a test with every contiguous dotted run of their tokens, plus ("from", module, name) per imported name."""
+    lines = [line for line in text.splitlines() if IMPORT_LINE.search(line)]
+    keys: set = set()
+    for line in lines:
+        for token in TOKEN.findall(line):
+            for run in dotted_runs(token):
+                keys.update(".".join(run[i:j]) for i in range(len(run)) for j in range(i + 1, len(run) + 1))
+        m = FROM_IMPORT.match(line)
+        if m and m.group(1):
+            keys.update(("from", m.group(1), word) for word in re.findall(r"\w+", m.group(2)))
+    return ImportIndex(frozenset(keys), "\n".join(lines), text if keep_text else "")
+
+
+def index_imports_module(entry: ImportIndex, module: Path, root: Path, packages: frozenset[str]) -> bool:
+    """imports_module over the index: the same answer for a Python module, the line scan for any other language."""
+    parts = rel(module, root).rsplit(".", 1)[0].split("/")
+    if module.suffix != ".py":
+        return imports_module(entry.lines, module, root, packages)
+    if stem(module) == "__init__":
+        return False
+    forms = dotted_forms(parts)
+    if not all(TOKEN.fullmatch(form) for form in forms):
+        return imports_module(entry.lines, module, root, packages)
+    if not forms.isdisjoint(entry.keys):
+        return True
+    parent = parts[:-1]
+    heads = {".".join(parent[i:]) for i in range(len(parent))}
+    return any(("from", head, stem(module)) in entry.keys for head in heads)
+
+
 def names_symbol(text: str, module: Path, cfg: dict) -> bool:
     exempt = {n.lower() for n in cfg["unique_name_exempt"]}
     forms = [f for f in symbol_forms(module) if f.lower() not in exempt]
@@ -147,14 +200,14 @@ def related(root: Path, cfg: dict, changed: list[str]) -> list[str]:
             picked.add(f)
         else:
             modules.append(p)
-    contents = {t: t.read_text(encoding="utf-8", errors="replace") for t in tests}
+    index = {t: import_index_of(t.read_text(encoding="utf-8", errors="replace"), match_symbol) for t in tests} if modules else {}
     for module in modules:
         names = mirror_names(module, cfg)
         for t in tests:
-            text = contents[t]
-            if test_name(t) in names or stem(t) in names or imports_module(text, module, root, packages):
+            entry = index[t]
+            if test_name(t) in names or stem(t) in names or index_imports_module(entry, module, root, packages):
                 picked.add(rel(t, root))
-            elif match_symbol and names_symbol(text, module, cfg):
+            elif match_symbol and names_symbol(entry.text, module, cfg):
                 picked.add(rel(t, root))
     folders = {owning_test_folder(m, root, test_rels) for m in modules} - {""}
     if len(picked) > cap and cfg["tests"].get("parallel_runner"):
