@@ -17,7 +17,10 @@ usage() {
     cat >&2 <<'USAGE'
 usage: scripts/gates.sh <target> [args]
 
-  related [files]  the tests related to the change (mirror + importers); no ratchet, no probe
+  related [--with-always] [files]
+                   the tests related to the change (mirror + importers); no ratchet, no probe, no tests.always (verify adds
+                   them with --with-always); no files: the uncommitted and untracked files; a selection over half of the
+                   test files runs the whole suite instead
   one <file>       one test file, offline, no coverage threshold, no probe (the test runner called directly is faster still)
   offline          the whole unit tier with NO network and NO database: once, at the end
   integration      the integration tier (needs Docker): guards first; on exit, even a failed or
@@ -71,7 +74,8 @@ usage: scripts/gates.sh <target> [args]
   contracts        schema and API snapshots (ai-kit.json "contracts") still match the code
 
 The interpreter is resolved once: GATES_PYTHON, then commands.python in ai-kit.json, then python3 and python on PATH;
-the Windows Store stub is rejected.
+the Windows Store stub is rejected. {python} in commands.test and in the tests.runner templates is that interpreter
+(a venv python starts faster than uv run).
 With scripts/gates.project.sh present, any other target, and every target in ai-kit.json
 commands.project_targets, runs there with its arguments.
 USAGE
@@ -137,6 +141,7 @@ load_config() {
         *) printf -v "CFG_${key//./_}" '%s' "${line#*=}" ;;
         esac
     done < <("$PY" scripts/config_get.py --many $keys)
+    CFG_commands_test="${CFG_commands_test//\{python\}/$(printf '%q' "$PY")}"
     CFG_TEST="$CFG_commands_test" CFG_OFFLINE_ARGS="$CFG_commands_offline_args" CFG_FAST="$CFG_tests_fast_flags"
     CFG_UNSET="$CFG_commands_offline_unset" CFG_FLAG="$CFG_commands_offline_flag"
 }
@@ -268,12 +273,14 @@ case "$target" in
 related)
     args_file="$LOG_DIR/related.args"
     : > "$args_file"
-    for file in "$@"; do printf '%s\n' "$file" >> "$args_file"; done
-    related_help="$("$PY" scripts/related_tests.py --help 2>&1 || true)"
-    case "$related_help" in
-    *--args-file*) offline related "$PY" scripts/related_tests.py --args-file "$args_file" --run ;;
-    *) offline related "$PY" scripts/related_tests.py "$@" --run ;;
-    esac
+    related_flags=()
+    for file in "$@"; do
+        case "$file" in
+        --with-always) related_flags+=("$file") ;;
+        *) printf '%s\n' "$file" >> "$args_file" ;;
+        esac
+    done
+    offline related "$PY" scripts/related_tests.py --args-file "$args_file" --run ${related_flags[@]+"${related_flags[@]}"}
     ;;
 one)
     offline_sh one "$(cmd test) $(cmd offline_args) $(cmd no_coverage_args)" "$@"

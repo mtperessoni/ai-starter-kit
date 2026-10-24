@@ -28,7 +28,7 @@ class VerifyTest(GatesBase):
         self.assertIn("changed file(s) since HEAD", r.stdout, r.stdout + r.stderr)
         self.assertTrue(self.stamp.is_file())
         self.assertTrue(self.state("demo", "verify.log").is_file())
-        self.assertIn("gates.sh related", self.state("demo", "verify.log").read_text(encoding="utf-8"))
+        self.assertIn("gates.sh related --with-always", self.state("demo", "verify.log").read_text(encoding="utf-8"))
 
     def test_a_rerun_with_nothing_changed_reruns_only_what_failed(self) -> None:
         write(self.p.root, "src/a.py", "x = 1\n")

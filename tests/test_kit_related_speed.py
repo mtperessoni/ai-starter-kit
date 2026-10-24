@@ -1,6 +1,7 @@
 """W1.2 to W1.5: the related-tests finder is precise, capped, chunked, extensible and cached."""
 
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -75,7 +76,7 @@ class TopLevelTestsCapTest(RelatedSpeedBase):
         for i in range(5):
             write(self.p.root, f"tests/test_user{i}.py", "from lib.widget import x\n")
         self.configure(related_max_files=3, always=["tests/test_architecture.py"])
-        r = self.related("lib/widget.py")
+        r = self.related("lib/widget.py", "--with-always")
         out = r.stdout.split()
         self.assertIn("tests/test_widget.py", out)
         self.assertIn("tests/test_architecture.py", out)
@@ -105,7 +106,7 @@ class NativeAlwaysTest(RelatedSpeedBase):
             runner=f'"{PY}" plain.py {{files}}',
             always=["tests/test_architecture.py"],
         )
-        r = self.related("src/features/orders/order_service.py", "--run")
+        r = self.related("src/features/orders/order_service.py", "--run", "--with-always")
         self.assertIn("exit 0", r.stdout, r.stdout + r.stderr)
         self.assertEqual((self.p.root / "native.txt").read_text(encoding="utf-8"), "n")
         self.assertIn("tests/test_architecture.py", (self.p.root / "plain.txt").read_text(encoding="utf-8"))
@@ -149,7 +150,7 @@ class ExcludeTest(RelatedSpeedBase):
     def test_related_exclude_also_drops_always_entries(self) -> None:
         write(self.p.root, "tests/integration/test_arch.py", "x = 1\n")
         self.configure(always=["tests/integration/test_arch.py"], related_exclude=["tests/integration/**"])
-        self.assertNotIn("tests/integration/test_arch.py", self.related("src/features/orders/order_service.py").stdout.split())
+        self.assertNotIn("tests/integration/test_arch.py", self.related("src/features/orders/order_service.py", "--with-always").stdout.split())
 
     def test_the_default_config_excludes_nothing(self) -> None:
         config = json.loads((KIT / "ai-kit.json").read_text(encoding="utf-8"))
@@ -163,7 +164,7 @@ class BudgetTest(RelatedSpeedBase):
             "import sys,time\nif any('test_architecture' in a for a in sys.argv):\n    time.sleep(2)\nprint('1 passed')\n", encoding="utf-8"
         )
         self.configure(runner=f'"{PY}" slow.py {{files}}', always=["tests/test_architecture.py"], related_budget_seconds=1)
-        r = self.related("src/features/orders/order_service.py", "--run")
+        r = self.related("src/features/orders/order_service.py", "--run", "--with-always")
         self.assertIn("exit 0", r.stdout, r.stdout + r.stderr)
         self.assertNotIn("over the budget", r.stdout)
 
@@ -229,8 +230,68 @@ class AlwaysTest(RelatedSpeedBase):
     def test_tests_always_is_appended(self) -> None:
         write(self.p.root, "tests/test_architecture.py", "x = 1\n")
         self.configure(always=["tests/test_architecture.py"])
-        r = self.related("src/features/orders/order_service.py")
+        r = self.related("src/features/orders/order_service.py", "--with-always")
         self.assertIn("tests/test_architecture.py", r.stdout.split())
+
+    def test_tests_always_is_left_out_without_the_flag(self) -> None:
+        write(self.p.root, "tests/test_architecture.py", "x = 1\n")
+        self.configure(always=["tests/test_architecture.py"])
+        r = self.related("src/features/orders/order_service.py")
+        self.assertNotIn("tests/test_architecture.py", r.stdout.split())
+
+
+class ChangeAndSuiteTest(RelatedSpeedBase):
+    def git(self, *args: str) -> None:
+        subprocess.run(["git", *args], cwd=self.p.root, check=True, capture_output=True)
+
+    def test_no_files_means_uncommitted_and_untracked_only(self) -> None:
+        self.git("checkout", "-q", "-b", "work")
+        write(self.p.root, "src/features/orders/order_service.py", '"""ORD-01."""\nx = 2\n')
+        self.git("commit", "-qam", "committed change")
+        write(self.p.root, "src/features/billing/invoice.py", '"""BIL-01."""\nx = 3\n')
+        out = self.related().stdout.split()
+        self.assertIn("src/features/billing/tests/test_invoice.py", out)
+        self.assertNotIn("src/features/orders/tests/test_order_service.py", out)
+        since_base = self.related("--base", "main").stdout.split()
+        self.assertIn("src/features/orders/tests/test_order_service.py", since_base)
+
+    def echo_runner(self) -> None:
+        (self.p.root / "echo.py").write_text(
+            "import sys\nopen('seen.txt','w').write('\\n'.join(sys.argv[1:]))\nprint('1 passed')\n", encoding="utf-8"
+        )
+        self.configure(runner=f'"{PY}" echo.py {{files}}', related_max_files=10000)
+
+    def test_a_selection_over_half_of_the_tests_runs_the_whole_suite(self) -> None:
+        for i in range(3):
+            write(self.p.root, f"tests/test_extra{i}.py", "from features.orders.order_service import create_order\n")
+        self.echo_runner()
+        r = self.related("src/features/orders/order_service.py", "--run")
+        self.assertIn("whole suite", r.stdout + r.stderr)
+        self.assertIn("src/features/billing/tests/test_invoice.py", (self.p.root / "seen.txt").read_text(encoding="utf-8").split())
+
+    def test_a_small_selection_keeps_to_its_files(self) -> None:
+        for i in range(6):
+            write(self.p.root, f"tests/test_extra{i}.py", "x = 1\n")
+        self.echo_runner()
+        r = self.related("src/features/orders/order_service.py", "--run")
+        self.assertNotIn("whole suite", r.stdout + r.stderr)
+        self.assertNotIn("tests/test_extra5.py", (self.p.root / "seen.txt").read_text(encoding="utf-8").split())
+
+
+class PythonPlaceholderTest(RelatedSpeedBase):
+    def test_python_in_a_runner_is_the_running_interpreter(self) -> None:
+        (self.p.root / "echo.py").write_text("open('ran.txt','w').write('ok')\nprint('1 passed')\n", encoding="utf-8")
+        self.configure(runner="{python} echo.py {files}")
+        r = self.related("src/features/orders/order_service.py", "--run")
+        self.assertIn("exit 0", r.stdout, r.stdout + r.stderr)
+        self.assertTrue((self.p.root / "ran.txt").is_file())
+
+    def test_a_runner_without_the_placeholder_is_unchanged(self) -> None:
+        (self.p.root / "echo.py").write_text("open('ran.txt','w').write('ok')\nprint('1 passed')\n", encoding="utf-8")
+        self.configure(runner=f'"{PY}" echo.py {{files}}')
+        r = self.related("src/features/orders/order_service.py", "--run")
+        self.assertIn("exit 0", r.stdout, r.stdout + r.stderr)
+        self.assertTrue((self.p.root / "ran.txt").is_file())
 
 
 class RunnerTest(RelatedSpeedBase):
@@ -249,7 +310,7 @@ class RunnerTest(RelatedSpeedBase):
         self.assertIn("exit 0", r.stdout, r.stdout + r.stderr)
         calls = (self.p.root / "calls.txt").read_text(encoding="utf-8").split()
         self.assertGreater(len(calls), 1)
-        self.assertEqual(sum(int(c) for c in calls), 41)
+        self.assertEqual(sum(int(c) for c in calls), 42)
 
     def test_shell_metacharacters_in_a_name_are_not_interpreted(self) -> None:
         self.argv_runner()
@@ -333,7 +394,7 @@ class RunnerArgsFileTest(RelatedSpeedBase):
         self.assertEqual(len(calls), 1, calls)
         self.assertTrue(calls[0].startswith("@"), calls)
         listed = (self.p.root / calls[0][1:]).read_text(encoding="utf-8").split()
-        self.assertEqual(len(listed), 41)
+        self.assertEqual(len(listed), 42)
         self.assertIn("src/features/orders/tests/test_long_name_number_39.py", listed)
 
 
