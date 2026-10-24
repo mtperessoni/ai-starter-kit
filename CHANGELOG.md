@@ -2,6 +2,16 @@
 
 User-visible changes to the kit, newest first. Projects receive them through `/ai-kit update`.
 
+## Faster related tests
+
+Measured in a consumer (16 cores, Windows): `related` cost 22 to 27 s for 1 to 7 changed files and 141 s for a 317-file branch, while the whole suite took 66 s; the selection scan alone took up to 72 s.
+
+- `related_tests.py` builds one import index per call (each test file read once, only its import lines kept) instead of scanning every test for every changed module: 54 to 72 s down to 2.9 s on a 317-file change, with the same selection (a test keeps the old algorithm as its reference).
+- `gates.sh related` calls `related_tests.py` directly (no `--help` probe) and leaves `tests.always` out; `verify` passes `--with-always`, so the structure guards run once at the slice closing. New flag `--with-always` on `related_tests.py`.
+- `related` with no files covers the uncommitted and untracked files only (`--base REF` keeps the merge-base scope). A selection over half of the test files runs the whole suite instead and says so.
+- Runner templates accept `{python}` (`tests.runner`, `tests.parallel_runner`, `commands.test`): the interpreter `gates.sh python` resolves. `stacks/python.md` defaults to `{python} -m pytest` (`one` on a small file: 2.0 s against 3.3 s with `uv run`). Templates without it work as before; an installed project adopts it by editing its `ai-kit.json`.
+- `AGENTS.md` template, test step: iterate on the one test file being edited, `related` once at the slice closing, the whole suite once per delivery, files read with Read and Grep (0.3 s a call against 2.4 s through the shell).
+
 ## Faster runs
 
 The test wrapper added delay to every agent test run: measured in a consumer on a 5-test file (0.05 s per test), the runner alone took 1.8 s and `gates.sh one` 3.4 s; a new worktree cost 30 to 110 s before its first useful test. Rules: TS55, TS56, SA67, WF84.
