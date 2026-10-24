@@ -213,9 +213,15 @@ def make_tree_dir(root: Path) -> Path:
     return Path(tempfile.mkdtemp(prefix="baseline-", dir=base))
 
 
+def suite_command(commands: dict, tests: dict) -> str:
+    """commands.test with {python} as the interpreter gates.sh resolved (the one running this script), then the offline args and fast flags."""
+    test = str(commands["test"]).replace("{python}", f'"{Path(sys.executable).as_posix()}"')
+    return " ".join(filter(None, [test, str(commands.get("offline_args", "")), fast_flags(tests)]))
+
+
 def run_suite(root: Path, config: dict, commit: str, work: Path) -> tuple[int, bool]:
     commands, tests = config["commands"], config.get("tests", {})
-    command = " ".join(filter(None, [str(commands["test"]), str(commands.get("offline_args", "")), fast_flags(tests)]))
+    command = suite_command(commands, tests)
     if tests.get("baseline_deselect") and "baseline_deselect_flag" not in tests and NODE_RUNNER.search(command):
         raise SetupError("tests.baseline_deselect is set but tests.baseline_deselect_flag is not: --deselect is pytest only")
     command += " " + deselect_args(tests) if tests.get("baseline_deselect") else ""
@@ -284,7 +290,7 @@ def execute(args: argparse.Namespace, root: Path, target: Path) -> int:
         return 2
     config = load(root)
     tests, commands = config.get("tests", {}), config["commands"]
-    command = f"{commands['test']} {commands.get('offline_args', '')} {fast_flags(tests)}"
+    command = suite_command(commands, tests)
     base =root / ".claude" / "prd-flow" / "state" / "_baseline"
     cache = base / cache_key(root, commit, command, list(tests.get("baseline_deselect", [])))
     ready = cache / "done"

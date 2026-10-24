@@ -26,6 +26,11 @@ class RelatedSpeedBase(unittest.TestCase):
     def related(self, *args: str):
         return self.p.py("scripts/related_tests.py", *args)
 
+    def unrelated_tests(self, n: int) -> None:
+        """Test files no change selects, so a selection stays under half of the suite and keeps its own runner call."""
+        for i in range(n):
+            write(self.p.root, f"tests/unrelated/test_other_{i}.py", "x = 1\n")
+
 
 class ImportPrecisionTest(RelatedSpeedBase):
     def test_a_stem_that_is_also_a_package_name_does_not_match_every_import(self) -> None:
@@ -267,7 +272,7 @@ class ChangeAndSuiteTest(RelatedSpeedBase):
         self.echo_runner()
         r = self.related("src/features/orders/order_service.py", "--run")
         self.assertIn("whole suite", r.stdout + r.stderr)
-        self.assertIn("src/features/billing/tests/test_invoice.py", (self.p.root / "seen.txt").read_text(encoding="utf-8").split())
+        self.assertEqual((self.p.root / "seen.txt").read_text(encoding="utf-8").split(), [], "the runner collects the suite itself")
 
     def test_a_small_selection_keeps_to_its_files(self) -> None:
         for i in range(6):
@@ -306,11 +311,12 @@ class RunnerTest(RelatedSpeedBase):
         self.argv_runner()
         for i in range(40):
             write(self.p.root, f"src/features/orders/tests/test_long_name_number_{i}.py", "from features.orders.order_service import create_order\n")
+        self.unrelated_tests(60)
         r = self.related("src/features/orders/order_service.py", "--run")
         self.assertIn("exit 0", r.stdout, r.stdout + r.stderr)
         calls = (self.p.root / "calls.txt").read_text(encoding="utf-8").split()
         self.assertGreater(len(calls), 1)
-        self.assertEqual(sum(int(c) for c in calls), 42)
+        self.assertEqual(sum(int(c) for c in calls), 41)
 
     def test_shell_metacharacters_in_a_name_are_not_interpreted(self) -> None:
         self.argv_runner()
@@ -388,13 +394,14 @@ class RunnerArgsFileTest(RelatedSpeedBase):
         self.configure(runner=f'"{PY}" args.py {{files}}', runner_args_file=True, related_cmd_chars=50, related_max_files=10000)
         for i in range(40):
             write(self.p.root, f"src/features/orders/tests/test_long_name_number_{i}.py", "from features.orders.order_service import create_order\n")
+        self.unrelated_tests(60)
         r = self.related("src/features/orders/order_service.py", "--run")
         self.assertIn("exit 0", r.stdout, r.stdout + r.stderr)
         calls = (self.p.root / "calls.txt").read_text(encoding="utf-8").splitlines()
         self.assertEqual(len(calls), 1, calls)
         self.assertTrue(calls[0].startswith("@"), calls)
         listed = (self.p.root / calls[0][1:]).read_text(encoding="utf-8").split()
-        self.assertEqual(len(listed), 42)
+        self.assertEqual(len(listed), 41)
         self.assertIn("src/features/orders/tests/test_long_name_number_39.py", listed)
 
 
@@ -403,6 +410,7 @@ class EmptyChunkTest(RelatedSpeedBase):
 
     def _runner(self, **tests) -> None:
         write(self.p.root, "src/features/orders/tests/test_empty_chunk.py", "from features.orders.order_service import create_order\n")
+        self.unrelated_tests(6)
         (self.p.root / "empty.py").write_text(
             "import sys\nif any('test_empty_chunk' in a for a in sys.argv):\n    print('no tests ran')\n    sys.exit(5)\nprint('1 passed')\n",
             encoding="utf-8",

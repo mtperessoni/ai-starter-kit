@@ -316,7 +316,7 @@ def main_runner(cfg: dict, count: int) -> str:
 
 def runner_commands(root: Path, cfg: dict, template: str, placeholder: str, items: list[str], list_file: Path) -> list[list[str]]:
     """With tests.runner_args_file the selection goes to one call as @file (pytest 8.2 and later), else chunked argv."""
-    if placeholder == "{files}" and cfg["tests"].get("runner_args_file") and placeholder in template:
+    if placeholder == "{files}" and items and cfg["tests"].get("runner_args_file") and placeholder in template:
         list_file.write_text("\n".join(items) + "\n", encoding="utf-8")
         return chunked_commands(template, placeholder, ["@" + rel(list_file, root)], 10**9)
     return chunked_commands(template, placeholder, items, cfg["tests"].get("related_cmd_chars", CMD_CHARS))
@@ -332,15 +332,15 @@ def selection_key(root: Path, cfg: dict, files: list[str], changed: list[str]) -
     return digest.hexdigest()
 
 
-def whole_suite_over_half(root: Path, cfg: dict, files: list[str], always: set[str]) -> list[str]:
-    """Every test file when the selection holds more than half of them (the selection then saves nothing); else []."""
-    every = sorted(rel(t, root) for t in test_files(root, cfg))
+def whole_suite_over_half(root: Path, cfg: dict, files: list[str], always: set[str]) -> bool:
+    """True when the selection holds more than half of the test files: the runner then collects its configured suite itself,
+    with no file list, so its own testpaths, markers and ignores decide what runs (a listed file would bypass them)."""
+    every = test_files(root, cfg)
     chosen = [f for f in files if f not in always]
     if not every or len(chosen) <= WHOLE_SUITE_SHARE * len(every):
-        return []
+        return False
     print(f"related: {len(chosen)} of {len(every)} test files selected, over half: running the whole suite instead")
-    exclude = cfg["tests"].get("related_exclude", [])
-    return sorted({f for f in every if not matches(f, exclude)} | set(files))
+    return True
 
 
 def run(root: Path, cfg: dict, files: list[str], changed: list[str]) -> int:
@@ -351,11 +351,11 @@ def run(root: Path, cfg: dict, files: list[str], changed: list[str]) -> int:
         print("related: no related tests")
         return 0
     always = always_files(root, cfg) & set(files)
-    if not native:
-        files = whole_suite_over_half(root, cfg, files, always) or files
-        always = always_files(root, cfg) & set(files)
+    whole = not native and whole_suite_over_half(root, cfg, files, always)
     plan = []
-    if native:
+    if whole:
+        plan.append((cfg["tests"].get("parallel_runner") or cfg["tests"]["runner"], "{files}", [], True))
+    elif native:
         plan.append((native, "{changed}", changed, True))
         if always:
             plan.append((cfg["tests"]["runner"], "{files}", sorted(always), False))
