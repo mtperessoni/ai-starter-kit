@@ -1,8 +1,10 @@
 """Related tests of a change: the mirror test of each changed module and the tests that use it.
 
-Usage: python scripts/related_tests.py [files...] [--base REF] [--run]
-Without files, the change is: committed since the merge-base with REF (default origin/main), plus
-uncommitted and untracked files. --run executes them with tests.runner from ai-kit.json (or
+Usage: python scripts/related_tests.py [files...] [--base REF] [--run] [--with-always]
+Without files, the change is the uncommitted and untracked files; with --base REF it also holds everything committed
+since the merge-base with REF. tests.always files join the selection only with --with-always (the slice closing,
+gates.sh verify). A selection over half of all test files runs the whole suite instead. {python} in a runner
+template is the interpreter running this script. --run executes them with tests.runner from ai-kit.json (or
 tests.native_related when set), writes the log to tests.log_dir and prints only failures, the summary,
 the wall time against tests.related_budget_seconds (TS37) and, with tests.junit_xml, the slowest tests.
 A selection of tests.parallel_from files or more runs with tests.parallel_runner when set, and so does a selection
@@ -23,7 +25,9 @@ import subprocess
 import sys
 import time
 import xml.etree.ElementTree as ET
+from collections.abc import Iterator
 from pathlib import Path
+from typing import NamedTuple
 
 from kit_config import BaseError, is_test, listed_files, load, matches, rel, repo_root, resolve_base, stem, test_files
 
@@ -35,6 +39,9 @@ MAX_FILES = 60
 PARALLEL_FROM = 40
 CMD_CHARS = 7000
 NO_BARE_STEM = {"__init__", "index"}
+WHOLE_SUITE_SHARE = 0.5
+FROM_IMPORT = re.compile(r"\s*from\s+\.*([\w.]*)\s+import\s+(.+)")
+TOKEN = re.compile(r"[\w.]+")
 
 
 def git_lines(root: Path, *args: str) -> list[str]:
@@ -42,8 +49,9 @@ def git_lines(root: Path, *args: str) -> list[str]:
     return [line for line in out.splitlines() if line.strip()]
 
 
-def changed_files(root: Path, base: str) -> list[str]:
-    merge_base = (git_lines(root, "merge-base", "HEAD", base) or ["HEAD"])[0]
+def changed_files(root: Path, base: str | None) -> list[str]:
+    """Uncommitted and untracked files; with a base, also what is committed since the merge-base."""
+    merge_base = (git_lines(root, "merge-base", "HEAD", base) or ["HEAD"])[0] if base else "HEAD"
     files = set(git_lines(root, "diff", "--name-only", merge_base))
     files |= set(git_lines(root, "ls-files", "--others", "--exclude-standard"))
     return sorted(f for f in files if (root / f).exists())
@@ -112,6 +120,55 @@ def imports_module(text: str, module: Path, root: Path, packages: frozenset[str]
     return False
 
 
+class ImportIndex(NamedTuple):
+    keys: frozenset
+    lines: str
+    text: str
+
+
+def dotted_runs(token: str) -> Iterator[list[str]]:
+    run: list[str] = []
+    for segment in token.split("."):
+        if segment:
+            run.append(segment)
+        elif run:
+            yield run
+            run = []
+    if run:
+        yield run
+
+
+def import_index_of(text: str, keep_text: bool) -> ImportIndex:
+    """The import lines of a test with every contiguous dotted run of their tokens, plus ("from", module, name) per imported name."""
+    lines = [line for line in text.splitlines() if IMPORT_LINE.search(line)]
+    keys: set = set()
+    for line in lines:
+        for token in TOKEN.findall(line):
+            for run in dotted_runs(token):
+                keys.update(".".join(run[i:j]) for i in range(len(run)) for j in range(i + 1, len(run) + 1))
+        m = FROM_IMPORT.match(line)
+        if m and m.group(1):
+            keys.update(("from", m.group(1), word) for word in re.findall(r"\w+", m.group(2)))
+    return ImportIndex(frozenset(keys), "\n".join(lines), text if keep_text else "")
+
+
+def index_imports_module(entry: ImportIndex, module: Path, root: Path, packages: frozenset[str]) -> bool:
+    """imports_module over the index: the same answer for a Python module, the line scan for any other language."""
+    parts = rel(module, root).rsplit(".", 1)[0].split("/")
+    if module.suffix != ".py":
+        return imports_module(entry.lines, module, root, packages)
+    if stem(module) == "__init__":
+        return False
+    forms = dotted_forms(parts)
+    if not all(TOKEN.fullmatch(form) for form in forms):
+        return imports_module(entry.lines, module, root, packages)
+    if not forms.isdisjoint(entry.keys):
+        return True
+    parent = parts[:-1]
+    heads = {".".join(parent[i:]) for i in range(len(parent))}
+    return any(("from", head, stem(module)) in entry.keys for head in heads)
+
+
 def names_symbol(text: str, module: Path, cfg: dict) -> bool:
     exempt = {n.lower() for n in cfg["unique_name_exempt"]}
     forms = [f for f in symbol_forms(module) if f.lower() not in exempt]
@@ -130,7 +187,7 @@ def owning_test_folder(module: Path, root: Path, test_rels: list[str]) -> str:
     return ""
 
 
-def related(root: Path, cfg: dict, changed: list[str]) -> list[str]:
+def related(root: Path, cfg: dict, changed: list[str], with_always: bool = False) -> list[str]:
     tests = test_files(root, cfg)
     test_rels = [rel(t, root) for t in tests]
     exts = set(cfg["code_extensions"])
@@ -147,14 +204,14 @@ def related(root: Path, cfg: dict, changed: list[str]) -> list[str]:
             picked.add(f)
         else:
             modules.append(p)
-    contents = {t: t.read_text(encoding="utf-8", errors="replace") for t in tests}
+    index = {t: import_index_of(t.read_text(encoding="utf-8", errors="replace"), match_symbol) for t in tests} if modules else {}
     for module in modules:
         names = mirror_names(module, cfg)
         for t in tests:
-            text = contents[t]
-            if test_name(t) in names or stem(t) in names or imports_module(text, module, root, packages):
+            entry = index[t]
+            if test_name(t) in names or stem(t) in names or index_imports_module(entry, module, root, packages):
                 picked.add(rel(t, root))
-            elif match_symbol and names_symbol(text, module, cfg):
+            elif match_symbol and names_symbol(entry.text, module, cfg):
                 picked.add(rel(t, root))
     folders = {owning_test_folder(m, root, test_rels) for m in modules} - {""}
     if len(picked) > cap and cfg["tests"].get("parallel_runner"):
@@ -179,7 +236,8 @@ def related(root: Path, cfg: dict, changed: list[str]) -> list[str]:
         )
         mirrors = {rel(t, root) for t in tests if any(test_name(t) in mirror_names(m, cfg) or stem(t) in mirror_names(m, cfg) for m in modules)}
         picked = {f for f in picked if f in changed} | mirrors
-    picked |= always_files(root, cfg)
+    if with_always:
+        picked |= always_files(root, cfg)
     exclude = cfg["tests"].get("related_exclude", [])
     return sorted(f for f in picked if not matches(f, exclude))
 
@@ -223,7 +281,8 @@ def split_command(command: str) -> list[str]:
 
 def chunked_commands(template: str, placeholder: str, items: list[str], limit: int) -> list[list[str]]:
     """The argv lists of a runner template, the items spread so no command line passes `limit` characters (Windows caps at 8,191)."""
-    argv = split_command(template)
+    quoted = f'"{sys.executable}"' if " " in sys.executable else sys.executable
+    argv = split_command(template.replace("{python}", quoted))
     if placeholder not in " ".join(argv):
         return [argv]
     fixed = sum(len(t) + 1 for t in argv if placeholder not in t)
@@ -257,7 +316,7 @@ def main_runner(cfg: dict, count: int) -> str:
 
 def runner_commands(root: Path, cfg: dict, template: str, placeholder: str, items: list[str], list_file: Path) -> list[list[str]]:
     """With tests.runner_args_file the selection goes to one call as @file (pytest 8.2 and later), else chunked argv."""
-    if placeholder == "{files}" and cfg["tests"].get("runner_args_file") and placeholder in template:
+    if placeholder == "{files}" and items and cfg["tests"].get("runner_args_file") and placeholder in template:
         list_file.write_text("\n".join(items) + "\n", encoding="utf-8")
         return chunked_commands(template, placeholder, ["@" + rel(list_file, root)], 10**9)
     return chunked_commands(template, placeholder, items, cfg["tests"].get("related_cmd_chars", CMD_CHARS))
@@ -273,6 +332,17 @@ def selection_key(root: Path, cfg: dict, files: list[str], changed: list[str]) -
     return digest.hexdigest()
 
 
+def whole_suite_over_half(root: Path, cfg: dict, files: list[str], always: set[str]) -> bool:
+    """True when the selection holds more than half of the test files: the runner then collects its configured suite itself,
+    with no file list, so its own testpaths, markers and ignores decide what runs (a listed file would bypass them)."""
+    every = test_files(root, cfg)
+    chosen = [f for f in files if f not in always]
+    if not every or len(chosen) <= WHOLE_SUITE_SHARE * len(every):
+        return False
+    print(f"related: {len(chosen)} of {len(every)} test files selected, over half: running the whole suite instead")
+    return True
+
+
 def run(root: Path, cfg: dict, files: list[str], changed: list[str]) -> int:
     native = cfg["tests"].get("native_related", "")
     exts = set(cfg["code_extensions"])
@@ -281,8 +351,11 @@ def run(root: Path, cfg: dict, files: list[str], changed: list[str]) -> int:
         print("related: no related tests")
         return 0
     always = always_files(root, cfg) & set(files)
+    whole = not native and whole_suite_over_half(root, cfg, files, always)
     plan = []
-    if native:
+    if whole:
+        plan.append((cfg["tests"].get("parallel_runner") or cfg["tests"]["runner"], "{files}", [], True))
+    elif native:
         plan.append((native, "{changed}", changed, True))
         if always:
             plan.append((cfg["tests"]["runner"], "{files}", sorted(always), False))
@@ -351,6 +424,7 @@ def main() -> int:
     parser.add_argument("files", nargs="*")
     parser.add_argument("--base", default=None)
     parser.add_argument("--run", action="store_true")
+    parser.add_argument("--with-always", action="store_true", help="add the tests.always files to the selection")
     parser.add_argument("--args-file", default=None, help="a file with one changed path per line")
     args = parser.parse_args()
     root = repo_root()
@@ -359,13 +433,13 @@ def main() -> int:
     if args.args_file:
         given += [line.strip() for line in Path(args.args_file).read_text(encoding="utf-8").splitlines() if line.strip()]
     try:
-        changed = given or changed_files(root, resolve_base(root, args.base))
+        changed = given or changed_files(root, resolve_base(root, args.base) if args.base else None)
     except BaseError as e:
         print(f"related: ERROR {e}", file=sys.stderr)
         return 2
     for warning in snapshot_warnings(cfg, changed):
         print(warning)
-    files = related(root, cfg, changed)
+    files = related(root, cfg, changed, args.with_always)
     if args.run:
         return run(root, cfg, files, changed)
     for f in files:

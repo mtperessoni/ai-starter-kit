@@ -73,6 +73,39 @@ class FasterGatesTest(GatesBase):
         self.assertFalse(self.marker.exists())
         self.assertEqual(self.resources(), [])
 
+    def spy_calls(self, *args: str) -> list[str]:
+        wrapper = Path(self.tmp.name) / "py_spy2.sh"
+        calls = Path(self.tmp.name) / "py_calls2.txt"
+        calls.write_text("", encoding="utf-8")
+        wrapper.write_text(f'#!/usr/bin/env bash\nprintf "%s\\n" "$*" >> "{calls.as_posix()}"\nexec "{Path(PY).as_posix()}" "$@"\n', encoding="utf-8")
+        wrapper.chmod(wrapper.stat().st_mode | stat.S_IEXEC)
+        self.gates(*args, env={**self.env, "GATES_PYTHON": str(wrapper)})
+        return calls.read_text(encoding="utf-8").splitlines()
+
+    def test_related_makes_no_help_probe_and_one_selector_call(self) -> None:
+        write(self.p.root, "src/features/orders/order_service.py", '"""ORD-01."""\nx = 2\n')
+        calls = self.spy_calls("related", "src/features/orders/order_service.py")
+        self.assertFalse([c for c in calls if "--help" in c], calls)
+        self.assertEqual(len([c for c in calls if "related_tests.py" in c]), 1, calls)
+
+    def test_related_leaves_tests_always_out_unless_asked(self) -> None:
+        write(self.p.root, "tests/test_architecture.py", "x = 1\n")
+        self.configure(tests={"always": ["tests/test_architecture.py"], "runner": f'"{PY}" "{self.runner}" {{files}}'})
+        write(self.p.root, "src/features/orders/order_service.py", '"""ORD-01."""\nx = 2\n')
+        self.gates("related", "src/features/orders/order_service.py")
+        plain = [r["argv"] for r in self.runs()]
+        self.assertFalse(any("tests/test_architecture.py" in a for a in plain), plain)
+        self.gates("related", "--with-always", "src/features/orders/order_service.py")
+        self.assertTrue(any("tests/test_architecture.py" in r["argv"] for r in self.runs()))
+
+    def test_python_in_the_test_command_is_the_resolved_interpreter(self) -> None:
+        self.configure(commands={"test": f'{{python}} "{self.runner}"'})
+        r = self.gates("one", "tests/test_a.py")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(self.runs()[-1]["argv"], ["tests/test_a.py"])
+        r = self.gates("offline", "tests/test_a.py")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
     def test_lint_files_ends_with_the_ratchet(self) -> None:
         self.configure(commands={"lint_file": f'"{PY}" -c "pass"'})
         r = self.gates("lint-files", "a.py")

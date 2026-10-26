@@ -13,19 +13,19 @@
 ## Commands
 | Key | Value |
 |---|---|
-| `commands.test` | `uv run pytest` |
+| `commands.test` | `{python} -m pytest` (`{python}` is the interpreter `gates.sh python` resolves, the project venv: `one` on a small file took 2.0 s against 3.3 s with `uv run pytest`; set `commands.python` to the venv interpreter) |
 | `commands.offline_args` | `--ignore=tests/integration` (the integration tier is not collected at all) |
 | `commands.integration_args` | `tests/integration` |
 | `commands.no_coverage_args` | `--no-cov` (only with pytest-cov) |
 | `commands.lint` | `uv run ruff check . && uv run ruff format --check . && uv run mypy src` |
 | `commands.fix` | `uv run ruff check --fix . && uv run ruff format .` |
 | `commands.import_check` | `uv run python -c "import <entry module>"` with `PYTHONPATH` set as the app runs |
-| `tests.runner` | `uv run pytest {files} --no-cov -q --junitxml=reports/junit.xml` (pytest keeps its cache provider on: `-p no:cacheprovider` is not used) |
+| `tests.runner` | `{python} -m pytest {files} --no-cov -q --junitxml=reports/junit.xml` (pytest keeps its cache provider on: `-p no:cacheprovider` is not used) |
 | `tests.junit_xml` | `reports/junit.xml` (default on) |
 | `tests.native_related` | empty (use `scripts/related_tests.py`) |
 | `tests.failure_regex` | `^(?:FAILED\|ERROR)\s+(\S+)` (pytest's short summary) |
 | `tests.no_tests_exit_codes` | `[5]` (pytest exits 5 when a chunk of `related` collects nothing; without it that chunk turns a green run red) |
-| `tests.parallel_runner` | `uv run pytest {files} --no-cov -q -n auto --junitxml=reports/junit.xml` (pytest-xdist; used from `tests.parallel_from` selected files on and over the cap, so a big change never falls back to a whole folder in one process) |
+| `tests.parallel_runner` | `{python} -m pytest {files} --no-cov -q -n auto --junitxml=reports/junit.xml` (pytest-xdist; used from `tests.parallel_from` selected files on and over the cap, so a big change never falls back to a whole folder in one process) |
 | `tests.parallel_from` | `40` by default; measure it: below the break-even one process is faster, because every worker imports the app and collects the whole selection (a consumer on Windows measured 35 files at 8 s in one process and parallel paying off only near 100 files) |
 | `tests.runner_args_file` | `true` with pytest 8.2 or later: the selection goes to one call as `@file`, one startup instead of one per command-line chunk |
 | `tests.related_exclude` | only the folders that hold no offline test, for example `["tests/integration/**"]`; a folder that mixes offline tests with real-model ones stays in (the marker deselects the real-model ones), or `related` loses coverage |

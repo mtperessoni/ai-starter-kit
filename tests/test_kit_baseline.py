@@ -109,6 +109,12 @@ class BaselineTest(GatesBase):
         self.assertEqual(listing.count("worktree "), 1, listing)
         self.assertTrue(self.state("s1", "baseline-failures.txt").is_file())
 
+    def test_the_python_placeholder_in_the_test_command_runs_the_resolved_interpreter(self) -> None:
+        self.configure(commands={"test": f'{{python}} "{self.runner}"'})
+        r = self.gates("baseline", "s1")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(len(self.runs()), 1, r.stdout + r.stderr)
+
     def test_baseline_records_the_failures_the_close_step_reads(self) -> None:
         r = self.gates("baseline", "s1", env={**self.env, "RUN_FAIL": "old::broken"})
         self.assertIn("baseline failures: 1", r.stdout, r.stdout + r.stderr)
